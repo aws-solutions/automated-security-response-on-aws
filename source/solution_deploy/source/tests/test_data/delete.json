@@ -1,0 +1,16 @@
+{
+    "RequestType": "Delete",
+    "ServiceToken": "arn:aws:lambda:us-east-1:123412341234:function:SO0111-SHARR-CustomAction",
+    "ResponseURL": "https://cloudformation-custom-resource-response-useast1.s3.amazonaws.com/arn%3Aaws%3Acloudformation%3Aus-east-1%3A123412341234%3Astack/SC-123412341234-pp-kvmdqcy6qr6sy/0474a890-bb0b-11ea-91b9-0a87c278b5b5%7Ccis1314playbookCustomActionCBFF83B9%7Cda8e7bb4-9738-4d4a-9185-900c571524aa?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20200630T195809Z&X-Amz-SignedHeaders=host&X-Amz-Expires=7200&X-Amz-Credential=AKIA6L7Q4OWTQNWWOUNT%2F20200630%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=191b56bccfe4527742e735db77110115ef0ec5457c85862a5b09799a8e5a5853",
+    "StackId": "arn:aws:cloudformation:us-east-1:123412341234:stack/SC-123412341234-pp-kvmdqcy6qr6sy/0474a890-bb0b-11ea-91b9-0a87c278b5b5",
+    "RequestId": "da8e7bb4-9738-4d4a-9185-900c571524aa",
+    "LogicalResourceId": "cis1314playbookCustomActionCBFF83B9",
+    "PhysicalResourceId": "SC-123412341234-pp-kvmdqcy6qr6sy-cis1314playbookCustomActionCBFF83B9-QLVR1Q8UK4EQ",
+    "ResourceType": "Custom::ActionTarget",
+    "ResourceProperties": {
+        "ServiceToken": "arn:aws:lambda:us-east-1:123412341234:function:SO0111-SHARR-CustomAction",
+        "Description": "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old",
+        "Id": "CIS1314",
+        "Name": "CIS 1.3 & 1.4"
+    }
+}

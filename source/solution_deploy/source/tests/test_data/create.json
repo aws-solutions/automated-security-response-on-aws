@@ -1,0 +1,15 @@
+{
+    "RequestType": "Create",
+    "ServiceToken": "arn:aws:lambda:us-east-1:123412341234:function:SO0111-SHARR-CustomAction",
+    "ResponseURL": "https://cloudformation-custom-resource-response-useast1.s3.amazonaws.com/arn%3Aaws%3Acloudformation%3Aus-east-1%3A123412341234%3Astack/SC-123412341234-pp-c34bjmvzlmdcm/b5491a10-bb0c-11ea-a4af-0a2f4587a347%7Ccis4142playbookCustomAction868CAE44%7Cd37982ec-89c1-43fb-a44b-303536813794?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20200630T200315Z&X-Amz-SignedHeaders=host&X-Amz-Expires=7199&X-Amz-Credential=AKIA6L7Q4OWTQNWWOUNT%2F20200630%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=5f33453e066cb8023b8995665dcd7ab722f1827b614c3f589ff3bd30e890ae0d",
+    "StackId": "arn:aws:cloudformation:us-east-1:123412341234:stack/SC-123412341234-pp-c34bjmvzlmdcm/b5491a10-bb0c-11ea-a4af-0a2f4587a347",
+    "RequestId": "d37982ec-89c1-43fb-a44b-303536813794",
+    "LogicalResourceId": "cis4142playbookCustomAction868CAE44",
+    "ResourceType": "Custom::ActionTarget",
+    "ResourceProperties": {
+        "ServiceToken": "arn:aws:lambda:us-east-1:123412341234:function:SO0111-SHARR-CustomAction",
+        "Description": "Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389",
+        "Id": "CIS4142",
+        "Name": "CIS 4.1 & 4.2"
+    }
+}

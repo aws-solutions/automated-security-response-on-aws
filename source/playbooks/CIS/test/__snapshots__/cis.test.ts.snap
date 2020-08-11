@@ -1,0 +1,3459 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`default stack 1`] = `
+Object {
+  "Description": "test;",
+  "Parameters": Object {
+    "CIS1314AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.",
+      "Type": "String",
+    },
+    "CIS15111AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.",
+      "Type": "String",
+    },
+    "CIS22AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 2.2 by enabling CloudTrail log file validation.",
+      "Type": "String",
+    },
+    "CIS23AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 2.3 by making CloudTrail log bucket private.",
+      "Type": "String",
+    },
+    "CIS24AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 2.4 by enabling CloudWatch logging for CloudTrail.",
+      "Type": "String",
+    },
+    "CIS26AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 2.6 enabling Access Logging on CloudTrail logs bucket.",
+      "Type": "String",
+    },
+    "CIS28AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 2.8 by enabling customer CMK key rotation.",
+      "Type": "String",
+    },
+    "CIS29AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 2.9 enabling VPC flow logging in all VPCs.",
+      "Type": "String",
+    },
+    "CIS4142AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.",
+      "Type": "String",
+    },
+    "CIS43AutoRemediation": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 4.3 by removing all rules from a default security group.",
+      "Type": "String",
+    },
+  },
+  "Resources": Object {
+    "cis1314playbookAutoEventRuleD451BC6C": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "1.3 Ensure credentials unused for 90 days or greater are disabled",
+                "1.4 Ensure access keys are rotated every 90 days or less",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS1314_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS1314AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis1314playbookeventToPlaybookLambdaFunction3493B773",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis1314playbookCustomActionCBFF83B9": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.",
+        "Id": "CIS1314",
+        "Name": "CIS 1.3 & 1.4",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis1314playbookRoleCEFDF3CF": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS1314_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS1314_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis1314playbookeventToPlaybookEventsRuleCAB736B5": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis1314playbookCustomActionCBFF83B9",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS1314_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis1314playbookeventToPlaybookLambdaFunction3493B773",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis1314playbookeventToPlaybookLambdaFunction3493B773": Object {
+      "DependsOn": Array [
+        "cis1314playbookRoleCEFDF3CF",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis1314.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS1314_lambda",
+        "Handler": "cis1314.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookRoleCEFDF3CF",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis1314playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis1314playbookAutoEventRule6AB2DF2AD9EEE8B5": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookeventToPlaybookLambdaFunction3493B773",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookAutoEventRuleD451BC6C",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis1314playbookeventToPlaybookLambdaFunctionLambdaInvokePermission40EC8F4A": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookeventToPlaybookLambdaFunction3493B773",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookeventToPlaybookEventsRuleCAB736B5",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis1314playbookeventToPlaybookLambdaFunctionServiceRoleE7680B94": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis15111playbookAutoEventRule94A5938C": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "1.5 Ensure IAM password policy requires at least one uppercase letter",
+                "1.6 Ensure IAM password policy requires at least one lowercase letter",
+                "1.7 Ensure IAM password policy requires at least one symbol",
+                "1.8 Ensure IAM password policy requires at least one number",
+                "1.9 Ensure IAM password policy requires minimum password length of 14 or greater",
+                "1.10 Ensure IAM password policy prevents password reuse",
+                "1.11 Ensure IAM password policy expires passwords within 90 days or less",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS15111_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS15111AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis15111playbookCustomAction5EF394C9": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.",
+        "Id": "CIS15111",
+        "Name": "CIS 1.5 - 1.11",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis15111playbookRole8287FC95": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS15111_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS15111_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis15111playbookeventToPlaybookEventsRule01D398BD": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis15111playbookCustomAction5EF394C9",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS15111_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis15111playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis15111playbookAutoEventRule1B4B7278447A8A40": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookAutoEventRule94A5938C",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA": Object {
+      "DependsOn": Array [
+        "cis15111playbookRole8287FC95",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis15111.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS15111_lambda",
+        "Handler": "cis15111.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookRole8287FC95",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis15111playbookeventToPlaybookLambdaFunctionLambdaInvokePermission13200DC3": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookeventToPlaybookEventsRule01D398BD",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis15111playbookeventToPlaybookLambdaFunctionServiceRole5F879AF1": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis22playbookAutoEventRule62C598A4": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.2 by enabling CloudTrail log file validation. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "2.2 Ensure CloudTrail log file validation is enabled",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS22_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS22AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis22playbookCustomAction0C5BAEF5": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 2.2 by enabling CloudTrail log file validation.",
+        "Id": "CIS22",
+        "Name": "CIS 2.2",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis22playbookRole16D3468A": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS22_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS22_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis22playbookeventToPlaybookEventsRule2F3F1416": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.2 by enabling CloudTrail log file validation. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis22playbookCustomAction0C5BAEF5",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS22_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis22playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis22playbookAutoEventRule1E5BC70988469B6C": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookAutoEventRule62C598A4",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2": Object {
+      "DependsOn": Array [
+        "cis22playbookRole16D3468A",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis22.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 2.2 by enabling CloudTrail log file validation.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS22_lambda",
+        "Handler": "cis22.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookRole16D3468A",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis22playbookeventToPlaybookLambdaFunctionLambdaInvokePermission2277A6A7": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookeventToPlaybookEventsRule2F3F1416",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis22playbookeventToPlaybookLambdaFunctionServiceRoleAC407F15": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis23playbookAutoEventRuleAC4EB5D9": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.3 by making CloudTrail log bucket private. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "2.3 Ensure the S3 bucket used to store CloudTrail logs is not publicly accessible",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS23_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS23AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis23playbookeventToPlaybookLambdaFunction73DEC92E",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis23playbookCustomActionB35375D3": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 2.3 by making CloudTrail log bucket private.",
+        "Id": "CIS23",
+        "Name": "CIS 2.3",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis23playbookRoleB531FFE9": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS23_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS23_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis23playbookeventToPlaybookEventsRuleDE547B27": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.3 by making CloudTrail log bucket private. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis23playbookCustomActionB35375D3",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS23_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis23playbookeventToPlaybookLambdaFunction73DEC92E",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis23playbookeventToPlaybookLambdaFunction73DEC92E": Object {
+      "DependsOn": Array [
+        "cis23playbookRoleB531FFE9",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis23.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 2.3 by making CloudTrail log bucket private.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS23_lambda",
+        "Handler": "cis23.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookRoleB531FFE9",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis23playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis23playbookAutoEventRuleD070A2BED41ACADD": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookeventToPlaybookLambdaFunction73DEC92E",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookAutoEventRuleAC4EB5D9",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis23playbookeventToPlaybookLambdaFunctionLambdaInvokePermission93E6949D": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookeventToPlaybookLambdaFunction73DEC92E",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookeventToPlaybookEventsRuleDE547B27",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis23playbookeventToPlaybookLambdaFunctionServiceRoleF0FD817F": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis24playbookAutoEventRule361D75A9": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "2.4 Ensure CloudTrail trails are integrated with CloudWatch Logs",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS24_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS24AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis24playbookeventToPlaybookLambdaFunction194E4CAC",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis24playbookCustomActionE289523D": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail.",
+        "Id": "CIS24",
+        "Name": "CIS 2.4",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis24playbookRoleD9857188": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS24_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS24_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis24playbookeventToPlaybookEventsRule48E6FC7B": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis24playbookCustomActionE289523D",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS24_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis24playbookeventToPlaybookLambdaFunction194E4CAC",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis24playbookeventToPlaybookLambdaFunction194E4CAC": Object {
+      "DependsOn": Array [
+        "cis24playbookRoleD9857188",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis24.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS24_lambda",
+        "Handler": "cis24.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookRoleD9857188",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis24playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis24playbookAutoEventRule6A030455E8D0205A": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookeventToPlaybookLambdaFunction194E4CAC",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookAutoEventRule361D75A9",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis24playbookeventToPlaybookLambdaFunctionLambdaInvokePermissionEE903737": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookeventToPlaybookLambdaFunction194E4CAC",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookeventToPlaybookEventsRule48E6FC7B",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis24playbookeventToPlaybookLambdaFunctionServiceRole0A13FA06": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis26playbookAutoEventRule8A52FD0A": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "2.6 Ensure S3 bucket access logging is enabled on the CloudTrail S3 bucket",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS26_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS26AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis26playbookeventToPlaybookLambdaFunctionC17E7AED",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis26playbookCustomActionE3AE43E1": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket.",
+        "Id": "CIS26",
+        "Name": "CIS 2.6",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis26playbookRole7B3EB79F": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS26_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS26_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis26playbookeventToPlaybookEventsRule2137749F": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis26playbookCustomActionE3AE43E1",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS26_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis26playbookeventToPlaybookLambdaFunctionC17E7AED",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis26playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis26playbookAutoEventRuleDC278F806C63FBE6": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookeventToPlaybookLambdaFunctionC17E7AED",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookAutoEventRule8A52FD0A",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis26playbookeventToPlaybookLambdaFunctionC17E7AED": Object {
+      "DependsOn": Array [
+        "cis26playbookRole7B3EB79F",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis26.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS26_lambda",
+        "Handler": "cis26.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookRole7B3EB79F",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis26playbookeventToPlaybookLambdaFunctionLambdaInvokePermission7F6E9BBD": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookeventToPlaybookLambdaFunctionC17E7AED",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookeventToPlaybookEventsRule2137749F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis26playbookeventToPlaybookLambdaFunctionServiceRoleC9A3C9E2": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis28playbookAutoEventRule5599645E": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.8 by enabling customer CMK key rotation. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "2.8 Ensure rotation for customer created CMKs is enabled",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS28_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS28AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis28playbookeventToPlaybookLambdaFunction32C5EF33",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis28playbookCustomAction270E8629": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 2.8 by enabling customer CMK key rotation.",
+        "Id": "CIS28",
+        "Name": "CIS 2.8",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis28playbookRole8E88DB57": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS28_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS28_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis28playbookeventToPlaybookEventsRuleBE9FE99A": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.8 by enabling customer CMK key rotation. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis28playbookCustomAction270E8629",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS28_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis28playbookeventToPlaybookLambdaFunction32C5EF33",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis28playbookeventToPlaybookLambdaFunction32C5EF33": Object {
+      "DependsOn": Array [
+        "cis28playbookRole8E88DB57",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis28.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 2.8 by enabling customer CMK key rotation.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS28_lambda",
+        "Handler": "cis28.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookRole8E88DB57",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis28playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis28playbookAutoEventRule2CDFB035A9A6BB92": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookeventToPlaybookLambdaFunction32C5EF33",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookAutoEventRule5599645E",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis28playbookeventToPlaybookLambdaFunctionLambdaInvokePermissionE87CA174": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookeventToPlaybookLambdaFunction32C5EF33",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookeventToPlaybookEventsRuleBE9FE99A",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis28playbookeventToPlaybookLambdaFunctionServiceRole4B5BFC32": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis29playbookAutoEventRuleD2501074": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.9 enabling VPC flow logging in all VPCs. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "2.9 Ensure VPC flow logging is enabled in all VPCs",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS29_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS29AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis29playbookeventToPlaybookLambdaFunctionE7B584E5",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis29playbookCustomActionA0FDC462": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 2.9 enabling VPC flow logging in all VPCs.",
+        "Id": "CIS29",
+        "Name": "CIS 2.9",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis29playbookRoleECB0B999": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS29_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS29_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis29playbookeventToPlaybookEventsRuleE41CB271": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 2.9 enabling VPC flow logging in all VPCs. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis29playbookCustomActionA0FDC462",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS29_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis29playbookeventToPlaybookLambdaFunctionE7B584E5",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis29playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis29playbookAutoEventRule821CB96FF16E58C2": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookeventToPlaybookLambdaFunctionE7B584E5",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookAutoEventRuleD2501074",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis29playbookeventToPlaybookLambdaFunctionE7B584E5": Object {
+      "DependsOn": Array [
+        "cis29playbookRoleECB0B999",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis29.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 2.9 enabling VPC flow logging in all VPCs.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS29_lambda",
+        "Handler": "cis29.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookRoleECB0B999",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis29playbookeventToPlaybookLambdaFunctionLambdaInvokePermission3438FB6C": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookeventToPlaybookLambdaFunctionE7B584E5",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookeventToPlaybookEventsRuleE41CB271",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis29playbookeventToPlaybookLambdaFunctionServiceRole7B625F74": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis4142playbookAutoEventRule2DB5E229": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "4.1 Ensure no security groups allow ingress from 0.0.0.0/0 to port 22",
+                "4.2 Ensure no security groups allow ingress from 0.0.0.0/0 to port 3389",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS4142_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS4142AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis4142playbookCustomAction868CAE44": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.",
+        "Id": "CIS4142",
+        "Name": "CIS 4.1 & 4.2",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis4142playbookRole5DCE5A58": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS4142_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS4142_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis4142playbookeventToPlaybookEventsRuleD4D7283A": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis4142playbookCustomAction868CAE44",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS4142_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis4142playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis4142playbookAutoEventRule8625E5A19631EE89": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookAutoEventRule2DB5E229",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330": Object {
+      "DependsOn": Array [
+        "cis4142playbookRole5DCE5A58",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis4142.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS4142_lambda",
+        "Handler": "cis4142.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookRole5DCE5A58",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis4142playbookeventToPlaybookLambdaFunctionLambdaInvokePermissionA0AB0D3C": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookeventToPlaybookEventsRuleD4D7283A",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis4142playbookeventToPlaybookLambdaFunctionServiceRole5C452111": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis43playbookAutoEventRule561ABA0D": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 4.3 by removing all rules from a default security group. automatic remediation event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Title": Array [
+                "4.3 Ensure the default security group of every VPC restricts all traffic",
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS43_eventRule_automated",
+        "State": Object {
+          "Ref": "CIS43AutoRemediation",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis43playbookeventToPlaybookLambdaFunctionF4349582",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis43playbookCustomAction00D0FE3A": Object {
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediates CIS 4.3 by removing all rules from a default security group.",
+        "Id": "CIS43",
+        "Name": "CIS 4.3",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:aws:lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "cis43playbookRoleA94AD286": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "sns:Publish",
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:sns:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":SO0111-SHARR_Topic",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "{{resolve:ssm:/Solutions/SO0111/CMK_ARN:1}}",
+                },
+                Object {
+                  "Action": "sts:AssumeRole",
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:iam::*:role/SO0111_CIS43_memberRole",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default_lambdaPolicy",
+          },
+        ],
+        "RoleName": "SO0111_CIS43_lambdaRole",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "cis43playbookeventToPlaybookEventsRule23780DD8": Object {
+      "Properties": Object {
+        "Description": "Remediates CIS 4.3 by removing all rules from a default security group. event rule.",
+        "EventPattern": Object {
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "cis43playbookCustomAction00D0FE3A",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS43_eventRule",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Fn::GetAtt": Array [
+                "cis43playbookeventToPlaybookLambdaFunctionF4349582",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "cis43playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis43playbookAutoEventRuleDF32A187B4C36276": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookeventToPlaybookLambdaFunctionF4349582",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookAutoEventRule561ABA0D",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis43playbookeventToPlaybookLambdaFunctionF4349582": Object {
+      "DependsOn": Array [
+        "cis43playbookRoleA94AD286",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/playbooks/CIS/cis43.py.zip",
+        },
+        "Description": "SHARR-Remediates CIS 4.3 by removing all rules from a default security group.",
+        "Environment": Object {
+          "Variables": Object {
+            "log_level": "info",
+            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
+            "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
+          },
+        },
+        "FunctionName": "CIS43_lambda",
+        "Handler": "cis43.lambda_handler",
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookRoleA94AD286",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "cis43playbookeventToPlaybookLambdaFunctionLambdaInvokePermission96C8E5A6": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookeventToPlaybookLambdaFunctionF4349582",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookeventToPlaybookEventsRule23780DD8",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "cis43playbookeventToPlaybookLambdaFunctionServiceRoleA4A7E72B": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:aws:logs:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":log-group:/aws/lambda/*",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "LambdaFunctionServiceRolePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+  },
+}
+`;

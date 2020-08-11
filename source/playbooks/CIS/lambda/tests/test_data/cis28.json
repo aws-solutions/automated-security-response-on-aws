@@ -1,0 +1,75 @@
+{
+    "version": "0",
+    "id": "e602e173-f7e7-004e-063d-f3f5fdd809ea",
+    "detail-type": "Security Hub Findings - Custom Action",
+    "source": "aws.securityhub",
+    "account": "111111111111",
+    "time": "2020-06-25T12:09:49Z",
+    "region": "us-east-2",
+    "resources": [
+        "arn:aws:securityhub:us-east-2:111111111111:action/custom/CIS28"
+    ],
+    "detail": {
+        "actionName": "CIS 2.8",
+        "actionDescription": "Remediates CIS 2.8 by enabling customer CMK key rotation",
+        "findings": [
+            {
+                "ProductArn": "arn:aws:securityhub:us-east-2::product/aws/securityhub",
+                "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "Description": "AWS Key Management Service (KMS) allows customers to rotate the backing key which is key material stored within the KMS which is tied to the key ID of the Customer Created customer master key (CMK). It is the backing key that is used to perform cryptographic operations such as encryption and decryption. It is recommended that CMK key rotation be enabled.",
+                "SchemaVersion": "2018-10-08",
+                "Compliance": {
+                    "Status": "FAILED"
+                },
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/2.8",
+                "FirstObservedAt": "2020-06-25T12:01:58.170Z",
+                "CreatedAt": "2020-06-25T12:01:58.170Z",
+                "RecordState": "ACTIVE",
+                "Title": "2.8 Ensure rotation for customer created CMKs is enabled",
+                "Workflow": {
+                    "Status": "NEW"
+                },
+                "LastObservedAt": "2020-06-25T12:01:59.830Z",
+                "Severity": {
+                    "Normalized": 70,
+                    "Label": "HIGH",
+                    "Product": 70,
+                    "Original": "HIGH"
+                },
+                "UpdatedAt": "2020-06-25T12:01:58.170Z",
+                "WorkflowState": "NEW",
+                "ProductFields": {
+                    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                    "RuleId": "2.8",
+                    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.8/remediation",
+                    "RelatedAWSResources:0/name": "securityhub-cmk-backing-key-rotation-enabled-88c7acfe",
+                    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                    "StandardsControlArn": "arn:aws:securityhub:us-east-2:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/2.8",
+                    "aws/securityhub/SeverityLabel": "HIGH",
+                    "aws/securityhub/ProductName": "Security Hub",
+                    "aws/securityhub/CompanyName": "AWS",
+                    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-2::product/aws/securityhub/arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.8/finding/296079fe-4ddb-4123-92e4-648e4e8e90e9"
+                },
+                "AwsAccountId": "111111111111",
+                "Id": "arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.8/finding/296079fe-4ddb-4123-92e4-648e4e8e90e9",
+                "Remediation": {
+                    "Recommendation": {
+                        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+                        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.8/remediation"
+                    }
+                },
+                "Resources": [
+                    {
+                        "Partition": "aws",
+                        "Type": "AwsKmsKey",
+                        "Region": "us-east-2",
+                        "Id": "AWS::KMS::Key:49efeff0-a251-4212-9bd0-0837123fa0c7b"
+                    }
+                ]
+            }
+        ]
+    }
+}

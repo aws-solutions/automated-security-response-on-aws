@@ -1,0 +1,82 @@
+{
+  "version": "0",
+  "id": "777d101a-d657-ea0b-8a51-09579b2c4fd9",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-05-26T12:59:43Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1:111111111111:action/custom/cis134RR"
+  ],
+  "detail": {
+    "actionName": "CIS 1.3 & 1.4 RR",
+    "actionDescription": "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This AWS control checks that there is at least one multi-region AWS CloudTrail trail.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "WARNING",
+          "StatusReasons": [
+            {
+              "Description": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+              "ReasonCode": "CONFIG_ACCESS_DENIED"
+            }
+          ]
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1",
+        "FirstObservedAt": "2020-05-08T03:40:33.251Z",
+        "CreatedAt": "2020-05-08T03:40:33.251Z",
+        "RecordState": "ACTIVE",
+        "Title": "CloudTrail.1 CloudTrail should be enabled and configured with at least one multi-region trail",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-05-26T03:52:24.635Z",
+        "Severity": {
+          "Normalized": 70,
+          "Label": "HIGH",
+          "Product": 70,
+          "Original": "HIGH"
+        },
+        "UpdatedAt": "2020-05-26T03:52:22.870Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "CloudTrail.1",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.1/remediation",
+          "RelatedAWSResources:0/name": "securityhub-multi-region-cloud-trail-enabled-31a2de53",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1",
+          "aws/securityhub/SeverityLabel": "HIGH",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/annotation": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1/finding/6251738d-4a6e-477a-b6e3-247c3e422e8b"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1/finding/6251738d-4a6e-477a-b6e3-247c3e422e8b",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.1/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAccount",
+            "Region": "us-east-1",
+            "Id": "AWS::::Account:111111111111"
+          }
+        ]
+      }
+    ]
+  }
+}
