@@ -159,8 +159,7 @@ export class SolutionDeployStack extends cdk.Stack {
         //
         const createCustomActionRole = new iam.Role(this, 'createCustomActionRole', {
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-            description: 'Lambda role to allow creation of Security Hub Custom Actions',
-            roleName: this.RESOURCE_PREFIX + '_Custom_Action',
+            description: 'Lambda role to allow creation of Security Hub Custom Actions'
         });
 
         createCustomActionRole.attachInlinePolicy(createCustomActionPolicy);
@@ -215,7 +214,7 @@ export class SolutionDeployStack extends cdk.Stack {
         // Service Catalog Admin Role
         // Default role allowing administration of Playbook products
         const sharrCatAdminPolicy = new iam.ManagedPolicy(this, 'SHARRCatalogAdminPolicy', {
-            managedPolicyName: this.RESOURCE_PREFIX + '-SHARR_Catalog_Admin',
+            // managedPolicyName: this.RESOURCE_PREFIX + '-SHARR_Catalog_Admin',
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -356,7 +355,7 @@ export class SolutionDeployStack extends cdk.Stack {
         //-------------------------------------------------------------------------
         // Group
         const sharrCatAdminGroup = new iam.Group(this, 'SHARRCatAdminGroup', {
-            groupName: this.RESOURCE_PREFIX + '-SHARR_Catalog_Admin',
+            groupName: this.RESOURCE_PREFIX + '-SHARR_Catalog_Admin_' + this.region,
             managedPolicies: [
                 sharrCatAdminPolicy
             ]
@@ -380,7 +379,7 @@ export class SolutionDeployStack extends cdk.Stack {
         // Service Catalog User Role
         // Default role allowing administration of Playbook products
         const sharrCatUserPolicy = new iam.ManagedPolicy(this, 'SHARR-Catalog-User-Policy', {
-            managedPolicyName: this.RESOURCE_PREFIX + '-SHARR_Catalog_User',
+            // managedPolicyName: this.RESOURCE_PREFIX + '-SHARR_Catalog_User',
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -489,7 +488,7 @@ export class SolutionDeployStack extends cdk.Stack {
         //-------------------------------------------------------------------------
         // Group
         const sharrCatUserGroup = new iam.Group(this, 'SHARRCatUserGroup', {
-            groupName: this.RESOURCE_PREFIX + '-SHARR_Catalog_User',
+            groupName: this.RESOURCE_PREFIX + '-SHARR_Catalog_User_' + this.region,
             managedPolicies: [
                 sharrCatUserPolicy
             ]

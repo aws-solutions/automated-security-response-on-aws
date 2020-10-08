@@ -22,6 +22,7 @@ export interface AssumeRoleConstructProps {
     lambdaPolicy: PolicyDocument,
     lambdaHandlerName: string
     service?: string
+    region: string
 }
 
 export class AssumeRoleConstruct extends cdk.Construct {
@@ -36,7 +37,7 @@ export class AssumeRoleConstruct extends cdk.Construct {
         principalPolicyStatement.effect = Effect.ALLOW;
 
         let roleprincipal = new ArnPrincipal('arn:aws:iam::' + props.masterAccountNumber.value + ':role/' +
-            props.solutionId + '_' + props.lambdaHandlerName +  '_lambdaRole');
+            props.solutionId + '_' + props.lambdaHandlerName +  '_lambdaRole_' + props.region);
 
         let principals = new CompositePrincipal(roleprincipal);
         principals.addToPolicy(principalPolicyStatement);
@@ -51,7 +52,7 @@ export class AssumeRoleConstruct extends cdk.Construct {
             inlinePolicies: {
                 'default_lambdaPolicy': props.lambdaPolicy
             },
-            roleName: props.solutionId + '_' + props.lambdaHandlerName + '_memberRole'
+            roleName: props.solutionId + '_' + props.lambdaHandlerName + '_memberRole_' + props.region
         });
 
         const lambdaRoleResource = lambdaRole.node.findChild('Resource') as CfnRole;

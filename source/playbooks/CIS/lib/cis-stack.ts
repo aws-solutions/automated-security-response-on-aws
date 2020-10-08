@@ -32,17 +32,10 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS1314
         //
-        let cis1314findings = {
-            "Title": [
-                "1.3 Ensure credentials unused for 90 days or greater are disabled",
-                "1.4 Ensure access keys are rotated every 90 days or less"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis1314findings = [
+            "1.3 Ensure credentials unused for 90 days or greater are disabled",
+            "1.4 Ensure access keys are rotated every 90 days or less"
+        ];
 
         const cis1314playbook = new PlaybookConstruct(this, 'cis1314playbook', {
             name: 'CIS1314',
@@ -61,22 +54,15 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS15111
         //
-        let cis15111findings = {
-              "Title": [
-                "1.5 Ensure IAM password policy requires at least one uppercase letter",
-                "1.6 Ensure IAM password policy requires at least one lowercase letter",
-                "1.7 Ensure IAM password policy requires at least one symbol",
-                "1.8 Ensure IAM password policy requires at least one number",
-                "1.9 Ensure IAM password policy requires minimum password length of 14 or greater",
-                "1.10 Ensure IAM password policy prevents password reuse",
-                "1.11 Ensure IAM password policy expires passwords within 90 days or less"
-              ],
-              "Workflow": {
-                "Status": [
-                  "NEW"
-                ]
-              }
-            };
+        let cis15111findings = [
+            "1.5 Ensure IAM password policy requires at least one uppercase letter",
+            "1.6 Ensure IAM password policy requires at least one lowercase letter",
+            "1.7 Ensure IAM password policy requires at least one symbol",
+            "1.8 Ensure IAM password policy requires at least one number",
+            "1.9 Ensure IAM password policy requires minimum password length of 14 or greater",
+            "1.10 Ensure IAM password policy prevents password reuse",
+            "1.11 Ensure IAM password policy expires passwords within 90 days or less"
+        ];
 
         const cis15111playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis15111playbook', {
             name: 'CIS15111',
@@ -95,16 +81,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS22
         //
-        let cis22findings = {
-          "Title": [
+        let cis22findings = [
             "2.2 Ensure CloudTrail log file validation is enabled"
-          ],
-          "Workflow": {
-            "Status": [
-              "NEW"
-            ]
-          }
-        };
+        ];
 
         const cis22playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis22playbook', {
             name: 'CIS22',
@@ -123,16 +102,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS23
         //
-        let cis23findings = {
-            "Title": [
-                "2.3 Ensure the S3 bucket used to store CloudTrail logs is not publicly accessible"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis23findings = [
+            "2.3 Ensure the S3 bucket used to store CloudTrail logs is not publicly accessible"
+        ];
 
         const cis23playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis23playbook', {
             name: 'CIS23',
@@ -151,16 +123,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS24
         //
-        let cis24findings = {
-            "Title": [
-                "2.4 Ensure CloudTrail trails are integrated with CloudWatch Logs"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis24findings = [
+            "2.4 Ensure CloudTrail trails are integrated with CloudWatch Logs"
+        ];
 
         const cis24playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis24playbook', {
             name: 'CIS24',
@@ -179,16 +144,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS26
         //
-        let cis26findings = {
-            "Title": [
-                "2.6 Ensure S3 bucket access logging is enabled on the CloudTrail S3 bucket"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis26findings = [
+            "2.6 Ensure S3 bucket access logging is enabled on the CloudTrail S3 bucket"
+        ]
 
         const cis26playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis26playbook', {
             name: 'CIS26',
@@ -207,16 +165,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS28
         //
-        let cis28findings = {
-            "Title": [
-                "2.8 Ensure rotation for customer created CMKs is enabled"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis28findings = [
+            "2.8 Ensure rotation for customer created CMKs is enabled"
+        ];
 
         const cis28playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis28playbook', {
             name: 'CIS28',
@@ -235,16 +186,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS29
         //
-        let cis29findings = {
-            "Title": [
-                "2.9 Ensure VPC flow logging is enabled in all VPCs"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis29findings = [
+            "2.9 Ensure VPC flow logging is enabled in all VPCs"
+        ];
 
         const cis29playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis29playbook', {
             name: 'CIS29',
@@ -263,17 +207,10 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS4142
         //
-        let cis4142findings = {
-          "Title": [
+        let cis4142findings = [
             "4.1 Ensure no security groups allow ingress from 0.0.0.0/0 to port 22",
             "4.2 Ensure no security groups allow ingress from 0.0.0.0/0 to port 3389"
-          ],
-          "Workflow": {
-            "Status": [
-              "NEW"
-            ]
-          }
-        };
+        ];
 
         const cis4142playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis4142playbook', {
             name: 'CIS4142',
@@ -292,16 +229,9 @@ export class CisStack extends cdk.Stack {
         //---------------------------------------------------------------------
         // CIS43
         //
-        let cis43findings = {
-            "Title": [
-                "4.3 Ensure the default security group of every VPC restricts all traffic"
-            ],
-            "Workflow": {
-                "Status": [
-                    "NEW"
-                ]
-            }
-        };
+        let cis43findings = [
+            "4.3 Ensure the default security group of every VPC restricts all traffic"
+        ];
 
         const cis43playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis43playbook', {
             name: 'CIS43',

@@ -46,6 +46,7 @@ else
     export SOLUTION_TRADEMARKEDNAME
 fi
 
+# Snapshot-only Test
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests - playbook CIS"
 echo "------------------------------------------------------------------------------"
@@ -68,6 +69,7 @@ if [ "$rc" -gt "$maxrc" ]; then
 	maxrc=$rc
 fi
 
+# Snapshot-only Test
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests - solution_deploy"
 echo "------------------------------------------------------------------------------"

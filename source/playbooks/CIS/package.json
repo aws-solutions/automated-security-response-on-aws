@@ -1,6 +1,6 @@
 {
   "name": "cis",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "bin": {
     "cis": "bin/cis.js"
   },
@@ -11,29 +11,29 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@aws-cdk/assert": "1.47.0",
+    "@aws-cdk/assert": "1.60.0",
     "@types/jest": "^25.2.1",
     "@types/node": "13.13.4",
     "jest": "^25.5.4",
     "ts-jest": "^25.3.1",
-    "aws-cdk": "1.47.0",
+    "aws-cdk": "1.60.0",
     "ts-node": "^8.1.0",
     "typescript": "~3.7.2"
   },
   "dependencies": {
-    "@aws-cdk/aws-events": "1.47.0",
-    "@aws-cdk/aws-events-targets": "1.47.0",
-    "@aws-cdk/aws-iam": "1.47.0",
-    "@aws-cdk/aws-kms": "1.47.0",
-    "@aws-cdk/aws-lambda": "1.47.0",
-    "@aws-cdk/aws-logs": "1.47.0",
-    "@aws-cdk/aws-s3": "1.47.0",
-    "@aws-cdk/aws-securityhub": "1.47.0",
-    "@aws-cdk/aws-servicecatalog": "1.47.0",
-    "@aws-cdk/aws-sns": "1.47.0",
-    "@aws-cdk/aws-ssm": "1.47.0",
-    "@aws-cdk/core": "1.47.0",
-    "@aws-cdk/custom-resources": "1.47.0",
+    "@aws-cdk/aws-events": "1.60.0",
+    "@aws-cdk/aws-events-targets": "1.60.0",
+    "@aws-cdk/aws-iam": "1.60.0",
+    "@aws-cdk/aws-kms": "1.60.0",
+    "@aws-cdk/aws-lambda": "1.60.0",
+    "@aws-cdk/aws-logs": "1.60.0",
+    "@aws-cdk/aws-s3": "1.60.0",
+    "@aws-cdk/aws-securityhub": "1.60.0",
+    "@aws-cdk/aws-servicecatalog": "1.60.0",
+    "@aws-cdk/aws-sns": "1.60.0",
+    "@aws-cdk/aws-ssm": "1.60.0",
+    "@aws-cdk/core": "1.60.0",
+    "@aws-cdk/custom-resources": "1.60.0",
     "@types/js-yaml": "^3.12.3",
     "cdk": "^1.47.1",
     "source-map-support": "^0.5.16"

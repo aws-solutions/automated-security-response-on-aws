@@ -43,6 +43,12 @@ export class PlaybookConstruct extends cdk.Construct {
     
     constructor(scope: cdk.Construct, id: string, props: IPlaybookConstructProps) {
         super(scope, id);
+        let workflowStatusFilter = {
+            "Status": [ "NEW" ]
+        }
+        let complianceStatusFilter = {
+            "Status": [ "FAILED", "WARNING" ]
+        }
 
         let RESOURCE_PREFIX = props.solutionId;
 
@@ -78,7 +84,7 @@ export class PlaybookConstruct extends cdk.Construct {
         stsPolicy.addActions("sts:AssumeRole")
         stsPolicy.effect = Effect.ALLOW
         stsPolicy.addResources('arn:aws:iam::*:role/' +
-            RESOURCE_PREFIX + '_' + props.name + '_memberRole')
+            RESOURCE_PREFIX + '_' + props.name + '_memberRole_' + props.aws_region)
 
         const lambdaPolicy = new PolicyDocument();
         lambdaPolicy.addStatements(logsPolicy)
@@ -93,7 +99,7 @@ export class PlaybookConstruct extends cdk.Construct {
         principalPolicyStatement.effect = Effect.ALLOW;
         principal.addToPolicy(principalPolicyStatement);
 
-        let roleName: string = RESOURCE_PREFIX + '_' + props.name + '_lambdaRole';
+        let roleName: string = RESOURCE_PREFIX + '_' + props.name + '_lambdaRole_' + props.aws_region;
         lambdaRole = new Role(this, 'Role', {
             assumedBy: principal,
             inlinePolicies: {
@@ -143,6 +149,8 @@ export class PlaybookConstruct extends cdk.Construct {
             lambda_maxtime = props.lambda_maxtime
         }
 
+        // Event to Lambda
+        // ---------------
         let eventRuleName: string = props.name + '_eventRule'
 
         let customActionName: string = props.name + '_customAction';
@@ -182,6 +190,13 @@ export class PlaybookConstruct extends cdk.Construct {
                     source: ["aws.securityhub"],
                     detailType: ["Security Hub Findings - Custom Action"],
                     resources: [customAction.getAttString('Arn')],
+                    detail: {
+                        findings: { 
+                            Title: props.findings,
+                            Workflow: workflowStatusFilter,
+                            Compliance: complianceStatusFilter
+                        }
+                    }
                 }
             }
         }
@@ -220,7 +235,11 @@ export class PlaybookConstruct extends cdk.Construct {
             source: ["aws.securityhub"],
             detailType: ["Security Hub Findings - Imported"],
             detail: {
-                findings: props.findings
+                findings: { 
+                    Title: props.findings,
+                    Workflow: workflowStatusFilter,
+                    Compliance: complianceStatusFilter
+                }
             }
         });
     }

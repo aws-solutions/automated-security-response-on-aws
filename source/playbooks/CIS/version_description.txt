@@ -1,1 +1,1 @@
-Initial version.
+Bugfix - enhance CloudWatch rules.

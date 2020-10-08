@@ -82,7 +82,17 @@ test('Test the playbook to have all the required resources.', () => {
                 {
                   "Action": "sts:AssumeRole",
                   "Effect": "Allow",
-                  "Resource": "arn:aws:iam::*:role/SO0111_CIS_1.X_RR_memberRole"
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:iam::*:role/SO0111_CIS_1.X_RR_memberRole_",
+                        {
+                          "Ref": "AWS::Region"
+                        }
+                      ]
+                    ]
+                  }
                 }
               ],
               "Version": "2012-10-17"
@@ -90,7 +100,17 @@ test('Test the playbook to have all the required resources.', () => {
             "PolicyName": "default_lambdaPolicy"
           }
         ],
-        "RoleName": "SO0111_CIS_1.X_RR_lambdaRole"
+        "RoleName": {
+              "Fn::Join": [
+                "",
+                [
+                  "SO0111_CIS_1.X_RR_lambdaRole_",
+                  {
+                    "Ref": "AWS::Region"
+                  }
+                ]
+              ]
+            }
     }, ResourcePart.Properties))
     expectCDK(getTestStack()).to(haveResourceLike("AWS::Lambda::Permission", {}, ResourcePart.Properties))
 });

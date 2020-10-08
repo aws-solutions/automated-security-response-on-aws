@@ -26,18 +26,21 @@ from lib.logger import Logger
 from lib.applogger import LogHandler
 from lib.awsapi_helpers import BotoSession, AWSClient
 import lib.sechub_findings
+import tests.file_utilities as utils
 
 log_level = 'info'
 logger = Logger(loglevel=log_level)
 test_data = 'tests/test_data/'
 
+my_session = boto3.session.Session()
+my_region = my_session.region_name
+
 def test_event_good(mocker):
     #--------------------------
     # Test data
     #
-    test_event = open(test_data + 'cis4142.json')
-    event = json.loads(test_event.read())
-    test_event.close()
+    event = utils.load_test_data(test_data + 'cis4142.json', my_region)
+
     sns_message = {
         'Note': '"Block global access to port 22 and 3389" remediation was successfully invoked via AWS Systems Manager',
         'State': 'RESOLVED',
@@ -82,4 +85,4 @@ def test_event_good(mocker):
     resolve.assert_called_once_with(
         'RESOLVED: "Block global access to port 22 and 3389" remediation was successfully invoked via AWS Systems Manager'
     )
-    sns.assert_called_with('SO0111-SHARR_Topic', sns_message, 'us-east-1')
+    sns.assert_called_with('SO0111-SHARR_Topic', sns_message, my_region)

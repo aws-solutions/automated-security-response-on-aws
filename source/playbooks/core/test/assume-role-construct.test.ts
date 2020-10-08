@@ -30,7 +30,10 @@ test('Test the playbook to have all the required resources.', () => {
                           {
                             "Ref": "MasterAccountNumber"
                           },
-                          ":role/SO0111_CIS24_lambdaRole"
+                          ":role/SO0111_CIS24_lambdaRole_",
+                          {
+                            "Ref": "AWS::Region"
+                          }
                         ]
                       ]
                     }
@@ -65,7 +68,18 @@ test('Test the playbook to have all the required resources.', () => {
                 "PolicyName": "default_lambdaPolicy"
               }
             ],
-            "RoleName": "SO0111_CIS24_memberRole"
+            "RoleName": {
+              "Fn::Join": [
+                "",
+                [
+                  "SO0111_CIS24_memberRole_",
+                  {
+                    "Ref": "AWS::Region"
+                  }
+                ]
+              ]
+            }
+
 
     }, ResourcePart.Properties))
 });

@@ -16,6 +16,9 @@
 #
 #  - version-code: version of the package
 
+# Important: CDK global version number
+required_cdk_version=1.60.0
+
 # Functions to reduce repetitive code
 # do_cmd will exit if the command has a non-zero return code.
 do_cmd () {
@@ -164,18 +167,17 @@ echo "--------------------------------------------------------------------------
 # npm install -g typescript
 # 
 cd $temp_work_dir/source/solution_deploy
-do_cmd npm install -s       # local install per package.json
-do_cmd npm run build       # build javascript from typescript
-do_cmd npm install -g aws-cdk@1.47.0
-
+do_cmd npm install      # local install per package.json
+do_cmd npm install aws-cdk@$required_cdk_version
+export PATH=$(npm bin):$PATH
 # Check cdk version
-cdkver=`cdk --version`
-if [[ $cdkver = "" ]]; then
-    npm install -s
-elif [[ ! $cdkver = 1.47.0* ]]; then
-    echo CDK version $cdkver is not supported. Must use 1.47.0
-    exit 1
+cdkver=`cdk --version | grep -Eo '^[0-9]{1,2}\.[0-9]+\.[0-9]+'`
+echo CDK version $cdkver
+if [[ $cdkver != $required_cdk_version ]]; then 
+    echo Required CDK version is $required_cdk_version, found $cdkver
+    exit 255
 fi
+do_cmd npm run build       # build javascript from typescript
 
 echo "------------------------------------------------------------------------------"
 echo "[Pack] Custom Action Lambda"

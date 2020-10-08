@@ -29,23 +29,26 @@ from lib.awsapi_helpers import BotoSession
 from lib.applogger import LogHandler
 import lib.sechub_findings
 from unittest.mock import patch
+import tests.file_utilities as utils
 
 log_level = 'info'
 logger = Logger(loglevel=log_level)
 test_data = 'tests/test_data/'
 
+my_session = boto3.session.Session()
+my_region = my_session.region_name
+
 def test_event_good(mocker):
     # Read test data
-    test_cis_1314 = open(test_data + 'cis_1-3-iamuser1.json')
-    event = json.loads(test_cis_1314.read())
-    test_cis_1314.close
+    event = utils.load_test_data(test_data + 'cis_1-3-iamuser1.json', my_region)
+
     sns_message = {
-        'Note': 'Remediation completed successfully, create new access keys using IAM console.',
-        'State': 'RESOLVED',
+        'Note': 'Access key over 90 days old found: AKIAGHJGJFGHJFGETHFG',
+        'State': 'INFO',
         'Account': '111111111111',
         'Remediation': 'Deactivate unused keys over 90 days old',
-        'AffectedObject': 'Access Key: AKIAADFHWEREFGFHSDDF',
-        'metrics_data': {'status': 'RESOLVED'},
+        'AffectedObject': 'Access Key: AKIAGHJGJFGHJFGETHFG',
+        'metrics_data': {'status': 'INFO'},
     }
 
     iam_keys = {
@@ -65,16 +68,13 @@ def test_event_good(mocker):
         ]
     }
 
-    # Mock Notifier
-    # mocker.patch('lib.sechub_findings.notify', new=mock_notify)
-
     # Mock the constructor. We don't need the session created
     mocker.patch('lib.awsapi_helpers.BotoSession.__init__', return_value=None)
     mocker.patch('lib.awsapi_helpers.AWSClient.connect', return_value=None)
 
     # sess = BotoSession()
-    iamc = boto3.client('iam')
-    iamr = boto3.resource('iam')
+    iamc = boto3.client('iam', region_name=my_region)
+    iamr = boto3.resource('iam', region_name=my_region)
 
     iamc_s = Stubber(iamc)
     iamr_s = Stubber(iamr.meta.client)
@@ -125,13 +125,11 @@ def test_event_good(mocker):
     resolve.assert_called_once_with(
         'RESOLVED: Remediation completed successfully, create new access keys using IAM console.'
     )
-    sns.assert_called_with('SO0111-SHARR_Topic', sns_message, 'us-east-1')
+    sns.assert_called_with('SO0111-SHARR_Topic', sns_message, my_region)
 
 def test_event_bad(mocker):
     # Read test data
-    test_cis_1314 = open(test_data + 'cis_1-3.json')
-    event = json.loads(test_cis_1314.read())
-    test_cis_1314.close()
+    event = utils.load_test_data(test_data + 'cis_1-3.json', my_region)
 
     iam_keys = {
         "AccessKeyMetadata": [
@@ -153,8 +151,8 @@ def test_event_bad(mocker):
     mocker.patch('lib.awsapi_helpers.BotoSession.__init__', return_value=None)
 
     # create client and resource directly through boto3
-    iamc = boto3.client('iam')
-    iamr = boto3.resource('iam')
+    iamc = boto3.client('iam', region_name=my_region)
+    iamr = boto3.resource('iam', region_name=my_region)
 
     # stub the client
     iamc_s = Stubber(iamc)

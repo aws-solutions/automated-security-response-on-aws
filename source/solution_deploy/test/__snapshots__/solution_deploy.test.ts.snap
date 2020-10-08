@@ -106,7 +106,7 @@ Object {
         },
       },
       "Properties": Object {
-        "GroupName": "SO0111-SHARR_Catalog_Admin",
+        "GroupName": "SO0111-SHARR_Catalog_Admin_eu-west-1",
         "ManagedPolicyArns": Array [
           Object {
             "Ref": "SHARRCatalogAdminPolicyE502F9A1",
@@ -127,7 +127,7 @@ Object {
         },
       },
       "Properties": Object {
-        "GroupName": "SO0111-SHARR_Catalog_User",
+        "GroupName": "SO0111-SHARR_Catalog_User_eu-west-1",
         "ManagedPolicyArns": Array [
           Object {
             "Ref": "SHARRCatalogUserPolicy58114AE9",
@@ -161,7 +161,6 @@ Object {
       },
       "Properties": Object {
         "Description": "",
-        "ManagedPolicyName": "SO0111-SHARR_Catalog_Admin",
         "Path": "/",
         "PolicyDocument": Object {
           "Statement": Array [
@@ -300,7 +299,6 @@ Object {
       },
       "Properties": Object {
         "Description": "",
-        "ManagedPolicyName": "SO0111-SHARR_Catalog_User",
         "Path": "/",
         "PolicyDocument": Object {
           "Statement": Array [
@@ -591,7 +589,6 @@ Object {
           "Version": "2012-10-17",
         },
         "Description": "Lambda role to allow creation of Security Hub Custom Actions",
-        "RoleName": "SO0111_Custom_Action",
       },
       "Type": "AWS::IAM::Role",
     },

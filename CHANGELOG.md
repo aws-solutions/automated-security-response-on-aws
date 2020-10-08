@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2020-09-18
+### Changed
+- Added info-level messages indicating action (CREATE/UPDATE) from the CreateCustomAction lambda
+- Added more stringent matching on Workflow Status and Compliance Status to CloudWatch Event Rules for Custom Actions and CloudWatch finding events (automatic trigger)
+- Added logging of the finding id to the lambda log for each remediation
+- Added region name to all IAM roles
+- Added region name to IAM Groups - permissions can now be granted per region
+- Removed statically-defined policy names for IAM Groups
+- Removed snapshot test from CDK unit tests
+
 ## [1.0.0] - 2020-08-12
 ### Added
 - New add-on solution for AWS Security Hub with CIS v1.2.0 remediations

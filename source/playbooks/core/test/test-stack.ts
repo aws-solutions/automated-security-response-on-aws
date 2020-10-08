@@ -52,7 +52,8 @@ export class TestAssumeRole extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: 'SO0111',
             lambdaPolicy: cis24Policy,
-            lambdaHandlerName: 'CIS24'
+            lambdaHandlerName: 'CIS24',
+            region: this.region
         });
     }
 }

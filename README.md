@@ -3,7 +3,7 @@
 AWS Security Hub Automated Response and Remediation is an add-on solution that enables AWS Security Hub customers to remediate security findings with a single click using predefined response and remediation actions called “Playbooks”. Alternately the playbooks can also be configured to remediate findings in AWS Security Hub automatically. The remediation is performed using AWS Lambda and in some cases using AWS Systems Manager, the playbooks execute steps to remediate security issues, such as unused keys, open security groups, password policies, VPC configurations and public S3 buckets. The solution contains the playbook remediations for some of the security standards defined as part of CIS AWS Foundations Benchmark v1.2.0.
 
 ## Getting Started
-To get started with the AWS Security Hub Automated Response and Remediation, please review the solution documentation. https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/
+To get started with the AWS Security Hub Automated Response and Remediation, please review the solution documentation. [AWS Security Hub Automated Response and Remediation](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/)
 
 ## Building from GitHub
 

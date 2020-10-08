@@ -57,7 +57,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis1314Policy,
-            lambdaHandlerName: 'CIS1314'
+            lambdaHandlerName: 'CIS1314',
+            region: this.region
         });
 
         // //CIS 1.5 - 1.11
@@ -73,7 +74,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis15111Policy,
-            lambdaHandlerName: 'CIS15111'
+            lambdaHandlerName: 'CIS15111',
+            region: this.region
         });
 
         // //CIS 2.2
@@ -89,7 +91,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis22Policy,
-            lambdaHandlerName: 'CIS22'
+            lambdaHandlerName: 'CIS22',
+            region: this.region
         });
 
         // //CIS 2.3
@@ -105,7 +108,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis23Policy,
-            lambdaHandlerName: 'CIS23'
+            lambdaHandlerName: 'CIS23',
+            region: this.region
         });
 
         //CIS 2.4
@@ -114,7 +118,9 @@ export class CisPermissionsStack extends cdk.Stack {
         cis24ct.addActions("iam:PassRole")
         cis24ct.effect = Effect.ALLOW
         cis24ct.addResources("arn:aws:cloudtrail:*:" + this.account + ":trail/*");
-        cis24ct.addResources("arn:aws:iam::"+this.account+":role/"+props.solutionId+"_CIS24_remediationRole");
+        cis24ct.addResources(
+            "arn:aws:iam::" + this.account + ":role/" + props.solutionId + 
+            "_CIS24_remediationRole_" + this.region);
 
         const cis24logs = new PolicyStatement();
         cis24logs.addActions("logs:CreateLogGroup")
@@ -130,7 +136,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis24Policy,
-            lambdaHandlerName: 'CIS24'
+            lambdaHandlerName: 'CIS24',
+            region: this.region
         });
 
         const cis24_remediation_policy_statement_1 = new PolicyStatement()
@@ -152,7 +159,7 @@ export class CisPermissionsStack extends cdk.Stack {
             inlinePolicies: {
                 'default_lambdaPolicy': cis24_remediation_policy_doc
             },
-            roleName: props.solutionId + '_CIS24_remediationRole'
+            roleName: props.solutionId + '_CIS24_remediationRole_' + this.region
         });
 
         const cis24RoleResource = cis24_remediation_role.node.findChild('Resource') as CfnRole;
@@ -187,7 +194,7 @@ export class CisPermissionsStack extends cdk.Stack {
         cis26iam.addActions("iam:PassRole")
         cis26iam.effect = Effect.ALLOW
         cis26iam.addResources('arn:aws:iam::' + this.account +
-            ':role/' + props.solutionId + '_CIS26_memberRole');
+            ':role/' + props.solutionId + '_CIS26_memberRole_' + this.region);
 
         const cis26Policy = new PolicyDocument();
         cis26Policy.addStatements(cis26ssm)
@@ -199,7 +206,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis26Policy,
             lambdaHandlerName: 'CIS26',
-            service: 'ssm.amazonaws.com'
+            service: 'ssm.amazonaws.com',
+            region: this.region
         });
 
         //CIS 2.8
@@ -216,7 +224,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis28Policy,
-            lambdaHandlerName: 'CIS28'
+            lambdaHandlerName: 'CIS28',
+            region: this.region
         });
 
         //CIS 2.9
@@ -226,7 +235,9 @@ export class CisPermissionsStack extends cdk.Stack {
         cis29_1.effect = Effect.ALLOW
         cis29_1.addResources("arn:aws:ec2:*:*:vpc/*");
         cis29_1.addResources("arn:aws:ec2:*:*:vpc-flow-log/*");
-        cis29_1.addResources("arn:aws:iam::"+ this.account+":role/" + props.solutionId + "_CIS29_remediationRole");
+        cis29_1.addResources(
+            "arn:aws:iam::" + this.account + ":role/" + props.solutionId + 
+            "_CIS29_remediationRole_" + this.region);
 
         const cis29_2 = new PolicyStatement()
         cis29_2.addActions("ec2:DescribeFlowLogs")
@@ -242,7 +253,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis29Policy,
-            lambdaHandlerName: 'CIS29'
+            lambdaHandlerName: 'CIS29',
+            region: this.region
         });
 
         //CIS 2.9 Remediation Role
@@ -263,7 +275,7 @@ export class CisPermissionsStack extends cdk.Stack {
             inlinePolicies: {
                 'default_lambdaPolicy': cis29_remediation_doc
             },
-            roleName: props.solutionId + '_CIS29_remediationRole'
+            roleName: props.solutionId + '_CIS29_remediationRole_' + this.region
         });
 
         const cis29RoleResource = cis29_remediation_role.node.findChild('Resource') as CfnRole;
@@ -295,7 +307,7 @@ export class CisPermissionsStack extends cdk.Stack {
         cis4142iam.addActions("iam:PassRole")
         cis4142iam.effect = Effect.ALLOW
         cis4142iam.addResources('arn:aws:iam::' + this.account +
-            ':role/' + props.solutionId + '_CIS4142_memberRole');
+            ':role/' + props.solutionId + '_CIS4142_memberRole_' + this.region);
 
         const cis4142ssm = new PolicyStatement();
         cis4142ssm.addActions("ssm:StartAutomationExecution")
@@ -315,7 +327,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis4142Policy,
             lambdaHandlerName: 'CIS4142',
-            service: 'ssm.amazonaws.com'
+            service: 'ssm.amazonaws.com',
+            region: this.region
         });
 
         //CIS 4.3
@@ -341,7 +354,8 @@ export class CisPermissionsStack extends cdk.Stack {
             masterAccountNumber: masterAccountNumber,
             solutionId: props.solutionId,
             lambdaPolicy: cis43Policy,
-            lambdaHandlerName: 'CIS43'
+            lambdaHandlerName: 'CIS43',
+            region: this.region
         });
     }
 }

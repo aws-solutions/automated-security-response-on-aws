@@ -28,16 +28,18 @@ from lib.applogger import LogHandler
 from lib.awsapi_helpers import BotoSession, AWSClient
 from lib.applogger import LogHandler
 import lib.sechub_findings
+import tests.file_utilities as utils
 
 log_level = 'INFO'
 logger = Logger(loglevel=log_level)
 test_data = 'tests/test_data/'
 
+my_session = boto3.session.Session()
+my_region = my_session.region_name
+
 def test_single_event_good(mocker):
     # Read test data
-    test_event = open(test_data + 'CIS_1-6-single-select.json')
-    event = json.loads(test_event.read())
-    test_event.close()
+    event = utils.load_test_data(test_data + 'CIS_1-6-single-select.json', my_region)
 
     # Mock the constructor. We don't need the session created
     mocker.patch('lib.awsapi_helpers.BotoSession.__init__', return_value=None)
@@ -67,9 +69,7 @@ def test_single_event_good(mocker):
 
 def test_multi_event_good(mocker):
     # Read test data
-    test_event = open(test_data + 'CIS_1-6-multi-select.json')
-    event = json.loads(test_event.read())
-    test_event.close()
+    event = utils.load_test_data(test_data + 'CIS_1-6-multi-select.json', my_region)
 
     sns_message = {
         'Note': '"Set IAM Password Policy" remediation was successful',
@@ -112,4 +112,4 @@ def test_multi_event_good(mocker):
     cis15111.lambda_handler(event, None)
     init.assert_called_with('INITIAL: "Set IAM Password Policy" remediation started')
     resolve.assert_called_with('RESOLVED: "Set IAM Password Policy" remediation was successful')
-    sns.assert_called_with('SO0111-SHARR_Topic', sns_message, 'us-east-1')
+    sns.assert_called_with('SO0111-SHARR_Topic', sns_message, my_region)

@@ -121,7 +121,7 @@ def lambda_handler(event, context):
         if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
             try:
                 # physicalResourceId = 'createCustomAction-' + properties.get('Id', 'ERROR')
-                LOGGER.debug('CREATE: ' + physicalResourceId)
+                LOGGER.info(event['RequestType'].upper() + ": " + physicalResourceId)
                 response = client.create_action_target(
                     Name=properties['Name'],
                     Description=properties['Description'],
@@ -146,7 +146,7 @@ def lambda_handler(event, context):
         elif event['RequestType'] == 'Delete':
             try:
                 # physicalResourceId = event.get('PhysicalResourceId', 'ERROR')
-                LOGGER.debug('DELETE: ' + physicalResourceId)
+                LOGGER.info('DELETE: ' + physicalResourceId)
                 account_id = context.invoked_function_arn.split(":")[4]
                 client.delete_action_target(
                     ActionTargetArn=f"arn:aws:securityhub:{region}:{account_id}:action/custom/{properties['Id']}"

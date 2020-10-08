@@ -40,6 +40,8 @@ APPLOGGER = LogHandler(PLAYBOOK) # application LOGGER for CW Logs
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+# Append region name to LAMBDA_ROLE
+LAMBDA_ROLE += '_' + AWS_REGION
 BOTO_CONFIG = Config(
     retries={
         'max_attempts': 10
@@ -58,6 +60,7 @@ def lambda_handler(event, context):
     try:
         for finding_rec in event['detail']['findings']:
             finding = Finding(finding_rec)
+            LOGGER.info('FINDING_ID: ' + str(finding.details.get('Id')))
             remediate(finding, metrics.get_metrics_from_finding(finding_rec))
     except Exception as e:
         LOGGER.error(e)
