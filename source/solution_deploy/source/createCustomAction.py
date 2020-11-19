@@ -114,6 +114,7 @@ def lambda_handler(event, context):
         properties = event['ResourceProperties']
         LOGGER.debug(json.dumps(properties))
         region = os.environ['AWS_REGION']
+        partition = os.getenv('AWS_PARTITION', default='aws') # Set by deployment template
         client = boto3.client('securityhub', region_name=region)
         
         physicalResourceId = 'CustomAction' + properties.get('Id', 'ERROR')
@@ -149,7 +150,7 @@ def lambda_handler(event, context):
                 LOGGER.info('DELETE: ' + physicalResourceId)
                 account_id = context.invoked_function_arn.split(":")[4]
                 client.delete_action_target(
-                    ActionTargetArn=f"arn:aws:securityhub:{region}:{account_id}:action/custom/{properties['Id']}"
+                    ActionTargetArn=f"arn:{partition}:securityhub:{region}:{account_id}:action/custom/{properties['Id']}"
                 )
             except botocore.exceptions.ClientError as error:
                 if error.response['Error']['Code'] == 'ResourceNotFoundException':

@@ -5,7 +5,15 @@ import * as SolutionDeploy from '../lib/solution_deploy-stack';
 function getTestStack(): cdk.Stack {
   const envEU = { account: '111111111111', region: 'eu-west-1' };
   const app = new cdk.App();
-  const stack = new SolutionDeploy.SolutionDeployStack(app, 'stack', { env: envEU })
+  const stack = new SolutionDeploy.SolutionDeployStack(app, 'stack', { 
+    env: envEU,
+    solutionId: 'SO0111',
+    solutionVersion: 'v1.0.0',
+    solutionDistBucket: 'solutions',
+    solutionTMN: 'aws-security-hub-automated-response-and-remediation',
+    solutionName: 'AWS Security Hub Automated Response & Remediation'
+
+  })
   return stack;
 }
 

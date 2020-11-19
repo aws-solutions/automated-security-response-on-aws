@@ -17,7 +17,7 @@
 #  - version-code: version of the package
 
 # Important: CDK global version number
-required_cdk_version=1.60.0
+required_cdk_version=1.68.0
 
 # Functions to reduce repetitive code
 # do_cmd will exit if the command has a non-zero return code.
@@ -204,10 +204,8 @@ do_cmd npm install -s
 do_cmd npm run build
 
 # Create the template for the compliance pack
-cdk synth CisStack -c solutionId=$SOLUTION_ID > $template_dist_dir/playbooks/CIS.template 
-echo -e "AWSTemplateFormatVersion: \"2010-09-09\"\n$(cat ${template_dist_dir}/playbooks/CIS.template)" > $template_dist_dir/playbooks/CIS.template
-cdk synth CisPermissionsStack -c solutionId=$SOLUTION_ID > $template_dist_dir/playbooks/CISPermissions.template 
-echo -e "AWSTemplateFormatVersion: \"2010-09-09\"\n$(cat ${template_dist_dir}/playbooks/CISPermissions.template)" > $template_dist_dir/playbooks/CISPermissions.template
+cdk --no-version-reporting synth CisStack > $template_dist_dir/playbooks/CIS.template 
+cdk --no-version-reporting synth CisPermissionsStack > $template_dist_dir/playbooks/CISPermissions.template 
 
 if [[ -d ./lambda ]]; then
     do_cmd mkdir -p ${build_dir}/playbooks/CIS/tests  # output directory
@@ -243,18 +241,14 @@ cd $temp_work_dir/source/solution_deploy
 for template in `cdk ls`; do
     echo Create template $template
     # do_cmd npm run build
-    cdk synth $template -c solutionId=$SOLUTION_ID > ${template_dist_dir}/${template}.template
+    cdk --no-version-reporting synth $template -c solutionId=$SOLUTION_ID > ${template_dist_dir}/${template}.template
 done
 cd ${template_dir}
 
 [ -e ${template_dir}/*.template ] && do_cmd cp $template_dir/*.template $template_dist_dir/
 
-for f in ${template_dist_dir}/*.template; do
-    echo Prepending AWSTemplateFormatVersion
-    echo -e "AWSTemplateFormatVersion: \"2010-09-09\"\n$(cat $f)" > $f
-done
-
 # Rename SolutionDeployStack.template
 mv ${template_dist_dir}/SolutionDeployStack.template ${template_dist_dir}/aws-sharr-deploy.template
+mv ${template_dist_dir}/ServiceCatalogStack.template ${template_dist_dir}/aws-sharr-portolio-deploy.template
 
 echo Build Complete

@@ -11,31 +11,31 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@aws-cdk/assert": "1.60.0",
+    "@aws-cdk/assert": "1.68.0",
     "@types/jest": "^25.2.1",
     "@types/node": "13.13.4",
     "jest": "^25.5.4",
     "ts-jest": "^25.3.1",
-    "aws-cdk": "1.60.0",
+    "aws-cdk": "1.68.0",
     "ts-node": "^8.1.0",
     "typescript": "~3.7.2"
   },
   "dependencies": {
-    "@aws-cdk/aws-events": "1.60.0",
-    "@aws-cdk/aws-events-targets": "1.60.0",
-    "@aws-cdk/aws-iam": "1.60.0",
-    "@aws-cdk/aws-kms": "1.60.0",
-    "@aws-cdk/aws-lambda": "1.60.0",
-    "@aws-cdk/aws-logs": "1.60.0",
-    "@aws-cdk/aws-s3": "1.60.0",
-    "@aws-cdk/aws-securityhub": "1.60.0",
-    "@aws-cdk/aws-servicecatalog": "1.60.0",
-    "@aws-cdk/aws-sns": "1.60.0",
-    "@aws-cdk/aws-ssm": "1.60.0",
-    "@aws-cdk/core": "1.60.0",
-    "@aws-cdk/custom-resources": "1.60.0",
+    "@aws-cdk/aws-events": "1.68.0",
+    "@aws-cdk/aws-events-targets": "1.68.0",
+    "@aws-cdk/aws-iam": "1.68.0",
+    "@aws-cdk/aws-kms": "1.68.0",
+    "@aws-cdk/aws-lambda": "1.68.0",
+    "@aws-cdk/aws-logs": "1.68.0",
+    "@aws-cdk/aws-s3": "1.68.0",
+    "@aws-cdk/aws-securityhub": "1.68.0",
+    "@aws-cdk/aws-servicecatalog": "1.68.0",
+    "@aws-cdk/aws-sns": "1.68.0",
+    "@aws-cdk/aws-ssm": "1.68.0",
+    "@aws-cdk/core": "1.68.0",
+    "@aws-cdk/custom-resources": "1.68.0",
     "@types/js-yaml": "^3.12.3",
     "source-map-support": "^0.5.16",
-    "@aws-solutions-constructs/aws-events-rule-lambda": "1.60.0"
+    "@aws-solutions-constructs/aws-events-rule-lambda": "1.68.0"
   }
 }

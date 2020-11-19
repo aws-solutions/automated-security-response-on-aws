@@ -38,10 +38,11 @@ LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 APPLOGGER = LogHandler(PLAYBOOK) # application LOGGER for CW Logs
 
-
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')
+
 # Append region name to LAMBDA_ROLE
 LAMBDA_ROLE += '_' + AWS_REGION
 BOTO_CONFIG = Config(
@@ -50,7 +51,7 @@ BOTO_CONFIG = Config(
     },
     region_name=AWS_REGION
 )
-AWS = AWSClient()
+AWS = AWSClient(AWS_PARTITION, AWS_REGION)
 
 #------------------------------------------------------------------------------
 # HANDLER

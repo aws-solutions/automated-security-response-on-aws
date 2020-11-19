@@ -13,6 +13,7 @@
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
 import * as cdk from '@aws-cdk/core';
+import { CfnRole } from '@aws-cdk/aws-iam';
 import { PlaybookConstruct } from '../../core/lib/playbook-construct';
 
 export interface CisStackProps {
@@ -29,6 +30,26 @@ export class CisStack extends cdk.Stack {
     constructor(scope: cdk.Construct, id: string, props: CisStackProps) {
         super(scope, id, props);
 
+        //=========================================================================
+        // MAPPINGS
+        //=========================================================================
+        new cdk.CfnMapping(this, 'SourceCode', {
+            mapping: { "General": { 
+                "S3Bucket": props.solutionDistBucket,
+                "KeyPrefix": props.solutionDistName + '/' + props.solutionVersion
+            } }
+        })
+
+        //---------------------------------------------------------------------
+        // Permissions
+        //
+        const cisPerms = new cdk.CfnStack(this, "cis-permissions", {
+        parameters: {
+            "MasterAccountNumber": this.account
+        },
+        templateUrl: "https://" + cdk.Fn.findInMap("SourceCode", "General", "S3Bucket") + "-reference.s3.amazonaws.com/" + cdk.Fn.findInMap("SourceCode", "General", "KeyPrefix") + "/playbooks/CISPermissions.template"
+        })
+
         //---------------------------------------------------------------------
         // CIS1314
         //
@@ -41,6 +62,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS1314',
             description: 'Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 1.3 & 1.4',
             findings: cis1314findings,
@@ -50,6 +72,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis1314playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS15111
@@ -68,6 +91,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS15111',
             description: 'Remediates CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 1.5 - 1.11',
             findings: cis15111findings,
@@ -77,6 +101,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis15111playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS22
@@ -89,6 +114,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS22',
             description: 'Remediates CIS 2.2 by enabling CloudTrail log file validation.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 2.2',
             findings: cis22findings,
@@ -98,6 +124,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis22playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS23
@@ -110,6 +137,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS23',
             description: 'Remediates CIS 2.3 by making CloudTrail log bucket private.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 2.3',
             findings: cis23findings,
@@ -119,6 +147,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis23playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS24
@@ -131,6 +160,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS24',
             description: 'Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 2.4',
             findings: cis24findings,
@@ -140,6 +170,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis24playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS26
@@ -152,6 +183,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS26',
             description: 'Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 2.6',
             findings: cis26findings,
@@ -161,6 +193,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis26playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS28
@@ -173,6 +206,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS28',
             description: 'Remediates CIS 2.8 by enabling customer CMK key rotation.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 2.8',
             findings: cis28findings,
@@ -182,6 +216,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis28playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS29
@@ -194,6 +229,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS29',
             description: 'Remediates CIS 2.9 enabling VPC flow logging in all VPCs.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 2.9',
             findings: cis29findings,
@@ -203,6 +239,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis29playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS4142
@@ -216,6 +253,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS4142',
             description: 'Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 4.1 & 4.2',
             findings: cis4142findings,
@@ -225,6 +263,7 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis4142playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
         //---------------------------------------------------------------------
         // CIS43
@@ -237,6 +276,7 @@ export class CisStack extends cdk.Stack {
             name: 'CIS43',
             description: 'Remediates CIS 4.3 by removing all rules from a default security group.',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 4.3',
             findings: cis43findings,
@@ -246,5 +286,6 @@ export class CisStack extends cdk.Stack {
             distName: props.solutionDistName,
             distBucket: props.solutionDistBucket
         });
+        cisPerms.addDependsOn(cis43playbook.lambdaRole.node.findChild('Resource') as CfnRole)
     }
 }

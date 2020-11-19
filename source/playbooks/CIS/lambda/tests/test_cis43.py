@@ -36,7 +36,7 @@ test_data = 'tests/test_data/'
 my_session = boto3.session.Session()
 my_region = my_session.region_name
 
-AWS = AWSClient()
+AWS = AWSClient('aws','us-east-1')
 
 def test_event_good(mocker):
     #--------------------------

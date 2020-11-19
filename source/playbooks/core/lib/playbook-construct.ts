@@ -27,6 +27,7 @@ export interface IPlaybookConstructProps {
     lambda_env?: any;
     aws_region: string;
     aws_accountid: string;
+    aws_partition: string;
     lambda_handler?: string;
     lambda_memsize?: number;
     lambda_maxtime?: number;
@@ -40,6 +41,7 @@ export interface IPlaybookConstructProps {
 }
 
 export class PlaybookConstruct extends cdk.Construct {
+    public readonly lambdaRole: Role;
     
     constructor(scope: cdk.Construct, id: string, props: IPlaybookConstructProps) {
         super(scope, id);
@@ -51,8 +53,6 @@ export class PlaybookConstruct extends cdk.Construct {
         }
 
         let RESOURCE_PREFIX = props.solutionId;
-
-        let lambdaRole = undefined
 
         const basePolicy = new PolicyStatement();
         basePolicy.addActions("cloudwatch:PutMetricData")
@@ -77,13 +77,13 @@ export class PlaybookConstruct extends cdk.Construct {
         const snsPolicy = new PolicyStatement();
         snsPolicy.addActions("sns:Publish")
         snsPolicy.effect = Effect.ALLOW
-        snsPolicy.addResources('arn:aws:sns:' + props.aws_region + ':' +
+        snsPolicy.addResources('arn:' + props.aws_partition + ':sns:' + props.aws_region + ':' +
             props.aws_accountid + ':' + props.solutionId + '-SHARR_Topic')
 
         const stsPolicy = new PolicyStatement();
         stsPolicy.addActions("sts:AssumeRole")
         stsPolicy.effect = Effect.ALLOW
-        stsPolicy.addResources('arn:aws:iam::*:role/' +
+        stsPolicy.addResources('arn:' + props.aws_partition + ':iam::*:role/' +
             RESOURCE_PREFIX + '_' + props.name + '_memberRole_' + props.aws_region)
 
         const lambdaPolicy = new PolicyDocument();
@@ -100,7 +100,7 @@ export class PlaybookConstruct extends cdk.Construct {
         principal.addToPolicy(principalPolicyStatement);
 
         let roleName: string = RESOURCE_PREFIX + '_' + props.name + '_lambdaRole_' + props.aws_region;
-        lambdaRole = new Role(this, 'Role', {
+        this.lambdaRole = new Role(this, 'Role', {
             assumedBy: principal,
             inlinePolicies: {
                 'default_lambdaPolicy': lambdaPolicy
@@ -108,7 +108,7 @@ export class PlaybookConstruct extends cdk.Construct {
             roleName: roleName
         });
 
-        const lambdaRoleResource = lambdaRole.node.findChild('Resource') as CfnRole;
+        const lambdaRoleResource = this.lambdaRole.node.findChild('Resource') as CfnRole;
 
         lambdaRoleResource.cfnOptions.metadata = {
             cfn_nag: {
@@ -155,7 +155,7 @@ export class PlaybookConstruct extends cdk.Construct {
 
         let customActionName: string = props.name + '_customAction';
         const customAction = new cdk.CustomResource(this, 'CustomAction', {
-            serviceToken: 'arn:aws:lambda:' + props.aws_region + ':' + 
+            serviceToken: 'arn:' + props.aws_partition + ':lambda:' + props.aws_region + ':' + 
                 props.aws_accountid + ':function:' + RESOURCE_PREFIX + '-SHARR-CustomAction',
             resourceType: 'Custom::ActionTarget',
             properties: {
@@ -174,9 +174,10 @@ export class PlaybookConstruct extends cdk.Construct {
                 code: lambda.Code.fromBucket(s3BucketForLambda, lambda_src),
                 handler: lambda_handler,
                 memorySize: lambda_memsize,
-                role: lambdaRole,
+                role: this.lambdaRole,
                 timeout: cdk.Duration.seconds(lambda_maxtime),
                 environment: {
+                    AWS_PARTITION: props.aws_partition,
                     log_level: 'info',
                     sendAnonymousMetrics: '{{resolve:ssm:/Solutions/' + props.solutionId + '/sendAnonymousMetrics:1}}',
                     metricsId: '{{resolve:ssm:/Solutions/' + props.solutionId + '/metricsId:1}}'

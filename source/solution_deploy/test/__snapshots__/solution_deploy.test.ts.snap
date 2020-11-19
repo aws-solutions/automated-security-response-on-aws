@@ -2,7 +2,27 @@
 
 exports[`Test if the Stack has all the resources. 1`] = `
 Object {
+  "Conditions": Object {
+    "UseServiceCatalog": Object {
+      "Fn::Not": Array [
+        Object {
+          "Fn::Equals": Array [
+            Object {
+              "Ref": "AWS::Partition",
+            },
+            "aws-cn",
+          ],
+        },
+      ],
+    },
+  },
   "Mappings": Object {
+    "SourceCode": Object {
+      "General": Object {
+        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.0.0",
+        "S3Bucket": "solutions",
+      },
+    },
     "mappings": Object {
       "sendAnonymousMetrics": Object {
         "data": "Yes",
@@ -32,6 +52,9 @@ Object {
         "Description": "Custom resource to create an action target in Security Hub",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "sendAnonymousMetrics": Object {
               "Fn::FindInMap": Array [
@@ -56,351 +79,43 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "PortfolioAdminAccess": Object {
+    "PlaybookServiceCatalog": Object {
+      "Condition": "UseServiceCatalog",
       "Properties": Object {
-        "PortfolioId": Object {
-          "Ref": "SCPlaybooks",
-        },
-        "PrincipalARN": Object {
-          "Fn::GetAtt": Array [
-            "SHARRCatAdminGroup04AD3C69",
-            "Arn",
-          ],
-        },
-        "PrincipalType": "IAM",
-      },
-      "Type": "AWS::ServiceCatalog::PortfolioPrincipalAssociation",
-    },
-    "PortfolioUserAccess": Object {
-      "Properties": Object {
-        "PortfolioId": Object {
-          "Ref": "SCPlaybooks",
-        },
-        "PrincipalARN": Object {
-          "Fn::GetAtt": Array [
-            "SHARRCatUserGroup3F5F772E",
-            "Arn",
-          ],
-        },
-        "PrincipalType": "IAM",
-      },
-      "Type": "AWS::ServiceCatalog::PortfolioPrincipalAssociation",
-    },
-    "SCPlaybooks": Object {
-      "Properties": Object {
-        "Description": "Portfolio of available AWS Security Hub Automated Response & Remediation Playbooks. See https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/",
-        "DisplayName": "Security Hub Playbooks (SO0111)",
-        "ProviderName": "AWS Solution Development",
-      },
-      "Type": "AWS::ServiceCatalog::Portfolio",
-    },
-    "SHARRCatAdminGroup04AD3C69": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide easy integration with playbook templates",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "GroupName": "SO0111-SHARR_Catalog_Admin_eu-west-1",
-        "ManagedPolicyArns": Array [
-          Object {
-            "Ref": "SHARRCatalogAdminPolicyE502F9A1",
+        "Parameters": Object {
+          "CreateCustomActionArn": Object {
+            "Fn::GetAtt": Array [
+              "CreateCustomActionE7A973F5",
+              "Arn",
+            ],
           },
-        ],
-      },
-      "Type": "AWS::IAM::Group",
-    },
-    "SHARRCatUserGroup3F5F772E": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide easy integration with playbook templates",
-            },
-          ],
         },
-      },
-      "Properties": Object {
-        "GroupName": "SO0111-SHARR_Catalog_User_eu-west-1",
-        "ManagedPolicyArns": Array [
-          Object {
-            "Ref": "SHARRCatalogUserPolicy58114AE9",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Group",
-    },
-    "SHARRCatalogAdminPolicyE502F9A1": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "F40",
-              "reason": "Resource * is necessary for passrole permissions with Service Catalog. Service Catalog controls access its resources through IAM role, group, and user association.",
-            },
-            Object {
-              "id": "F5",
-              "reason": "Action * is necessary for admin permissions within Service Catalog. Service Catalog controls access its resources through IAM role, group, and user association.",
-            },
-            Object {
-              "id": "W13",
-              "reason": "Resource * is necessary for permissions with Service Catalog. Service Catalog controls access its resources through IAM role, group, and user association.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide easy integration with playbook templates",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "Description": "",
-        "Path": "/",
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "cloudformation:CreateStack",
-                "cloudformation:DeleteStack",
-                "cloudformation:DescribeStackEvents",
-                "cloudformation:DescribeStacks",
-                "cloudformation:SetStackPolicy",
-                "cloudformation:UpdateStack",
-                "cloudformation:CreateChangeSet",
-                "cloudformation:DescribeChangeSet",
-                "cloudformation:ExecuteChangeSet",
-                "cloudformation:ListChangeSets",
-                "cloudformation:DeleteChangeSet",
-                "cloudformation:ListStackResources",
-                "cloudformation:TagResource",
-                "cloudformation:CreateStackSet",
-                "cloudformation:CreateStackInstances",
-                "cloudformation:UpdateStackSet",
-                "cloudformation:UpdateStackInstances",
-                "cloudformation:DeleteStackSet",
-                "cloudformation:DeleteStackInstances",
-                "cloudformation:DescribeStackSet",
-                "cloudformation:DescribeStackInstance",
-                "cloudformation:DescribeStackSetOperation",
-                "cloudformation:ListStackInstances",
-                "cloudformation:ListStackSetOperations",
-                "cloudformation:ListStackSetOperationResults",
-              ],
-              "Effect": "Allow",
-              "Resource": Array [
-                "arn:aws:cloudformation:*:*:stack/SC-*",
-                "arn:aws:cloudformation:*:*:stack/StackSet-SC-*",
-                "arn:aws:cloudformation:*:*:changeSet/SC-*",
-                "arn:aws:cloudformation:*:*:stackset/SC-*",
-              ],
-            },
-            Object {
-              "Action": Array [
-                "cloudformation:CreateStack",
-                "servicecatalog:*",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": Array [
-                "cloudformation:CreateUploadBucket",
-                "cloudformation:GetTemplateSummary",
-                "cloudformation:ValidateTemplate",
-                "iam:GetGroup",
-                "iam:GetRole",
-                "iam:GetUser",
-                "iam:ListGroups",
-                "iam:ListRoles",
-                "iam:ListUsers",
-                "ssm:DescribeDocument",
-                "ssm:GetAutomationExecution",
-                "ssm:ListDocuments",
-                "ssm:ListDocumentVersions",
-                "config:DescribeConfigurationRecorders",
-                "config:DescribeConfigurationRecorderStatus",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": Array [
-                "servicecatalog:DescribeProvisionedProduct",
-                "servicecatalog:DescribeRecord",
-                "servicecatalog:ListRecordHistory",
-                "servicecatalog:ListStackInstancesForProvisionedProduct",
-                "servicecatalog:ScanProvisionedProducts",
-                "servicecatalog:TerminateProvisionedProduct",
-                "servicecatalog:UpdateProvisionedProduct",
-                "servicecatalog:SearchProvisionedProducts",
-                "servicecatalog:CreateProvisionedProductPlan",
-                "servicecatalog:DescribeProvisionedProductPlan",
-                "servicecatalog:ExecuteProvisionedProductPlan",
-                "servicecatalog:DeleteProvisionedProductPlan",
-                "servicecatalog:ListProvisionedProductPlans",
-                "servicecatalog:ListServiceActionsForProvisioningArtifact",
-                "servicecatalog:ExecuteProvisionedProductServiceAction",
-                "servicecatalog:DescribeServiceActionExecutionParameters",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": "iam:CreateRole",
-              "Effect": "Allow",
-              "Resource": "arn:aws:iam::111111111111:role/SO0111*",
-            },
-            Object {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
-                  "CreateCustomActionE7A973F5",
-                  "Arn",
+        "TemplateURL": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "https://",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
                 ],
               },
-            },
-            Object {
-              "Action": "iam:PassRole",
-              "Condition": Object {
-                "StringEquals": Object {
-                  "iam:PassedToService": "servicecatalog.amazonaws.com",
-                },
+              "-reference.s3.amazonaws.com/",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
               },
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::ManagedPolicy",
-    },
-    "SHARRCatalogUserPolicy58114AE9": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W13",
-              "reason": "Resource * is necessary for permissions with Service Catalog. Service Catalog controls access its resources through IAM role, group, and user association.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide easy integration with playbook templates",
-            },
+              "/aws-sharr-portolio-deploy.template",
+            ],
           ],
         },
       },
-      "Properties": Object {
-        "Description": "",
-        "Path": "/",
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "cloudformation:CreateStack",
-                "cloudformation:DeleteStack",
-                "cloudformation:DescribeStackEvents",
-                "cloudformation:DescribeStacks",
-                "cloudformation:SetStackPolicy",
-                "cloudformation:ValidateTemplate",
-                "cloudformation:UpdateStack",
-                "cloudformation:CreateChangeSet",
-                "cloudformation:DescribeChangeSet",
-                "cloudformation:ExecuteChangeSet",
-                "cloudformation:ListChangeSets",
-                "cloudformation:DeleteChangeSet",
-                "cloudformation:TagResource",
-                "cloudformation:CreateStackSet",
-                "cloudformation:CreateStackInstances",
-                "cloudformation:UpdateStackSet",
-                "cloudformation:UpdateStackInstances",
-                "cloudformation:DeleteStackSet",
-                "cloudformation:DeleteStackInstances",
-                "cloudformation:DescribeStackSet",
-                "cloudformation:DescribeStackInstance",
-                "cloudformation:DescribeStackSetOperation",
-                "cloudformation:ListStackInstances",
-                "cloudformation:ListStackResources",
-                "cloudformation:ListStackSetOperations",
-                "cloudformation:ListStackSetOperationResults",
-              ],
-              "Effect": "Allow",
-              "Resource": Array [
-                "arn:aws:cloudformation:*:*:stack/SC-*",
-                "arn:aws:cloudformation:*:*:stack/StackSet-SC-*",
-                "arn:aws:cloudformation:*:*:changeSet/SC-*",
-                "arn:aws:cloudformation:*:*:stackset/SC-*",
-              ],
-            },
-            Object {
-              "Action": Array [
-                "cloudformation:GetTemplateSummary",
-                "servicecatalog:DescribeProduct",
-                "servicecatalog:DescribeProductView",
-                "servicecatalog:DescribeProvisioningParameters",
-                "servicecatalog:ListLaunchPaths",
-                "servicecatalog:ProvisionProduct",
-                "servicecatalog:SearchProducts",
-                "ssm:DescribeDocument",
-                "ssm:GetAutomationExecution",
-                "config:DescribeConfigurationRecorders",
-                "config:DescribeConfigurationRecorderStatus",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": Array [
-                "servicecatalog:DescribeProvisionedProduct",
-                "servicecatalog:DescribeRecord",
-                "servicecatalog:ListRecordHistory",
-                "servicecatalog:ListStackInstancesForProvisionedProduct",
-                "servicecatalog:ScanProvisionedProducts",
-                "servicecatalog:TerminateProvisionedProduct",
-                "servicecatalog:UpdateProvisionedProduct",
-                "servicecatalog:SearchProvisionedProducts",
-                "servicecatalog:CreateProvisionedProductPlan",
-                "servicecatalog:DescribeProvisionedProductPlan",
-                "servicecatalog:ExecuteProvisionedProductPlan",
-                "servicecatalog:DeleteProvisionedProductPlan",
-                "servicecatalog:ListProvisionedProductPlans",
-                "servicecatalog:ListServiceActionsForProvisioningArtifact",
-                "servicecatalog:ExecuteProvisionedProductServiceAction",
-                "servicecatalog:DescribeServiceActionExecutionParameters",
-              ],
-              "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:aws:catalog:eu-west-1:111111111111:portfolio/",
-                      Object {
-                        "Ref": "SCPlaybooks",
-                      },
-                    ],
-                  ],
-                },
-                "arn:aws:catalog:*:*:product/*",
-              ],
-            },
-            Object {
-              "Action": "iam:CreateRole",
-              "Effect": "Allow",
-              "Resource": "arn:aws:iam::111111111111:role/SO0111*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::ManagedPolicy",
+      "Type": "AWS::CloudFormation::Stack",
     },
     "SHARRKeyC551FE02": Object {
       "Properties": Object {
@@ -416,18 +131,9 @@ Object {
       },
       "Type": "AWS::SSM::Parameter",
     },
-    "SHARRLogs206D3A06": Object {
-      "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "LogGroupName": "SO0111-SHARR",
-        "RetentionInDays": 365,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
-    },
     "SHARRSNSTopicB940F479": Object {
       "Properties": Object {
-        "Description": "SNS Topic ARN where SHARR will send status messages. This            topic can be useful for driving additional actions, such as email notifications,            trouble ticket updates.",
+        "Description": "SNS Topic ARN where SHARR will send status messages. This        topic can be useful for driving additional actions, such as email notifications,        trouble ticket updates.",
         "Name": "/Solutions/SO0111/SNS_Topic_ARN",
         "Type": "String",
         "Value": Object {
@@ -455,7 +161,10 @@ Object {
       "Properties": Object {
         "DisplayName": "SHARR Playbook Topic (SO0111)",
         "KmsMasterKeyId": Object {
-          "Ref": "SHARRkeyE6BD0F56",
+          "Fn::GetAtt": Array [
+            "SHARRkeyE6BD0F56",
+            "Arn",
+          ],
         },
         "TopicName": "SO0111-SHARR_Topic",
       },

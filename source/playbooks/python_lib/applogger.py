@@ -22,10 +22,12 @@
 import os
 import time
 from datetime import date
+# import re
 
 import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
+from lib.aws_utils import partition_from_region
 
 BOTO_CONFIG = Config(
     retries = {
@@ -36,6 +38,9 @@ BOTO_CONFIG = Config(
 MIN_REMAINING_EXEC_TIME_SEC = 60
 LOG_MAX_BATCH_SIZE = 1048576    # Controls when the buffer is flushed to the stream
 LOG_ENTRY_ADDITIONAL = 26
+
+class FailedToCreateLogGroup(Exception):
+    pass
 
 class LogHandler(object):
 
@@ -57,17 +62,38 @@ class LogHandler(object):
     def streams_used(self):
         return self._stream_token
 
+    def _create_log_group(self):
+        """Create the application log group"""
+        try:
+            self._log_client.create_log_group(
+                logGroupName=self.log_group
+                )
+            return True
+        except Exception as e:
+            # if the stream was created in between the call ignore the error
+            if type(e).__name__ == "ResourceAlreadyExistsException":
+                return True
+            else:
+                raise e
+
     def _create_log_stream(self, log_stream):
         """Create a new log stream"""
         # append today's date to stream name
         log_stream = log_stream + '-' + str(date.today())
         try:
             print(("Creating log stream {}".format(log_stream)))
-            resp = self._log_client.create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
+            self._log_client.create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
             self._stream_token = "0"
         except Exception as e:
             # if the stream was created in between the call ignore the error
-            if type(e).__name__ != "ResourceAlreadyExistsException":
+            if type(e).__name__ == "ResourceAlreadyExistsException":
+                pass
+            elif type(e).__name__ == "ResourceNotFoundException":
+                if self._create_log_group():
+                    self._log_client.create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
+                else:
+                    raise FailedToCreateLogGroup
+            else:
                 raise e
         return log_stream
 
@@ -86,6 +112,10 @@ class LogHandler(object):
         # _create_log_stream will create the dated stream if it does not exist.
         # It returns the name of the current stream. This way we always write to a 
         # date-stamped stream. Ex CIS_1-3-2020-06-02 for CIS_1-3
+
+        if self._buffer_size == 0:
+            return
+            
         log_stream = self._create_log_stream(log_stream=self.stream_name)
 
         put_event_args = {

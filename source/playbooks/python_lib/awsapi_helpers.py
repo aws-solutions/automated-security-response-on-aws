@@ -18,6 +18,7 @@
 # Required Modules:
 # *******************************************************************
 
+import os
 import json
 import boto3
 from botocore.config import Config
@@ -29,12 +30,13 @@ BOTO_CONFIG = Config(
 )
 
 class AWSClient:
-    profile = ''
     region = ''
+    partition = ''
     CLIENT = {}
 
-    def __init__(self):
-        pass
+    def __init__(self, partition, region):
+        self.partition = partition
+        self.region = region
 
     def connect(self, service, region):
         """Connect to AWS api"""
@@ -49,28 +51,32 @@ class AWSClient:
         else:
             print('Connected to ' + service + ' in region ' + region)
 
-    def whoami(self, region='us-east-1'):
+    def whoami(self, region=None):
         """
         get local account info
         """
+        if not region:
+            region = self.region
         if ('sts' not in self.CLIENT) or ('sts' in self.CLIENT and region not in self.CLIENT['sts']):
             self.connect('sts', region)
         retstuff = self.CLIENT['sts'][region].get_caller_identity()
         return retstuff
 
-    def postit(self, topic, message, region='us-east-1'):
+    def postit(self, topic, message, region=None):
         """
         Post a message to an SNS topic
         """
+        if not region:
+            region = self.region
         message_id = 'error'
-        topic_account = str(self.whoami().get('Account'))
-        topic_arn = 'arn:aws:sns:' + region + ':' + topic_account + ':' + topic
+        topic_account = str(self.whoami(region=self.region).get('Account'))
+        topic_arn = 'arn:' + self.partition + ':sns:' + self.region + ':' + topic_account + ':' + topic
         
-        if ('sns' not in self.CLIENT) or ('sns' in self.CLIENT and region not in self.CLIENT['sns']):
-            self.connect('sns', region)
+        if ('sns' not in self.CLIENT) or ('sns' in self.CLIENT and self.region not in self.CLIENT['sns']):
+            self.connect('sns', self.region)
         try:
             json_message = json.dumps({"default":json.dumps(message)})
-            message_id = self.CLIENT['sns'][region].publish(
+            message_id = self.CLIENT['sns'][self.region].publish(
                 TopicArn=topic_arn,
                 Message=json_message,
                 MessageStructure='json'
@@ -84,9 +90,10 @@ class MissingAssumedRole(Exception):
     pass
 
 class BotoSession:
-    CLIENT = {}
-    RESOURCE = {}
+    clientProps = {}
+    resourceProps = {}
     STS = None
+    partition = None
     session = None
     target = None
     role = None
@@ -101,7 +108,7 @@ class BotoSession:
             if self.role == None:
                 raise MissingAssumedRole
             remote_account = self.STS.assume_role(
-                RoleArn='arn:aws:iam::' + self.target + ':role/' + self.role,
+                RoleArn='arn:' + self.partition + ':iam::' + self.target + ':role/' + self.role,
                 RoleSessionName="sechub_master"
             )
             self.session = boto3.session.Session(
@@ -115,7 +122,7 @@ class BotoSession:
         except Exception as e:
             raise e
 
-    def __init__(self, account=None, role=None):
+    def __init__(self, account=None, role=None, partition=None):
         """
         Create a session
         account: None or the target account
@@ -123,21 +130,21 @@ class BotoSession:
         self.target = account
         self.role = role
         self.session = None
+        self.partition = os.getenv('AWS_PARTITION', partition)
         self.create_session()
 
     def client(self, name, **kwargs):
 
         try:
-            self.CLIENT[name] = self.session.client(name, config=BOTO_CONFIG, **kwargs)
-            return self.CLIENT[name]
+            self.clientProps[name] = self.session.client(name, config=BOTO_CONFIG, **kwargs)
+            return self.clientProps[name]
         except Exception as e:
             raise e
 
     def resource(self, name, **kwargs):
 
         try:
-            self.RESOURCE[name] = self.session.resource(name, config=BOTO_CONFIG, **kwargs)
-            return self.RESOURCE[name]
+            self.resourceProps[name] = self.session.resource(name, config=BOTO_CONFIG, **kwargs)
+            return self.resourceProps[name]
         except Exception as e:
             raise e
-

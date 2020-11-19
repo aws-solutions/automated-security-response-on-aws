@@ -18,6 +18,7 @@ export class TestPlaybook extends cdk.Stack {
             name: 'CIS_1.X_RR',
             description: 'Test remediation',
             aws_region: this.region,
+            aws_partition: this.partition,
             aws_accountid: this.account,
             custom_action_name: 'CIS 1.X Remediation.',
             findings: findings,
@@ -43,7 +44,7 @@ export class TestAssumeRole extends cdk.Stack {
         const cis24 = new PolicyStatement();
         cis24.addActions("cloudtrail:UpdateTrail")
         cis24.effect = Effect.ALLOW
-        cis24.addResources("arn:aws:cloudtrail::" + this.account + ":*");
+        cis24.addResources("arn:" + this.partition + ":cloudtrail::" + this.account + ":*");
 
         const cis24Policy = new PolicyDocument();
         cis24Policy.addStatements(cis24)
@@ -53,7 +54,8 @@ export class TestAssumeRole extends cdk.Stack {
             solutionId: 'SO0111',
             lambdaPolicy: cis24Policy,
             lambdaHandlerName: 'CIS24',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
     }
 }

@@ -20,9 +20,10 @@ export interface AssumeRoleConstructProps {
     masterAccountNumber: cdk.CfnParameter,
     solutionId: string,
     lambdaPolicy: PolicyDocument,
-    lambdaHandlerName: string
-    service?: string
-    region: string
+    lambdaHandlerName: string,
+    service?: string,
+    region: string,
+    aws_partition: string
 }
 
 export class AssumeRoleConstruct extends cdk.Construct {
@@ -36,8 +37,10 @@ export class AssumeRoleConstruct extends cdk.Construct {
         principalPolicyStatement.addActions("sts:AssumeRole");
         principalPolicyStatement.effect = Effect.ALLOW;
 
-        let roleprincipal = new ArnPrincipal('arn:aws:iam::' + props.masterAccountNumber.value + ':role/' +
-            props.solutionId + '_' + props.lambdaHandlerName +  '_lambdaRole_' + props.region);
+        let roleprincipal = new ArnPrincipal(
+            'arn:' + props.aws_partition + ':iam::' + props.masterAccountNumber.value + ':role/' +
+            props.solutionId + '_' + props.lambdaHandlerName +  '_lambdaRole_' + props.region
+        );
 
         let principals = new CompositePrincipal(roleprincipal);
         principals.addToPolicy(principalPolicyStatement);

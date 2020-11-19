@@ -3,6 +3,14 @@
 exports[`default stack 1`] = `
 Object {
   "Description": "test;",
+  "Mappings": Object {
+    "SourceCode": Object {
+      "General": Object {
+        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.1.1",
+        "S3Bucket": "sharrbukkit",
+      },
+    },
+  },
   "Parameters": Object {
     "CIS1314AutoRemediation": Object {
       "AllowedValues": Array [
@@ -154,7 +162,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -226,7 +238,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -255,7 +271,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS1314_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS1314_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -282,6 +302,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis1314playbookRoleDefaultPolicy19AD6CA0": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis1314playbookRoleDefaultPolicy19AD6CA0",
+        "Roles": Array [
+          Object {
+            "Ref": "cis1314playbookRoleCEFDF3CF",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis1314playbookeventToPlaybookEventsRuleCAB736B5": Object {
       "Properties": Object {
@@ -339,6 +393,7 @@ Object {
     },
     "cis1314playbookeventToPlaybookLambdaFunction3493B773": Object {
       "DependsOn": Array [
+        "cis1314playbookRoleDefaultPolicy19AD6CA0",
         "cis1314playbookRoleCEFDF3CF",
       ],
       "Metadata": Object {
@@ -369,6 +424,9 @@ Object {
         "Description": "SHARR-Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -385,6 +443,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -455,7 +516,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -540,7 +605,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -612,7 +681,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -641,7 +714,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS15111_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS15111_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -668,6 +745,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis15111playbookRoleDefaultPolicy49043D4A": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis15111playbookRoleDefaultPolicy49043D4A",
+        "Roles": Array [
+          Object {
+            "Ref": "cis15111playbookRole8287FC95",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis15111playbookeventToPlaybookEventsRule01D398BD": Object {
       "Properties": Object {
@@ -749,6 +860,7 @@ Object {
     },
     "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA": Object {
       "DependsOn": Array [
+        "cis15111playbookRoleDefaultPolicy49043D4A",
         "cis15111playbookRole8287FC95",
       ],
       "Metadata": Object {
@@ -779,6 +891,9 @@ Object {
         "Description": "SHARR-Remediates CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -795,6 +910,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -846,7 +964,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -925,7 +1047,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -997,7 +1123,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1026,7 +1156,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS22_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS22_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1053,6 +1187,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis22playbookRoleDefaultPolicy623A7BA9": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis22playbookRoleDefaultPolicy623A7BA9",
+        "Roles": Array [
+          Object {
+            "Ref": "cis22playbookRole16D3468A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis22playbookeventToPlaybookEventsRule2F3F1416": Object {
       "Properties": Object {
@@ -1128,6 +1296,7 @@ Object {
     },
     "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2": Object {
       "DependsOn": Array [
+        "cis22playbookRoleDefaultPolicy623A7BA9",
         "cis22playbookRole16D3468A",
       ],
       "Metadata": Object {
@@ -1158,6 +1327,9 @@ Object {
         "Description": "SHARR-Remediates CIS 2.2 by enabling CloudTrail log file validation.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -1174,6 +1346,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -1225,7 +1400,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1304,7 +1483,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -1376,7 +1559,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1405,7 +1592,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS23_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS23_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1432,6 +1623,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis23playbookRoleDefaultPolicyA31645F4": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis23playbookRoleDefaultPolicyA31645F4",
+        "Roles": Array [
+          Object {
+            "Ref": "cis23playbookRoleB531FFE9",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis23playbookeventToPlaybookEventsRuleDE547B27": Object {
       "Properties": Object {
@@ -1488,6 +1713,7 @@ Object {
     },
     "cis23playbookeventToPlaybookLambdaFunction73DEC92E": Object {
       "DependsOn": Array [
+        "cis23playbookRoleDefaultPolicyA31645F4",
         "cis23playbookRoleB531FFE9",
       ],
       "Metadata": Object {
@@ -1518,6 +1744,9 @@ Object {
         "Description": "SHARR-Remediates CIS 2.3 by making CloudTrail log bucket private.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -1534,6 +1763,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -1604,7 +1836,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1683,7 +1919,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -1755,7 +1995,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1784,7 +2028,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS24_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS24_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -1811,6 +2059,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis24playbookRoleDefaultPolicy8DC2A7F1": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis24playbookRoleDefaultPolicy8DC2A7F1",
+        "Roles": Array [
+          Object {
+            "Ref": "cis24playbookRoleD9857188",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis24playbookeventToPlaybookEventsRule48E6FC7B": Object {
       "Properties": Object {
@@ -1867,6 +2149,7 @@ Object {
     },
     "cis24playbookeventToPlaybookLambdaFunction194E4CAC": Object {
       "DependsOn": Array [
+        "cis24playbookRoleDefaultPolicy8DC2A7F1",
         "cis24playbookRoleD9857188",
       ],
       "Metadata": Object {
@@ -1897,6 +2180,9 @@ Object {
         "Description": "SHARR-Remediates CIS 2.4 by enabling CloudWatch logging for CloudTrail.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -1913,6 +2199,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -1983,7 +2272,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2062,7 +2355,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -2134,7 +2431,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2163,7 +2464,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS26_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS26_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2190,6 +2495,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis26playbookRoleDefaultPolicy1EA2DA3E": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis26playbookRoleDefaultPolicy1EA2DA3E",
+        "Roles": Array [
+          Object {
+            "Ref": "cis26playbookRole7B3EB79F",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis26playbookeventToPlaybookEventsRule2137749F": Object {
       "Properties": Object {
@@ -2265,6 +2604,7 @@ Object {
     },
     "cis26playbookeventToPlaybookLambdaFunctionC17E7AED": Object {
       "DependsOn": Array [
+        "cis26playbookRoleDefaultPolicy1EA2DA3E",
         "cis26playbookRole7B3EB79F",
       ],
       "Metadata": Object {
@@ -2295,6 +2635,9 @@ Object {
         "Description": "SHARR-Remediates CIS 2.6 enabling Access Logging on CloudTrail logs bucket.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -2311,6 +2654,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -2362,7 +2708,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2441,7 +2791,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -2513,7 +2867,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2542,7 +2900,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS28_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS28_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2569,6 +2931,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis28playbookRoleDefaultPolicyEE2246B9": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis28playbookRoleDefaultPolicyEE2246B9",
+        "Roles": Array [
+          Object {
+            "Ref": "cis28playbookRole8E88DB57",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis28playbookeventToPlaybookEventsRuleBE9FE99A": Object {
       "Properties": Object {
@@ -2625,6 +3021,7 @@ Object {
     },
     "cis28playbookeventToPlaybookLambdaFunction32C5EF33": Object {
       "DependsOn": Array [
+        "cis28playbookRoleDefaultPolicyEE2246B9",
         "cis28playbookRole8E88DB57",
       ],
       "Metadata": Object {
@@ -2655,6 +3052,9 @@ Object {
         "Description": "SHARR-Remediates CIS 2.8 by enabling customer CMK key rotation.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -2671,6 +3071,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -2741,7 +3144,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2820,7 +3227,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -2835,6 +3246,40 @@ Object {
       },
       "Type": "Custom::ActionTarget",
       "UpdateReplacePolicy": "Delete",
+    },
+    "cis29playbookRoleDefaultPolicyDAFCF596": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis29playbookRoleDefaultPolicyDAFCF596",
+        "Roles": Array [
+          Object {
+            "Ref": "cis29playbookRoleECB0B999",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis29playbookRoleECB0B999": Object {
       "Metadata": Object {
@@ -2892,7 +3337,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -2921,7 +3370,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS29_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS29_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3023,6 +3476,7 @@ Object {
     },
     "cis29playbookeventToPlaybookLambdaFunctionE7B584E5": Object {
       "DependsOn": Array [
+        "cis29playbookRoleDefaultPolicyDAFCF596",
         "cis29playbookRoleECB0B999",
       ],
       "Metadata": Object {
@@ -3053,6 +3507,9 @@ Object {
         "Description": "SHARR-Remediates CIS 2.9 enabling VPC flow logging in all VPCs.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -3069,6 +3526,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -3120,7 +3580,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3200,7 +3664,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -3272,7 +3740,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3301,7 +3773,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS4142_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS4142_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3328,6 +3804,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis4142playbookRoleDefaultPolicyF1B641E8": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis4142playbookRoleDefaultPolicyF1B641E8",
+        "Roles": Array [
+          Object {
+            "Ref": "cis4142playbookRole5DCE5A58",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis4142playbookeventToPlaybookEventsRuleD4D7283A": Object {
       "Properties": Object {
@@ -3404,6 +3914,7 @@ Object {
     },
     "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330": Object {
       "DependsOn": Array [
+        "cis4142playbookRoleDefaultPolicyF1B641E8",
         "cis4142playbookRole5DCE5A58",
       ],
       "Metadata": Object {
@@ -3434,6 +3945,9 @@ Object {
         "Description": "SHARR-Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -3450,6 +3964,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -3501,7 +4018,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3580,7 +4101,11 @@ Object {
           "Fn::Join": Array [
             "",
             Array [
-              "arn:aws:lambda:",
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
               Object {
                 "Ref": "AWS::Region",
               },
@@ -3652,7 +4177,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:sns:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":sns:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3681,7 +4210,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:iam::*:role/SO0111_CIS43_memberRole_",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111_CIS43_memberRole_",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3708,6 +4241,40 @@ Object {
         },
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis43playbookRoleDefaultPolicy8BD30701": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "cis43playbookRoleDefaultPolicy8BD30701",
+        "Roles": Array [
+          Object {
+            "Ref": "cis43playbookRoleA94AD286",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "cis43playbookeventToPlaybookEventsRule23780DD8": Object {
       "Properties": Object {
@@ -3783,6 +4350,7 @@ Object {
     },
     "cis43playbookeventToPlaybookLambdaFunctionF4349582": Object {
       "DependsOn": Array [
+        "cis43playbookRoleDefaultPolicy8BD30701",
         "cis43playbookRoleA94AD286",
       ],
       "Metadata": Object {
@@ -3813,6 +4381,9 @@ Object {
         "Description": "SHARR-Remediates CIS 4.3 by removing all rules from a default security group.",
         "Environment": Object {
           "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
             "log_level": "info",
             "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
@@ -3829,6 +4400,9 @@ Object {
         },
         "Runtime": "python3.8",
         "Timeout": 60,
+        "TracingConfig": Object {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -3880,7 +4454,11 @@ Object {
                     "Fn::Join": Array [
                       "",
                       Array [
-                        "arn:aws:logs:",
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:",
                         Object {
                           "Ref": "AWS::Region",
                         },
@@ -3901,6 +4479,52 @@ Object {
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cispermissions": Object {
+      "DependsOn": Array [
+        "cis1314playbookRoleCEFDF3CF",
+        "cis15111playbookRole8287FC95",
+        "cis22playbookRole16D3468A",
+        "cis23playbookRoleB531FFE9",
+        "cis24playbookRoleD9857188",
+        "cis26playbookRole7B3EB79F",
+        "cis28playbookRole8E88DB57",
+        "cis29playbookRoleECB0B999",
+        "cis4142playbookRole5DCE5A58",
+        "cis43playbookRoleA94AD286",
+      ],
+      "Properties": Object {
+        "Parameters": Object {
+          "MasterAccountNumber": Object {
+            "Ref": "AWS::AccountId",
+          },
+        },
+        "TemplateURL": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "https://",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/CISPermissions.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
     },
   },
 }

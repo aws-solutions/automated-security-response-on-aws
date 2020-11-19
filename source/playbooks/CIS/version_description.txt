@@ -1,1 +1,1 @@
-Bugfix - enhance CloudWatch rules.
+GovCloud and opt-in region support

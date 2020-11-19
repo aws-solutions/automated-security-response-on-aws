@@ -117,7 +117,7 @@ def test_notify(mocker):
 
     mocker.patch('lib.sechub_findings.Finding.update_text', return_value='')
 
-    AWS = AWSClient()
+    AWS = AWSClient('aws','us-east-1')
     mocker.patch('lib.awsapi_helpers.AWSClient.postit', return_value='')
 
     test_message = {

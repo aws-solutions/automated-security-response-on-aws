@@ -21,7 +21,7 @@ from botocore.stub import Stubber, ANY
 import pytest
 from lib.awsapi_helpers import AWSClient, BotoSession
 
-aws = AWSClient()
+aws = AWSClient('aws','us-east-1')
 
 #------------------------------------------------------------------------------
 # 

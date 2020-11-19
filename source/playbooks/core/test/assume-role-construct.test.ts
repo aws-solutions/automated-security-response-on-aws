@@ -26,7 +26,11 @@ test('Test the playbook to have all the required resources.', () => {
                       "Fn::Join": [
                         "",
                         [
-                          "arn:aws:iam::",
+                          "arn:",
+                          {
+                            "Ref": "AWS::Partition"
+                          },
+                          ":iam::",
                           {
                             "Ref": "MasterAccountNumber"
                           },
@@ -53,7 +57,11 @@ test('Test the playbook to have all the required resources.', () => {
                         "Fn::Join": [
                           "",
                           [
-                            "arn:aws:cloudtrail::",
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":cloudtrail::",
                             {
                               "Ref": "AWS::AccountId"
                             },

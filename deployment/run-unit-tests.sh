@@ -10,13 +10,20 @@ maxrc=0
 rc=0
 export overrideWarningsEnabled=false
 
+[[ $1 == 'update' ]] && {
+    update="true" 
+    echo "UPDATE MODE: CDK Snapshots will be updated. CDK UNIT TESTS WILL BE SKIPPED"
+} || update="false"
+
 #!/bin/bash
 echo 'Installing required Python testing modules'
 pip install -r ./testing_requirements.txt
 
 # Get reference for all important folders
 template_dir="$PWD"
-source_dir="$template_dir/temp/source"
+source_dir="$template_dir/../source"
+temp_source_dir="$template_dir/temp/source"
+
 if [[ -e './solution_env.sh' ]]; then
     chmod +x ./solution_env.sh
     source ./solution_env.sh
@@ -50,18 +57,23 @@ fi
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests - playbook CIS"
 echo "------------------------------------------------------------------------------"
-cd $source_dir/playbooks/CIS
-npm run test
-rc=$?
-echo CDK Unit Tests RC=$rc
-if [ "$rc" -gt "$maxrc" ]; then
-	maxrc=$rc
-fi
+cd $temp_source_dir/playbooks/CIS
+[[ $update == "true" ]] && {
+    npm run test -- -u
+    cp -f test/__snapshots__/* $source_dir/playbooks/CIS/test/__snapshots__/
+} || {
+    npm run test
+    rc=$?
+    echo CDK Unit Tests RC=$rc
+    if [ "$rc" -gt "$maxrc" ]; then
+        maxrc=$rc
+    fi
+}
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests - core"
 echo "------------------------------------------------------------------------------"
-cd $source_dir/playbooks/core
+cd $temp_source_dir/playbooks/core
 npm run test
 rc=$?
 echo CDK Unit Tests RC=$rc
@@ -73,13 +85,18 @@ fi
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests - solution_deploy"
 echo "------------------------------------------------------------------------------"
-cd $source_dir/solution_deploy
-npm run test
-rc=$?
-echo CDK Unit Tests RC=$rc
-if [ "$rc" -gt "$maxrc" ]; then
-	maxrc=$rc
-fi
+cd $temp_source_dir/solution_deploy
+[[ $update == "true" ]] && {
+    npm run test -- -u
+    cp -f test/__snapshots__/* $source_dir/solution_deploy/test/__snapshots__/
+} || {
+    npm run test
+    rc=$?
+    echo CDK Unit Tests RC=$rc
+    if [ "$rc" -gt "$maxrc" ]; then
+    	maxrc=$rc
+    fi
+}
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests"

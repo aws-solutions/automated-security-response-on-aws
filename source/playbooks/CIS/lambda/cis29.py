@@ -42,6 +42,8 @@ APPLOGGER = LogHandler(PLAYBOOK) # application LOGGER for CW Logs
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')
+
 # Append region name to LAMBDA_ROLE
 LAMBDA_ROLE += '_' + AWS_REGION
 BOTO_CONFIG = Config(
@@ -50,7 +52,7 @@ BOTO_CONFIG = Config(
     },
     region_name=AWS_REGION
 )
-AWS = AWSClient()
+AWS = AWSClient(AWS_PARTITION, AWS_REGION)
 
 #------------------------------------------------------------------------------
 # HANDLER
@@ -137,7 +139,8 @@ def remediate(finding, metrics_data):
     lambdaFunctionSeshToken = os.getenv('AWS_SESSION_TOKEN', '')  
 
     # Get Flow Logs Role ARN from env vars
-    DeliverLogsPermissionArn = 'arn:aws:iam::' + finding.account_id + ':role/SO0111_CIS29_remediationRole_' + AWS_REGION
+    DeliverLogsPermissionArn = 'arn:' + AWS_PARTITION + ':iam::' + finding.account_id + \
+        ':role/SO0111_CIS29_remediationRole_' + AWS_REGION
 
     # Import boto3 clients
     try:

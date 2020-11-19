@@ -57,7 +57,11 @@ test('Test the playbook to have all the required resources.', () => {
                     "Fn::Join": [
                       "",
                       [
-                        "arn:aws:sns:",
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition"
+                        },
+                        ":sns:",
                         {
                           "Ref": "AWS::Region"
                         },
@@ -86,7 +90,11 @@ test('Test the playbook to have all the required resources.', () => {
                     "Fn::Join": [
                       "",
                       [
-                        "arn:aws:iam::*:role/SO0111_CIS_1.X_RR_memberRole_",
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition"
+                        },
+                        ":iam::*:role/SO0111_CIS_1.X_RR_memberRole_",
                         {
                           "Ref": "AWS::Region"
                         }
@@ -129,7 +137,11 @@ test('check custom action target', () => {
             "Fn::Join": [
                 "",
                 [
-                    "arn:aws:lambda:",
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":lambda:",
                     {
                         "Ref": "AWS::Region"
                     },

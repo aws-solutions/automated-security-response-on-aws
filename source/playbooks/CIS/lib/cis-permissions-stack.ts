@@ -48,7 +48,9 @@ export class CisPermissionsStack extends cdk.Stack {
         cis1314.addActions("iam:UpdateAccessKey");
         cis1314.addActions("iam:ListAccessKeys");
         cis1314.effect = Effect.ALLOW;
-        cis1314.addResources("arn:aws:iam::" + this.account + ":user/*");
+        cis1314.addResources(
+            "arn:" + this.partition + ":iam::" + this.account + ":user/*"
+        );
 
         const cis1314Policy = new PolicyDocument();
         cis1314Policy.addStatements(cis1314)
@@ -58,7 +60,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis1314Policy,
             lambdaHandlerName: 'CIS1314',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         // //CIS 1.5 - 1.11
@@ -75,14 +78,17 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis15111Policy,
             lambdaHandlerName: 'CIS15111',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         // //CIS 2.2
         const cis22 = new PolicyStatement();
         cis22.addActions("cloudtrail:UpdateTrail")
         cis22.effect = Effect.ALLOW
-        cis22.addResources("arn:aws:cloudtrail:*:" + this.account + ":trail/*");
+        cis22.addResources(
+            "arn:" + this.partition + ":cloudtrail:*:" + this.account + ":trail/*"
+        );
 
         const cis22Policy = new PolicyDocument();
         cis22Policy.addStatements(cis22)
@@ -92,7 +98,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis22Policy,
             lambdaHandlerName: 'CIS22',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         // //CIS 2.3
@@ -109,7 +116,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis23Policy,
             lambdaHandlerName: 'CIS23',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         //CIS 2.4
@@ -117,10 +125,13 @@ export class CisPermissionsStack extends cdk.Stack {
         cis24ct.addActions("cloudtrail:UpdateTrail")
         cis24ct.addActions("iam:PassRole")
         cis24ct.effect = Effect.ALLOW
-        cis24ct.addResources("arn:aws:cloudtrail:*:" + this.account + ":trail/*");
         cis24ct.addResources(
-            "arn:aws:iam::" + this.account + ":role/" + props.solutionId + 
-            "_CIS24_remediationRole_" + this.region);
+            "arn:" + this.partition + ":cloudtrail:*:" + this.account + ":trail/*"
+        );
+        cis24ct.addResources(
+            "arn:" + this.partition + ":iam::" + this.account + ":role/" + props.solutionId + 
+            "_CIS24_remediationRole_" + this.region
+        );
 
         const cis24logs = new PolicyStatement();
         cis24logs.addActions("logs:CreateLogGroup")
@@ -137,18 +148,23 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis24Policy,
             lambdaHandlerName: 'CIS24',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         const cis24_remediation_policy_statement_1 = new PolicyStatement()
         cis24_remediation_policy_statement_1.addActions("logs:CreateLogStream")
         cis24_remediation_policy_statement_1.effect = Effect.ALLOW
-        cis24_remediation_policy_statement_1.addResources("arn:aws:logs:*:*:log-group:*")
+        cis24_remediation_policy_statement_1.addResources(
+            "arn:" + this.partition + ":logs:*:*:log-group:*"
+        )
 
         const cis24_remediation_policy_statement_2 = new PolicyStatement()
         cis24_remediation_policy_statement_2.addActions("logs:PutLogEvents")
         cis24_remediation_policy_statement_2.effect = Effect.ALLOW
-        cis24_remediation_policy_statement_2.addResources("arn:aws:logs:*:*:log-group:*:log-stream:*")
+        cis24_remediation_policy_statement_2.addResources(
+            "arn:" + this.partition + ":logs:*:*:log-group:*:log-stream:*"
+        )
 
         const cis24_remediation_policy_doc = new PolicyDocument()
         cis24_remediation_policy_doc.addStatements(cis24_remediation_policy_statement_1) 
@@ -177,10 +193,14 @@ export class CisPermissionsStack extends cdk.Stack {
         const cis26ssm = new PolicyStatement();
         cis26ssm.addActions("ssm:StartAutomationExecution")
         cis26ssm.effect = Effect.ALLOW
-        cis26ssm.addResources('arn:aws:ssm:' + this.region + ':' +
-            this.account + ':document/AWS-ConfigureS3BucketLogging');
-        cis26ssm.addResources('arn:aws:ssm:' + this.region + ':' +
-            this.account + ':automation-definition/*');
+        cis26ssm.addResources(
+            'arn:' + this.partition + ':ssm:' + this.region + ':' +
+            this.account + ':document/AWS-ConfigureS3BucketLogging'
+        );
+        cis26ssm.addResources(
+            'arn:' + this.partition + ':ssm:' + this.region + ':' +
+            this.account + ':automation-definition/*'
+        );
 
         const cis26s3 = new PolicyStatement();
         cis26s3.addActions("s3:PutBucketLogging")
@@ -193,8 +213,10 @@ export class CisPermissionsStack extends cdk.Stack {
         const cis26iam = new PolicyStatement();
         cis26iam.addActions("iam:PassRole")
         cis26iam.effect = Effect.ALLOW
-        cis26iam.addResources('arn:aws:iam::' + this.account +
-            ':role/' + props.solutionId + '_CIS26_memberRole_' + this.region);
+        cis26iam.addResources(
+            'arn:' + this.partition + ':iam::' + this.account +
+            ':role/' + props.solutionId + '_CIS26_memberRole_' + this.region
+        );
 
         const cis26Policy = new PolicyDocument();
         cis26Policy.addStatements(cis26ssm)
@@ -207,7 +229,8 @@ export class CisPermissionsStack extends cdk.Stack {
             lambdaPolicy: cis26Policy,
             lambdaHandlerName: 'CIS26',
             service: 'ssm.amazonaws.com',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         //CIS 2.8
@@ -215,7 +238,9 @@ export class CisPermissionsStack extends cdk.Stack {
         cis28kms.addActions("kms:EnableKeyRotation")
         cis28kms.addActions("kms:GetKeyRotationStatus")
         cis28kms.effect = Effect.ALLOW
-        cis28kms.addResources("arn:aws:kms:*:"+this.account+":key/*");
+        cis28kms.addResources(
+            "arn:" + this.partition + ":kms:*:"+this.account+":key/*"
+        );
 
         const cis28Policy = new PolicyDocument();
         cis28Policy.addStatements(cis28kms)
@@ -225,7 +250,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis28Policy,
             lambdaHandlerName: 'CIS28',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         //CIS 2.9
@@ -233,11 +259,12 @@ export class CisPermissionsStack extends cdk.Stack {
         cis29_1.addActions("ec2:CreateFlowLogs")
         cis29_1.addActions("iam:PassRole")
         cis29_1.effect = Effect.ALLOW
-        cis29_1.addResources("arn:aws:ec2:*:*:vpc/*");
-        cis29_1.addResources("arn:aws:ec2:*:*:vpc-flow-log/*");
+        cis29_1.addResources("arn:" + this.partition + ":ec2:*:*:vpc/*");
+        cis29_1.addResources("arn:" + this.partition + ":ec2:*:*:vpc-flow-log/*");
         cis29_1.addResources(
-            "arn:aws:iam::" + this.account + ":role/" + props.solutionId + 
-            "_CIS29_remediationRole_" + this.region);
+            "arn:" + this.partition + ":iam::" + this.account + ":role/" + props.solutionId + 
+            "_CIS29_remediationRole_" + this.region
+        );
 
         const cis29_2 = new PolicyStatement()
         cis29_2.addActions("ec2:DescribeFlowLogs")
@@ -254,7 +281,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis29Policy,
             lambdaHandlerName: 'CIS29',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         //CIS 2.9 Remediation Role
@@ -306,16 +334,22 @@ export class CisPermissionsStack extends cdk.Stack {
         const cis4142iam = new PolicyStatement();
         cis4142iam.addActions("iam:PassRole")
         cis4142iam.effect = Effect.ALLOW
-        cis4142iam.addResources('arn:aws:iam::' + this.account +
-            ':role/' + props.solutionId + '_CIS4142_memberRole_' + this.region);
+        cis4142iam.addResources(
+            'arn:' + this.partition + ':iam::' + this.account +
+            ':role/' + props.solutionId + '_CIS4142_memberRole_' + this.region
+        );
 
         const cis4142ssm = new PolicyStatement();
         cis4142ssm.addActions("ssm:StartAutomationExecution")
         cis4142ssm.effect = Effect.ALLOW
-        cis4142ssm.addResources('arn:aws:ssm:' + this.region + ':' +
-            this.account + ':document/AWS-DisablePublicAccessForSecurityGroup');
-        cis4142ssm.addResources('arn:aws:ssm:' + this.region + ':' +
-            this.account + ':automation-definition/*');
+        cis4142ssm.addResources(
+            'arn:' + this.partition + ':ssm:' + this.region + ':' +
+            this.account + ':document/AWS-DisablePublicAccessForSecurityGroup'
+        );
+        cis4142ssm.addResources(
+            'arn:' + this.partition + ':ssm:' + this.region + ':' +
+            this.account + ':automation-definition/*'
+        );
 
         const cis4142Policy = new PolicyDocument();
         cis4142Policy.addStatements(cis4142ec2)
@@ -328,7 +362,8 @@ export class CisPermissionsStack extends cdk.Stack {
             lambdaPolicy: cis4142Policy,
             lambdaHandlerName: 'CIS4142',
             service: 'ssm.amazonaws.com',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
 
         //CIS 4.3
@@ -338,7 +373,7 @@ export class CisPermissionsStack extends cdk.Stack {
         cis43_1.addActions("ec2:RevokeSecurityGroupIngress")
         cis43_1.addActions("ec2:RevokeSecurityGroupEgress")
         cis43_1.effect = Effect.ALLOW
-        cis43_1.addResources("arn:aws:ec2:*:"+this.account+":security-group/*");
+        cis43_1.addResources("arn:" + this.partition + ":ec2:*:"+this.account+":security-group/*");
 
         const cis43_2 = new PolicyStatement()
         cis43_2.addActions("ec2:DescribeSecurityGroupReferences")
@@ -355,7 +390,8 @@ export class CisPermissionsStack extends cdk.Stack {
             solutionId: props.solutionId,
             lambdaPolicy: cis43Policy,
             lambdaHandlerName: 'CIS43',
-            region: this.region
+            region: this.region,
+            aws_partition: this.partition
         });
     }
 }

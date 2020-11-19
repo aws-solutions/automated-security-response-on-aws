@@ -23,6 +23,7 @@ from lib.logger import Logger
 from lib.awsapi_helpers import AWSClient, BotoSession
 from lib.applogger import LogHandler
 from lib.metrics import Metrics
+from lib.aws_utils import remove_arn_prefix
 
 #------------------------------
 # Remediation-Specific
@@ -43,6 +44,8 @@ APPLOGGER = LogHandler(PLAYBOOK) # application LOGGER for CW Logs
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')
+
 # Append region name to LAMBDA_ROLE
 LAMBDA_ROLE += '_' + AWS_REGION
 BOTO_CONFIG = Config(
@@ -51,7 +54,7 @@ BOTO_CONFIG = Config(
     },
     region_name=AWS_REGION
 )
-AWS = AWSClient()
+AWS = AWSClient(AWS_PARTITION, AWS_REGION)
 
 #------------------------------------------------------------------------------
 # HANDLER
@@ -127,7 +130,7 @@ def remediate(finding, metrics_data):
     try:
         ctBucket = str(finding.details['Resources'][0]['Id'])
         # Remove ARN string, create new variable
-        formattedCTBucket = ctBucket.replace("arn:aws:s3:::", "")
+        formattedCTBucket = remove_arn_prefix(ctBucket)
     except Exception as e:
         message['Note'] = str(e) + ' - Finding format is not as expected.'
         message['State'] = 'FAILED'
@@ -205,7 +208,8 @@ def remediate(finding, metrics_data):
                 'GranteeUri': ['http://acs.amazonaws.com/groups/s3/LogDelivery'], ## Must Use URI, fails with Canonical Group Id
                 'TargetPrefix' : [formattedCTBucket + '/'],
                 'TargetBucket': [accessLoggingBucket],
-                'AutomationAssumeRole': ['arn:aws:iam::' + finding.account_id + ':role/' + LAMBDA_ROLE]
+                'AutomationAssumeRole': ['arn:' + AWS_PARTITION + ':iam::' + \
+                    finding.account_id + ':role/' + LAMBDA_ROLE]
             }
         )
         LOGGER.debug(response)
