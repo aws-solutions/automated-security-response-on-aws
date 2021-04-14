@@ -39,7 +39,7 @@ v1.0.0.
 <a name="architecture-diagram"></a>
 # Architecture Diagram
 
-![](SHARR\ v1.2.jpg)
+![](SHARR_v1.2.jpg)
 
 <a name="aws-solutions-constructs"></a>
 # AWS Solutions Constructs
