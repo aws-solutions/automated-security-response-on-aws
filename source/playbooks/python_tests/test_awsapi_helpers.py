@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -13,6 +13,7 @@
 #  or implied. See the License for the specific language governing permis-    #
 #  sions and limitations under the License.                                   #
 ###############################################################################
+
 """
 Simple test to validate that the request format coming from the Cfn template
 will turn into a valid API call.

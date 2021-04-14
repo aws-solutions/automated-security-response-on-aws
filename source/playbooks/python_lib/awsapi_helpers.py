@@ -1,6 +1,6 @@
 """Helper class for AWS API access"""
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -109,7 +109,7 @@ class BotoSession:
                 raise MissingAssumedRole
             remote_account = self.STS.assume_role(
                 RoleArn='arn:' + self.partition + ':iam::' + self.target + ':role/' + self.role,
-                RoleSessionName="sechub_master"
+                RoleSessionName="sechub_admin"
             )
             self.session = boto3.session.Session(
                 aws_access_key_id=remote_account['Credentials']['AccessKeyId'],

@@ -1,0 +1,149 @@
+{
+  "version": "0",
+  "id": "81ee3cd6-6100-dbb7-5431-adcb1a6550a3",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-06-02T17:26:55Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1:111111111111:action/custom/cis1511RR"
+  ],
+  "detail": {
+    "actionName": "CIS 1.5 - 1.11 RR",
+    "actionDescription": "Remediates CIS Checks 1.5 through 1.11 by establishing a CIS Compliant Strong Password Policy",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+        ],
+        "Description": "Password policies are, in part, used to enforce password complexity requirements. IAM password policies can be used to ensure passwords are comprised of different character sets. It is recommended that the password policy require at least one lowercase letter.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "WARNING",
+          "StatusReasons": [
+            {
+              "Description": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+              "ReasonCode": "CONFIG_ACCESS_DENIED"
+            }
+          ]
+        },
+        "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.6",
+        "FirstObservedAt": "2020-05-08T03:39:36.463Z",
+        "CreatedAt": "2020-05-08T03:39:36.463Z",
+        "RecordState": "ACTIVE",
+        "Title": "1.6 Ensure IAM password policy requires at least one lowercase letter",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-06-02T16:00:53.898Z",
+        "Severity": {
+          "Normalized": 40,
+          "Label": "MEDIUM",
+          "Product": 40,
+          "Original": "MEDIUM"
+        },
+        "UpdatedAt": "2020-06-02T16:00:52.989Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+          "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+          "RuleId": "1.6",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.6/remediation",
+          "RelatedAWSResources:0/name": "securityhub-iam-password-policy-lowercase-letter-check-d8943e06",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.6",
+          "aws/securityhub/SeverityLabel": "MEDIUM",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/annotation": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.6/finding/3fe13eb6-b093-48b2-ba3b-b975347c3183"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.6/finding/3fe13eb6-b093-48b2-ba3b-b975347c3183",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.6/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAccount",
+            "Region": "us-east-1",
+            "Id": "AWS::::Account:111111111111"
+          }
+        ],
+        "Note": {
+          "UpdatedBy": "update_text",
+          "Text": "Set IAM Password Policy remediation failed for AccountId 111111111111",
+          "UpdatedAt": "2020-06-02T17:24:59.965Z"
+        }
+      },
+      {
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+        ],
+        "Description": "Password policies are, in part, used to enforce password complexity requirements. IAM password policies can be used to ensure passwords are comprised of different character sets. It is recommended that the password policy require at least one lowercase letter.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "PASSED"
+        },
+        "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.6",
+        "FirstObservedAt": "2020-06-02T03:04:33.561Z",
+        "CreatedAt": "2020-06-02T03:04:33.561Z",
+        "RecordState": "ACTIVE",
+        "Title": "1.6 Ensure IAM password policy requires at least one lowercase letter",
+        "Workflow": {
+          "Status": "RESOLVED"
+        },
+        "LastObservedAt": "2020-06-02T15:36:25.707Z",
+        "Severity": {
+          "Normalized": 0,
+          "Label": "INFORMATIONAL",
+          "Product": 0,
+          "Original": "INFORMATIONAL"
+        },
+        "UpdatedAt": "2020-06-02T15:36:24.745Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+          "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+          "RuleId": "1.6",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.6/remediation",
+          "RelatedAWSResources:0/name": "securityhub-iam-password-policy-lowercase-letter-check-f76d1fd4",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.6",
+          "aws/securityhub/SeverityLabel": "INFORMATIONAL",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.6/finding/524d1058-d8af-4549-80e6-e85872ea571e"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.6/finding/524d1058-d8af-4549-80e6-e85872ea571e",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.6/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAccount",
+            "Region": "us-east-1",
+            "Id": "AWS::::Account:111111111111"
+          }
+        ],
+        "Note": {
+          "UpdatedBy": "resolve",
+          "Text": "Set IAM Password Policy remediation was successful.",
+          "UpdatedAt": "2020-06-02T17:24:33.113Z"
+        }
+      }
+    ]
+  }
+}

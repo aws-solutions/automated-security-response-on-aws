@@ -1,0 +1,103 @@
+{
+  "version": "0",
+  "id": "6712ce97-6233-43ce-1fcb-79f10ed5724b",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-10-29T20:46:18Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1:111111111111:action/custom/AFSBPec22"
+  ],
+  "detail": {
+    "actionName": "AFSBPec22",
+    "actionDescription": "Remediate AFSBP ec2.2 by deleting ingresa nd egress rules on default security group",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This AWS control checks that the default security group of a VPC does not allow inbound or outbound traffic.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/EC2.2",
+        "FirstObservedAt": "2020-10-29T06:24:48.687Z",
+        "CreatedAt": "2020-10-29T06:24:48.687Z",
+        "RecordState": "ACTIVE",
+        "Title": "EC2.2 The VPC default security group should not allow inbound and outbound traffic",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-10-29T06:24:50.189Z",
+        "Severity": {
+          "Normalized": 40,
+          "Label": "MEDIUM",
+          "Product": 40,
+          "Original": "MEDIUM"
+        },
+        "UpdatedAt": "2020-10-29T06:24:48.687Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "EC2.2",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/EC2.2/remediation",
+          "RelatedAWSResources:0/name": "securityhub-vpc-default-security-group-closed-0927d9ca",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/EC2.2",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.2/finding/6b409fb3-f9bc-4a29-895d-c853b5af61e2"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.2/finding/6b409fb3-f9bc-4a29-895d-c853b5af61e2",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/EC2.2/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsEc2SecurityGroup",
+            "Details": {
+              "AwsEc2SecurityGroup": {
+                "GroupName": "default",
+                "OwnerId": "111111111111",
+                "VpcId": "vpc-15975868",
+                "IpPermissions": [
+                  {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                      {
+                        "UserId": "111111111111",
+                        "GroupId": "sg-ab1e739b"
+                      }
+                    ]
+                  }
+                ],
+                "IpPermissionsEgress": [
+                  {
+                    "IpProtocol": "-1",
+                    "IpRanges": [
+                      {
+                        "CidrIp": "0.0.0.0/0"
+                      }
+                    ]
+                  }
+                ],
+                "GroupId": "sg-ab1e739b"
+              }
+            },
+            "Region": "us-east-1",
+            "Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-ab1e739b"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,505 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_CloudTrail.1
+  ## What does this document do?
+  Creates a multi-region trail with KMS encryption and enables CloudTrail
+  Note: this remediation will create a NEW trail.
+  
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  Finding:
+    type: StringMap
+    description: The input from Step function for the finding  
+  KMSKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_AFSBP_ARN}}
+    description: The ARN of the KMS key created by SHARR for this remediation
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+mainSteps:
+  -
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: ResourceId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: AWSPartition
+        Selector: $.Payload.partition
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        region: '{{global:REGION}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def partition_from_region(region_name):
+          """
+          returns the partition for a given region
+          Note: this should be a Boto3 function and should be deprecated once it is.
+          On success returns a string
+          On failure returns NoneType
+          """
+
+          parts = region_name.split('-')
+       
+          try:
+            if parts[0] == 'us' and parts[1] == 'gov':
+              return 'aws-us-gov'
+            elif parts[0] == 'cn':
+              return 'aws-cn'
+            else:
+              return 'aws'
+          except:
+            return
+
+        def parse_event(event, context):
+          my_control_id = 'CloudTrail.1'
+
+          if not re.match('^[a-z]{2}(-gov)?-[a-z]+-\d$', event['region']):
+            exit(f'ERROR: region is not valid {event["region"]}')
+
+          partition = partition_from_region(event['region'])
+          if not partition:
+            exit(f'ERROR: Could not determine partition from region {event["region"]}')
+
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+            
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          object = {'Type': 'Account', 'Id': account_id, 'OutputKey': 'Remediation.Output'}
+          return {
+            "account_id": account_id, 
+            "finding_id": finding_id, 
+            "product_arn": product_arn, 
+            "object": object,
+            "partition": partition
+          }
+    isEnd: false
+
+  - 
+    name: CreateLoggingBucket
+    action: 'aws:executeScript'
+    outputs:
+      - Name: LoggingBucketName
+        Selector: $.Payload.logging_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+      Runtime: python3.7
+      Handler: create_logging_bucket
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        def create_logging_bucket(event, context):
+          kms_key_arn = event['kms_key_arn']
+          aws_account = event['account']
+          aws_region = event['region']
+          bucket_name = 'so0111-access-logs-' + aws_region + '-' + aws_account
+          try:
+            s3 = boto3.client('s3', config=BOTO_CONFIG)
+            if aws_region == 'us-east-1':
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name
+              )
+            else:
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name,
+                CreateBucketConfiguration={
+                  'LocationConstraint': aws_region
+                }
+              )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # bucket already exists - return
+            if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
+              print('Bucket ' + bucket_name + ' already exists')
+              return {"logging_bucket": bucket_name}
+            else:
+              print(ex)
+              exit('Error creating bucket ' + bucket_name)
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_encryption(
+              Bucket=bucket_name,
+              ServerSideEncryptionConfiguration={
+                'Rules': [
+                  {
+                    'ApplyServerSideEncryptionByDefault': {
+                      'SSEAlgorithm': 'aws:kms',
+                      'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                    }
+                  }
+                ]
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_public_access_block(
+              Bucket=bucket_name,
+              PublicAccessBlockConfiguration={
+                  'BlockPublicAcls': True,
+                  'IgnorePublicAcls': True,
+                  'BlockPublicPolicy': True,
+                  'RestrictPublicBuckets': True
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_acl(
+              Bucket=bucket_name,
+              GrantReadACP='uri=http://acs.amazonaws.com/groups/s3/LogDelivery',
+              GrantWrite='uri=http://acs.amazonaws.com/groups/s3/LogDelivery'
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+
+          return {"logging_bucket": bucket_name}
+    isEnd: false
+
+  - 
+    name: CreateCloudTrailBucket
+    action: 'aws:executeScript'
+    outputs:
+      - Name: CloudTrailBucketName
+        Selector: $.Payload.cloudtrail_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+        logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
+      Runtime: python3.7
+      Handler: create_encrypted_bucket
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        def create_encrypted_bucket(event, context):
+          kms_key_arn = event['kms_key_arn']
+          aws_account = event['account']
+          aws_region = event['region']
+          logging_bucket = event['logging_bucket']
+          bucket_name = 'so0111-aws-cloudtrail-' + aws_account
+          try:
+            s3 = boto3.client('s3', config=BOTO_CONFIG)
+            if aws_region == 'us-east-1':
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name
+              )
+            else:
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name,
+                CreateBucketConfiguration={
+                  'LocationConstraint': aws_region
+                }
+              )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # bucket already exists - return
+            if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
+              print('Bucket ' + bucket_name + ' already exists')
+              return {"cloudtrail_bucket": bucket_name}
+            else:
+              print(ex)
+              exit('Error creating bucket ' + bucket_name)
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_encryption(
+              Bucket=bucket_name,
+              ServerSideEncryptionConfiguration={
+                'Rules': [
+                  {
+                    'ApplyServerSideEncryptionByDefault': {
+                      'SSEAlgorithm': 'aws:kms',
+                      'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                    }
+                  }
+                ]
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_public_access_block(
+              Bucket=bucket_name,
+              PublicAccessBlockConfiguration={
+                  'BlockPublicAcls': True,
+                  'IgnorePublicAcls': True,
+                  'BlockPublicPolicy': True,
+                  'RestrictPublicBuckets': True
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_logging(
+              Bucket=bucket_name,
+              BucketLoggingStatus={
+                'LoggingEnabled': {
+                  'TargetBucket': logging_bucket,
+                  'TargetPrefix': 'cloudtrail-access-logs'
+                }
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+        
+          return {"cloudtrail_bucket": bucket_name}
+    isEnd: false
+
+  - 
+    name: CreateCloudTrailBucketPolicy
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload: 
+        cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
+        partition: '{{ParseInput.AWSPartition}}'
+        account: '{{global:ACCOUNT_ID}}'
+      Runtime: python3.7
+      Handler: create_bucket_policy
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        s3 = boto3.client('s3', config=BOTO_CONFIG)
+
+        def create_bucket_policy(event, context):
+          cloudtrail_bucket = event['cloudtrail_bucket']
+          aws_partition = event['partition']
+          aws_account = event['account']
+          try:
+            bucket_policy = {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "AWSCloudTrailAclCheck20150319",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                     "cloudtrail.amazonaws.com"
+                    ]
+                  },
+                  "Action": "s3:GetBucketAcl",
+                  "Resource": "arn:" + aws_partition + ":s3:::" + cloudtrail_bucket
+                },
+                {
+                  "Sid": "AWSCloudTrailWrite20150319",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                      "cloudtrail.amazonaws.com"
+                    ]
+                  },
+                  "Action": "s3:PutObject",
+                  "Resource": "arn:" + aws_partition + ":s3:::" + cloudtrail_bucket + "/AWSLogs/" + aws_account + "/*",
+                  "Condition": { 
+                    "StringEquals": { 
+                      "s3:x-amz-acl": "bucket-owner-full-control"
+                    }
+                  }
+                }
+              ]
+            }
+            s3.put_bucket_policy(
+              Bucket=cloudtrail_bucket,
+              Policy=json.dumps(bucket_policy)
+            )
+          except Exception as e:
+            print(e)
+            exit('PutBucketPolicy failed')
+
+          return
+    isEnd: false
+
+  -
+    name: EnableCloudTrail
+    action: 'aws:executeScript'
+    outputs:
+      - Name: CloudTrailBucketName
+        Selector: $.Payload.cloudtrail_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        partition: '{{ParseInput.AWSPartition}}'
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+      Runtime: python3.7
+      Handler: enable_cloudtrail
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        ct = boto3.client('cloudtrail', config=BOTO_CONFIG)
+
+        def enable_cloudtrail(event, context):
+          
+          aws_account = event['account']
+          aws_region = event['region']
+          aws_partition = event['partition']
+          cloudtrail_bucket = event['cloudtrail_bucket']
+
+          try:
+            response = ct.create_trail(
+              Name='multi-region-cloud-trail',
+              S3BucketName=cloudtrail_bucket,
+              IncludeGlobalServiceEvents=True,
+              EnableLogFileValidation=True,
+              IsMultiRegionTrail=True,
+              KmsKeyId=event['kms_key_arn']
+            )
+            ct.start_logging(
+              Name='multi-region-cloud-trail'
+            )
+          except Exception as e:
+            print(e)
+            exit('Error enabling AWS Config')
+
+    isEnd: false
+
+  -
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+    inputs:
+      InputPayload:
+        cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
+        logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
+      Runtime: python3.7
+      Handler: process_results
+      Script: |-
+        def process_results(event, context):
+          print(f'Created encrypted CloudTrail bucket {event["cloudtrail_bucket"]}')
+          print(f'Created access logging for CloudTrail bucket in bucket {event["logging_bucket"]}')
+          print('Enabled multi-region AWS CloudTrail')
+          return {
+            "response": {
+              "message": "AWS CloudTrail successfully enabled",
+              "status": "Success"
+            }
+          }
+    isEnd: false
+
+  - 
+    name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'AWS CloudTrail successfully enabled'
+        UpdatedBy: 'SHARR_Remediation_AFSBP_CloudTrail.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

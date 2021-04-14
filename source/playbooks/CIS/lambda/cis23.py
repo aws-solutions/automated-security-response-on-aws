@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -23,7 +23,7 @@ from lib.logger import Logger
 from lib.awsapi_helpers import AWSClient, BotoSession
 from lib.applogger import LogHandler
 from lib.metrics import Metrics
-from lib.aws_utils import remove_arn_prefix
+from lib.aws_utils import resource_from_arn
 
 #------------------------------
 # Remediation-Specific
@@ -129,7 +129,7 @@ def remediate(finding, metrics_data):
         raw_bucket_info = str(finding.details['Resources'][0]['Id'])
 
         # Remove ARN string, create new variable
-        noncompliant_bucket = remove_arn_prefix(raw_bucket_info)
+        noncompliant_bucket = resource_from_arn(raw_bucket_info)
 
     except Exception as e:
         message['Note'] = str(e) + ' - Finding format is not as expected.'

@@ -1,0 +1,699 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_Config.1
+  ## What does this document do?
+  Enables AWS Config:
+  * Turns on recording for all resources.
+  * Creates an encrypted bucket for Config logging.
+  * Creates a logging bucket for access logs for the config bucket
+  * Creates an SNS topic for Config notifications
+  * Creates a service-linked role
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for finding
+  KMSKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_AFSBP_ARN}}
+    description: The ARN of the KMS key created by SHARR for this remediation
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  AWSServiceRoleForConfig:
+    type: String
+    default: aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig
+    allowedPattern: '^(:?[\w+=,.@-]+/)+[\w+=,.@-]+$'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+mainSteps:
+  -
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: ResourceId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AWSPartition
+        Selector: $.Payload.partition
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        region: '{{global:REGION}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def partition_from_region(region_name):
+          """
+          returns the partition for a given region
+          Note: this should be a Boto3 function and should be deprecated once it is.
+          On success returns a string
+          On failure returns NoneType
+          """
+
+          parts = region_name.split('-')
+       
+          try:
+            if parts[0] == 'us' and parts[1] == 'gov':
+              return 'aws-us-gov'
+            elif parts[0] == 'cn':
+              return 'aws-cn'
+            else:
+              return 'aws'
+          except:
+            return
+
+        def parse_event(event, context):
+          my_control_id = 'Config.1'
+
+          if not re.match('^[a-z]{2}(-gov)?-[a-z]+-\d$', event['region']):
+            exit(f'ERROR: region is not valid {event["region"]}')
+
+          partition = partition_from_region(event['region'])
+          if not partition:
+            exit(f'ERROR: Could not determine partition from region {event["region"]}')
+
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          object = {'Type': 'Account', 'Id': account_id, 'OutputKey': 'Remediation.Output'}
+          return {
+            "account_id": account_id, 
+            "finding_id": finding_id, 
+            "product_arn": product_arn, 
+            "object": object,
+            "partition": partition
+          }
+    isEnd: false
+
+  - 
+    name: CreateTopic
+    action: 'aws:executeScript'
+    outputs:
+      - Name: TopicArn
+        Selector: $.Payload.topic_arn
+        Type: String
+    inputs:
+      InputPayload: 
+        kms_key_arn: '{{KMSKeyArn}}'
+      Runtime: python3.7
+      Handler: create_encrypted_topic
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+        def create_encrypted_topic(event, context):
+          kms_key_arn = event['kms_key_arn']
+          new_topic = False
+          topic_arn = ''
+          topic_name = 'SO0111-SHARR-AFSBP-Config-1-AWSConfigNotification'
+
+          try:
+            sns = boto3.client('sns', config=BOTO_CONFIG)
+            topic_arn = sns.create_topic(
+              Name=topic_name,
+              Attributes={
+                'KmsMasterKeyId': kms_key_arn.split('key/')[1]
+              }
+            )['TopicArn']
+            new_topic = True
+
+          except ClientError as client_exception:
+            exception_type = client_exception.response['Error']['Code']
+            if exception_type == 'InvalidParameter':
+              print(f'Topic {topic_name} already exists. This remediation may have been run before.')
+              print('Ignoring exception - remediation continues.')
+              topic_arn = sns.create_topic(
+                Name=topic_name
+              )['TopicArn']
+            else:
+              print(f'Unhandled client exception {exception_type}')
+              exit(client_exception)
+              
+          except Exception as e:
+            print(e)
+            exit('FAILED to remediate Config.1')
+
+          if new_topic:
+            try:
+              ssm = boto3.client('ssm', config=BOTO_CONFIG)
+              ssm.put_parameter(
+                Name='/Solutions/SO0111/SNS_Topic_Config.1',
+                Description='SNS Topic for AWS Config updates',
+                Type='String',
+                Overwrite=True,
+                Value=topic_arn
+              )         
+            except Exception as e:
+              print(e)
+              exit('FAILED to remediate Config.1')
+
+          return {"topic_arn": topic_arn} 
+
+    isEnd: false
+
+  - 
+    name: CreateTopicPolicy
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload: 
+        topic_arn: '{{CreateTopic.TopicArn}}'
+      Runtime: python3.7
+      Handler: create_topic_policy
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        sns = boto3.client('sns', config=BOTO_CONFIG)
+
+        def create_topic_policy(event, context):
+          topic_arn = event['topic_arn']
+
+          try:
+            topic_policy = {
+              "Id": "Policy_ID",
+              "Statement": [
+                {
+                  "Sid": "AWSConfigSNSPolicy",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "config.amazonaws.com"
+                  },
+                  "Action": "SNS:Publish",
+                    "Resource": topic_arn,
+                  }
+              ]
+            }
+            
+            sns.set_topic_attributes(
+              TopicArn=topic_arn,
+              AttributeName='Policy',
+              AttributeValue=json.dumps(topic_policy)
+            )
+          except Exception as e:
+            print(e)
+            exit('SetTopicAttributes failed')
+
+          return
+    isEnd: false
+
+  - 
+    name: CreateLoggingBucket
+    action: 'aws:executeScript'
+    outputs:
+      - Name: LoggingBucketName
+        Selector: $.Payload.logging_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+      Runtime: python3.7
+      Handler: create_logging_bucket
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        def create_logging_bucket(event, context):
+          kms_key_arn = event['kms_key_arn']
+          aws_account = event['account']
+          aws_region = event['region']
+          bucket_name = 'so0111-access-logs-' + aws_region + '-' + aws_account
+          try:
+            s3 = boto3.client('s3', config=BOTO_CONFIG)
+            if aws_region == 'us-east-1':
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name
+              )
+            else:
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name,
+                CreateBucketConfiguration={
+                  'LocationConstraint': aws_region
+                }
+              )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # bucket already exists - return
+            if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
+              print('Bucket ' + bucket_name + ' already exists')
+              return {"logging_bucket": bucket_name}
+            else:
+              print(ex)
+              exit('Error creating bucket ' + bucket_name)
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_encryption(
+              Bucket=bucket_name,
+              ServerSideEncryptionConfiguration={
+                'Rules': [
+                  {
+                    'ApplyServerSideEncryptionByDefault': {
+                      'SSEAlgorithm': 'aws:kms',
+                      'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                    }
+                  }
+                ]
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_public_access_block(
+              Bucket=bucket_name,
+              PublicAccessBlockConfiguration={
+                  'BlockPublicAcls': True,
+                  'IgnorePublicAcls': True,
+                  'BlockPublicPolicy': True,
+                  'RestrictPublicBuckets': True
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_acl(
+              Bucket=bucket_name,
+              GrantReadACP='uri=http://acs.amazonaws.com/groups/s3/LogDelivery',
+              GrantWrite='uri=http://acs.amazonaws.com/groups/s3/LogDelivery'
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+
+          return {"logging_bucket": bucket_name}
+    isEnd: false
+
+  - 
+    name: CreateConfigBucket
+    action: 'aws:executeScript'
+    outputs:
+      - Name: ConfigBucketName
+        Selector: $.Payload.config_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+        logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
+      Runtime: python3.7
+      Handler: create_encrypted_bucket
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        def create_encrypted_bucket(event, context):
+          kms_key_arn = event['kms_key_arn']
+          aws_account = event['account']
+          aws_region = event['region']
+          logging_bucket = event['logging_bucket']
+          bucket_name = 'so0111-aws-config-' + aws_region + '-' + aws_account
+          try:
+            s3 = boto3.client('s3', config=BOTO_CONFIG)
+            if aws_region == 'us-east-1':
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name
+              )
+            else:
+              s3.create_bucket(
+                ACL='private',
+                Bucket=bucket_name,
+                CreateBucketConfiguration={
+                  'LocationConstraint': aws_region
+                }
+              )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # bucket already exists - return
+            if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
+              print('Bucket ' + bucket_name + ' already exists')
+              return {"config_bucket": bucket_name}
+            else:
+              print(ex)
+              exit('Error creating bucket ' + bucket_name)
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_encryption(
+              Bucket=bucket_name,
+              ServerSideEncryptionConfiguration={
+                'Rules': [
+                  {
+                    'ApplyServerSideEncryptionByDefault': {
+                      'SSEAlgorithm': 'aws:kms',
+                      'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                    }
+                  }
+                ]
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error creating bucket ' + bucket_name)
+
+          try:
+            s3.put_public_access_block(
+              Bucket=bucket_name,
+              PublicAccessBlockConfiguration={
+                  'BlockPublicAcls': True,
+                  'IgnorePublicAcls': True,
+                  'BlockPublicPolicy': True,
+                  'RestrictPublicBuckets': True
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+
+          try:
+            s3.put_bucket_logging(
+              Bucket=bucket_name,
+              BucketLoggingStatus={
+                'LoggingEnabled': {
+                  'TargetBucket': logging_bucket,
+                  'TargetPrefix': 'access-logs'
+                }
+              }
+            )
+          except Exception as e:
+            print(e)
+            exit('Error setting public access block for bucket ' + bucket_name)
+        
+          return {"config_bucket": bucket_name}
+    isEnd: false
+
+  - 
+    name: CreateConfigBucketPolicy
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload: 
+        config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
+        partition: '{{ParseInput.AWSPartition}}'
+      Runtime: python3.7
+      Handler: create_bucket_policy
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+        s3 = boto3.client('s3', config=BOTO_CONFIG)
+
+        def create_bucket_policy(event, context):
+          config_bucket = event['config_bucket']
+          aws_partition = event['partition']
+          try:
+            bucket_policy = {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "AWSConfigBucketPermissionsCheck",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                     "config.amazonaws.com"
+                    ]
+                  },
+                  "Action": "s3:GetBucketAcl",
+                  "Resource": "arn:" + aws_partition + ":s3:::" + config_bucket
+                },
+                {
+                  "Sid": "AWSConfigBucketExistenceCheck",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                      "config.amazonaws.com"
+                    ]
+                  },
+                  "Action": "s3:ListBucket",
+                  "Resource": "arn:" + aws_partition + ":s3:::" + config_bucket
+                },
+                {
+                  "Sid": "AWSConfigBucketDelivery",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                     "config.amazonaws.com"    
+                    ]
+                  },
+                  "Action": "s3:PutObject",
+                  "Resource": "arn:" + aws_partition + ":s3:::" + config_bucket + "/*",
+                  "Condition": { 
+                    "StringEquals": { 
+                      "s3:x-amz-acl": "bucket-owner-full-control"
+                    }
+                  }
+                }
+              ]
+            }
+            s3.put_bucket_policy(
+              Bucket=config_bucket,
+              Policy=json.dumps(bucket_policy)
+            )
+          except Exception as e:
+            print(e)
+            exit('PutBucketPolicy failed')
+
+          return
+    isEnd: false
+
+  -
+    name: EnableConfig
+    action: 'aws:executeScript'
+    outputs:
+      - Name: ConfigBucketName
+        Selector: $.Payload.config_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        partition: '{{ParseInput.AWSPartition}}'
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
+        aws_service_role: '{{AWSServiceRoleForConfig}}'
+        topic_arn: '{{CreateTopic.TopicArn}}'
+      Runtime: python3.7
+      Handler: enable_config
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        cfgsvc = boto3.client('config', config=BOTO_CONFIG)
+
+        def enable_config(event, context):
+          
+          aws_account = event['account']
+          aws_region = event['region']
+          aws_partition = event['partition']
+          aws_service_role = event['aws_service_role']
+          config_bucket = event['config_bucket']
+          topic_arn = event['topic_arn']
+
+          try:
+            config_service_role_arn = 'arn:' + aws_partition + ':iam::' + aws_account + ':role/' + aws_service_role
+            cfgsvc.put_configuration_recorder(
+              ConfigurationRecorder={
+                'name': 'default',
+                'roleARN': config_service_role_arn,
+                'recordingGroup': {
+                  'allSupported': True,
+                  'includeGlobalResourceTypes': True
+                }
+              }
+            )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # recorder already exists - continue
+            if exception_type in ["MaxNumberOfConfigurationRecordersExceededException"]:
+              print('Config Recorder already exists. Continuing.')
+            else:
+              exit('Boto3 ClientError enabling Config: ' + exception_type + ' - ' + str(ex))
+          except Exception as e:
+            print(e)
+            exit('Error enabling AWS Config: ' + str(e))
+
+          try:
+            config_service_role_arn = 'arn:' + aws_partition + ':iam::' + aws_account + ':role/' + aws_service_role
+            cfgsvc.put_delivery_channel(
+              DeliveryChannel={
+                'name': 'default',
+                's3BucketName': config_bucket,
+                's3KeyPrefix': aws_account,
+                'snsTopicARN': topic_arn,
+                'configSnapshotDeliveryProperties': {
+                  'deliveryFrequency': 'Twelve_Hours'
+                }
+              }
+            )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # delivery channel already exists - return
+            if exception_type in ["MaxNumberOfDeliveryChannelsExceededException"]:
+              print('DeliveryChannel already exists')
+            else:
+              exit('Boto3 ClientError enabling Config: ' + exception_type + ' - ' + str(ex))
+          except Exception as e:
+            print(e)
+            exit('Error enabling AWS Config: ' + str(e))
+
+          try:
+            cfgsvc.start_configuration_recorder(
+              ConfigurationRecorderName='default'
+            )
+          except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            # recorder already exists - continue
+            if exception_type in ["MaxNumberOfConfigurationRecordersExceededException"]:
+              print('Config Recorder already exists. Continuing.')
+            else:
+              exit('Boto3 ClientError enabling Config: ' + exception_type + ' - ' + str(ex))
+          except Exception as e:
+            print(e)
+            exit('Error enabling AWS Config: ' + str(e))          
+
+    isEnd: false
+
+  -
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+    inputs:
+      InputPayload:
+        config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
+        logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
+        sns_topic_arn: '{{CreateTopic.TopicArn}}'
+      Runtime: python3.7
+      Handler: process_results
+      Script: |-
+        def process_results(event, context):
+          print(f'Created encrypted SNS topic {event["sns_topic_arn"]}')
+          print(f'Created encrypted Config bucket {event["config_bucket"]}')
+          print(f'Created access logging for Config bucket in bucket {event["logging_bucket"]}')
+          print('Enabled AWS Config by creating a default recorder')
+          return {
+            "response": {
+              "message": "AWS Config successfully enabled",
+              "status": "Success"
+            }
+          }
+    isEnd: false
+
+  - 
+    name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'AWS Config enabled'
+        UpdatedBy: 'SHARR_Remediation_AFSBP_Config.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

@@ -18,7 +18,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS15111AutoRemediation": Object {
@@ -27,7 +27,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 1.5 to 1.11 by establishing a CIS compliant strong password policy.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS22AutoRemediation": Object {
@@ -36,7 +36,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 2.2 by enabling CloudTrail log file validation.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 2.2 by enabling CloudTrail log file validation.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS23AutoRemediation": Object {
@@ -45,7 +45,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 2.3 by making CloudTrail log bucket private.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 2.3 by making CloudTrail log bucket private.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS24AutoRemediation": Object {
@@ -54,7 +54,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 2.4 by enabling CloudWatch logging for CloudTrail.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 2.4 by enabling CloudWatch logging for CloudTrail.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS26AutoRemediation": Object {
@@ -63,7 +63,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 2.6 enabling Access Logging on CloudTrail logs bucket.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 2.6 enabling Access Logging on CloudTrail logs bucket.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS28AutoRemediation": Object {
@@ -72,7 +72,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 2.8 by enabling customer CMK key rotation.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 2.8 by enabling customer CMK key rotation.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS29AutoRemediation": Object {
@@ -81,7 +81,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 2.9 enabling VPC flow logging in all VPCs.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 2.9 enabling VPC flow logging in all VPCs.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS4142AutoRemediation": Object {
@@ -90,7 +90,7 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
     "CIS43AutoRemediation": Object {
@@ -99,11 +99,30 @@ Object {
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 4.3 by removing all rules from a default security group.",
+      "Description": "Enable/Disable automatically triggered remediation for CIS 4.3 by removing all rules from a default security group.. If enabled, findings for this control will be immediately remediated by the solution.",
       "Type": "String",
     },
   },
   "Resources": Object {
+    "cis1314playbookAutoEventRuleAllowEventRulestackcis1314playbookAutoEventRule6AB2DF2A04F4BAB4": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookeventToPlaybookLambdaFunction3493B773",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis1314playbookAutoEventRuleD451BC6C",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
     "cis1314playbookAutoEventRuleD451BC6C": Object {
       "Properties": Object {
         "Description": "Remediates CIS 1.3 and CIS 1.4 by Deleting IAM Keys over 90 Days Old. automatic remediation event rule.",
@@ -283,6 +302,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -309,7 +352,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -400,8 +443,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -428,7 +475,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -449,26 +495,7 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "cis1314playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis1314playbookAutoEventRule6AB2DF2AD9EEE8B5": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis1314playbookeventToPlaybookLambdaFunction3493B773",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis1314playbookAutoEventRuleD451BC6C",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "cis1314playbookeventToPlaybookLambdaFunctionLambdaInvokePermission40EC8F4A": Object {
+    "cis1314playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission1284AD486": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -594,6 +621,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis15111playbookAutoEventRuleAllowEventRulestackcis15111playbookAutoEventRule1B4B727879CCDCBE": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis15111playbookAutoEventRule94A5938C",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis15111playbookCustomAction5EF394C9": Object {
       "DeletionPolicy": "Delete",
@@ -726,6 +772,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -752,7 +822,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -839,7 +909,7 @@ Object {
       },
       "Type": "AWS::Events::Rule",
     },
-    "cis15111playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis15111playbookAutoEventRule1B4B7278447A8A40": Object {
+    "cis15111playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission15E31F454": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -851,7 +921,7 @@ Object {
         "Principal": "events.amazonaws.com",
         "SourceArn": Object {
           "Fn::GetAtt": Array [
-            "cis15111playbookAutoEventRule94A5938C",
+            "cis15111playbookeventToPlaybookEventsRule01D398BD",
             "Arn",
           ],
         },
@@ -867,8 +937,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -895,7 +969,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -915,25 +988,6 @@ Object {
         },
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "cis15111playbookeventToPlaybookLambdaFunctionLambdaInvokePermission13200DC3": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis15111playbookeventToPlaybookLambdaFunctionBFEAB5BA",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis15111playbookeventToPlaybookEventsRule01D398BD",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "cis15111playbookeventToPlaybookLambdaFunctionServiceRole5F879AF1": Object {
       "Properties": Object {
@@ -1036,6 +1090,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis22playbookAutoEventRuleAllowEventRulestackcis22playbookAutoEventRule1E5BC709FE3B2A91": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis22playbookAutoEventRule62C598A4",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis22playbookCustomAction0C5BAEF5": Object {
       "DeletionPolicy": "Delete",
@@ -1168,6 +1241,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -1194,7 +1291,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -1275,7 +1372,7 @@ Object {
       },
       "Type": "AWS::Events::Rule",
     },
-    "cis22playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis22playbookAutoEventRule1E5BC70988469B6C": Object {
+    "cis22playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission1025B6FC6": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -1287,7 +1384,7 @@ Object {
         "Principal": "events.amazonaws.com",
         "SourceArn": Object {
           "Fn::GetAtt": Array [
-            "cis22playbookAutoEventRule62C598A4",
+            "cis22playbookeventToPlaybookEventsRule2F3F1416",
             "Arn",
           ],
         },
@@ -1303,8 +1400,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -1331,7 +1432,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -1351,25 +1451,6 @@ Object {
         },
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "cis22playbookeventToPlaybookLambdaFunctionLambdaInvokePermission2277A6A7": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis22playbookeventToPlaybookLambdaFunctionBC3BE9C2",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis22playbookeventToPlaybookEventsRule2F3F1416",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "cis22playbookeventToPlaybookLambdaFunctionServiceRoleAC407F15": Object {
       "Properties": Object {
@@ -1472,6 +1553,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis23playbookAutoEventRuleAllowEventRulestackcis23playbookAutoEventRuleD070A2BE538B3E59": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookeventToPlaybookLambdaFunction73DEC92E",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis23playbookAutoEventRuleAC4EB5D9",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis23playbookCustomActionB35375D3": Object {
       "DeletionPolicy": "Delete",
@@ -1604,6 +1704,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -1630,7 +1754,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -1720,8 +1844,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -1748,7 +1876,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -1769,26 +1896,7 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "cis23playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis23playbookAutoEventRuleD070A2BED41ACADD": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis23playbookeventToPlaybookLambdaFunction73DEC92E",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis23playbookAutoEventRuleAC4EB5D9",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "cis23playbookeventToPlaybookLambdaFunctionLambdaInvokePermission93E6949D": Object {
+    "cis23playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission10AB72046": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -1908,6 +2016,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis24playbookAutoEventRuleAllowEventRulestackcis24playbookAutoEventRule6A030455745DAF8B": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookeventToPlaybookLambdaFunction194E4CAC",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis24playbookAutoEventRule361D75A9",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis24playbookCustomActionE289523D": Object {
       "DeletionPolicy": "Delete",
@@ -2040,6 +2167,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -2066,7 +2217,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -2156,8 +2307,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -2184,7 +2339,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -2205,26 +2359,7 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "cis24playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis24playbookAutoEventRule6A030455E8D0205A": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis24playbookeventToPlaybookLambdaFunction194E4CAC",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis24playbookAutoEventRule361D75A9",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "cis24playbookeventToPlaybookLambdaFunctionLambdaInvokePermissionEE903737": Object {
+    "cis24playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission17798F671": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -2344,6 +2479,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis26playbookAutoEventRuleAllowEventRulestackcis26playbookAutoEventRuleDC278F80129C9B51": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookeventToPlaybookLambdaFunctionC17E7AED",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis26playbookAutoEventRule8A52FD0A",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis26playbookCustomActionE3AE43E1": Object {
       "DeletionPolicy": "Delete",
@@ -2476,6 +2630,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -2502,7 +2680,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -2583,7 +2761,7 @@ Object {
       },
       "Type": "AWS::Events::Rule",
     },
-    "cis26playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis26playbookAutoEventRuleDC278F806C63FBE6": Object {
+    "cis26playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission16E7D95AB": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -2595,7 +2773,7 @@ Object {
         "Principal": "events.amazonaws.com",
         "SourceArn": Object {
           "Fn::GetAtt": Array [
-            "cis26playbookAutoEventRule8A52FD0A",
+            "cis26playbookeventToPlaybookEventsRule2137749F",
             "Arn",
           ],
         },
@@ -2611,8 +2789,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -2639,7 +2821,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -2659,25 +2840,6 @@ Object {
         },
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "cis26playbookeventToPlaybookLambdaFunctionLambdaInvokePermission7F6E9BBD": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis26playbookeventToPlaybookLambdaFunctionC17E7AED",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis26playbookeventToPlaybookEventsRule2137749F",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "cis26playbookeventToPlaybookLambdaFunctionServiceRoleC9A3C9E2": Object {
       "Properties": Object {
@@ -2780,6 +2942,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis28playbookAutoEventRuleAllowEventRulestackcis28playbookAutoEventRule2CDFB0357FBB9325": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookeventToPlaybookLambdaFunction32C5EF33",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis28playbookAutoEventRule5599645E",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis28playbookCustomAction270E8629": Object {
       "DeletionPolicy": "Delete",
@@ -2912,6 +3093,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -2938,7 +3143,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -3028,8 +3233,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -3056,7 +3265,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -3077,26 +3285,7 @@ Object {
       },
       "Type": "AWS::Lambda::Function",
     },
-    "cis28playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis28playbookAutoEventRule2CDFB035A9A6BB92": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis28playbookeventToPlaybookLambdaFunction32C5EF33",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis28playbookAutoEventRule5599645E",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "cis28playbookeventToPlaybookLambdaFunctionLambdaInvokePermissionE87CA174": Object {
+    "cis28playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission12A1298A9": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -3169,6 +3358,25 @@ Object {
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "cis29playbookAutoEventRuleAllowEventRulestackcis29playbookAutoEventRule821CB96F546BEA2B": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookeventToPlaybookLambdaFunctionE7B584E5",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis29playbookAutoEventRuleD2501074",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis29playbookAutoEventRuleD2501074": Object {
       "Properties": Object {
@@ -3253,7 +3461,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -3382,6 +3590,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -3455,7 +3687,7 @@ Object {
       },
       "Type": "AWS::Events::Rule",
     },
-    "cis29playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis29playbookAutoEventRule821CB96FF16E58C2": Object {
+    "cis29playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission119477CE7": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -3467,7 +3699,7 @@ Object {
         "Principal": "events.amazonaws.com",
         "SourceArn": Object {
           "Fn::GetAtt": Array [
-            "cis29playbookAutoEventRuleD2501074",
+            "cis29playbookeventToPlaybookEventsRuleE41CB271",
             "Arn",
           ],
         },
@@ -3483,8 +3715,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -3511,7 +3747,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -3531,25 +3766,6 @@ Object {
         },
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "cis29playbookeventToPlaybookLambdaFunctionLambdaInvokePermission3438FB6C": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis29playbookeventToPlaybookLambdaFunctionE7B584E5",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis29playbookeventToPlaybookEventsRuleE41CB271",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "cis29playbookeventToPlaybookLambdaFunctionServiceRole7B625F74": Object {
       "Properties": Object {
@@ -3653,6 +3869,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis4142playbookAutoEventRuleAllowEventRulestackcis4142playbookAutoEventRule8625E5A1AF1833C2": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis4142playbookAutoEventRule2DB5E229",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis4142playbookCustomAction868CAE44": Object {
       "DeletionPolicy": "Delete",
@@ -3785,6 +4020,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -3811,7 +4070,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -3893,7 +4152,7 @@ Object {
       },
       "Type": "AWS::Events::Rule",
     },
-    "cis4142playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis4142playbookAutoEventRule8625E5A19631EE89": Object {
+    "cis4142playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission101B3CB53": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -3905,7 +4164,7 @@ Object {
         "Principal": "events.amazonaws.com",
         "SourceArn": Object {
           "Fn::GetAtt": Array [
-            "cis4142playbookAutoEventRule2DB5E229",
+            "cis4142playbookeventToPlaybookEventsRuleD4D7283A",
             "Arn",
           ],
         },
@@ -3921,8 +4180,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -3949,7 +4212,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -3969,25 +4231,6 @@ Object {
         },
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "cis4142playbookeventToPlaybookLambdaFunctionLambdaInvokePermissionA0AB0D3C": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis4142playbookeventToPlaybookLambdaFunctionBC8A2330",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis4142playbookeventToPlaybookEventsRuleD4D7283A",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "cis4142playbookeventToPlaybookLambdaFunctionServiceRole5C452111": Object {
       "Properties": Object {
@@ -4090,6 +4333,25 @@ Object {
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "cis43playbookAutoEventRuleAllowEventRulestackcis43playbookAutoEventRuleDF32A187C4CE147F": Object {
+      "Properties": Object {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookeventToPlaybookLambdaFunctionF4349582",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": Object {
+          "Fn::GetAtt": Array [
+            "cis43playbookAutoEventRule561ABA0D",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
     },
     "cis43playbookCustomAction00D0FE3A": Object {
       "DeletionPolicy": "Delete",
@@ -4222,6 +4484,30 @@ Object {
                     ],
                   },
                 },
+                Object {
+                  "Action": Array [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":parameter/Solutions/SO0111/*",
+                      ],
+                    ],
+                  },
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -4248,7 +4534,7 @@ Object {
           "rules_to_suppress": Array [
             Object {
               "id": "W12",
-              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray.",
+              "reason": "Lambda needs the following minimum required permissions to send trace data to X-Ray and access ENIs in a VPC.",
             },
           ],
         },
@@ -4329,7 +4615,7 @@ Object {
       },
       "Type": "AWS::Events::Rule",
     },
-    "cis43playbookeventToPlaybookLambdaFunctionAllowEventRulestackcis43playbookAutoEventRuleDF32A187B4C36276": Object {
+    "cis43playbookeventToPlaybookLambdaFunctionAwsEventsLambdaInvokePermission16D16E80A": Object {
       "Properties": Object {
         "Action": "lambda:InvokeFunction",
         "FunctionName": Object {
@@ -4341,7 +4627,7 @@ Object {
         "Principal": "events.amazonaws.com",
         "SourceArn": Object {
           "Fn::GetAtt": Array [
-            "cis43playbookAutoEventRule561ABA0D",
+            "cis43playbookeventToPlaybookEventsRule23780DD8",
             "Arn",
           ],
         },
@@ -4357,8 +4643,12 @@ Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
-              "id": "W58",
-              "reason": "Lambda functions has the required permission to write CloudWatch Logs. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with more tighter permissions.",
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
             },
           ],
         },
@@ -4385,7 +4675,6 @@ Object {
               "Ref": "AWS::Partition",
             },
             "log_level": "info",
-            "metricsId": "{{resolve:ssm:/Solutions/SO0111/metricsId:1}}",
             "sendAnonymousMetrics": "{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}",
           },
         },
@@ -4405,25 +4694,6 @@ Object {
         },
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "cis43playbookeventToPlaybookLambdaFunctionLambdaInvokePermission96C8E5A6": Object {
-      "Properties": Object {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": Object {
-          "Fn::GetAtt": Array [
-            "cis43playbookeventToPlaybookLambdaFunctionF4349582",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": Object {
-          "Fn::GetAtt": Array [
-            "cis43playbookeventToPlaybookEventsRule23780DD8",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
     "cis43playbookeventToPlaybookLambdaFunctionServiceRoleA4A7E72B": Object {
       "Properties": Object {
@@ -4495,7 +4765,7 @@ Object {
       ],
       "Properties": Object {
         "Parameters": Object {
-          "MasterAccountNumber": Object {
+          "AdminAccountNumber": Object {
             "Ref": "AWS::AccountId",
           },
         },

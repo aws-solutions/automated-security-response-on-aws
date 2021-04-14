@@ -1,0 +1,85 @@
+{
+  "version": "0",
+  "id": "ceae167a-21cd-b285-45fa-c65bdaf1b38f",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-11-04T23:44:03Z",
+  "region": "eu-west-1",
+  "resources": [
+    "arn:aws:securityhub:eu-west-1:111111111111:action/custom/AFSBPautoscaling1"
+  ],
+  "detail": {
+    "actionName": "AFSBPautoscaling1",
+    "actionDescription": "Remediate AFSBP Autoscaling.1 by enabling ELB health checks on ASG with load balancer",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This control checks whether your Auto Scaling groups that are associated with a load balancer are using Elastic Load Balancing health checks.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1",
+        "FirstObservedAt": "2020-11-04T23:39:51.463Z",
+        "CreatedAt": "2020-11-04T23:39:51.463Z",
+        "RecordState": "ACTIVE",
+        "Title": "AutoScaling.1 Auto scaling groups associated with a load balancer should use load balancer health checks",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-11-04T23:39:53.339Z",
+        "Severity": {
+          "Normalized": 39,
+          "Label": "LOW",
+          "Product": 39,
+          "Original": "LOW"
+        },
+        "UpdatedAt": "2020-11-04T23:39:51.463Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "AutoScaling.1",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/AutoScaling.1/remediation",
+          "RelatedAWSResources:0/name": "securityhub-autoscaling-group-elb-healthcheck-required-d1d1945b",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:eu-west-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:eu-west-1::product/aws/securityhub/arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1/finding/40708dcf-8c89-4389-ac0c-8a1c029b7c87"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1/finding/40708dcf-8c89-4389-ac0c-8a1c029b7c87",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/AutoScaling.1/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAutoScalingAutoScalingGroup",
+            "Details": {
+              "AwsAutoScalingAutoScalingGroup": {
+                "LoadBalancerNames": [
+                  "testclbasgsh"
+                ],
+                "LaunchConfigurationName": "testlc",
+                "CreatedTime": "2020-10-30T22:32:10.721Z",
+                "HealthCheckGracePeriod": 300,
+                "HealthCheckType": "EC2"
+              }
+            },
+            "Region": "eu-west-1",
+            "Id": "arn:aws:autoscaling:eu-west-1:111111111111:autoScalingGroup:9ddd8926-a71c-490c-956d-5b1e9e3c76e3:autoScalingGroupName/arn:aws:iam::111111111111:role/testalbsh"
+          }
+        ]
+      }
+    ]
+  }
+}

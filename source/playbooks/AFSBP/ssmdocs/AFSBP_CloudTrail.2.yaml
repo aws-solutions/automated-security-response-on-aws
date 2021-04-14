@@ -1,0 +1,199 @@
+description: |
+  ### Document Name - SHARR_Remediation_CloudTrail.2
+  ## What does this document do?
+  This document enables SSE KMS encryption for log files; creates KMS key if one with given name doesn't exist
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  ## Output Parameters
+  * Remediation.Output - Output from UpdateTrail API
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  Finding:
+    type: StringMap
+    description: The input from Step function for EC2.2 finding
+mainSteps:
+  - 
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: TrailArn
+        Selector: $.Payload.trail_arn
+        Type: String
+      - Name: TrailRegion
+        Selector: $.Payload.trail_region
+        Type: String
+      - Name: Account
+        Selector: $.Payload.account
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.6
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+          my_control_id = 'CloudTrail.2'
+
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match(
+            '^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',
+            finding_id
+
+            )
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+          
+          trail_arn = finding['Resources'][0]['Id']
+          trail_arn_match = re.match(
+            '^arn:(?:aws|aws-cn|aws-us-gov):cloudtrail:([a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:trail/([a-zA-Z0-9\._-]{3,128})$',
+            trail_arn
+          )
+
+          if not trail_arn_match:
+            exit(f'ERROR: Trail ARN is invalid: {trail_arn}')
+          else:
+            trail_name = trail_arn_match.group(2)
+            trail_region = trail_arn_match.group(1)
+
+          object = {'Type': 'CloudTrail', 'Id': trail_arn, 'OutputKey': 'Remediation.Output'}
+          return {"trail_arn": trail_arn, "trail_region": trail_region, "account": account_id, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    isEnd: false
+
+  - 
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        exec_region: '{{global:REGION}}'
+        trail_region: '{{ParseInput.TrailRegion}}'
+        account: '{{ParseInput.Account}}'
+        trail: '{{ParseInput.TrailArn}}'
+        automation_role: '{{ AutomationAssumeRole }}'
+      Runtime: python3.7
+      Handler: enable_trail_encryption
+      Script: |-
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+        def enable_trail_encryption(event, context):
+          """
+          remediates CloudTrail.2 by enabling SSE-KMS
+          On success returns a string map
+          On failure returns NoneType
+          """
+
+          ssm_client = boto3.client('ssm', region_name=event['trail_region'], config=BOTO_CONFIG)
+          
+          if event['trail_region'] != event['exec_region']:
+            print('ERROR: cross-region remediation is not yet supported')
+            raise 
+
+          ctrail_client = boto3.client('cloudtrail', region_name=event['trail_region'])
+          kms_key_arn = ''
+
+          try:
+            ssm_param = ssm_client.get_parameter(
+              Name='/Solutions/SO0111/CMK_AFSBP_ARN'
+            )
+            kms_key_arn = ssm_param['Parameter']['Value']
+          except ClientError as e:
+            print(e.response['Error'])
+            print("Error getting KMS key ARN from SSM")
+            raise e
+          except Exception as e:
+            print(e)
+            print(f'Error retrieving ssm parameter {ssm_param}')
+            raise e
+
+          if not kms_key_arn:
+            print('ERROR: kms_key_arn is not set')
+            return {
+              "response": {
+                "message": "Failed to enable encryption on Trail " + event['trail'],
+                "status": "Failed"
+              }
+            }
+
+          try:
+            result = ctrail_client.update_trail(
+              Name=event['trail'],
+              KmsKeyId=kms_key_arn
+            )
+            print("Result: {}".format(result))
+            return {
+              "response": {
+                "message": "Encryption enabled on Trail " + event['trail'],
+                "status": "Success"
+              }
+            }
+          except Exception as e:
+            print(e)
+            print('Error enabling SSE-KMS encryption')
+            raise
+
+    isEnd: false
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+        - Id: '{{ParseInput.FindingId}}'
+          ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: Encryption enabled on CloudTrail
+        UpdatedBy: SHARR_Remediation_AFSBP_CloudTrail.2
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

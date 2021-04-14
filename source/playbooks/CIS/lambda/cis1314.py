@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -135,7 +135,7 @@ def remediate(finding, metrics_data):
         return
 
     try:
-        non_rotated_key_user = str(finding.details['Resources'][0]['Id'])[31:]
+        non_rotated_key_user = finding.details['Resources'][0]['Id'].split(':')[5].split('/')[1]
     except KeyError as key:
         LOGGER.error('Could not find ' + str(key) + ' in Resources data for the finding')
         failed()
@@ -146,6 +146,7 @@ def remediate(finding, metrics_data):
 
     # Mark the finding NOTIFIED while we remediate
     message['State'] = 'INITIAL'
+    message['AffectedObject'] = AFFECTED_OBJECT # initial value - we don't know keys_ids yet
     notify(finding, message, LOGGER, cwlogs=APPLOGGER)
 
     try:
@@ -154,6 +155,12 @@ def remediate(finding, metrics_data):
         paginator = iam.get_paginator('list_access_keys')
 
         for response in paginator.paginate(UserName=non_rotated_key_user):
+
+            if not response['AccessKeyMetadata']:
+                message['Note'] = f'Nothing to do: No access keys found for {non_rotated_key_user}'
+                message['State'] = 'RESOLVED'
+                notify(finding, message, LOGGER, cwlogs=APPLOGGER, sechub=True, sns=AWS)
+                continue  
 
             for key_metadata in response['AccessKeyMetadata']:
                 access_key_id = str(key_metadata['AccessKeyId'])

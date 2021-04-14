@@ -1,0 +1,166 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_RDS.1
+  ## What does this document do?
+  This document changes public RDS snapshot to private
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for RDS.1 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: DBSnapshotIdentifier
+        Selector: $.Payload.db_snapshot_identifier
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: Type
+        Selector: $.Payload.type
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+          my_control_id = 'RDS.1'
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          resource_type = finding['Resources'][0]['Type']
+
+          db_snapshot_identifier = None
+          if (resource_type == 'AwsRdsDbSnapshot'):
+            db_snapshot_identifier = finding['Resources'][0]['Details']['AwsRdsDbSnapshot']['DbSnapshotIdentifier']
+            if not re.match(
+              '^[a-zA-Z](?:[0-9a-zA-Z]+[-]{1})*[0-9a-zA-Z]{1,}$',
+              db_snapshot_identifier
+            ):
+              exit('ERROR: Invalid DbSnapshotIdentifier {db_snapshot_identifier}')
+          elif (resource_type == 'AwsRdsDbClusterSnapshot'):
+            db_snapshot_identifier = finding['Resources'][0]['Id'].split(':')[-1]
+            if not re.match(
+              '^[a-z](?:[0-9a-z]+[-]{1})*[0-9a-z]{1,}$',
+              db_snapshot_identifier
+            ):
+              exit('ERROR: Invalid AwsRdsDbClusterSnapshot {db_snapshot_identifier}')
+          else:
+            exit('ERROR: Invalid or unexpected Type {resource_type}')
+
+          object = {'Type': resource_type, 'OutputKey': 'Remediation.Output'}
+          object['Id'] = db_snapshot_identifier
+          return {"type": resource_type, "db_snapshot_identifier": db_snapshot_identifier, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    nextStep: Remediation
+  - name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+    - Name: Output
+      Selector: $
+      Type: StringMap
+    inputs:
+      InputPayload: 
+        Type: '{{ParseInput.Type}}'
+        DbSnapshotId: '{{ParseInput.DBSnapshotIdentifier}}'
+      Runtime: python3.7
+      Handler: make_snapshot_private
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+        def make_snapshot_private(event, context):
+          rds_client = boto3.client('rds', config=BOTO_CONFIG)
+          snapshot_id = event['DbSnapshotId']
+          snapshot_type = event['Type']
+          try:
+            if (snapshot_type == 'AwsRdsDbSnapshot'):
+              result = rds_client.modify_db_snapshot_attribute(
+                DBSnapshotIdentifier=snapshot_id,
+                AttributeName='restore',
+                ValuesToRemove=['all']
+              )
+            elif (snapshot_type == 'AwsRdsDbClusterSnapshot'):
+              result = rds_client.modify_db_cluster_snapshot_attribute(
+                DBClusterSnapshotIdentifier=snapshot_id,
+                AttributeName='restore',
+                ValuesToRemove=['all']
+              )
+            print(f'Remediation completed: {snapshot_id} public access removed.')
+            return {
+              "response": {
+                "message": f'Snapshot {snapshot_id} permissions set to private',
+                "status": "Success"
+              }
+            }
+          except Exception as e:
+            failure_msg = str(e)
+            exit(f'Remedation failed for {snapshot_id}: {failure_msg}')
+            
+    nextStep: UpdateFinding
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+        - Id: '{{ParseInput.FindingId}}'
+          ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: RDS DB Snapshot modified to private
+        UpdatedBy: SHARR_Remediation_AFSBP_RDS.1
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

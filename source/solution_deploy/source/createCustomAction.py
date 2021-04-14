@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -19,60 +19,59 @@ import json
 import boto3
 import botocore
 import hashlib
-from lib.logger import Logger
+from logger import Logger
 import requests
 from urllib.request import Request, urlopen
 from datetime import datetime
 
 # initialise logger
 LOG_LEVEL = os.getenv('log_level', 'info')
-LOGGER = Logger(loglevel=LOG_LEVEL)
+logger_obj = Logger(loglevel=LOG_LEVEL)
 SEND_METRICS = os.environ.get('sendAnonymousMetrics', 'No')
 
-def send(event, context, responseStatus, responseData, physicalResourceId, LOGGER, reason=None):
+def send(event, context, response_status, response_data, physical_resource_id, logger_obj, reason=None):
 
-    responseUrl = event['ResponseURL']
-    LOGGER.debug("CFN response URL: " + responseUrl)
+    response_url = event['ResponseURL']
+    logger_obj.debug("CFN response URL: " + response_url)
 
-    responseBody = {}
-    responseBody['Status'] = responseStatus
-    responseBody['PhysicalResourceId'] = physicalResourceId or context.log_stream_name
+    response_body = {}
+    response_body['Status'] = response_status
+    response_body['PhysicalResourceId'] = physical_resource_id or context.log_stream_name
     
     msg = 'See details in CloudWatch Log Stream: ' + context.log_stream_name
     
-    LOGGER.debug('PhysicalResourceId: ' + physicalResourceId)
+    logger_obj.debug('PhysicalResourceId: ' + physical_resource_id)
     if not reason:
-        responseBody['Reason'] = msg
+        response_body['Reason'] = msg
     else:
-        responseBody['Reason'] = str(reason)[0:255] + '... ' + msg
+        response_body['Reason'] = str(reason)[0:255] + '... ' + msg
         
-    responseBody['StackId'] = event['StackId']
-    responseBody['RequestId'] = event['RequestId']
-    responseBody['LogicalResourceId'] = event['LogicalResourceId']
+    response_body['StackId'] = event['StackId']
+    response_body['RequestId'] = event['RequestId']
+    response_body['LogicalResourceId'] = event['LogicalResourceId']
     
-    if responseData and responseData != {} and responseData != [] and isinstance(responseData, dict):
-        responseBody['Data'] = responseData
+    if response_data and response_data != {} and response_data != [] and isinstance(response_data, dict):
+        response_body['Data'] = response_data
 
-    LOGGER.debug("<<<<<<< Response body >>>>>>>>>>")
-    LOGGER.debug(responseBody)
-    json_responseBody = json.dumps(responseBody)
+    logger_obj.debug("<<<<<<< Response body >>>>>>>>>>")
+    logger_obj.debug(response_body)
+    json_response_body = json.dumps(response_body)
 
     headers = {
         'content-type': '',
-        'content-length': str(len(json_responseBody))
+        'content-length': str(len(json_response_body))
     }
 
     try:
-        if responseUrl == 'http://pre-signed-S3-url-for-response':
-            LOGGER.info("CloudFormation returned status code: THIS IS A TEST OUTSIDE OF CLOUDFORMATION")
-            pass
+        if response_url == 'http://pre-signed-S3-url-for-response':
+            logger_obj.info("CloudFormation returned status code: THIS IS A TEST OUTSIDE OF CLOUDFORMATION")
         else:
-            response = requests.put(responseUrl,
-                                    data=json_responseBody,
+            response = requests.put(response_url,
+                                    data=json_response_body,
                                     headers=headers)
-            LOGGER.info("CloudFormation returned status code: " + response.reason)
+            logger_obj.info("CloudFormation returned status code: " + response.reason)
     except Exception as e:
-        LOGGER.error("send(..) failed executing requests.put(..): " + str(e))
+        logger_obj.error("send(..) failed executing requests.put(..): " + str(e))
         raise
 
 def send_metrics(data):
@@ -99,7 +98,7 @@ def send_metrics(data):
                         )
             rsp = urlopen(req)
             rspcode = rsp.getcode()
-            LOGGER.debug(rspcode)
+            logger_obj.debug(rspcode)
         return 
     except Exception as excep:
         print(excep)
@@ -107,33 +106,32 @@ def send_metrics(data):
 
 def lambda_handler(event, context):
 
-    responseData = {}
-    physicalResourceId = ''
+    response_data = {}
+    physical_resource_id = ''
 
     try:
         properties = event['ResourceProperties']
-        LOGGER.debug(json.dumps(properties))
+        logger_obj.debug(json.dumps(properties))
         region = os.environ['AWS_REGION']
         partition = os.getenv('AWS_PARTITION', default='aws') # Set by deployment template
         client = boto3.client('securityhub', region_name=region)
         
-        physicalResourceId = 'CustomAction' + properties.get('Id', 'ERROR')
+        physical_resource_id = 'CustomAction' + properties.get('Id', 'ERROR')
         
         if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
             try:
-                # physicalResourceId = 'createCustomAction-' + properties.get('Id', 'ERROR')
-                LOGGER.info(event['RequestType'].upper() + ": " + physicalResourceId)
+                logger_obj.info(event['RequestType'].upper() + ": " + physical_resource_id)
                 response = client.create_action_target(
                     Name=properties['Name'],
                     Description=properties['Description'],
                     Id=properties['Id']
                 )
-                responseData['Arn'] = response['ActionTargetArn']
+                response_data['Arn'] = response['ActionTargetArn']
             except botocore.exceptions.ClientError as error:
                 if error.response['Error']['Code'] == 'ResourceConflictException':
-                    pass
+                    logger_obj.info('ResourceConflictException: already exists. Continuing')
                 else:
-                    LOGGER.error(error)
+                    logger_obj.error(error)
                     raise
             except Exception as e:
                 metrics_data = {
@@ -142,21 +140,20 @@ def lambda_handler(event, context):
                     'err_msg': event['RequestType']
                     }
                 send_metrics(metrics_data)
-                LOGGER.error(e)
+                logger_obj.error(e)
                 raise
         elif event['RequestType'] == 'Delete':
             try:
-                # physicalResourceId = event.get('PhysicalResourceId', 'ERROR')
-                LOGGER.info('DELETE: ' + physicalResourceId)
+                logger_obj.info('DELETE: ' + physical_resource_id)
                 account_id = context.invoked_function_arn.split(":")[4]
                 client.delete_action_target(
                     ActionTargetArn=f"arn:{partition}:securityhub:{region}:{account_id}:action/custom/{properties['Id']}"
                 )
             except botocore.exceptions.ClientError as error:
                 if error.response['Error']['Code'] == 'ResourceNotFoundException':
-                    pass
+                    logger_obj.info('ResourceNotFoundException - nothing to delete.')
                 else:
-                    LOGGER.error(error)
+                    logger_obj.error(error)
                     raise
             except Exception as e:
                 metrics_data = {
@@ -165,17 +162,17 @@ def lambda_handler(event, context):
                     'err_msg': event['RequestType']
                     }
                 send_metrics(metrics_data)
-                LOGGER.error(e)
+                logger_obj.error(e)
                 raise
         else:
             err_msg = 'Invalid RequestType: ' + event['RequestType']
-            LOGGER.error(err_msg)
+            logger_obj.error(err_msg)
             send(
                 event, context,
                 "FAILED",
-                responseData,
-                physicalResourceId,
-                LOGGER,
+                response_data,
+                physical_resource_id,
+                logger_obj,
                 reason=err_msg,
             )
 
@@ -183,9 +180,9 @@ def lambda_handler(event, context):
             event,
             context,
             "SUCCESS",
-            responseData,
-            physicalResourceId,
-            LOGGER
+            response_data,
+            physical_resource_id,
+            logger_obj
         )
         metrics_data = {
             'status': 'Success',
@@ -195,9 +192,9 @@ def lambda_handler(event, context):
         return
 
     except Exception as err:
-        LOGGER.error('An exception occurred: ')
+        logger_obj.error('An exception occurred: ')
         err_msg = err.__class__.__name__ + ': ' + str(err)
-        LOGGER.error(err_msg)
+        logger_obj.error(err_msg)
         metrics_data = {
             'status': 'Failed',
             'Id': event['StackId'],
@@ -208,8 +205,8 @@ def lambda_handler(event, context):
             event,
             context,
             "FAILED",
-            responseData,
-            event.get('physicalResourceId', 'ERROR'),
-            LOGGER=LOGGER,
+            response_data,
+            event.get('physical_resource_id', 'ERROR'),
+            logger_obj=logger_obj,
             reason=err_msg
         )

@@ -53,14 +53,15 @@ else
     export SOLUTION_TRADEMARKEDNAME
 fi
 
-# Snapshot-only Test
 echo "------------------------------------------------------------------------------"
-echo "[Test] CDK Unit Tests - playbook CIS"
+echo "[Test] CDK Unit Tests"
 echo "------------------------------------------------------------------------------"
-cd $temp_source_dir/playbooks/CIS
+cd $temp_source_dir
 [[ $update == "true" ]] && {
     npm run test -- -u
-    cp -f test/__snapshots__/* $source_dir/playbooks/CIS/test/__snapshots__/
+    cp -f test/__snapshots__/* $source_dir/test/__snapshots__/
+    cp -f playbooks/CIS/test/__snapshots__/* $source_dir/playbooks/CIS/test/__snapshots__/
+    cp -f playbooks/AFSBP/test/__snapshots__/* $source_dir/playbooks/AFSBP/test/__snapshots__/
 } || {
     npm run test
     rc=$?
@@ -71,47 +72,92 @@ cd $temp_source_dir/playbooks/CIS
 }
 
 echo "------------------------------------------------------------------------------"
-echo "[Test] CDK Unit Tests - core"
-echo "------------------------------------------------------------------------------"
-cd $temp_source_dir/playbooks/core
-npm run test
-rc=$?
-echo CDK Unit Tests RC=$rc
-if [ "$rc" -gt "$maxrc" ]; then
-	maxrc=$rc
-fi
-
-# Snapshot-only Test
-echo "------------------------------------------------------------------------------"
-echo "[Test] CDK Unit Tests - solution_deploy"
-echo "------------------------------------------------------------------------------"
-cd $temp_source_dir/solution_deploy
-[[ $update == "true" ]] && {
-    npm run test -- -u
-    cp -f test/__snapshots__/* $source_dir/solution_deploy/test/__snapshots__/
-} || {
-    npm run test
-    rc=$?
-    echo CDK Unit Tests RC=$rc
-    if [ "$rc" -gt "$maxrc" ]; then
-    	maxrc=$rc
-    fi
-}
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests"
+echo "[Test] Python Unit Tests - CIS Playbook"
 echo "------------------------------------------------------------------------------"
 cd ${template_dir}/build/playbooks/CIS
-ls tests
-pytest
+
+# setup coverage report path
+mkdir -p ${temp_source_dir}/test/coverage-reports
+coverage_report_path=${template_dir}/test/coverage-reports/CIS.coverage.xml
+echo "coverage report path set to $coverage_report_path"
+
+# Use -vv for debugging
+python3 -m pytest --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
 rc=$?
 if [ "$rc" -gt "$maxrc" ]; then
-	maxrc=$rc
+    maxrc=$rc
 fi
 
+# The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list
+# with absolute path for the source directories. To avoid dependencies of tools (such as SonarQube) on different
+# absolute paths for source directories, this substitution is used to convert each absolute source directory
+# path to the corresponding project relative path. The $source_dir holds the absolute path for source directory.
+sed -i -e "s,<source>${template_dir}/build/playbooks/CIS,<source>deployment/build/playbooks/CIS,g" $coverage_report_path
+
 if [ "$maxrc" -ne "0" ]; then
-	echo "** UNIT TESTS FAILED **"
+  echo "** UNIT TESTS FAILED **"
 else
-	echo "Unit Tests Successful"
+  echo "Unit Tests Successful"
 fi
+# sed -i -e "s,<source>$source_dir,<source>source,g" $coverage_report_path
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - Orchestrator Lambdas"
+echo "------------------------------------------------------------------------------"
+cd ${temp_source_dir}/Orchestrator
+
+# setup coverage report path
+mkdir -p ${temp_source_dir}/test/coverage-reports
+coverage_report_path=${template_dir}/test/coverage-reports/OrchestratorLambda.coverage.xml
+echo "coverage report path set to $coverage_report_path"
+
+# Use -vv for debugging
+python3 -m pytest --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
+rc=$?
+if [ "$rc" -gt "$maxrc" ]; then
+    maxrc=$rc
+fi
+
+# The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list
+# with absolute path for the source directories. To avoid dependencies of tools (such as SonarQube) on different
+# absolute paths for source directories, this substitution is used to convert each absolute source directory
+# path to the corresponding project relative path. The $source_dir holds the absolute path for source directory.
+sed -i -e "s,<source>${temp_source_dir}/Orchestrator,<source>deployment/temp/source/Orchestrator,g" $coverage_report_path
+
+if [ "$maxrc" -ne "0" ]; then
+  echo "** UNIT TESTS FAILED **"
+else
+  echo "Unit Tests Successful"
+fi
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - LambdaLayers"
+echo "------------------------------------------------------------------------------"
+cd ${temp_source_dir}/LambdaLayers
+
+# setup coverage report path
+mkdir -p ${template_dir}/test/coverage-reports
+coverage_report_path=${template_dir}/test/coverage-reports/LambdaLayers.coverage.xml
+echo "coverage report path set to $coverage_report_path"
+
+# Use -vv for debugging
+python3 -m pytest --cov=${temp_source_dir}/LambdaLayers --cov-report=term-missing --cov-report "xml:$coverage_report_path"
+rc=$?
+if [ "$rc" -gt "$maxrc" ]; then
+    maxrc=$rc
+fi
+
+# The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list
+# with absolute path for the source directories. To avoid dependencies of tools (such as SonarQube) on different
+# absolute paths for source directories, this substitution is used to convert each absolute source directory
+# path to the corresponding project relative path. The $source_dir holds the absolute path for source directory.
+sed -i -e "s,<source>${temp_source_dir}/LambdaLayers,<source>deployment/temp/source/LambdaLayers,g" $coverage_report_path
+
+if [ "$maxrc" -ne "0" ]; then
+  echo "** UNIT TESTS FAILED **"
+else
+  echo "Unit Tests Successful"
+fi
+
+
 exit $maxrc

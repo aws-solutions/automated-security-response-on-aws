@@ -1,0 +1,76 @@
+{
+  "Notification": {
+    "Details": [
+      "{\"ExecutionLog\":\"Snapshot snap-00004115408c25b92 permissions set to private\\nSnapshot snap-00003bd4b6a40277c permissions set to private\\n\",\"Payload\":[\"snap-00004115408c25b92\",\"snap-00003bd4b6a40277c\"]}"
+    ],
+    "Message": "Remediation succeeded for AFSBP control EC2.1 in account 111111111111: Remediation for ['111111111111'] status: Success",
+    "State": "SUCCESS"
+  },
+  "Metrics": {
+    "sendAnonymousMetrics": "Yes",
+    "Id": "arn:aws:cloudformation:us-east-1:111111111111:stack/sharr-v12-rc2-006/4d8e6400-5f28-11eb-ada3-0ed1a2c1bf57"
+  },
+  "EventType": "Security Hub Findings - Custom Action",
+  "Finding": {
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "Types": [
+      "Effects/Data Exposure/AWS-Foundational-Security-Best-Practices"
+    ],
+    "Description": "This AWS control checks whether Amazon Elastic Block Store snapshots are not publicly restorable.",
+    "SchemaVersion": "2018-10-08",
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/EC2.1",
+    "FirstObservedAt": "2021-01-23T00:55:21.358Z",
+    "CreatedAt": "2021-01-23T00:55:21.358Z",
+    "RecordState": "ACTIVE",
+    "Title": "EC2.1 EBS snapshots should not be public, determined by the ability to be restorable by anyone",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "LastObservedAt": "2021-01-25T14:56:15.330Z",
+    "Severity": {
+      "Normalized": 90,
+      "Label": "CRITICAL",
+      "Product": 90,
+      "Original": "CRITICAL"
+    },
+    "UpdatedAt": "2021-01-25T14:56:13.104Z",
+    "WorkflowState": "NEW",
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "EC2.1",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/EC2.1/remediation",
+      "RelatedAWSResources:0/name": "securityhub-ebs-snapshot-public-restorable-check-0852560f",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/EC2.1",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "aws/securityhub/annotation": "Public Amazon EBS Snapshots: 2",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.1/finding/685db1e3-b21d-4b0a-882e-f94d63c91b9b"
+    },
+    "AwsAccountId": "111111111111",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.1/finding/685db1e3-b21d-4b0a-882e-f94d63c91b9b",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/EC2.1/remediation"
+      }
+    },
+    "Resources": [
+      {
+        "Partition": "aws",
+        "Type": "AwsAccount",
+        "Region": "us-east-1",
+        "Id": "AWS::::Account:111111111111"
+      }
+    ],
+    "Note": {
+      "UpdatedBy": "SHARR_Remediation_AFSBP_EC2.1",
+      "Text": "EBS Snapshot modified to private",
+      "UpdatedAt": "2021-01-25T16:39:32.038Z"
+    }
+  }
+}

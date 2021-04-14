@@ -1,0 +1,80 @@
+{
+  "version": "0",
+  "id": "b3efc128-c676-4a33-b5e6-99b4227dd5a3",
+  "detail-type": "Security Hub Findings - Imported",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-05-27T03:38:32Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.4/finding/e7d83ca8-6afd-428e-8ab0-e5b5b3b2239f"
+  ],
+  "detail": {
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+        ],
+        "Description": "Access keys consist of an access key ID and secret access key, which are used to sign programmatic requests that you make to AWS. It is recommended that all access keys be regularly rotated.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "WARNING",
+          "StatusReasons": [
+            {
+              "Description": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+              "ReasonCode": "CONFIG_ACCESS_DENIED"
+            }
+          ]
+        },
+        "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.4",
+        "FirstObservedAt": "2020-05-08T03:41:45.527Z",
+        "CreatedAt": "2020-05-08T03:41:45.527Z",
+        "RecordState": "ACTIVE",
+        "Title": "1.4 Ensure access keys are rotated every 90 days or less",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-05-27T03:38:29.560Z",
+        "Severity": {
+          "Normalized": 40,
+          "Label": "MEDIUM",
+          "Product": 40,
+          "Original": "MEDIUM"
+        },
+        "UpdatedAt": "2020-05-27T03:38:28.102Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+          "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+          "RuleId": "1.4",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.4/remediation",
+          "RelatedAWSResources:0/name": "securityhub-access-keys-rotated-eee76602",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.4",
+          "aws/securityhub/SeverityLabel": "MEDIUM",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/annotation": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.4/finding/e7d83ca8-6afd-428e-8ab0-e5b5b3b2239f"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.4/finding/e7d83ca8-6afd-428e-8ab0-e5b5b3b2239f",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.4/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAccount",
+            "Region": "us-east-1",
+            "Id": "AWS::::Account:111111111111"
+          }
+        ]
+      }
+    ]
+  }
+}

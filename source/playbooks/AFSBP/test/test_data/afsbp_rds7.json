@@ -1,0 +1,130 @@
+{
+  "version": "0",
+  "id": "a63415af-938d-6471-3cb1-0770460b9e88",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-11-05T00:30:06Z",
+  "region": "eu-west-1",
+  "resources": [
+    "arn:aws:securityhub:eu-west-1:111111111111:action/custom/AFSBPrds7"
+  ],
+  "detail": {
+    "actionName": "AFSBPrds7",
+    "actionDescription": "Remediate AFSBP RDS.7 by enabling deletion protection on RDS DB cluster",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This control checks whether RDS clusters have deletion protection enabled.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.7",
+        "FirstObservedAt": "2020-11-04T23:43:15.542Z",
+        "CreatedAt": "2020-11-04T23:43:15.542Z",
+        "RecordState": "ACTIVE",
+        "Title": "RDS.7 RDS clusters should have deletion protection enabled",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-11-04T23:43:16.569Z",
+        "Severity": {
+          "Normalized": 20,
+          "Label": "LOW",
+          "Product": 20,
+          "Original": "LOW"
+        },
+        "UpdatedAt": "2020-11-04T23:43:15.542Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "RDS.7",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.7/remediation",
+          "RelatedAWSResources:0/name": "securityhub-rds-cluster-deletion-protection-enabled-fb7018ae",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:eu-west-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.7",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:eu-west-1::product/aws/securityhub/arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.7/finding/4540d440-60f6-4ef6-a898-3aad3d4ea5d6"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.7/finding/4540d440-60f6-4ef6-a898-3aad3d4ea5d6",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.7/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsRdsDbCluster",
+            "Details": {
+              "AwsRdsDbCluster": {
+                "StorageEncrypted": true,
+                "ClusterCreateTime": "2020-11-04T23:40:56.176Z",
+                "ActivityStreamStatus": "stopped",
+                "HttpEndpointEnabled": false,
+                "EngineMode": "provisioned",
+                "Port": 3306,
+                "DbClusterResourceId": "cluster-XBAMVN4VSCK3LXR5CAT3RAWGTQ",
+                "VpcSecurityGroups": [
+                  {
+                    "Status": "active",
+                    "VpcSecurityGroupId": "sg-4f620a2a"
+                  }
+                ],
+                "PreferredBackupWindow": "02:17-02:47",
+                "Endpoint": "database-1.cluster-cj444wurlcft.eu-west-1.rds.amazonaws.com",
+                "CopyTagsToSnapshot": true,
+                "Engine": "aurora-mysql",
+                "IamDatabaseAuthenticationEnabled": false,
+                "Status": "available",
+                "EngineVersion": "5.7.mysql_aurora.2.07.2",
+                "KmsKeyId": "arn:aws:kms:eu-west-1:111111111111:key/330cf509-5b20-4d3f-ab42-f070cf7f6623",
+                "CrossAccountClone": false,
+                "AvailabilityZones": [
+                  "eu-west-1a",
+                  "eu-west-1c",
+                  "eu-west-1b"
+                ],
+                "HostedZoneId": "Z29XKXDKYMONMX",
+                "PreferredMaintenanceWindow": "thu:00:45-thu:01:15",
+                "DeletionProtection": false,
+                "DbClusterIdentifier": "database-1",
+                "DbClusterMembers": [
+                  {
+                    "DbInstanceIdentifier": "database-1-instance-1",
+                    "DbClusterParameterGroupStatus": "in-sync",
+                    "PromotionTier": 1,
+                    "IsClusterWriter": true
+                  },
+                  {
+                    "DbInstanceIdentifier": "database-1-instance-1-eu-west-1c",
+                    "DbClusterParameterGroupStatus": "in-sync",
+                    "PromotionTier": 1,
+                    "IsClusterWriter": false
+                  }
+                ],
+                "ReaderEndpoint": "database-1.cluster-ro-cj444wurlcft.eu-west-1.rds.amazonaws.com",
+                "AllocatedStorage": 1,
+                "MasterUsername": "admin",
+                "BackupRetentionPeriod": 1,
+                "DbSubnetGroup": "default",
+                "MultiAz": true,
+                "DbClusterParameterGroup": "default.aurora-mysql5.7"
+              }
+            },
+            "Region": "eu-west-1",
+            "Id": "arn:aws:rds:eu-west-1:111111111111:cluster:database-1"
+          }
+        ]
+      }
+    ]
+  }
+}

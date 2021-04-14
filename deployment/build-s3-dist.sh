@@ -17,7 +17,10 @@
 #  - version-code: version of the package
 
 # Important: CDK global version number
-required_cdk_version=1.68.0
+# This controls the CDK and AWS Solutions Constructs version. Solutions
+# Constructs versions map 1:1 to CDK versions. When setting this value, 
+# choose the latest AWS Solutions Constructs version.
+required_cdk_version=1.85.0
 
 # Functions to reduce repetitive code
 # do_cmd will exit if the command has a non-zero return code.
@@ -148,7 +151,13 @@ do_cmd rm -rf $temp_work_dir
 do_cmd mkdir -p $temp_work_dir
 
 echo "------------------------------------------------------------------------------"
-echo "[Copy] Copy source to temp and remove unwanted files"
+echo "[Init] Create folders"
+echo "------------------------------------------------------------------------------"
+mkdir ${build_dist_dir}/lambda
+mkdir -p ${template_dist_dir}/playbooks
+
+echo "------------------------------------------------------------------------------"
+echo "[Copy] Copy source to temp, remove unwanted files"
 echo "------------------------------------------------------------------------------"
 do_cmd cp -r $source_dir $temp_work_dir # make a copy to work from
 cd $temp_work_dir
@@ -157,16 +166,18 @@ find . -name node_modules | while read file;do rm -rf $file; done
 # remove package-lock.json
 find . -name package-lock.json | while read file;do rm $file; done
 
+# Propagate the $required_cdk_version to all of the package.json files.
+# This makes it very simple to update the version by changing the value above.
+cd $temp_work_dir/source
+find . -name package.json | while read package; do
+    do_replace $package "###CDK###" $required_cdk_version
+done
+
 echo "------------------------------------------------------------------------------"
 echo "[Install] CDK"
 echo "------------------------------------------------------------------------------"
 
-# install typescript once so we can build each of the packages below
-# If this must be done for the pipeline then we need to figure out how to detect
-# command-line (user) build so as not to do global install (requires root/sudo)
-# npm install -g typescript
-# 
-cd $temp_work_dir/source/solution_deploy
+cd $temp_work_dir/source
 do_cmd npm install      # local install per package.json
 do_cmd npm install aws-cdk@$required_cdk_version
 export PATH=$(npm bin):$PATH
@@ -180,47 +191,65 @@ fi
 do_cmd npm run build       # build javascript from typescript
 
 echo "------------------------------------------------------------------------------"
+echo "[Pack] Lambda Layer (used by playbooks)"
+echo "------------------------------------------------------------------------------"
+cd $template_dir
+mkdir -p $temp_work_dir/source/solution_deploy/lambdalayer/python
+cp $source_dir/LambdaLayers/*.py $temp_work_dir/source/solution_deploy/lambdalayer/python
+pip install -r ./requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
+cd $temp_work_dir/source/solution_deploy/lambdalayer
+zip --recurse-paths ${build_dist_dir}/lambda/layer.zip python
+
+echo "------------------------------------------------------------------------------"
 echo "[Pack] Custom Action Lambda"
 echo "------------------------------------------------------------------------------"
 cd $template_dir
-pip install -r ./requirements.txt -t $temp_work_dir/source/solution_deploy/source
 cd $temp_work_dir/source/solution_deploy/source
-mkdir ${build_dist_dir}/lambda
-zip --recurse-paths ${build_dist_dir}/lambda/createCustomAction.py.zip createCustomAction.py lib/* requests/* chardet/* certifi/* idna/* urllib3/*
+zip ${build_dist_dir}/lambda/createCustomAction.py.zip createCustomAction.py
+
+echo "------------------------------------------------------------------------------"
+echo "[Pack] Orchestrator Lambdas"
+echo "------------------------------------------------------------------------------"
+cd $template_dir
+cd $temp_work_dir/source/Orchestrator
+ls | while read file; do 
+    zip ${build_dist_dir}/lambda/${file}.zip ${file}
+done
+# Copy LambdaLayer modules in preparation for running tests
+# These are not packaged with the Lambda
+do_cmd cp ../LambdaLayers/*.py .
 
 echo "------------------------------------------------------------------------------"
 echo "[Create] Playbook Templates - CIS"
 echo "------------------------------------------------------------------------------"
 mkdir -p ${build_dist_dir}/playbooks/CIS
-mkdir -p ${template_dist_dir}/playbooks
 
-# install npm locally in playbooks/core
-cd $temp_work_dir/source/playbooks/core
-npm install -s
-
-# Install npm for the compliance pack:
 do_cmd cd $temp_work_dir/source/playbooks/CIS
-do_cmd npm install -s
-do_cmd npm run build
 
-# Create the template for the compliance pack
-cdk --no-version-reporting synth CisStack > $template_dist_dir/playbooks/CIS.template 
-cdk --no-version-reporting synth CisPermissionsStack > $template_dist_dir/playbooks/CISPermissions.template 
+# Output YAML - this is currently the only way to do this for multiple templates
+for template in `cdk list`; do
+    echo Create CIS template $template
+    cdk --no-version-reporting synth $template > ${template_dist_dir}/playbooks/${template}.template
+done
+
+# To maintain consistency with the original install documentation
+mv $template_dist_dir/playbooks/CISPermissionsStack.template $template_dist_dir/playbooks/CISPermissions.template
 
 if [[ -d ./lambda ]]; then
     do_cmd mkdir -p ${build_dir}/playbooks/CIS/tests  # output directory
     do_cmd mkdir -p ${build_dir}/playbooks/CIS/lib
     do_cmd cp lambda/*.py ${build_dir}/playbooks/CIS
+    do_cmd cp lambda/.coveragerc ${build_dir}/playbooks/CIS
     do_cmd cp -R lambda/tests/* ${build_dir}/playbooks/CIS/tests
     # All playbooks get all libs. This is OK right now, but may need to be
     # more specific later.
     do_cmd cp -R $temp_work_dir/source/playbooks/python_lib/* ${build_dir}/playbooks/CIS/lib
     do_cmd cp -R $temp_work_dir/source/playbooks/python_tests/* ${build_dir}/playbooks/CIS/tests
-    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/source/requests ${build_dir}/playbooks/CIS/
-    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/source/urllib3 ${build_dir}/playbooks/CIS/
-    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/source/chardet ${build_dir}/playbooks/CIS/
-    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/source/certifi ${build_dir}/playbooks/CIS/
-    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/source/idna ${build_dir}/playbooks/CIS/
+    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/lambdalayer/python/requests ${build_dir}/playbooks/CIS/
+    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/lambdalayer/python/urllib3 ${build_dir}/playbooks/CIS/
+    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/lambdalayer/python/chardet ${build_dir}/playbooks/CIS/
+    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/lambdalayer/python/certifi ${build_dir}/playbooks/CIS/
+    do_cmd cp -R ${temp_work_dir}/source/solution_deploy/lambdalayer/python/idna ${build_dir}/playbooks/CIS/
     rm -rf ${build_dir}/playbooks/CIS/lib/__pycache__/
 
     cd ${build_dir}/playbooks/CIS
@@ -229,7 +258,19 @@ if [[ -d ./lambda ]]; then
     done
 fi
 
-cd ${template_dir}
+echo "------------------------------------------------------------------------------"
+echo "[Create] Playbook Templates - AFSBP"
+echo "------------------------------------------------------------------------------"
+mkdir -p ${build_dist_dir}/playbooks/AFSBP
+
+do_cmd cd $temp_work_dir/source/playbooks/AFSBP
+
+# Output YAML - this is currently the only way to do this for multiple templates
+for template in `cdk list`; do
+    echo Create AFSBP template $template
+    # do_cmd npm run build
+    cdk --no-version-reporting synth $template > ${template_dist_dir}/playbooks/${template}.template
+done
 
 echo "------------------------------------------------------------------------------"
 echo "[Create] Deployment Templates"
@@ -240,8 +281,7 @@ cd $temp_work_dir/source/solution_deploy
 # Output YAML - this is currently the only way to do this for multiple templates
 for template in `cdk ls`; do
     echo Create template $template
-    # do_cmd npm run build
-    cdk --no-version-reporting synth $template -c solutionId=$SOLUTION_ID > ${template_dist_dir}/${template}.template
+    cdk --no-version-reporting synth $template > ${template_dist_dir}/${template}.template
 done
 cd ${template_dir}
 

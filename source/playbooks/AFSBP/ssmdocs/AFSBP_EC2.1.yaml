@@ -1,0 +1,158 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_EC2.1
+  ## What does this document do?
+  This document changes all public EC2 snapshots to private
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for EC2.1 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: AccountId
+        Selector: $.Payload.account_id
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+          my_control_id = 'EC2.1'
+
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            print(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+            raise
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          object = {'Type': 'Account', 'Id': account_id, 'OutputKey': 'Remediation.Output'}
+          return {"account_id": account_id, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    isEnd: false
+  - name: GetPublicSnapshotIds
+    description: Get a list of public snapshot ids
+    action: 'aws:executeAwsApi'
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+    inputs:
+      Service: ec2
+      Api: describe-snapshots
+      OwnerIds: [ '{{ParseInput.AccountId}}' ]
+      RestorableByUserIds: [ all ]
+  - name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+    inputs:
+      InputPayload:
+        EBS: '{{GetPublicSnapshotIds.Response}}'
+      Runtime: python3.7
+      Handler: make_snapshots_private
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+        def make_snapshots_private(event, context):
+          ec2 = boto3.client('ec2', config=BOTO_CONFIG)
+          remediated = []
+          for snapshot in event['EBS']['Snapshots']:
+            try:
+              ec2_result = ec2.modify_snapshot_attribute(
+                Attribute='CreateVolumePermission',
+                CreateVolumePermission={
+                  'Remove': [{'Group': 'all'}]
+                },
+                SnapshotId=snapshot['SnapshotId']
+              )
+              print('Snapshot ' + snapshot['SnapshotId'] + ' permissions set to private')
+
+              remediated.append(snapshot['SnapshotId'])
+            except Exception as e:
+              print(e)
+              print('FAILED to remediate Snapshot ' + snapshot['SnapshotId'])
+              raise
+          result=json.dumps(ec2.describe_snapshots(
+              SnapshotIds=remediated
+          ), indent=2, default=str)
+          print(result)
+          return {
+            "response": {
+              "message": "Snapshot permissions set to private",
+              "status": "Success"
+            }
+          }
+    isEnd: false
+
+  - 
+    name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'EBS Snapshot modified to private'
+        UpdatedBy: 'SHARR_Remediation_AFSBP_EC2.1'
+      Workflow:
+        Status: 'RESOLVED'
+    description: Update finding
+    isEnd: true

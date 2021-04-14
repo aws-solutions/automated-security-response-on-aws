@@ -1,0 +1,156 @@
+{
+  "version": "0",
+  "id": "4aa7d996-7550-602b-a94b-13910e8798ad",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-11-05T00:11:05Z",
+  "region": "eu-west-1",
+  "resources": [
+    "arn:aws:securityhub:eu-west-1:111111111111:action/custom/AFSBPrds6"
+  ],
+  "detail": {
+    "actionName": "AFSBPrds6",
+    "actionDescription": "Remediate AFSBP RDS.6 by enabling enhanced monitoring on RDS DB instance",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This control checks whether enhanced monitoring is enabled for your RDS DB instances.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.6",
+        "FirstObservedAt": "2020-11-04T23:43:29.220Z",
+        "CreatedAt": "2020-11-04T23:43:29.220Z",
+        "RecordState": "ACTIVE",
+        "Title": "RDS.6 Enhanced monitoring should be configured for RDS DB instances",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-11-04T23:43:31.684Z",
+        "Severity": {
+          "Normalized": 10,
+          "Label": "LOW",
+          "Product": 10,
+          "Original": "LOW"
+        },
+        "UpdatedAt": "2020-11-04T23:43:29.220Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "RDS.6",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.6/remediation",
+          "RelatedAWSResources:0/name": "securityhub-rds-enhanced-monitoring-enabled-3194965a",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:eu-west-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.6",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/annotation": "Enhanced Monitoring interval for this Amazon RDS instance is not configured.",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:eu-west-1::product/aws/securityhub/arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.6/finding/613da146-d013-4246-b5ec-da222ea52e65"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.6/finding/613da146-d013-4246-b5ec-da222ea52e65",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.6/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsRdsDbInstance",
+            "Details": {
+              "AwsRdsDbInstance": {
+                "StorageEncrypted": true,
+                "IAMDatabaseAuthenticationEnabled": false,
+                "OptionGroupMemberships": [
+                  {
+                    "Status": "in-sync",
+                    "OptionGroupName": "default:aurora-mysql-5-7"
+                  }
+                ],
+                "DBClusterIdentifier": "database-1",
+                "DbParameterGroups": [
+                  {
+                    "ParameterApplyStatus": "in-sync",
+                    "DbParameterGroupName": "default.aurora-mysql5.7"
+                  }
+                ],
+                "VpcSecurityGroups": [
+                  {
+                    "Status": "active",
+                    "VpcSecurityGroupId": "sg-4f620a2a"
+                  }
+                ],
+                "DbiResourceId": "db-3UGAMRWBK4F7XZ5DT74RRFRT7Y",
+                "PreferredBackupWindow": "02:17-02:47",
+                "MonitoringInterval": 0,
+                "DbInstancePort": 0,
+                "CopyTagsToSnapshot": false,
+                "Engine": "aurora-mysql",
+                "LicenseModel": "general-public-license",
+                "EngineVersion": "5.7.mysql_aurora.2.07.2",
+                "StorageType": "aurora",
+                "KmsKeyId": "arn:aws:kms:eu-west-1:111111111111:key/330cf509-5b20-4d3f-ab42-f070cf7f6623",
+                "DBInstanceClass": "db.r5.large",
+                "PerformanceInsightsRetentionPeriod": 7,
+                "AvailabilityZone": "eu-west-1a",
+                "PreferredMaintenanceWindow": "tue:01:25-tue:01:55",
+                "DbInstanceStatus": "creating",
+                "DeletionProtection": false,
+                "AutoMinorVersionUpgrade": true,
+                "DBInstanceIdentifier": "database-1-instance-1",
+                "AllocatedStorage": 1,
+                "CACertificateIdentifier": "rds-ca-2019",
+                "MasterUsername": "admin",
+                "PerformanceInsightsEnabled": true,
+                "PerformanceInsightsKmsKeyId": "arn:aws:kms:eu-west-1:111111111111:key/330cf509-5b20-4d3f-ab42-f070cf7f6623",
+                "PubliclyAccessible": false,
+                "BackupRetentionPeriod": 1,
+                "DbSubnetGroup": {
+                  "DbSubnetGroupDescription": "default",
+                  "Subnets": [
+                    {
+                      "SubnetStatus": "Active",
+                      "SubnetAvailabilityZone": {
+                        "Name": "eu-west-1a"
+                      },
+                      "SubnetIdentifier": "subnet-72138717"
+                    },
+                    {
+                      "SubnetStatus": "Active",
+                      "SubnetAvailabilityZone": {
+                        "Name": "eu-west-1c"
+                      },
+                      "SubnetIdentifier": "subnet-79b86920"
+                    },
+                    {
+                      "SubnetStatus": "Active",
+                      "SubnetAvailabilityZone": {
+                        "Name": "eu-west-1b"
+                      },
+                      "SubnetIdentifier": "subnet-bfdf63c8"
+                    }
+                  ],
+                  "VpcId": "vpc-4d27f928",
+                  "SubnetGroupStatus": "Complete",
+                  "DbSubnetGroupName": "default"
+                },
+                "PromotionTier": 1,
+                "MultiAz": false
+              }
+            },
+            "Region": "eu-west-1",
+            "Id": "arn:aws:rds:eu-west-1:111111111111:db:database-1-instance-1"
+          }
+        ]
+      }
+    ]
+  }
+}

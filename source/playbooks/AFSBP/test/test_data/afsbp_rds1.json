@@ -1,0 +1,98 @@
+{
+  "version": "0",
+  "id": "70d80993-a48e-8a57-3d80-fb3ed90ec043",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-11-05T01:00:17Z",
+  "region": "eu-west-1",
+  "resources": [
+    "arn:aws:securityhub:eu-west-1:111111111111:action/custom/AFSBPrds1"
+  ],
+  "detail": {
+    "actionName": "AFSBPrds1",
+    "actionDescription": "Remediate AFSBP RDS.1 by making RDS snapshot private",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+        "Types": [
+          "Effects/Data Exposure/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This AWS control checks if Amazon Relational Database Service (Amazon RDS) snapshots are public.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.1",
+        "FirstObservedAt": "2020-11-05T00:59:46.177Z",
+        "CreatedAt": "2020-11-05T00:59:46.177Z",
+        "RecordState": "ACTIVE",
+        "Title": "RDS.1 RDS snapshot should be private",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-11-05T00:59:46.595Z",
+        "Severity": {
+          "Normalized": 90,
+          "Label": "CRITICAL",
+          "Product": 90,
+          "Original": "CRITICAL"
+        },
+        "UpdatedAt": "2020-11-05T00:59:46.177Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "RDS.1",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.1/remediation",
+          "RelatedAWSResources:0/name": "securityhub-rds-snapshots-public-prohibited-86396b3c",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:eu-west-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.1",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:eu-west-1::product/aws/securityhub/arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.1/finding/44329cba-0d82-4e69-a43f-85afccdee69d"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.1/finding/44329cba-0d82-4e69-a43f-85afccdee69d",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.1/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsRdsDbSnapshot",
+            "Details": {
+              "AwsRdsDbSnapshot": {
+                "Status": "available",
+                "LicenseModel": "general-public-license",
+                "DbInstanceIdentifier": "tm1lseqxo6gvips",
+                "EngineVersion": "5.7.22",
+                "StorageType": "standard",
+                "InstanceCreateTime": "2018-09-20T17:09:28.556Z",
+                "Encrypted": false,
+                "Port": 3306,
+                "DbSnapshotIdentifier": "test-snapshot-mydb-1trr1gfasnyfa",
+                "AvailabilityZone": "eu-west-1a",
+                "OptionGroupName": "default:mysql-5-7",
+                "PercentProgress": 100,
+                "DbiResourceId": "db-QVCPIDR6NHSW3CZDJMNFOWIEP4",
+                "AllocatedStorage": 5,
+                "SnapshotCreateTime": "2018-09-20T18:00:28.707Z",
+                "VpcId": "vpc-4d27f928",
+                "MasterUsername": "awsuser",
+                "SnapshotType": "manual",
+                "Engine": "mysql",
+                "IamDatabaseAuthenticationEnabled": false
+              }
+            },
+            "Region": "eu-west-1",
+            "Id": "arn:aws:rds:eu-west-1:111111111111:snapshot:test-snapshot-mydb-1trr1gfasnyfa"
+          }
+        ]
+      }
+    ]
+  }
+}

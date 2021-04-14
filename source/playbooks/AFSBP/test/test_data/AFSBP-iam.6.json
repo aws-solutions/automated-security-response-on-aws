@@ -1,0 +1,152 @@
+{
+  "version": "0",
+  "id": "81ee3cd6-6100-dbb7-5431-adcb1a6550a3",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-06-02T17:26:55Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1:111111111111:action/custom/cis1511RR"
+  ],
+  "detail": {
+    "actionName": "CIS 1.5 - 1.11",
+    "actionDescription": "Remediates CIS Checks 1.5 through 1.11 by establishing a CIS Compliant Strong Password Policy",
+    "findings": [
+      {
+        "SchemaVersion": "2018-10-08",
+        "Id": "arn:aws:securityhub:us-east-1:501816913570:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.6/finding/9edca51b-6b6e-4307-a634-541603f62fa0",
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/IAM.6",
+        "AwsAccountId": "501816913570",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "FirstObservedAt": "2020-05-29T12:54:59.847Z",
+        "LastObservedAt": "2020-12-15T14:56:09.818Z",
+        "CreatedAt": "2020-05-29T12:54:59.847Z",
+        "UpdatedAt": "2020-12-15T14:56:09.255Z",
+        "Severity": {
+          "Product": 90,
+          "Label": "CRITICAL",
+          "Normalized": 90,
+          "Original": "CRITICAL"
+        },
+        "Title": "IAM.6 Hardware MFA should be enabled for the root user",
+        "Description": "This AWS control checks whether your AWS account is enabled to use hardware multi-factor authentication (MFA) device to sign in with root credentials.",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/IAM.6/remediation"
+          }
+        },
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:501816913570:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "IAM.6",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/IAM.6/remediation",
+          "RelatedAWSResources:0/name": "securityhub-root-account-hardware-mfa-enabled-d41cb410",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:501816913570:control/aws-foundational-security-best-practices/v/1.0.0/IAM.6",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:501816913570:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.6/finding/9edca51b-6b6e-4307-a634-541603f62fa0"
+        },
+        "Resources": [
+          {
+            "Type": "AwsAccount",
+            "Id": "AWS::::Account:501816913570",
+            "Partition": "aws",
+            "Region": "us-east-1"
+          }
+        ],
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "WorkflowState": "NEW",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "RecordState": "ACTIVE"
+      },
+      {
+        "SchemaVersion": "2018-10-08",
+        "Id": "arn:aws:securityhub:us-east-1:501816913570:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.4/finding/0baff3be-7a31-4bf9-b7f5-a2f1ad431762",
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.4",
+        "AwsAccountId": "501816913570",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "FirstObservedAt": "2020-09-15T22:34:41.298Z",
+        "LastObservedAt": "2020-12-15T14:56:06.969Z",
+        "CreatedAt": "2020-09-15T22:34:41.298Z",
+        "UpdatedAt": "2020-12-15T14:56:06.285Z",
+        "Severity": {
+          "Product": 40,
+          "Label": "MEDIUM",
+          "Normalized": 40,
+          "Original": "MEDIUM"
+        },
+        "Title": "RDS.4 RDS cluster snapshots and database snapshots should be encrypted at rest",
+        "Description": "This control checks whether Amazon RDS cluster snapshots and database snapshots are encrypted.",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.4/remediation"
+          }
+        },
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:501816913570:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "RDS.4",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.4/remediation",
+          "RelatedAWSResources:0/name": "securityhub-rds-snapshot-encrypted-e8dd86d1",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:501816913570:control/aws-foundational-security-best-practices/v/1.0.0/RDS.4",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:501816913570:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.4/finding/0baff3be-7a31-4bf9-b7f5-a2f1ad431762"
+        },
+        "Resources": [
+          {
+            "Type": "AwsRdsDbClusterSnapshot",
+            "Id": "arn:aws:rds:us-east-1:501816913570:cluster-snapshot:miotest-us-east-1c-final-snapshot",
+            "Partition": "aws",
+            "Region": "us-east-1",
+            "Details": {
+              "AwsRdsDbClusterSnapshot": {
+                "AvailabilityZones": [
+                  "us-east-1b",
+                  "us-east-1c",
+                  "us-east-1e"
+                ],
+                "SnapshotCreateTime": "2015-12-22T18:09:45.971Z",
+                "Engine": "aurora",
+                "AllocatedStorage": 0,
+                "Status": "available",
+                "Port": 0,
+                "VpcId": "vpc-5f53633a",
+                "ClusterCreateTime": "2015-12-22T14:50:41.824Z",
+                "MasterUsername": "mio",
+                "EngineVersion": "5.6.10a",
+                "LicenseModel": "aurora",
+                "SnapshotType": "manual",
+                "PercentProgress": 100,
+                "StorageEncrypted": false
+              }
+            }
+          }
+        ],
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "WorkflowState": "NEW",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "RecordState": "ACTIVE"
+      }
+    ]
+  }
+}

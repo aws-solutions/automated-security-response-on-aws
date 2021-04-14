@@ -1,0 +1,109 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_EC2.2
+
+  ## What does this document do?
+  This document deletes ingress and egress rules from default security 
+  group using the AWS SSM Runbook AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output - Output from AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules SSM doc
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  Finding:
+    type: StringMap
+    description: The input from Step function for EC2.2 finding
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: GroupId
+        Selector: $.Payload.group_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+          my_control_id = 'EC2.2'
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          group_id = finding['Resources'][0]['Details']['AwsEc2SecurityGroup']['GroupId']
+
+          if not re.match(
+            '^sg-(?:[0-9a-f]{8}|[0-9a-f]{17})$',
+            group_id
+            ):
+            exit(f'ERROR: Security Group Id is invalid: {group_id}')
+
+          object = {'Type': 'SecurityGroup', 'Id': group_id, 'OutputKey': 'Remediation.Output'}
+          return {"group_id": group_id, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    isEnd: false
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules
+      RuntimeParameters:
+        GroupId: '{{ ParseInput.GroupId }}'
+        AutomationAssumeRole: '{{ AutomationAssumeRole }}'
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+        - Id: '{{ParseInput.FindingId}}'
+          ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: Removed rules on default security group
+        UpdatedBy: SHARR_Remediation_AFSBP_EC2.2
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

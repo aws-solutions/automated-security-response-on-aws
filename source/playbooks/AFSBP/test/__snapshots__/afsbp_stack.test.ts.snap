@@ -1,0 +1,3063 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`default stack 1`] = `
+Object {
+  "Conditions": Object {
+    "AFSBPAutoScaling1EnableAutoScaling1ConditionCE5EE793": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPAutoScaling1Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPCloudTrail1EnableCloudTrail1ConditionC860CCC8": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPCloudTrail1Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPCloudTrail2EnableCloudTrail2Condition0DA5CF58": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPCloudTrail2Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPConfig1EnableConfig1Condition7EADFF11": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPConfig1Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPEC21EnableEC21ConditionA4D0F59B": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPEC21Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPEC22EnableEC22Condition2349855D": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPEC22Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPEC27EnableEC27ConditionFC2F394C": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPEC27Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPLambda1EnableLambda1Condition4E1A1855": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPLambda1Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPRDS1EnableRDS1ConditionB553606B": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPRDS1Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPRDS6EnableRDS6ConditionB5AA0302": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPRDS6Installation",
+        },
+        "Install",
+      ],
+    },
+    "AFSBPRDS7EnableRDS7ConditionC6475B87": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "AFSBPRDS7Installation",
+        },
+        "Install",
+      ],
+    },
+    "orchestratorisGovCloud0CBB59BB": Object {
+      "Fn::Not": Array [
+        Object {
+          "Condition": "orchestratorisNotGovCloud1333F816",
+        },
+      ],
+    },
+    "orchestratorisNotGovCloud1333F816": Object {
+      "Fn::Not": Array [
+        Object {
+          "Fn::Equals": Array [
+            Object {
+              "Ref": "AWS::Partition",
+            },
+            "aws-us-gov",
+          ],
+        },
+      ],
+    },
+  },
+  "Description": "test;",
+  "Mappings": Object {
+    "SourceCode": Object {
+      "General": Object {
+        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.1.1",
+        "S3Bucket": "sharrbukkit",
+      },
+    },
+  },
+  "Parameters": Object {
+    "AFSBPAutoScaling1AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP AutoScaling.1",
+      "Type": "String",
+    },
+    "AFSBPAutoScaling1Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control AutoScaling.1. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPCloudTrail1AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP CloudTrail.1",
+      "Type": "String",
+    },
+    "AFSBPCloudTrail1Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control CloudTrail.1. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPCloudTrail2AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP CloudTrail.2",
+      "Type": "String",
+    },
+    "AFSBPCloudTrail2Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control CloudTrail.2. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPConfig1AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP Config.1",
+      "Type": "String",
+    },
+    "AFSBPConfig1Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control Config.1. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPEC21AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP EC2.1",
+      "Type": "String",
+    },
+    "AFSBPEC21Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control EC2.1. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPEC22AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP EC2.2",
+      "Type": "String",
+    },
+    "AFSBPEC22Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control EC2.2. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPEC27AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP EC2.7",
+      "Type": "String",
+    },
+    "AFSBPEC27Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control EC2.7. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPLambda1AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP Lambda.1",
+      "Type": "String",
+    },
+    "AFSBPLambda1Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control Lambda.1. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPRDS1AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP RDS.1",
+      "Type": "String",
+    },
+    "AFSBPRDS1Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control RDS.1. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPRDS6AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP RDS.6",
+      "Type": "String",
+    },
+    "AFSBPRDS6Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control RDS.6. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+    "AFSBPRDS7AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for AFSBP RDS.7",
+      "Type": "String",
+    },
+    "AFSBPRDS7Installation": Object {
+      "AllowedValues": Array [
+        "Install",
+        "DO NOT Install",
+      ],
+      "Default": "Install",
+      "Description": "Enable/disable remediation for AFSBP Control RDS.7. Note 
+        that remediations can be disabled on a per-account basis in the Member template.",
+      "Type": "String",
+    },
+  },
+  "Resources": Object {
+    "AFSBPAutoScaling1AFSBPAutoScaling1CustomAction6791F8BC": Object {
+      "Condition": "AFSBPAutoScaling1EnableAutoScaling1ConditionCE5EE793",
+      "Properties": Object {
+        "Description": "Remediate AFSBP AutoScaling.1",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "AutoScaling.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPAutoScaling1CustomActionA993BD60",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_AutoScaling.1_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPAutoScaling1EventsRuleRole40C42B87",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPAutoScaling1AutoEventRule0BE9087E": Object {
+      "Condition": "AFSBPAutoScaling1EnableAutoScaling1ConditionCE5EE793",
+      "Properties": Object {
+        "Description": "Remediate AFSBP AutoScaling.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "AutoScaling.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_AutoScaling.1_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPAutoScaling1AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPAutoScaling1EventsRuleRole40C42B87",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPAutoScaling1CustomActionA993BD60": Object {
+      "Condition": "AFSBPAutoScaling1EnableAutoScaling1ConditionCE5EE793",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP AutoScaling.1",
+        "Id": "AFSBPAutoScaling1",
+        "Name": "AFSBP AutoScaling.1",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPAutoScaling1EventsRuleRole40C42B87": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPAutoScaling1EventsRuleRoleDefaultPolicy8681AE72": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPAutoScaling1EventsRuleRoleDefaultPolicy8681AE72",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPAutoScaling1EventsRuleRole40C42B87",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPCloudTrail1AFSBPCloudTrail1CustomActionD00F0A29": Object {
+      "Condition": "AFSBPCloudTrail1EnableCloudTrail1ConditionC860CCC8",
+      "Properties": Object {
+        "Description": "Remediate AFSBP CloudTrail.1",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "CloudTrail.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPCloudTrail1CustomActionFC8FC5F7",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_CloudTrail.1_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPCloudTrail1EventsRuleRole71D06D7A",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPCloudTrail1AutoEventRule468DC6B9": Object {
+      "Condition": "AFSBPCloudTrail1EnableCloudTrail1ConditionC860CCC8",
+      "Properties": Object {
+        "Description": "Remediate AFSBP CloudTrail.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "CloudTrail.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_CloudTrail.1_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPCloudTrail1AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPCloudTrail1EventsRuleRole71D06D7A",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPCloudTrail1CustomActionFC8FC5F7": Object {
+      "Condition": "AFSBPCloudTrail1EnableCloudTrail1ConditionC860CCC8",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP CloudTrail.1",
+        "Id": "AFSBPCloudTrail1",
+        "Name": "AFSBP CloudTrail.1",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPCloudTrail1EventsRuleRole71D06D7A": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPCloudTrail1EventsRuleRoleDefaultPolicy685CCD45": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPCloudTrail1EventsRuleRoleDefaultPolicy685CCD45",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPCloudTrail1EventsRuleRole71D06D7A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPCloudTrail2AFSBPCloudTrail2CustomActionECB9A2D5": Object {
+      "Condition": "AFSBPCloudTrail2EnableCloudTrail2Condition0DA5CF58",
+      "Properties": Object {
+        "Description": "Remediate AFSBP CloudTrail.2",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "CloudTrail.2",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPCloudTrail2CustomAction1DC81CF8",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_CloudTrail.2_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPCloudTrail2EventsRuleRole94823032",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPCloudTrail2AutoEventRule1FF1B100": Object {
+      "Condition": "AFSBPCloudTrail2EnableCloudTrail2Condition0DA5CF58",
+      "Properties": Object {
+        "Description": "Remediate AFSBP CloudTrail.2 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "CloudTrail.2",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_CloudTrail.2_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPCloudTrail2AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPCloudTrail2EventsRuleRole94823032",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPCloudTrail2CustomAction1DC81CF8": Object {
+      "Condition": "AFSBPCloudTrail2EnableCloudTrail2Condition0DA5CF58",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP CloudTrail.2",
+        "Id": "AFSBPCloudTrail2",
+        "Name": "AFSBP CloudTrail.2",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPCloudTrail2EventsRuleRole94823032": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPCloudTrail2EventsRuleRoleDefaultPolicyF9708F0D": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPCloudTrail2EventsRuleRoleDefaultPolicyF9708F0D",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPCloudTrail2EventsRuleRole94823032",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPConfig1AFSBPConfig1CustomAction06BEC26B": Object {
+      "Condition": "AFSBPConfig1EnableConfig1Condition7EADFF11",
+      "Properties": Object {
+        "Description": "Remediate AFSBP Config.1",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "Config.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPConfig1CustomAction7DA02EE5",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_Config.1_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPConfig1EventsRuleRole837C8327",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPConfig1AutoEventRule0D737DBE": Object {
+      "Condition": "AFSBPConfig1EnableConfig1Condition7EADFF11",
+      "Properties": Object {
+        "Description": "Remediate AFSBP Config.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "Config.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_Config.1_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPConfig1AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPConfig1EventsRuleRole837C8327",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPConfig1CustomAction7DA02EE5": Object {
+      "Condition": "AFSBPConfig1EnableConfig1Condition7EADFF11",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP Config.1",
+        "Id": "AFSBPConfig1",
+        "Name": "AFSBP Config.1",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPConfig1EventsRuleRole837C8327": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPConfig1EventsRuleRoleDefaultPolicy7196564A": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPConfig1EventsRuleRoleDefaultPolicy7196564A",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPConfig1EventsRuleRole837C8327",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPEC21AFSBPEC21CustomAction89A1A63A": Object {
+      "Condition": "AFSBPEC21EnableEC21ConditionA4D0F59B",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.1",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "EC2.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC21CustomActionBBB8CEA5",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_EC2.1_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC21EventsRuleRole43C39877",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPEC21AutoEventRule25775F17": Object {
+      "Condition": "AFSBPEC21EnableEC21ConditionA4D0F59B",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "EC2.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_EC2.1_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPEC21AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC21EventsRuleRole43C39877",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPEC21CustomActionBBB8CEA5": Object {
+      "Condition": "AFSBPEC21EnableEC21ConditionA4D0F59B",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.1",
+        "Id": "AFSBPEC21",
+        "Name": "AFSBP EC2.1",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPEC21EventsRuleRole43C39877": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPEC21EventsRuleRoleDefaultPolicy9E00CFC6": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPEC21EventsRuleRoleDefaultPolicy9E00CFC6",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPEC21EventsRuleRole43C39877",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPEC22AFSBPEC22CustomAction264D7398": Object {
+      "Condition": "AFSBPEC22EnableEC22Condition2349855D",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.2",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "EC2.2",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC22CustomAction853F2C2A",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_EC2.2_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC22EventsRuleRoleDE163F68",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPEC22AutoEventRule58F6227A": Object {
+      "Condition": "AFSBPEC22EnableEC22Condition2349855D",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.2 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "EC2.2",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_EC2.2_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPEC22AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC22EventsRuleRoleDE163F68",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPEC22CustomAction853F2C2A": Object {
+      "Condition": "AFSBPEC22EnableEC22Condition2349855D",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.2",
+        "Id": "AFSBPEC22",
+        "Name": "AFSBP EC2.2",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPEC22EventsRuleRoleDE163F68": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPEC22EventsRuleRoleDefaultPolicy17C27BDE": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPEC22EventsRuleRoleDefaultPolicy17C27BDE",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPEC22EventsRuleRoleDE163F68",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPEC27AFSBPEC27CustomActionEA94BA0B": Object {
+      "Condition": "AFSBPEC27EnableEC27ConditionFC2F394C",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.7",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "EC2.7",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC27CustomAction5AC5EE7B",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_EC2.7_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC27EventsRuleRole60F20186",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPEC27AutoEventRule0E7F144F": Object {
+      "Condition": "AFSBPEC27EnableEC27ConditionFC2F394C",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.7 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "EC2.7",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_EC2.7_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPEC27AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPEC27EventsRuleRole60F20186",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPEC27CustomAction5AC5EE7B": Object {
+      "Condition": "AFSBPEC27EnableEC27ConditionFC2F394C",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP EC2.7",
+        "Id": "AFSBPEC27",
+        "Name": "AFSBP EC2.7",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPEC27EventsRuleRole60F20186": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPEC27EventsRuleRoleDefaultPolicy93044CCF": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPEC27EventsRuleRoleDefaultPolicy93044CCF",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPEC27EventsRuleRole60F20186",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPLambda1AFSBPLambda1CustomActionB03BEF51": Object {
+      "Condition": "AFSBPLambda1EnableLambda1Condition4E1A1855",
+      "Properties": Object {
+        "Description": "Remediate AFSBP Lambda.1",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "Lambda.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPLambda1CustomAction5F69BAE2",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_Lambda.1_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPLambda1EventsRuleRoleF9D0E68B",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPLambda1AutoEventRuleB663D23F": Object {
+      "Condition": "AFSBPLambda1EnableLambda1Condition4E1A1855",
+      "Properties": Object {
+        "Description": "Remediate AFSBP Lambda.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "Lambda.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_Lambda.1_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPLambda1AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPLambda1EventsRuleRoleF9D0E68B",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPLambda1CustomAction5F69BAE2": Object {
+      "Condition": "AFSBPLambda1EnableLambda1Condition4E1A1855",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP Lambda.1",
+        "Id": "AFSBPLambda1",
+        "Name": "AFSBP Lambda.1",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPLambda1EventsRuleRoleDefaultPolicy65DBADE9": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPLambda1EventsRuleRoleDefaultPolicy65DBADE9",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPLambda1EventsRuleRoleF9D0E68B",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPLambda1EventsRuleRoleF9D0E68B": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPRDS1AFSBPRDS1CustomActionF98548D0": Object {
+      "Condition": "AFSBPRDS1EnableRDS1ConditionB553606B",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.1",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "RDS.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS1CustomAction8D59CBC2",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_RDS.1_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS1EventsRuleRoleA28379F4",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPRDS1AutoEventRuleF3474A4C": Object {
+      "Condition": "AFSBPRDS1EnableRDS1ConditionB553606B",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "RDS.1",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_RDS.1_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPRDS1AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS1EventsRuleRoleA28379F4",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPRDS1CustomAction8D59CBC2": Object {
+      "Condition": "AFSBPRDS1EnableRDS1ConditionB553606B",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.1",
+        "Id": "AFSBPRDS1",
+        "Name": "AFSBP RDS.1",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPRDS1EventsRuleRoleA28379F4": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPRDS1EventsRuleRoleDefaultPolicy3F204712": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPRDS1EventsRuleRoleDefaultPolicy3F204712",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPRDS1EventsRuleRoleA28379F4",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPRDS6AFSBPRDS6CustomAction9B738C5B": Object {
+      "Condition": "AFSBPRDS6EnableRDS6ConditionB5AA0302",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.6",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "RDS.6",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS6CustomAction87F64F5C",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_RDS.6_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS6EventsRuleRoleC40F92FF",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPRDS6AutoEventRule68B8F587": Object {
+      "Condition": "AFSBPRDS6EnableRDS6ConditionB5AA0302",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.6 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "RDS.6",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_RDS.6_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPRDS6AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS6EventsRuleRoleC40F92FF",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPRDS6CustomAction87F64F5C": Object {
+      "Condition": "AFSBPRDS6EnableRDS6ConditionB5AA0302",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.6",
+        "Id": "AFSBPRDS6",
+        "Name": "AFSBP RDS.6",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPRDS6EventsRuleRoleC40F92FF": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPRDS6EventsRuleRoleDefaultPolicyC9A77BA4": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPRDS6EventsRuleRoleDefaultPolicyC9A77BA4",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPRDS6EventsRuleRoleC40F92FF",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AFSBPRDS7AFSBPRDS7CustomAction266DD374": Object {
+      "Condition": "AFSBPRDS7EnableRDS7ConditionC6475B87",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.7",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "RDS.7",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Custom Action",
+          ],
+          "resources": Array [
+            Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS7CustomActionA802EA18",
+                "Arn",
+              ],
+            },
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_RDS.7_CustomAction",
+        "State": "ENABLED",
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS7EventsRuleRole4E57829C",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPRDS7AutoEventRule848E787E": Object {
+      "Condition": "AFSBPRDS7EnableRDS7ConditionC6475B87",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.7 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "ProductFields": Object {
+                "ControlId": Array [
+                  "RDS.7",
+                ],
+                "StandardsArn": Array [
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "AFSBP_RDS.7_AutoTrigger",
+        "State": Object {
+          "Ref": "AFSBPRDS7AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "orchestratorStateMachine77C3F8FB",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "AFSBPRDS7EventsRuleRole4E57829C",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "AFSBPRDS7CustomActionA802EA18": Object {
+      "Condition": "AFSBPRDS7EnableRDS7ConditionC6475B87",
+      "DeletionPolicy": "Delete",
+      "Properties": Object {
+        "Description": "Remediate AFSBP RDS.7",
+        "Id": "AFSBPRDS7",
+        "Name": "AFSBP RDS.7",
+        "ServiceToken": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-CustomAction",
+            ],
+          ],
+        },
+      },
+      "Type": "Custom::ActionTarget",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AFSBPRDS7EventsRuleRole4E57829C": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AFSBPRDS7EventsRuleRoleDefaultPolicyEA7C7B62": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "orchestratorStateMachine77C3F8FB",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AFSBPRDS7EventsRuleRoleDefaultPolicyEA7C7B62",
+        "Roles": Array [
+          Object {
+            "Ref": "AFSBPRDS7EventsRuleRole4E57829C",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "orchestratorRole12B410FD": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "CloudWatch Logs permissions require resource * except for DescribeLogGroups, except for GovCloud, which only works with resource *",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "states.",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                      ".amazonaws.com",
+                    ],
+                  ],
+                },
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "logs:CreateLogDelivery",
+                    "logs:GetLogDelivery",
+                    "logs:UpdateLogDelivery",
+                    "logs:DeleteLogDelivery",
+                    "logs:ListLogDeliveries",
+                    "logs:PutResourcePolicy",
+                    "logs:DescribeResourcePolicies",
+                    "logs:DescribeLogGroups",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                Object {
+                  "Action": "lambda:InvokeFunction",
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":lambda:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":function:",
+                          Object {
+                            "Fn::Select": Array [
+                              6,
+                              Object {
+                                "Fn::Split": Array [
+                                  ":",
+                                  Object {
+                                    "Fn::Join": Array [
+                                      "",
+                                      Array [
+                                        "arn:",
+                                        Object {
+                                          "Ref": "AWS::Partition",
+                                        },
+                                        ":lambda:",
+                                        Object {
+                                          "Ref": "AWS::Region",
+                                        },
+                                        ":",
+                                        Object {
+                                          "Ref": "AWS::AccountId",
+                                        },
+                                        ":function:SO0111-SHARR-checkSSMDocState",
+                                      ],
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":lambda:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":function:",
+                          Object {
+                            "Fn::Select": Array [
+                              6,
+                              Object {
+                                "Fn::Split": Array [
+                                  ":",
+                                  Object {
+                                    "Fn::Join": Array [
+                                      "",
+                                      Array [
+                                        "arn:",
+                                        Object {
+                                          "Ref": "AWS::Partition",
+                                        },
+                                        ":lambda:",
+                                        Object {
+                                          "Ref": "AWS::Region",
+                                        },
+                                        ":",
+                                        Object {
+                                          "Ref": "AWS::AccountId",
+                                        },
+                                        ":function:SO0111-SHARR-execAutomation",
+                                      ],
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":lambda:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":function:",
+                          Object {
+                            "Fn::Select": Array [
+                              6,
+                              Object {
+                                "Fn::Split": Array [
+                                  ":",
+                                  Object {
+                                    "Fn::Join": Array [
+                                      "",
+                                      Array [
+                                        "arn:",
+                                        Object {
+                                          "Ref": "AWS::Partition",
+                                        },
+                                        ":lambda:",
+                                        Object {
+                                          "Ref": "AWS::Region",
+                                        },
+                                        ":",
+                                        Object {
+                                          "Ref": "AWS::AccountId",
+                                        },
+                                        ":function:SO0111-SHARR-monitorSSMExecState",
+                                      ],
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":lambda:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":function:",
+                          Object {
+                            "Fn::Select": Array [
+                              6,
+                              Object {
+                                "Fn::Split": Array [
+                                  ":",
+                                  Object {
+                                    "Fn::Join": Array [
+                                      "",
+                                      Array [
+                                        "arn:",
+                                        Object {
+                                          "Ref": "AWS::Partition",
+                                        },
+                                        ":lambda:",
+                                        Object {
+                                          "Ref": "AWS::Region",
+                                        },
+                                        ":",
+                                        Object {
+                                          "Ref": "AWS::AccountId",
+                                        },
+                                        ":function:SO0111-SHARR-sendNotifications",
+                                      ],
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                Object {
+                  "Action": Array [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":kms:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":alias/SO0111-SHARR-Key",
+                      ],
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "BasePolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "orchestratorSO0111SHARROrchestratorAFSBPDACF97E5": Object {
+      "Condition": "orchestratorisGovCloud0CBB59BB",
+      "DeletionPolicy": "Retain",
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W84",
+              "reason": "KmsKeyId is not supported in GovCloud.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "LogGroupName": "SO0111-SHARR-Orchestrator-AFSBP",
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "orchestratorSO0111SHARROrchestratorAFSBPEncryptedBA5A7D33": Object {
+      "Condition": "orchestratorisNotGovCloud1333F816",
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "KmsKeyId": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":kms:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":alias/SO0111-SHARR-Key",
+            ],
+          ],
+        },
+        "LogGroupName": "SO0111-SHARR-Orchestrator-AFSBP",
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "orchestratorStateMachine77C3F8FB": Object {
+      "DependsOn": Array [
+        "orchestratorRole12B410FD",
+      ],
+      "Properties": Object {
+        "DefinitionString": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "{\\"StartAt\\":\\"Get Finding Data from Input\\",\\"States\\":{\\"Get Finding Data from Input\\":{\\"Type\\":\\"Pass\\",\\"Comment\\":\\"Extract top-level data needed for remediation\\",\\"Parameters\\":{\\"EventType.$\\":\\"$.detail-type\\",\\"Findings.$\\":\\"$.detail.findings\\",\\"Metrics\\":{\\"sendAnonymousMetrics.$\\":\\"States.Format('{{resolve:ssm:/Solutions/SO0111/sendAnonymousMetrics:1}}')\\"}},\\"Next\\":\\"Process Findings\\"},\\"Process Findings\\":{\\"Type\\":\\"Map\\",\\"Comment\\":\\"Process all findings in CloudWatch Event\\",\\"Next\\":\\"EOJ\\",\\"Parameters\\":{\\"Metrics.$\\":\\"$.Metrics\\",\\"Finding.$\\":\\"$$.Map.Item.Value\\",\\"EventType.$\\":\\"$.EventType\\"},\\"Iterator\\":{\\"StartAt\\":\\"Finding Workflow State NEW?\\",\\"States\\":{\\"Finding Workflow State NEW?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Or\\":[{\\"Variable\\":\\"$.EventType\\",\\"StringEquals\\":\\"Security Hub Findings - Custom Action\\"},{\\"And\\":[{\\"Variable\\":\\"$.Finding.Workflow.Status\\",\\"StringEquals\\":\\"NEW\\"},{\\"Variable\\":\\"$.EventType\\",\\"StringEquals\\":\\"Security Hub Findings - Imported\\"}]}],\\"Next\\":\\"Correct Security Standard?\\"}],\\"Default\\":\\"Finding Workflow State is not NEW\\"},\\"Finding Workflow State is not NEW\\":{\\"Type\\":\\"Pass\\",\\"Parameters\\":{\\"Notification\\":{\\"Message.$\\":\\"States.Format('Finding Workflow State is not NEW ({}).', $.Finding.Workflow.Status)\\",\\"State.$\\":\\"States.Format('NOTNEW')\\"},\\"Metrics.$\\":\\"$.Metrics\\",\\"EventType.$\\":\\"$.EventType\\",\\"Finding.$\\":\\"$.Finding\\"},\\"Next\\":\\"notify\\"},\\"notify\\":{\\"End\\":true,\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Type\\":\\"Task\\",\\"Comment\\":\\"Send notifications\\",\\"TimeoutSeconds\\":300,\\"HeartbeatSeconds\\":60,\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-sendNotifications\\",\\"Payload.$\\":\\"$\\"}},\\"Wrong Security Standard\\":{\\"Type\\":\\"Pass\\",\\"Parameters\\":{\\"Notification\\":{\\"Message.$\\":\\"States.Format('Finding Security Standard is not AFSBP ({}). Verify that the correct remediation was selected.', $.Finding.GeneratorId)\\",\\"State.$\\":\\"States.Format('WRONGSTANDARD')\\"},\\"Metrics.$\\":\\"$.Metrics\\",\\"EventType.$\\":\\"$.EventType\\",\\"Finding.$\\":\\"$.Finding\\"},\\"Next\\":\\"notify\\"},\\"Automation Document is not Active\\":{\\"Type\\":\\"Pass\\",\\"Parameters\\":{\\"Notification\\":{\\"Message.$\\":\\"States.Format('Automation Document ({}) is not active ({}) in the member account({}).', $.AutomationDocId, $.AutomationDocument.DocState, $.Finding.AwsAccountId)\\",\\"State.$\\":\\"States.Format('REMEDIATIONNOTACTIVE')\\",\\"updateSecHub\\":\\"yes\\"},\\"Metrics.$\\":\\"$.Metrics\\",\\"EventType.$\\":\\"$.EventType\\",\\"Finding.$\\":\\"$.Finding\\",\\"AccountId.$\\":\\"$.AccountId\\",\\"AutomationDocId.$\\":\\"$.AutomationDocId\\",\\"RemediationRole.$\\":\\"$.RemediationRole\\",\\"ControlId.$\\":\\"$.ControlId\\",\\"SecurityStandard.$\\":\\"$.SecurityStandard\\"},\\"Next\\":\\"notify\\"},\\"Orchestrator Failed\\":{\\"Type\\":\\"Pass\\",\\"Parameters\\":{\\"Notification\\":{\\"Message.$\\":\\"States.Format('Orchestrator failed: {}', $.Error)\\",\\"State.$\\":\\"States.Format('LAMBDAERROR')\\",\\"Details.$\\":\\"States.Format('Cause: {}', $.Cause)\\"},\\"SecurityStandard.$\\":\\"States.Format('AFSBP')\\",\\"Payload.$\\":\\"$\\"},\\"Next\\":\\"notify\\"},\\"Get Automation Document State\\":{\\"Next\\":\\"Automation Doc Active?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"Next\\":\\"Orchestrator Failed\\"}],\\"Type\\":\\"Task\\",\\"Comment\\":\\"Get the status of the remediation automation document in the target account\\",\\"TimeoutSeconds\\":60,\\"ResultPath\\":\\"$.AutomationDocument\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-checkSSMDocState\\",\\"Payload.$\\":\\"$\\"},\\"ResultSelector\\":{\\"DocState.$\\":\\"$.Payload.status\\",\\"Message.$\\":\\"$.Payload.message\\"}},\\"extractParameters\\":{\\"Type\\":\\"Pass\\",\\"Comment\\":\\"Extract parameters needed for remediation\\",\\"Parameters\\":{\\"SecurityStandard.$\\":\\"States.Format('AFSBP')\\",\\"ControlId.$\\":\\"$.Finding.ProductFields.ControlId\\",\\"AccountId.$\\":\\"$.Finding.AwsAccountId\\",\\"Finding.$\\":\\"$.Finding\\",\\"RemediationRole.$\\":\\"States.Format('SO0111-SHARR-Remediation-AFSBP-{}', $.Finding.ProductFields.ControlId)\\",\\"AutomationDocId.$\\":\\"States.Format('SHARR_Remediation_AFSBP_{}', $.Finding.ProductFields.ControlId)\\",\\"Metrics.$\\":\\"$.Metrics\\",\\"EventType.$\\":\\"$.EventType\\"},\\"Next\\":\\"Get Automation Document State\\"},\\"Correct Security Standard?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.Finding.GeneratorId\\",\\"StringMatches\\":\\"aws-foundational-security-best-practices/v/1.0.0/*\\",\\"Next\\":\\"extractParameters\\"}],\\"Default\\":\\"Wrong Security Standard\\"},\\"Automation Doc Active?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.AutomationDocument.DocState\\",\\"StringEquals\\":\\"ACTIVE\\",\\"Next\\":\\"Execute Remediation\\"}],\\"Default\\":\\"Automation Document is not Active\\"},\\"Execute Remediation\\":{\\"Next\\":\\"execMonitor\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"Next\\":\\"Orchestrator Failed\\"}],\\"Type\\":\\"Task\\",\\"Comment\\":\\"Execute the SSM Automation Document in the target account\\",\\"TimeoutSeconds\\":300,\\"HeartbeatSeconds\\":60,\\"ResultPath\\":\\"$.SSMExecution\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-execAutomation\\",\\"Payload.$\\":\\"$\\"},\\"ResultSelector\\":{\\"ExecState.$\\":\\"$.Payload.status\\",\\"Message.$\\":\\"$.Payload.message\\",\\"ExecId.$\\":\\"$.Payload.executionid\\"}},\\"execMonitor\\":{\\"Next\\":\\"Remediation completed?\\",\\"Retry\\":[{\\"ErrorEquals\\":[\\"Lambda.ServiceException\\",\\"Lambda.AWSLambdaException\\",\\"Lambda.SdkClientException\\"],\\"IntervalSeconds\\":2,\\"MaxAttempts\\":6,\\"BackoffRate\\":2}],\\"Catch\\":[{\\"ErrorEquals\\":[\\"States.ALL\\"],\\"Next\\":\\"Orchestrator Failed\\"}],\\"Type\\":\\"Task\\",\\"Comment\\":\\"Monitor the remediation execution until done\\",\\"TimeoutSeconds\\":300,\\"HeartbeatSeconds\\":60,\\"ResultPath\\":\\"$.Remediation\\",\\"Resource\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke\\",\\"Parameters\\":{\\"FunctionName\\":\\"arn:",
+              Object {
+                "Ref": "AWS::Partition",
+              },
+              ":lambda:",
+              Object {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              Object {
+                "Ref": "AWS::AccountId",
+              },
+              ":function:SO0111-SHARR-monitorSSMExecState\\",\\"Payload.$\\":\\"$\\"},\\"ResultSelector\\":{\\"ExecState.$\\":\\"$.Payload.status\\",\\"ExecId.$\\":\\"$.Payload.executionid\\",\\"RemediationState.$\\":\\"$.Payload.remediation_status\\",\\"Message.$\\":\\"$.Payload.message\\",\\"LogData.$\\":\\"$.Payload.logdata\\",\\"AffectedObject.$\\":\\"$.Payload.affected_object\\"}},\\"Wait for Remediation\\":{\\"Type\\":\\"Wait\\",\\"Seconds\\":15,\\"Next\\":\\"execMonitor\\"},\\"Remediation completed?\\":{\\"Type\\":\\"Choice\\",\\"Choices\\":[{\\"Variable\\":\\"$.Remediation.RemediationState\\",\\"StringEquals\\":\\"Failed\\",\\"Next\\":\\"Remediation Failed\\"},{\\"Variable\\":\\"$.Remediation.ExecState\\",\\"StringEquals\\":\\"Success\\",\\"Next\\":\\"Remediation Succeeded\\"},{\\"Variable\\":\\"$.Remediation.ExecState\\",\\"StringEquals\\":\\"TimedOut\\",\\"Next\\":\\"Remediation Failed\\"},{\\"Variable\\":\\"$.Remediation.ExecState\\",\\"StringEquals\\":\\"Cancelling\\",\\"Next\\":\\"Remediation Failed\\"},{\\"Variable\\":\\"$.Remediation.ExecState\\",\\"StringEquals\\":\\"Cancelled\\",\\"Next\\":\\"Remediation Failed\\"},{\\"Variable\\":\\"$.Remediation.ExecState\\",\\"StringEquals\\":\\"Failed\\",\\"Next\\":\\"Remediation Failed\\"}],\\"Default\\":\\"Wait for Remediation\\"},\\"Remediation Failed\\":{\\"Type\\":\\"Pass\\",\\"Comment\\":\\"Set parameters for notification\\",\\"Parameters\\":{\\"Metrics.$\\":\\"$.Metrics\\",\\"EventType.$\\":\\"$.EventType\\",\\"Finding.$\\":\\"$.Finding\\",\\"AccountId.$\\":\\"$.AccountId\\",\\"AutomationDocId.$\\":\\"$.AutomationDocId\\",\\"RemediationRole.$\\":\\"$.RemediationRole\\",\\"ControlId.$\\":\\"$.ControlId\\",\\"SecurityStandard.$\\":\\"$.SecurityStandard\\",\\"Notification\\":{\\"Message.$\\":\\"States.Format('Remediation failed for {} control {} in account {}: {}', $.SecurityStandard, $.ControlId, $.AccountId, $.Remediation.Message)\\",\\"State.$\\":\\"$.Remediation.ExecState\\",\\"Details.$\\":\\"$.Remediation.LogData\\",\\"ExecId.$\\":\\"$.Remediation.ExecId\\",\\"AffectedObject.$\\":\\"$.Remediation.AffectedObject\\"}},\\"Next\\":\\"notify\\"},\\"Remediation Succeeded\\":{\\"Type\\":\\"Pass\\",\\"Comment\\":\\"Set parameters for notification\\",\\"Parameters\\":{\\"Metrics.$\\":\\"$.Metrics\\",\\"EventType.$\\":\\"$.EventType\\",\\"Finding.$\\":\\"$.Finding\\",\\"AccountId.$\\":\\"$.AccountId\\",\\"AutomationDocId.$\\":\\"$.AutomationDocId\\",\\"RemediationRole.$\\":\\"$.RemediationRole\\",\\"ControlId.$\\":\\"$.ControlId\\",\\"SecurityStandard.$\\":\\"$.SecurityStandard\\",\\"Notification\\":{\\"Message.$\\":\\"States.Format('Remediation succeeded for {} control {} in account {}: {}', $.SecurityStandard, $.ControlId, $.AccountId, $.Remediation.Message)\\",\\"State.$\\":\\"States.Format('SUCCESS')\\",\\"Details.$\\":\\"$.Remediation.LogData\\",\\"ExecId.$\\":\\"$.Remediation.ExecId\\",\\"AffectedObject.$\\":\\"$.Remediation.AffectedObject\\"}},\\"Next\\":\\"notify\\"}}},\\"ItemsPath\\":\\"$.Findings\\"},\\"EOJ\\":{\\"Type\\":\\"Pass\\",\\"Comment\\":\\"END-OF-JOB\\",\\"End\\":true}},\\"TimeoutSeconds\\":900}",
+            ],
+          ],
+        },
+        "LoggingConfiguration": Object {
+          "Destinations": Array [
+            Object {
+              "CloudWatchLogsLogGroup": Object {
+                "LogGroupArn": Object {
+                  "Fn::If": Array [
+                    "orchestratorisNotGovCloud1333F816",
+                    Object {
+                      "Fn::GetAtt": Array [
+                        "orchestratorSO0111SHARROrchestratorAFSBPEncryptedBA5A7D33",
+                        "Arn",
+                      ],
+                    },
+                    Object {
+                      "Fn::GetAtt": Array [
+                        "orchestratorSO0111SHARROrchestratorAFSBPDACF97E5",
+                        "Arn",
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": true,
+          "Level": "ALL",
+        },
+        "RoleArn": Object {
+          "Fn::GetAtt": Array [
+            "orchestratorRole12B410FD",
+            "Arn",
+          ],
+        },
+        "StateMachineName": "SO0111-SHARR-Orchestrator-AFSBP",
+      },
+      "Type": "AWS::StepFunctions::StateMachine",
+    },
+  },
+}
+`;

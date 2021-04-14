@@ -1,0 +1,138 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_RDS.7
+
+  ## What does this document do?
+  This document enables `Deletion Protection` on a given Amazon RDS cluster by calling another SSM document.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output - The standard HTTP response from the ModifyDBInstance API.
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  Finding:
+    type: StringMap
+    description: The input from Step function for RDS7 finding
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+mainSteps:
+  -
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: ResourceId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+
+          my_control_id = 'RDS.7'
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          resource_id = finding['Resources'][0]['Details']['AwsRdsDbCluster']['DbClusterResourceId']
+
+          if not re.match(
+            '^cluster-[0-9A-Z]{16,26}$',
+            resource_id
+          ):
+            exit('ERROR: DbClusterResourceId {resource_id} is not valid')
+
+          object = {'Type': 'RDSCluster', 'Id': resource_id, 'OutputKey': 'Remediation.Output'}
+          return {"resource_id": resource_id, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    isEnd: false
+  -
+    name: ExecRemediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: AWSConfigRemediation-EnableRDSClusterDeletionProtection
+      RuntimeParameters:
+        ClusterId: '{{ ParseInput.ResourceId }}'
+        AutomationAssumeRole: '{{ AutomationAssumeRole }}'
+  
+  - 
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        remediation_output: '{{ExecRemediation.Output}}'
+      Runtime: python3.7
+      Handler: verify_remediation
+      Script: |-
+        import json
+
+        def verify_remediation(event, context):
+          remediation_output = json.loads(event['remediation_output'][0])
+
+          if remediation_output.get('DBCluster').get('DeletionProtection', False) == True:
+            return {
+              "response": {
+                "message": "Deletion Protection enabled on cluster " + remediation_output['DBCluster']['DBClusterIdentifier'],
+                "status": "Success"
+              }
+            }
+  - 
+    name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Deletion protection enabled on RDS DB cluster'
+        UpdatedBy: 'SHARR_Remediation_AFSBP_RDS.7'
+      Workflow:
+        Status: 'RESOLVED'
+    description: Update finding
+    isEnd: true

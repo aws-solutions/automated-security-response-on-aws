@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*****************************************************************************
- *  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.   *
+ *  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.   *
  *                                                                            *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may   *
  *  not use this file except in compliance with the License. A copy of the    *
@@ -28,7 +28,7 @@ const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
 
 const app = new cdk.App();
 
-const cisStack = new CisStack(app, 'CisStack', {
+const cisStack = new CisStack(app, 'CISStack', {
 	description: '(' + SOLUTION_ID + ') ' + SOLUTION_NAME +
 		' CIS Compliance Pack, ' + DIST_VERSION,
 	solutionId: SOLUTION_ID,
@@ -38,7 +38,7 @@ const cisStack = new CisStack(app, 'CisStack', {
 	solutionDistName: DIST_SOLUTION_NAME
 });
 
-const cisPermStack = new CisPermissionsStack(app, 'CisPermissionsStack', {
+const cisPermStack = new CisPermissionsStack(app, 'CISPermissionsStack', {
 	description: '(' + SOLUTION_ID + ') ' + SOLUTION_NAME +
 		' CIS Compliance Pack Permissions, ' + DIST_VERSION,
 	solutionId: SOLUTION_ID,

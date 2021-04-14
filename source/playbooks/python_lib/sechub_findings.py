@@ -1,5 +1,5 @@
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -191,14 +191,15 @@ def notify(finding, message, logger, cwlogs=False, sechub=True, sns=False):
         message['Note'] = 'error - missing note'
 
     #send metrics
-    try:
-        metrics_data = message['metrics_data']
-        metrics = Metrics({'detail-type': 'None'})
-        metrics_data['status'] = message['State']
-        metrics.send_metrics(metrics_data)
-    except Exception as e:
-        logger.error(e)
-        logger.error('Failed to send metrics')
+    if message['State'] in ('FAILED','RESOLVED'):
+        try:
+            metrics_data = message['metrics_data']
+            metrics = Metrics({'detail-type': 'None'})
+            metrics_data['status'] = message['State']
+            metrics.send_metrics(metrics_data)
+        except Exception as e:
+            logger.error(e)
+            logger.error('Failed to send metrics')
 
     # lambda logs - always
     logger.info(
@@ -223,7 +224,10 @@ def notify(finding, message, logger, cwlogs=False, sechub=True, sns=False):
         elif message.get('State') == 'INITIAL':
             finding.flag(message.get('State') + ': ' + message.get('Note'))
         else:
-            finding.update_text(message.get('State', 'INFO') + ': ' + message.get('Note'))
+            finding.update_text(
+                message.get('State', 'INFO') + ': ' + message.get('Note'),
+                status=message.get('State')
+            )
 
     if sns:
         try:

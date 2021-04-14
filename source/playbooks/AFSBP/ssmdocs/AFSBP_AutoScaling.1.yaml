@@ -1,0 +1,173 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_AutoScaling.1
+
+  ## What does this document do?
+  This document enables ELB healthcheck on a given AutoScaling Group using the [UpdateAutoScalingGroup] API.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * HealthCheckGracePeriod: (Optional) Health check grace period when ELB health check is Enabled
+  Default: 30 seconds
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output - Output of DescribeAutoScalingGroups API.
+  
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for ASG1 finding
+  HealthCheckGracePeriod:
+    type: Integer
+    default: 30
+    description: ELB Health Check Grace Period
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: AsgName
+        Selector: $.Payload.asg
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+          my_control_id = 'AutoScaling.1'
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          asg_raw = finding['Resources'][0]['Id']
+          asg_match = re.match(
+            '^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:autoScalingGroup:(?i:[0-9a-f]{11}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}):autoScalingGroupName/(.*)$',
+            asg_raw
+            )
+
+          if not asg_match:
+            exit(f'ERROR: Invalid resource Id {asg_raw}')
+          else:
+            asg_name = asg_match.group(1)
+
+          if not asg_name:
+            exit(f'ERROR: Resource Id is invalid: missing ASG Name')
+
+          object = {'Type': 'AutoScalingGroup', 'Id': asg_name, 'OutputKey': 'Remediation.Output'}
+          return {"asg": asg_name, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    isEnd: false
+  - name: EnableELBHealthCheck
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: autoscaling
+      Api: UpdateAutoScalingGroup
+      AutoScalingGroupName: '{{ParseInput.AsgName}}'
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: '{{HealthCheckGracePeriod}}'
+    description: Enable ELB health check type on ASG
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+  - name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        AsgName: '{{ParseInput.AsgName}}'
+      Runtime: python3.7
+      Handler: verify
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+        def verify(event, context):
+          asg_client = boto3.client('autoscaling', config=BOTO_CONFIG)
+          asg_name = event['AsgName']
+          try:
+            desc_asg = asg_client.describe_auto_scaling_groups(
+              AutoScalingGroupNames=[asg_name]
+            )
+            health_check = desc_asg['AutoScalingGroups'][0]['HealthCheckType']
+            print(json.dumps(desc_asg['AutoScalingGroups'][0], default=str))
+            if (health_check == 'ELB'):
+              return {
+                "response": {
+                  "message": "Autoscaling Group health check type updated to ELB",
+                  "status": "Success"
+                }
+              }
+            else:
+              return {
+                "response": {
+                  "message": "Autoscaling Group health check type is not ELB",
+                  "status": "Failed"
+                }
+              }
+          except Exception as e:
+            print("Exception while executing remediation:")
+            print(e)
+            raise # must raise to signal the ssm automation to fail. Orchestrator will handle finding update
+    isEnd: false
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'ASG health check type updated to ELB'
+        UpdatedBy: 'SHARR_Remediation_AFSBP_AutoScaling.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

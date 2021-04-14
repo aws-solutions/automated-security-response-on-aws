@@ -1,0 +1,80 @@
+{
+  "version": "0",
+  "id": "1622bd23-7237-fdec-8fb0-a019cccfd3cb",
+  "detail-type": "Security Hub Findings - Imported",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-05-27T03:37:40Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.3/finding/6e842abe-6cbf-4bc1-aa55-3b2ae63aabd6"
+  ],
+  "detail": {
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+        ],
+        "Description": "AWS IAM users can access AWS resources using different types of credentials, such as passwords or access keys. It is recommended that all credentials that have been unused in 90 or greater days be removed or deactivated.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "WARNING",
+          "StatusReasons": [
+            {
+              "Description": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+              "ReasonCode": "CONFIG_ACCESS_DENIED"
+            }
+          ]
+        },
+        "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
+        "FirstObservedAt": "2020-05-08T03:41:48.614Z",
+        "CreatedAt": "2020-05-08T03:41:48.614Z",
+        "RecordState": "ACTIVE",
+        "Title": "1.3 Ensure credentials unused for 90 days or greater are disabled",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-05-27T03:37:37.286Z",
+        "Severity": {
+          "Normalized": 40,
+          "Label": "MEDIUM",
+          "Product": 40,
+          "Original": "MEDIUM"
+        },
+        "UpdatedAt": "2020-05-27T03:37:35.834Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+          "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+          "RuleId": "1.3",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.3/remediation",
+          "RelatedAWSResources:0/name": "securityhub-iam-user-unused-credentials-check-791289a5",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.3",
+          "aws/securityhub/SeverityLabel": "MEDIUM",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/annotation": "Unable to describe the supporting AWS Config Rule, Please verify that you have enabled AWS Config.",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.3/finding/6e842abe-6cbf-4bc1-aa55-3b2ae63aabd6"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.3/finding/6e842abe-6cbf-4bc1-aa55-3b2ae63aabd6",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.3/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAccount",
+            "Region": "us-east-1",
+            "Id": "AWS::::Account:111111111111"
+          }
+        ]
+      }
+    ]
+  }
+}

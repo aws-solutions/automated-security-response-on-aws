@@ -1,0 +1,856 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Test if the Stack has all the resources. 1`] = `
+Object {
+  "Conditions": Object {
+    "UseServiceCatalog": Object {
+      "Fn::Not": Array [
+        Object {
+          "Fn::Equals": Array [
+            Object {
+              "Ref": "AWS::Partition",
+            },
+            "aws-cn",
+          ],
+        },
+      ],
+    },
+  },
+  "Mappings": Object {
+    "SourceCode": Object {
+      "General": Object {
+        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.0.0",
+        "S3Bucket": "solutions",
+      },
+    },
+    "mappings": Object {
+      "sendAnonymousMetrics": Object {
+        "data": "Yes",
+      },
+    },
+  },
+  "Resources": Object {
+    "CreateCustomActionE7A973F5": Object {
+      "DependsOn": Array [
+        "createCustomActionRoleF0047414",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "False positive. See https://github.com/stelligent/cfn_nag/issues/422",
+            },
+            Object {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency due to low request rate",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/createCustomAction.py.zip",
+        },
+        "Description": "Custom resource to create an action target in Security Hub",
+        "Environment": Object {
+          "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
+            "log_level": "info",
+            "sendAnonymousMetrics": Object {
+              "Fn::FindInMap": Array [
+                "mappings",
+                "sendAnonymousMetrics",
+                "data",
+              ],
+            },
+          },
+        },
+        "FunctionName": "SO0111-SHARR-CustomAction",
+        "Handler": "createCustomAction.lambda_handler",
+        "Layers": Array [
+          Object {
+            "Ref": "SharrLambdaLayer5BF8F147",
+          },
+        ],
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "createCustomActionRoleF0047414",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "PlaybookServiceCatalog": Object {
+      "Condition": "UseServiceCatalog",
+      "Properties": Object {
+        "Parameters": Object {
+          "CreateCustomActionArn": Object {
+            "Fn::GetAtt": Array [
+              "CreateCustomActionE7A973F5",
+              "Arn",
+            ],
+          },
+        },
+        "TemplateURL": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "https://",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/aws-sharr-portolio-deploy.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "SHARRKeyC551FE02": Object {
+      "Properties": Object {
+        "Description": "KMS Customer Managed Key that SHARR will use to encrypt data",
+        "Name": "/Solutions/SO0111/CMK_ARN",
+        "Type": "String",
+        "Value": Object {
+          "Fn::GetAtt": Array [
+            "SHARRkeyE6BD0F56",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SHARRSNSTopicB940F479": Object {
+      "Properties": Object {
+        "Description": "SNS Topic ARN where SHARR will send status messages. This        topic can be useful for driving additional actions, such as email notifications,        trouble ticket updates.",
+        "Name": "/Solutions/SO0111/SNS_Topic_ARN",
+        "Type": "String",
+        "Value": Object {
+          "Ref": "SHARRTopic229CFB9E",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SHARRSendAnonymousMetricsCDAE439D": Object {
+      "Properties": Object {
+        "Description": "Flag to enable or disable sending anonymous metrics.",
+        "Name": "/Solutions/SO0111/sendAnonymousMetrics",
+        "Type": "String",
+        "Value": Object {
+          "Fn::FindInMap": Array [
+            "mappings",
+            "sendAnonymousMetrics",
+            "data",
+          ],
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SHARRTopic229CFB9E": Object {
+      "Properties": Object {
+        "DisplayName": "SHARR Playbook Topic (SO0111)",
+        "KmsMasterKeyId": Object {
+          "Fn::GetAtt": Array [
+            "SHARRkeyE6BD0F56",
+            "Arn",
+          ],
+        },
+        "TopicName": "SO0111-SHARR_Topic",
+      },
+      "Type": "AWS::SNS::Topic",
+    },
+    "SHARRkeyAlias37E34763": Object {
+      "Properties": Object {
+        "AliasName": "alias/SO0111-SHARR-Key",
+        "TargetKeyId": Object {
+          "Fn::GetAtt": Array [
+            "SHARRkeyE6BD0F56",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::KMS::Alias",
+    },
+    "SHARRkeyE6BD0F56": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "EnableKeyRotation": true,
+        "KeyPolicy": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "kms:Encrypt*",
+                "kms:Decrypt*",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey*",
+                "kms:Describe*",
+              ],
+              "Condition": Object {
+                "ArnEquals": Object {
+                  "kms:EncryptionContext:aws:logs:arn": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":logs:eu-west-1:111111111111:log-group:SO0111-SHARR-*",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": Array [
+                  "sns.amazonaws.com",
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "logs.",
+                        Object {
+                          "Ref": "AWS::URLSuffix",
+                        },
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Resource": "*",
+            },
+            Object {
+              "Action": "kms:*",
+              "Effect": "Allow",
+              "Principal": Object {
+                "AWS": Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::111111111111:root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::KMS::Key",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "SHARRversionAC0E4F96": Object {
+      "Properties": Object {
+        "Description": "Solution version for metrics.",
+        "Name": "/Solutions/SO0111/version",
+        "Type": "String",
+        "Value": "v1.0.0",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SharrLambdaLayer5BF8F147": Object {
+      "Properties": Object {
+        "CompatibleRuntimes": Array [
+          "python3.6",
+          "python3.7",
+          "python3.8",
+        ],
+        "Content": Object {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/layer.zip",
+        },
+        "Description": "SO0111 SHARR Common functions used by the solution",
+        "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "checkSSMDocState06AC440F": Object {
+      "DependsOn": Array [
+        "orchestratorRole46A9F242",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            Object {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/check_ssm_doc_state.py.zip",
+        },
+        "Description": "Checks the status of an SSM Automation Document in the target account",
+        "Environment": Object {
+          "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
+            "log_level": "info",
+            "sendAnonymousMetrics": Object {
+              "Fn::FindInMap": Array [
+                "mappings",
+                "sendAnonymousMetrics",
+                "data",
+              ],
+            },
+          },
+        },
+        "FunctionName": "SO0111-SHARR-checkSSMDocState",
+        "Handler": "check_ssm_doc_state.lambda_handler",
+        "Layers": Array [
+          Object {
+            "Ref": "SharrLambdaLayer5BF8F147",
+          },
+        ],
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "orchestratorRole46A9F242",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "createCustomActionPolicyE424E925": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Resource * is required for CloudWatch Logs policies used on Lambda functions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:PutMetricData",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": Array [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": Array [
+                "securityhub:CreateActionTarget",
+                "securityhub:DeleteActionTarget",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SO0111-SHARR_Custom_Action",
+        "Roles": Array [
+          Object {
+            "Ref": "createCustomActionRoleF0047414",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "createCustomActionRoleF0047414": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide easy integration with playbook templates",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role to allow creation of Security Hub Custom Actions",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "execAutomation5D89E251": Object {
+      "DependsOn": Array [
+        "orchestratorRole46A9F242",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            Object {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/exec_ssm_doc.py.zip",
+        },
+        "Description": "Executes an SSM Automation Document in a target account",
+        "Environment": Object {
+          "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
+            "log_level": "info",
+            "sendAnonymousMetrics": Object {
+              "Fn::FindInMap": Array [
+                "mappings",
+                "sendAnonymousMetrics",
+                "data",
+              ],
+            },
+          },
+        },
+        "FunctionName": "SO0111-SHARR-execAutomation",
+        "Handler": "exec_ssm_doc.lambda_handler",
+        "Layers": Array [
+          Object {
+            "Ref": "SharrLambdaLayer5BF8F147",
+          },
+        ],
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "orchestratorRole46A9F242",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "monitorSSMExecStateB496B8AF": Object {
+      "DependsOn": Array [
+        "orchestratorRole46A9F242",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            Object {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/check_ssm_execution.py.zip",
+        },
+        "Description": "Checks the status of an SSM automation document execution",
+        "Environment": Object {
+          "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
+            "log_level": "info",
+            "sendAnonymousMetrics": Object {
+              "Fn::FindInMap": Array [
+                "mappings",
+                "sendAnonymousMetrics",
+                "data",
+              ],
+            },
+          },
+        },
+        "FunctionName": "SO0111-SHARR-monitorSSMExecState",
+        "Handler": "check_ssm_execution.lambda_handler",
+        "Layers": Array [
+          Object {
+            "Ref": "SharrLambdaLayer5BF8F147",
+          },
+        ],
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "orchestratorRole46A9F242",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "notifyPolicy320847DC": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Resource * is required for CloudWatch Logs and Security Hub policies used by core solution Lambda function for notifications.",
+            },
+            Object {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": "securityhub:BatchUpdateFindings",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": "ssm:GetParameter",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ssm:*:111111111111:parameter/Solutions/SO0111/*",
+                  ],
+                ],
+              },
+            },
+            Object {
+              "Action": Array [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+              ],
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::GetAtt": Array [
+                  "SHARRkeyE6BD0F56",
+                  "Arn",
+                ],
+              },
+            },
+            Object {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":sns:eu-west-1:111111111111:SO0111-SHARR_Topic",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SO0111-SHARR_Orchestrator_Notifier",
+        "Roles": Array [
+          Object {
+            "Ref": "notifyRole40298120",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "notifyRole40298120": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide easy integration with playbook orchestrator step functions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role to perform notification and logging from orchestrator step function",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "orchestratorPolicy8045810D": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Resource * is required for read-only policies used by orchestrator Lambda functions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": Array [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:PutParameter",
+              ],
+              "Effect": "Allow",
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ssm:*:111111111111:parameter/Solutions/SO0111/*",
+                  ],
+                ],
+              },
+            },
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Resource": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::*:role/SO0111-SHARR-Orchestrator-Member-*_eu-west-1",
+                    ],
+                  ],
+                },
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::*:role/SO0111-SHARR-Remediation-*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SO0111-SHARR_Orchestrator",
+        "Roles": Array [
+          Object {
+            "Ref": "orchestratorRole46A9F242",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "orchestratorRole46A9F242": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide easy integration with playbook orchestrator step functions.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role to allow cross account read-only SHARR orchestrator functions",
+        "RoleName": "SO0111-SHARR-Orchestrator-Admin_eu-west-1",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "sendNotifications1367638A": Object {
+      "DependsOn": Array [
+        "notifyRole40298120",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            Object {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            Object {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency due to low request rate",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/send_notifications.py.zip",
+        },
+        "Description": "Sends notifications and log messages",
+        "Environment": Object {
+          "Variables": Object {
+            "AWS_PARTITION": Object {
+              "Ref": "AWS::Partition",
+            },
+            "log_level": "info",
+            "sendAnonymousMetrics": Object {
+              "Fn::FindInMap": Array [
+                "mappings",
+                "sendAnonymousMetrics",
+                "data",
+              ],
+            },
+          },
+        },
+        "FunctionName": "SO0111-SHARR-sendNotifications",
+        "Handler": "send_notifications.lambda_handler",
+        "Layers": Array [
+          Object {
+            "Ref": "SharrLambdaLayer5BF8F147",
+          },
+        ],
+        "MemorySize": 256,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "notifyRole40298120",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+  },
+}
+`;

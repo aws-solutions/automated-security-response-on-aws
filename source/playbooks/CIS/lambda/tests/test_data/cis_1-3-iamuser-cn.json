@@ -1,0 +1,78 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws-cn:securityhub:cn-north-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.3/finding/dece0994-6821-442c-8b2d-cdc27367f440",
+  "ProductArn": "arn:aws-cn:securityhub:cn-north-1::product/aws/securityhub",
+  "GeneratorId": "arn:aws-cn:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+  ],
+  "FirstObservedAt": "2021-02-11T05:09:29.574Z",
+  "LastObservedAt": "2021-03-29T07:13:01.057Z",
+  "CreatedAt": "2021-02-11T05:09:29.574Z",
+  "UpdatedAt": "2021-03-29T07:13:00.389Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "1.3 Ensure credentials unused for 90 days or greater are disabled",
+  "Description": "AWS IAM users can access AWS resources using different types of credentials, such as passwords or access keys. It is recommended that all credentials that have been unused in 90 or greater days be removed or deactivated.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.3/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsGuideArn": "arn:aws-cn:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+    "StandardsGuideSubscriptionArn": "arn:aws-cn:securityhub:cn-north-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+    "RuleId": "1.3",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.3/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-user-unused-credentials-check-df87f1b9",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws-cn:securityhub:cn-north-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.3",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws-cn:securityhub:cn-north-1::product/aws/securityhub/arn:aws-cn:securityhub:cn-north-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.3/finding/dece0994-6821-442c-8b2d-cdc27367f440"
+  },
+  "Resources": [
+    {
+      "Type": "AwsIamUser",
+      "Id": "arn:aws-cn:iam::111111111111:user/iamusercn",
+      "Partition": "aws-cn",
+      "Region": "cn-north-1",
+      "Details": {
+        "AwsIamUser": {
+          "CreateDate": "2020-11-11T17:42:11.000Z",
+          "Path": "/",
+          "UserId": "AIDA5KJSZ2BG7BBBPMPCT",
+          "UserName": "test"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "Note": {
+    "Text": "INITIAL: \"Deactivate unused keys over 90 days old\" remediation started",
+    "UpdatedBy": "update_text",
+    "UpdatedAt": "2021-03-29T16:56:13.869Z"
+  },
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ]
+  }
+}

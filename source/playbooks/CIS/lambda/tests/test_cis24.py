@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -19,6 +19,7 @@ Run from /deployment/build/playbooks/CIS after running build-s3-dist.sh
 """
 import json
 import os
+os.environ['sendAnonymousMetrics'] = 'Yes'
 import boto3
 from botocore.stub import Stubber
 from pytest_mock import mocker
@@ -36,12 +37,56 @@ test_data = 'tests/test_data/'
 my_session = boto3.session.Session()
 my_region = my_session.region_name
 
+mock_ssm_get_parameter_uuid = {
+    "Parameter": {
+        "Name": "/Solutions/SO0111/anonymous_metrics_uuid",
+        "Type": "String",
+        "Value": "12345678-1234-1234-1234-123412341234",
+        "Version": 1,
+        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
+        "ARN": "arn:aws:ssm:us-east-1:1111111111111111:parameter/Solutions/SO0111/anonymous_metrics_uuid",
+        "DataType": "text"
+    }
+}
+mock_ssm_get_parameter_version = {
+    "Parameter": {
+        "Name": "/Solutions/SO0111/solution_version",
+        "Type": "String",
+        "Value": "v1.2.0TEST",
+        "Version": 1,
+        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
+        "ARN": "arn:aws:ssm:us-east-1:1111111111111111:parameter/Solutions/SO0111/anonymous_metrics_uuid",
+        "DataType": "text"
+    }
+}
+
 def test_handler(mocker):
     #--------------------------
     # Test data
     #
     event = utils.load_test_data(test_data + 'cis24.json', my_region)
+    ssmc = boto3.client('ssm', region_name = my_region)
+    ssmc_s = Stubber(ssmc)
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_uuid
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_version
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_uuid
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_version
+    )
 
+    ssmc_s.activate()
+    mocker.patch('lib.metrics.Metrics.connect_to_ssm', return_value=ssmc)
+    post_metrics = mocker.patch('lib.metrics.Metrics.post_metrics_to_api', return_value=None)
     remediate = mocker.patch('cis24.remediate', return_value=None)
 
     mocker.patch('lib.applogger.LogHandler.flush', return_value=None)
@@ -55,10 +100,29 @@ def test_not_configured(mocker):
     #
     event = utils.load_test_data(test_data + 'cis24.json', my_region)
 
-    #--------------------------
-    # Mock/stub
-    #
-    # Mock Notifier
+    ssmc = boto3.client('ssm', region_name = my_region)
+    ssmc_s = Stubber(ssmc)
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_uuid
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_version
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_uuid
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_version
+    )
+
+    ssmc_s.activate()
+    mocker.patch('lib.metrics.Metrics.connect_to_ssm', return_value=ssmc)
+    post_metrics = mocker.patch('lib.metrics.Metrics.post_metrics_to_api', return_value=None)
+    
     init = mocker.patch('lib.sechub_findings.Finding.flag')
     resolve = mocker.patch('lib.sechub_findings.Finding.resolve')
     update = mocker.patch('lib.sechub_findings.Finding.update_text')
@@ -81,8 +145,48 @@ def test_event_good(mocker):
         'Account': '111111111111',
         'Remediation': 'Enable CloudWatch logging for CloudTrail',
         'AffectedObject': 'CloudTrail: ExampleTrail',
-        'metrics_data': {'status': 'RESOLVED'}
+        'metrics_data': mocker.ANY
     }
+
+    post_metrics_expected_parms = {
+        'Solution': 'SO0111',
+        'UUID': '12345678-1234-1234-1234-123412341234',
+        'TimeStamp': mocker.ANY,
+        'Data':
+        {
+            'generator_id': 'arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/2.4',
+            'type': '2.4 Ensure CloudTrail log file validation is enabled',
+            'productArn': mocker.ANY,
+            'finding_triggered_by': 'Security Hub Findings - Custom Action',
+            'region': mocker.ANY,
+            'status': 'RESOLVED'
+        },
+        'Version': 'v1.2.0TEST'
+    }
+
+    ssmc = boto3.client('ssm', region_name = my_region)
+    ssmc_s = Stubber(ssmc)
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_uuid
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_version
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_uuid
+    )
+    ssmc_s.add_response(
+        'get_parameter',
+        mock_ssm_get_parameter_version
+    )
+
+    ssmc_s.activate()
+    mocker.patch('lib.metrics.Metrics.connect_to_ssm', return_value=ssmc)
+    post_metrics = mocker.patch('lib.metrics.Metrics.post_metrics_to_api', return_value=None)
+    
     os.environ['AWS_SESSION_TOKEN'] = 'FAKETOKEN'
     os.environ['CLOUDTRAIL_CW_LOGGING_ROLE_ARN'] = 'FAKELOGARN'
 
@@ -153,3 +257,4 @@ def test_event_good(mocker):
         'RESOLVED: "Enable CloudWatch logging for CloudTrail" remediation was successful'
     )
     sns.assert_called_with('SO0111-SHARR_Topic', sns_message, my_region)
+    post_metrics.assert_called_with(post_metrics_expected_parms)

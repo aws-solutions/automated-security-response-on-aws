@@ -1,3 +1,5 @@
 pytest-mock>=3.1.0
 pytest>=4.2.1
+pytest-cov
+pytest-env
 bandit

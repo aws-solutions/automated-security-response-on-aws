@@ -1,0 +1,75 @@
+{
+  "version": "0",
+  "id": "98a5f6ca-9e58-b52b-65a7-6eedbddf6694",
+  "detail-type": "Security Hub Findings - Custom Action",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-10-30T22:16:19Z",
+  "region": "eu-west-1",
+  "resources": [
+    "arn:aws:securityhub:eu-west-1:111111111111:action/custom/AFSBPec27"
+  ],
+  "detail": {
+    "actionName": "AFSBPec27",
+    "actionDescription": "Remediate AFSBP ec2.7 by enabling EBS encryption by default",
+    "findings": [
+      {
+        "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "Description": "This control checks whether Amazon Elastic Block Store (EBS) encryption is enabled by default. The control fails if EBS default encryption is not enabled.",
+        "SchemaVersion": "2018-10-08",
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/EC2.7",
+        "FirstObservedAt": "2020-10-30T20:33:28.007Z",
+        "CreatedAt": "2020-10-30T20:33:28.007Z",
+        "RecordState": "ACTIVE",
+        "Title": "EC2.7 EBS default encryption should be enabled",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "LastObservedAt": "2020-10-30T20:33:28.720Z",
+        "Severity": {
+          "Normalized": 40,
+          "Label": "MEDIUM",
+          "Product": 40,
+          "Original": "MEDIUM"
+        },
+        "UpdatedAt": "2020-10-30T20:33:28.007Z",
+        "WorkflowState": "NEW",
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "EC2.7",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/EC2.7/remediation",
+          "RelatedAWSResources:0/name": "securityhub-ec2-ebs-encryption-by-default-2751525f",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:eu-west-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/EC2.7",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/annotation": "EBS Encryption by default is not enabled.",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:eu-west-1::product/aws/securityhub/arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.7/finding/b16b280f-51db-41ac-903b-b778c514f7f1"
+        },
+        "AwsAccountId": "111111111111",
+        "Id": "arn:aws:securityhub:eu-west-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.7/finding/b16b280f-51db-41ac-903b-b778c514f7f1",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/EC2.7/remediation"
+          }
+        },
+        "Resources": [
+          {
+            "Partition": "aws",
+            "Type": "AwsAccount",
+            "Region": "eu-west-1",
+            "Id": "AWS::::Account:111111111111"
+          }
+        ]
+      }
+    ]
+  }
+}

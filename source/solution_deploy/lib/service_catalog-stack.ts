@@ -1,5 +1,6 @@
+#!/usr/bin/env node
 /*****************************************************************************
- *  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.   *
+ *  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.   *
  *                                                                            *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may   *
  *  not use this file except in compliance with the License. A copy of the    *
@@ -14,14 +15,8 @@
  *****************************************************************************/
 
 import * as cdk from '@aws-cdk/core';
-import * as logs from '@aws-cdk/aws-logs';
 import * as sc from '@aws-cdk/aws-servicecatalog';
 import * as iam from '@aws-cdk/aws-iam';
-import * as s3 from '@aws-cdk/aws-s3';
-import * as sns from '@aws-cdk/aws-sns';
-import * as lambda from '@aws-cdk/aws-lambda';
-import * as ssm from '@aws-cdk/aws-ssm';
-import * as kms from '@aws-cdk/aws-kms';
 import * as fs from 'fs';
 
 export interface SHARRStackProps extends cdk.StackProps {
@@ -183,7 +178,7 @@ export class ServiceCatalogStack extends cdk.Stack {
                 resources: ['*'],
                 conditions: {
                     StringEquals: {
-                        'iam:PassedToService': 'servicecatalog.amazonaws.com'
+                        'iam:PassedToService': `servicecatalog.${this.urlSuffix}`
                     }
                 }
             })
@@ -410,7 +405,7 @@ export class ServiceCatalogStack extends cdk.Stack {
                             'info': {
                                 'LoadTemplateFromURL': 'https://' + props.solutionDistBucket +
                                     '-reference.s3.amazonaws.com/' + props.solutionTMN + '/' +
-                                    props.solutionVersion + '/playbooks/' + file + '.template'
+                                    props.solutionVersion + '/playbooks/' + file + 'Stack.template'
                             },
                             'name': props.solutionVersion,
                             'description': versionDesc
@@ -426,8 +421,8 @@ export class ServiceCatalogStack extends cdk.Stack {
                     portfolioId: solPortfolio.ref,
                     productId: playbook.ref
                 })
-            };
-        });
-    });
+            }
+        })
+    })
   }
 }

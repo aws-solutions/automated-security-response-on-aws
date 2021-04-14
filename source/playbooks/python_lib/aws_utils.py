@@ -1,7 +1,6 @@
 #!/usr/bin/python
-"""Utility functions for remediations"""
 ###############################################################################
-#  Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
@@ -15,14 +14,10 @@
 #  sions and limitations under the License.                                   #
 ###############################################################################
 
-# *******************************************************************
-# Required Modules:
-# *******************************************************************
-
 import json
 import re
 
-def remove_arn_prefix(arn):
+def resource_from_arn(arn):
     """
     Strip off the leading parts of the ARN: arn:*:*:*:*:
     Return what's left. If no match, return the original predicate.
@@ -34,32 +29,22 @@ def remove_arn_prefix(arn):
         answer = arn_match.group(1)
     return answer
 
-def test_remove_arn_prefix():
-
-    testarn1 = "arn:aws-us-gov:iam:us-gov-west-1:222222222222:root"
-    assert remove_arn_prefix(testarn1) == 'root'
-    testarn2 = "arn:aws-cn:s3:::doc-example-bucket"
-    assert remove_arn_prefix(testarn2) == 'doc-example-bucket'
-    testarn3 = "This is a non-arn string"
-    assert remove_arn_prefix(testarn3) == 'This is a non-arn string'
-
 def partition_from_region(region_name):
-    region_to_partition = {
-        'us-gov-west-1': 'aws-us-gov',
-        'us-gov-east-1': 'aws-us-gov',
-        'cn-north-1': 'aws-cn',
-        'cn-northwest-1': 'aws-cn',
-        'default': 'aws'
-    }
-    if region_to_partition[region_name]:
-        return region_to_partition[region_name]
-    else:
-        return region_to_partition['default']
+    """
+    returns the partition for a given region
+    Note: this should be a Boto3 function and should be deprecated once it is.
+    On success returns a string
+    On failure returns NoneType
+    """
 
-def test_partition_from_region():
-
-    assert partition_from_region('us-gov-west-1') == 'aws-us-gov'
-    assert partition_from_region('cn-north-1') == 'aws-cn'
-    # Note: does not validate region name. default expected
-    assert partition_from_region('foo') == 'aws-cn'
-    assert partition_from_region('eu-west-1') == 'aws-cn'
+    parts = region_name.split('-')
+ 
+    try:
+        if parts[0] == 'us':
+            return 'aws-us-gov'
+        elif parts[0] == 'cn':
+            return 'aws-cn'
+        else:
+            return 'aws'
+    except:
+        return
