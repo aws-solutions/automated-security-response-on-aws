@@ -202,7 +202,7 @@ export class CisPermissionsStack extends cdk.Stack {
     );
     cis26ssm.addResources(
         'arn:' + this.partition + ':ssm:' + this.region + ':' +
-        ':automation-definition/*'
+        '*:automation-definition/*'
     );
 
     const cis26s3 = new PolicyStatement();
@@ -355,7 +355,7 @@ export class CisPermissionsStack extends cdk.Stack {
     );
     cis4142ssm.addResources(
         'arn:' + this.partition + ':ssm:' + this.region + ':' +
-        ':automation-definition/*'
+        '*:automation-definition/*'
     );
 
     const cis4142Policy = new PolicyDocument();
