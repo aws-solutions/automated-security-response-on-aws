@@ -39,7 +39,7 @@ v1.0.0.
 <a name="architecture-diagram"></a>
 # Architecture Diagram
 
-![](SHARR_v1.2.jpg)
+![](./SHARR_v1.2.jpg)
 
 <a name="aws-solutions-constructs"></a>
 # AWS Solutions Constructs
@@ -108,13 +108,11 @@ cd ./deployment
 ./upload_s3_dist.sh <region>
 ```
 
-<a name="unit-test"></a>
-## Unit Test
 
 <a name="deploy"></a>
 ## Deploy
 
-See the (AWS Security Hub Automated Response and Remediation Implementation Guide)[http://link] for deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for AWS Solutions. Ex. https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.0.0.mybuild/aws-sharr-deploy.template
+See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for AWS Solutions. Ex. https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.0.0.mybuild/aws-sharr-deploy.template
 
 <a name="file-structure"></a>
 # File structure
@@ -134,4 +132,10 @@ aws-security-hub-automated-response-and-remediation uses AWS CDK for generating 
 # License
 
 See license
-[here](https://github.com/awslabs/%3Cinsert-solution-repo-name%3E/blob/master/LICENSE.txt)
+[here](https://github.com/awslabs/aws-security-hub-automated-response-and-remediation/blob/master/LICENSE.txt)
+
+# Collection of operational metrics
+This solution collects anonymous operational metrics to help AWS improve the
+quality of features of the solution. For more information, including how to disable
+this capability, please see the
+[Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/collection-of-operational-metrics.html)

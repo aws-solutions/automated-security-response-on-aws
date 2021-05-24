@@ -1,6 +1,6 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Automated remediation for AWS Security Hub",
   "bin": {
     "solution_deploy": "bin/solution_deploy.js"
@@ -41,13 +41,13 @@
     "@aws-cdk/core": "~###CDK###",
     "@aws-cdk/custom-resources": "~###CDK###",
     "@aws-solutions-constructs/aws-events-rule-lambda": "~###CDK###",
-    "@types/jest": "^26.0.19",
-    "@types/js-yaml": "^3.12.3",
+    "@types/jest": "^26.0.23",
+    "@types/js-yaml": "^3.12.5",
     "cdk": "~###CDK###",
     "fs": "^0.0.1-security",
     "jest": "^26.6.3",
-    "js-yaml": "^3.12.5",
+    "js-yaml": "^3.14.1",
     "source-map-support": "^0.5.19",
-    "ts-jest": "^26.4.4"
+    "ts-jest": "^26.5.6"
   }
 }

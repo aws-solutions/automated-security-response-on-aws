@@ -376,8 +376,7 @@ export class SsmRemediationRole extends cdk.Construct {
         stack.account + ':document/' + ssmDocPrefix + props.controlId
     );
     ssmPerms.addResources(
-        'arn:' + stack.partition + ':ssm:' + stack.region + ':' +
-        stack.account + ':automation-definition/*'
+        'arn:' + stack.partition + ':ssm:' + stack.region + ':*:automation-definition/*'
     );
     ssmPerms.addResources(
         'arn:' + stack.partition + ':ssm:' + stack.region + ':' +

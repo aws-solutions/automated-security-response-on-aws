@@ -201,8 +201,7 @@ export class CisPermissionsStack extends cdk.Stack {
         this.account + ':document/AWS-ConfigureS3BucketLogging'
     );
     cis26ssm.addResources(
-        'arn:' + this.partition + ':ssm:' + this.region + ':' +
-        this.account + ':automation-definition/*'
+        'arn:' + this.partition + ':ssm:' + this.region + ':*:automation-definition/*'
     );
 
     const cis26s3 = new PolicyStatement();
@@ -354,8 +353,7 @@ export class CisPermissionsStack extends cdk.Stack {
         this.account + ':document/AWS-DisablePublicAccessForSecurityGroup'
     );
     cis4142ssm.addResources(
-        'arn:' + this.partition + ':ssm:' + this.region + ':' +
-        this.account + ':automation-definition/*'
+        'arn:' + this.partition + ':ssm:' + this.region + ':*:automation-definition/*'
     );
 
     const cis4142Policy = new PolicyDocument();
