@@ -48,6 +48,10 @@ v1.0.0.
 <a name="customizing-the-solution"></a>
 # Customizing the Solution
 
+**Note**: Customization of AWS Security Hub Automated Response and Remediation is not yet documented. If your goal is just to deploy the solution, please use the template on the [AWS Security Hub Automated Response and Remediation Landing Page](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/). *There is no need to build the solution from source.*
+
+If you choose to continue, please be aware that reading and adjusting the source code will be necessary.
+
 <a name="prerequisites-for-customization"></a>
 ## Prerequisites for Customization
 
@@ -81,6 +85,8 @@ AWS Solutions use two buckets: a bucket for global access to templates, which is
 * One regional bucket for each region where you plan to deploy using the name of the global bucket as the root, and suffixed with the region name. Ex. "mybucket-us-east-1"
 * Your buckets should be encrypted and disallow public access
 
+**NOTE**: When creating your buckets, ensure they are not publicly accessible. Use random bucket names. Disable public access. Use KMS encryption. And verify bucket ownership before uploading.
+
 **Build the solution**
 
 From the *deployment* folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex. mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
@@ -102,12 +108,12 @@ Confirm that all unit tests pass.
 
 **Upload to your buckets**
 
-Run upload_s3_dist.sh, passing the name of the region where you want to deploy the solution (ex. us-east-1). Note that this prepares your templates for deployment, but does not do the actual deployment in your account.
-```
-cd ./deployment
-./upload_s3_dist.sh <region>
-```
+**NOTE**: Verify bucket ownership before uploading.
+---
 
+By default, the templates created by build-s3-dist.sh expect the software to be stored in **aws-security-hub-automated-response-and-remediation/v\<version\>**. If in doubt, view the template.
+
+Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the regional bucket.
 
 <a name="deploy"></a>
 ## Deploy
