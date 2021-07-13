@@ -196,7 +196,7 @@ echo "--------------------------------------------------------------------------
 cd $template_dir
 mkdir -p $temp_work_dir/source/solution_deploy/lambdalayer/python
 cp $source_dir/LambdaLayers/*.py $temp_work_dir/source/solution_deploy/lambdalayer/python
-pip install -r ./requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
+pip3 install -r ./requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
 cd $temp_work_dir/source/solution_deploy/lambdalayer
 zip --recurse-paths ${build_dist_dir}/lambda/layer.zip python
 

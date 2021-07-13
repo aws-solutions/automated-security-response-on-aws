@@ -53,7 +53,7 @@ const stackMedata = {
 		"ParameterGroups": [
 			{
 				"Label": { "default": "Even if you do not enable fully automated remediation, you can still trigger a remediation action in the Security Hub console by selecting a specific finding, clicking the Action menu, and choosing the remediation action." },
-				"Parameters": ["CIS1314AutoRemediation", "CIS15111AutoRemediation", "CIS22AutoRemediation", "CIS23AutoRemediation",
+				"Parameters": ["CIS1314AutoRemediation", "CIS15111AutoRemediation", "CIS116AutoRemediation", "CIS120AutoRemediation", "CIS22AutoRemediation", "CIS23AutoRemediation",
 					"CIS24AutoRemediation", "CIS26AutoRemediation", "CIS28AutoRemediation", "CIS29AutoRemediation",
 					"CIS4142AutoRemediation", "CIS43AutoRemediation"]
 			}

@@ -107,6 +107,52 @@ export class CisStack extends cdk.Stack {
     cisPerms.addDependsOn(cis15111playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
     //---------------------------------------------------------------------
+    // CIS116
+    //
+    let cis116findings = [
+      "1.16 Ensure IAM policies are attached only to groups or roles",
+    ];
+
+    const cis116playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis116playbook', {
+      name: 'CIS116',
+      description: 'Remediates CIS 1.16 by adding users to a new group with polices obtained from the users.',
+      aws_region: this.region,
+      aws_partition: this.partition,
+      aws_accountid: this.account,
+      custom_action_name: 'CIS 1.16',
+      findings: cis116findings,
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      solutionName: props.solutionName,
+      distName: props.solutionDistName,
+      distBucket: props.solutionDistBucket
+    });
+    cisPerms.addDependsOn(cis116playbook.lambdaRole.node.findChild('Resource') as CfnRole)
+
+    //---------------------------------------------------------------------
+    // CIS120
+    //
+    let cis120findings = [
+      "1.20 Ensure a support role has been created to manage incidents with AWS Support",
+    ];
+
+    const cis120playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis120playbook', {
+      name: 'CIS120',
+      description: 'Remediates CIS 1.20 by creating the role to manage incidents with AWS Support',
+      aws_region: this.region,
+      aws_partition: this.partition,
+      aws_accountid: this.account,
+      custom_action_name: 'CIS 1.20',
+      findings: cis120findings,
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      solutionName: props.solutionName,
+      distName: props.solutionDistName,
+      distBucket: props.solutionDistBucket
+    });
+    cisPerms.addDependsOn(cis120playbook.lambdaRole.node.findChild('Resource') as CfnRole)
+
+    //---------------------------------------------------------------------
     // CIS22
     //
     let cis22findings = [

@@ -1,0 +1,279 @@
+{
+    "version": "0",
+    "id": "c076958f-e1dc-4c05-4e39-7c666817b012",
+    "detail-type": "Security Hub Findings - Custom Action",
+    "source": "aws.securityhub",
+    "account": "111111111111",
+    "time": "2021-06-20T02:23:02Z",
+    "region": "ap-southeast-2",
+    "resources": [
+        "arn:aws:securityhub:ap-southeast-2:111111111111:action/custom/CIS116"
+    ],
+    "detail": {
+        "actionName": "CIS 1.16",
+        "actionDescription": "Remediates CIS 1.16 by adding the users to a group with relevant polices, removing policies attached to them.",
+        "findings": [
+            {
+                "ProductArn": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub",
+                "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "Description": "By default, IAM users, groups, and roles have no access to AWS resources. IAM policies are the means by which privileges are granted to users, groups, or roles. It is recommended that IAM policies be applied directly to groups and roles but not users.",
+                "SchemaVersion": "2018-10-08",
+                "Compliance": {
+                    "Status": "FAILED"
+                },
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.16",
+                "FirstObservedAt": "2021-06-18T08:11:04.401Z",
+                "CreatedAt": "2021-06-18T08:11:04.401Z",
+                "RecordState": "ACTIVE",
+                "Title": "1.16 Ensure IAM policies are attached only to groups or roles",
+                "Workflow": {
+                    "Status": "NEW"
+                },
+                "LastObservedAt": "2021-06-19T08:46:46.028Z",
+                "Severity": {
+                    "Normalized": 39,
+                    "Label": "LOW",
+                    "Product": 39,
+                    "Original": "LOW"
+                },
+                "UpdatedAt": "2021-06-19T08:46:44.928Z",
+                "FindingProviderFields": {
+                    "Types": [
+                        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                    ],
+                    "Severity": {
+                        "Normalized": 39,
+                        "Label": "LOW",
+                        "Product": 39,
+                        "Original": "LOW"
+                    }
+                },
+                "WorkflowState": "NEW",
+                "ProductFields": {
+                    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                    "RuleId": "1.16",
+                    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.16/remediation",
+                    "RelatedAWSResources:0/name": "securityhub-iam-user-no-policies-check-53831955",
+                    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                    "StandardsControlArn": "arn:aws:securityhub:ap-southeast-2:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.16",
+                    "aws/securityhub/ProductName": "Security Hub",
+                    "aws/securityhub/CompanyName": "AWS",
+                    "Resources:0/Id": "arn:aws:iam::111111111111:user/test-user-2",
+                    "aws/securityhub/FindingId": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub/arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.16/finding/ff6e5225-3f92-4682-8cba-8358aded5403"
+                },
+                "AwsAccountId": "111111111111",
+                "Id": "arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.16/finding/ff6e5225-3f92-4682-8cba-8358aded5403",
+                "Remediation": {
+                    "Recommendation": {
+                        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+                        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.16/remediation"
+                    }
+                },
+                "Resources": [
+                    {
+                        "Partition": "aws",
+                        "Type": "AwsIamUser",
+                        "Details": {
+                            "AwsIamUser": {
+                                "Path": "/",
+                                "UserName": "test-user-2",
+                                "GroupList": [
+                                    "test-user-2-sharr-116-a8e9b7f6af"
+                                ],
+                                "UserId": "AIDAVA77YJEQADGA24J3X",
+                                "UserPolicyList": [
+                                    {
+                                        "PolicyName": "efsPolicy"
+                                    },
+                                    {
+                                        "PolicyName": "elasticCache"
+                                    }
+                                ],
+                                "CreateDate": "2021-06-18T07:53:15.000Z"
+                            }
+                        },
+                        "Region": "ap-southeast-2",
+                        "Id": "arn:aws:iam::111111111111:user/test-user-2"
+                    }
+                ]
+            },
+            {
+                "ProductArn": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub",
+                "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "Description": "By default, IAM users, groups, and roles have no access to AWS resources. IAM policies are the means by which privileges are granted to users, groups, or roles. It is recommended that IAM policies be applied directly to groups and roles but not users.",
+                "SchemaVersion": "2018-10-08",
+                "Compliance": {
+                    "Status": "FAILED"
+                },
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.16",
+                "FirstObservedAt": "2021-06-05T06:10:00.768Z",
+                "CreatedAt": "2021-06-05T06:10:00.768Z",
+                "RecordState": "ACTIVE",
+                "Title": "1.16 Ensure IAM policies are attached only to groups or roles",
+                "Workflow": {
+                    "Status": "NEW"
+                },
+                "LastObservedAt": "2021-06-19T08:46:45.927Z",
+                "Severity": {
+                    "Normalized": 39,
+                    "Label": "LOW",
+                    "Product": 39,
+                    "Original": "LOW"
+                },
+                "UpdatedAt": "2021-06-19T08:46:44.647Z",
+                "FindingProviderFields": {
+                    "Types": [
+                        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                    ],
+                    "Severity": {
+                        "Normalized": 39,
+                        "Label": "LOW",
+                        "Product": 39,
+                        "Original": "LOW"
+                    }
+                },
+                "WorkflowState": "NEW",
+                "ProductFields": {
+                    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                    "RuleId": "1.16",
+                    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.16/remediation",
+                    "RelatedAWSResources:0/name": "securityhub-iam-user-no-policies-check-53831955",
+                    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                    "StandardsControlArn": "arn:aws:securityhub:ap-southeast-2:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.16",
+                    "aws/securityhub/ProductName": "Security Hub",
+                    "aws/securityhub/CompanyName": "AWS",
+                    "Resources:0/Id": "arn:aws:iam::111111111111:user/code-commit",
+                    "aws/securityhub/FindingId": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub/arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.16/finding/3cfddce4-98be-4cec-bf31-9b35144c755b"
+                },
+                "AwsAccountId": "111111111111",
+                "Id": "arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.16/finding/3cfddce4-98be-4cec-bf31-9b35144c755b",
+                "Remediation": {
+                    "Recommendation": {
+                        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+                        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.16/remediation"
+                    }
+                },
+                "Resources": [
+                    {
+                        "Partition": "aws",
+                        "Type": "AwsIamUser",
+                        "Details": {
+                            "AwsIamUser": {
+                                "Path": "/",
+                                "AttachedManagedPolicies": [
+                                    {
+                                        "PolicyArn": "arn:aws:iam::aws:policy/AWSCodeCommitFullAccess",
+                                        "PolicyName": "AWSCodeCommitFullAccess"
+                                    }
+                                ],
+                                "UserName": "code-commit",
+                                "GroupList": [
+                                    "code-commit-sharr-116-71a9136d81"
+                                ],
+                                "UserId": "AIDAVA77YJEQG7246WES2",
+                                "CreateDate": "2021-04-25T11:50:32.000Z"
+                            }
+                        },
+                        "Region": "ap-southeast-2",
+                        "Id": "arn:aws:iam::111111111111:user/code-commit"
+                    }
+                ]
+            },
+            {
+                "ProductArn": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub",
+                "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "Description": "By default, IAM users, groups, and roles have no access to AWS resources. IAM policies are the means by which privileges are granted to users, groups, or roles. It is recommended that IAM policies be applied directly to groups and roles but not users.",
+                "SchemaVersion": "2018-10-08",
+                "Compliance": {
+                    "Status": "FAILED"
+                },
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.16",
+                "FirstObservedAt": "2021-06-12T05:26:42.913Z",
+                "CreatedAt": "2021-06-12T05:26:42.913Z",
+                "RecordState": "ACTIVE",
+                "Title": "1.16 Ensure IAM policies are attached only to groups or roles",
+                "Workflow": {
+                    "Status": "NEW"
+                },
+                "LastObservedAt": "2021-06-19T08:46:45.483Z",
+                "Severity": {
+                    "Normalized": 39,
+                    "Label": "LOW",
+                    "Product": 39,
+                    "Original": "LOW"
+                },
+                "UpdatedAt": "2021-06-19T08:46:44.647Z",
+                "FindingProviderFields": {
+                    "Types": [
+                        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                    ],
+                    "Severity": {
+                        "Normalized": 39,
+                        "Label": "LOW",
+                        "Product": 39,
+                        "Original": "LOW"
+                    }
+                },
+                "WorkflowState": "NEW",
+                "ProductFields": {
+                    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                    "RuleId": "1.16",
+                    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.16/remediation",
+                    "RelatedAWSResources:0/name": "securityhub-iam-user-no-policies-check-53831955",
+                    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                    "StandardsControlArn": "arn:aws:securityhub:ap-southeast-2:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.16",
+                    "aws/securityhub/ProductName": "Security Hub",
+                    "aws/securityhub/CompanyName": "AWS",
+                    "Resources:0/Id": "arn:aws:iam::111111111111:user/test-user-cis",
+                    "aws/securityhub/FindingId": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub/arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.16/finding/32a2b6f5-82fb-4f77-9b36-033ebedda255"
+                },
+                "AwsAccountId": "111111111111",
+                "Id": "arn:aws:securityhub:ap-southeast-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.16/finding/32a2b6f5-82fb-4f77-9b36-033ebedda255",
+                "Remediation": {
+                    "Recommendation": {
+                        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+                        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.16/remediation"
+                    }
+                },
+                "Resources": [
+                    {
+                        "Partition": "aws",
+                        "Type": "AwsIamUser",
+                        "Details": {
+                            "AwsIamUser": {
+                                "Path": "/",
+                                "AttachedManagedPolicies": [
+                                    {
+                                        "PolicyArn": "arn:aws:iam::aws:policy/AlexaForBusinessFullAccess",
+                                        "PolicyName": "AlexaForBusinessFullAccess"
+                                    },
+                                    {
+                                        "PolicyArn": "arn:aws:iam::aws:policy/AmazonChimeSDK",
+                                        "PolicyName": "AmazonChimeSDK"
+                                    }
+                                ],
+                                "UserName": "tes-user-cis",
+                                "GroupList": [
+                                    "tes-user-cis-sharr-116-30b4f731f9"
+                                ],
+                                "UserId": "AIDAVA77YJEQP2OJEPB5E",
+                                "CreateDate": "2021-06-12T05:11:35.000Z"
+                            }
+                        },
+                        "Region": "ap-southeast-2",
+                        "Id": "arn:aws:iam::111111111111:user/test-user-cis"
+                    }
+                ]
+            }
+        ]
+    }
+}

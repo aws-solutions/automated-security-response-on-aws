@@ -1,0 +1,69 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:ap-southeast-2:345744361760:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.20/finding/39714ef1-1961-4596-8d68-5fb21cf6b71c",
+  "ProductArn": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "ap-southeast-2",
+  "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.20",
+  "AwsAccountId": "345744361760",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+  ],
+  "FirstObservedAt": "2021-06-05T06:09:37.330Z",
+  "LastObservedAt": "2021-07-02T20:46:33.347Z",
+  "CreatedAt": "2021-06-05T06:09:37.330Z",
+  "UpdatedAt": "2021-07-02T20:46:31.746Z",
+  "Severity": {
+    "Product": 39,
+    "Label": "LOW",
+    "Normalized": 39,
+    "Original": "LOW"
+  },
+  "Title": "1.20 Ensure a support role has been created to manage incidents with AWS Support",
+  "Description": "AWS provides a support center that can be used for incident notification and response, as well as technical support and customer services. Create an IAM Role to allow authorized users to manage incidents with AWS Support.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.20/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:ap-southeast-2:345744361760:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+    "RuleId": "1.20",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.20/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-support-policy-in-use-79ac1e00",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:ap-southeast-2:345744361760:control/cis-aws-foundations-benchmark/v/1.2.0/1.20",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:root",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:ap-southeast-2::product/aws/securityhub/arn:aws:securityhub:ap-southeast-2:345744361760:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.20/finding/39714ef1-1961-4596-8d68-5fb21cf6b71c"
+  },
+  "Resources": [
+    {
+      "Type": "AwsAccount",
+      "Id": "AWS::::Account:111111111111",
+      "Partition": "aws",
+      "Region": "ap-southeast-2"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "LOW",
+      "Original": "LOW"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ]
+  }
+}

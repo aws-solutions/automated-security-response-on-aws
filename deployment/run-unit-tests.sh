@@ -17,7 +17,7 @@ export overrideWarningsEnabled=false
 
 #!/bin/bash
 echo 'Installing required Python testing modules'
-pip install -r ./testing_requirements.txt
+pip3 install -r ./testing_requirements.txt
 
 # Get reference for all important folders
 template_dir="$PWD"

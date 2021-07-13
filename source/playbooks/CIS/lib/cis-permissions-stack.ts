@@ -81,6 +81,63 @@ export class CisPermissionsStack extends cdk.Stack {
         aws_partition: this.partition
     });
 
+    // //CIS 1.16
+    const cis116_iam_1 = new PolicyStatement();
+    cis116_iam_1.addActions("iam:GetGroup")
+    cis116_iam_1.addActions("iam:CreateGroup")
+    cis116_iam_1.addActions("iam:AddUserToGroup")
+    cis116_iam_1.addActions("iam:AttachGroupPolicy")
+    cis116_iam_1.effect = Effect.ALLOW
+    cis116_iam_1.addResources(`arn:${this.partition}:iam::${this.account}:group/*`);
+
+    const cis116_iam_2 = new PolicyStatement();
+    cis116_iam_2.addActions("iam:CreatePolicy")
+    cis116_iam_2.effect = Effect.ALLOW
+    cis116_iam_2.addResources(`arn:${this.partition}:iam::${this.account}:policy/*`);
+
+    const cis116_iam_3 = new PolicyStatement();
+    cis116_iam_3.addActions("iam:GetUserPolicy")
+    cis116_iam_3.addActions("iam:DeleteUserPolicy")
+    cis116_iam_3.addActions("iam:DetachUserPolicy")
+    cis116_iam_3.effect = Effect.ALLOW
+    cis116_iam_3.addResources(`arn:${this.partition}:iam::${this.account}:user/*`);
+
+
+    const cis116Policy = new PolicyDocument();
+    cis116Policy.addStatements(cis116_iam_1)
+    cis116Policy.addStatements(cis116_iam_2)
+    cis116Policy.addStatements(cis116_iam_3)
+
+    new AssumeRoleConstruct(this, 'cis116assumerole', {
+      adminAccountNumber: adminAccountNumber,
+      solutionId: props.solutionId,
+      lambdaPolicy: cis116Policy,
+      lambdaHandlerName: 'CIS116',
+      region: this.region,
+      aws_partition: this.partition
+    });
+
+    // //CIS 1.20
+    const cis120_iam = new PolicyStatement();
+    cis120_iam.addActions("iam:GetRole")
+    cis120_iam.addActions("iam:CreateRole")
+    cis120_iam.addActions("iam:AttachRolePolicy")
+    cis120_iam.addActions("iam:TagRole")
+    cis120_iam.effect = Effect.ALLOW
+    cis120_iam.addResources(`arn:${this.partition}:iam::${this.account}:role/*`);
+
+    const cis120Policy = new PolicyDocument();
+    cis120Policy.addStatements(cis120_iam)
+
+    new AssumeRoleConstruct(this, 'cis120assumerole', {
+      adminAccountNumber: adminAccountNumber,
+      solutionId: props.solutionId,
+      lambdaPolicy: cis120Policy,
+      lambdaHandlerName: 'CIS120',
+      region: this.region,
+      aws_partition: this.partition
+    });
+
     // //CIS 2.2
     const cis22 = new PolicyStatement();
     cis22.addActions("cloudtrail:UpdateTrail")
