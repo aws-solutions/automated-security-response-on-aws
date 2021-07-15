@@ -245,6 +245,29 @@ export class CisStack extends cdk.Stack {
     cisPerms.addDependsOn(cis26playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
     //---------------------------------------------------------------------
+    // CIS27
+    //
+    let cis27findings = [
+        "2.7 Ensure CloudTrail logs are encrypted at rest using AWS KMS CMKs"
+    ]
+
+    const cis27playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis27playbook', {
+        name: 'CIS27',
+        description: 'Remediates CIS 2.7 encrypt Cloudtrail logs at rest using AWS KMS CMKs.',
+        aws_region: this.region,
+        aws_partition: this.partition,
+        aws_accountid: this.account,
+        custom_action_name: 'CIS 2.7',
+        findings: cis27findings,
+        solutionId: props.solutionId,
+        solutionVersion: props.solutionVersion,
+        solutionName: props.solutionName,
+        distName: props.solutionDistName,
+        distBucket: props.solutionDistBucket
+    });
+    cisPerms.addDependsOn(cis27playbook.lambdaRole.node.findChild('Resource') as CfnRole)
+
+    //---------------------------------------------------------------------
     // CIS28
     //
     let cis28findings = [

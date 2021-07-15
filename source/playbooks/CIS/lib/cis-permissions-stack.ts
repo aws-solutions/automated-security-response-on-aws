@@ -292,6 +292,39 @@ export class CisPermissionsStack extends cdk.Stack {
         aws_partition: this.partition
     });
 
+    //CIS 2.7
+   const cis27cloudtrail = new PolicyStatement();
+    cis27cloudtrail.addActions("cloudtrail:UpdateTrail")
+    cis27cloudtrail.effect = Effect.ALLOW
+    cis27cloudtrail.addResources(
+        "arn:" + this.partition + ":cloudtrail:*:" + this.account + ":trail/*"
+    );
+
+    const cis27kms = new PolicyStatement();
+    cis27kms.addActions("kms:CreateKey")
+    cis27kms.effect = Effect.ALLOW
+    cis27kms.addResources("*");
+
+    const cis27kms2 = new PolicyStatement();
+    cis27kms2.addActions("kms:CreateAlias")
+    cis27kms2.effect = Effect.ALLOW
+    cis27kms2.addResources("arn:" + this.partition + ":kms:*:" + this.account + ":alias/*");
+    cis27kms2.addResources("arn:" + this.partition + ":kms:*:" + this.account + ":key/*");
+
+    const cis27Policy = new PolicyDocument();
+    cis27Policy.addStatements(cis27cloudtrail)
+    cis27Policy.addStatements(cis27kms)
+    cis27Policy.addStatements(cis27kms2)
+
+    new AssumeRoleConstruct(this, 'cis27assumerole', {
+        adminAccountNumber: adminAccountNumber,
+        solutionId: props.solutionId,
+        lambdaPolicy: cis27Policy,
+        lambdaHandlerName: 'CIS27',
+        region: this.region,
+        aws_partition: this.partition
+    });
+
     //CIS 2.8
     const cis28kms = new PolicyStatement();
     cis28kms.addActions("kms:EnableKeyRotation")
