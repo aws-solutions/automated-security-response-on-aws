@@ -655,5 +655,49 @@ export class AfsbpMemberStack extends MemberStack {
             }
         }
     }
+
+      //-----------------------
+      // S3.8
+      //
+      {
+          const controlId = 'S3.8'
+          const inlinePolicy = new Policy(this, `SHARR-AFSBP-Member-Policy-${controlId}`);
+
+          const s3Permission = new PolicyStatement();
+          s3Permission.addActions("s3:PutBucketPublicAccessBlock")
+          s3Permission.effect = Effect.ALLOW
+          s3Permission.addResources('*')
+          inlinePolicy.addStatements(s3Permission)
+
+          // Create the role. Policies to be added below as inline. One role per
+          // remediation
+          new SsmRemediationRole(this, 'RemediationRole ' + controlId, {
+              solutionId: props.solutionId,
+              controlId: controlId,
+              adminAccountNumber: this.adminAccountNumber.valueAsString,
+              remediationPolicy: inlinePolicy,
+              adminRoleName: adminRoleName,
+              remediationRoleName: memberRemediationRoleNameRoot + controlId + '_' + this.region
+          })
+          // SSM Automation Document
+          new SsmPlaybook(this, 'AFSBP ' + controlId, {
+              securityStandard: props.securityStandard,
+              controlId: controlId,
+              ssmDocPath: './ssmdocs/',
+              ssmDocFileName: 'AFSBP_S3.8.yaml'
+          })
+          // CFN-NAG
+          // WARN W12: IAM policy should not allow * resource
+
+          let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+          childToMod.cfnOptions.metadata = {
+              cfn_nag: {
+                  rules_to_suppress: [{
+                      id: 'W12',
+                      reason: 'Resource * is required for to allow remediation for any resource.'
+                  }]
+              }
+          }
+      }
   }
 }

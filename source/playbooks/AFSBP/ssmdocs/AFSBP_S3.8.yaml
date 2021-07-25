@@ -1,0 +1,146 @@
+description: |
+  ### Document Name - SHARR_Remediation_AFSBP_S3.8
+  ## What does this document do?
+  This document enables Block Public Access setting at the bucket-level.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for the finding
+  AutomationAssumeRole:
+    type: String
+    description: The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: BucketName
+        Selector: $.Payload.bucket_name
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        import re
+        def parse_event(event, context):
+          my_control_id = 'S3.8'
+          finding = event['Finding']
+
+          finding_id = finding['Id']
+          control_id = ''
+          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+          if not check_finding_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id}')
+          else:
+            control_id = check_finding_id.group(1)
+
+          if not control_id:
+            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+          if control_id != my_control_id:
+            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
+
+          product_arn = finding['ProductArn']
+          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
+            exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+          account_id = finding['AwsAccountId']
+          if not re.match('^\d{12}$', account_id):
+            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+          bucket_arn = finding['Resources'][0]['Id']
+          bucket_name = bucket_arn.split(':')[5]
+
+          object = {'Type': 'S3Bucket', 'Id': bucket_name, 'OutputKey': 'Remediation.Output'}
+          return {"bucket_name": bucket_name, "account_id": account_id, "finding_id": finding_id, "product_arn": product_arn, "object": object}
+    isEnd: false
+  - name: Remediation
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload:
+        AutomationAssumeRole: '{{AutomationAssumeRole}}'
+        bucketName: '{{ParseInput.BucketName}}'
+      Runtime: python3.7
+      Handler: remediate
+      Script: |-
+        import json
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+        BOTO_CONFIG = Config(
+          retries ={
+            'mode': 'standard',
+            'max_attempts': 10
+          }
+        )
+
+        def remediate(event, context):
+          client = boto3.client('s3', config=BOTO_CONFIG)
+          bucket_name = event['bucketName']
+
+          try:
+            response = client.put_public_access_block(
+                Bucket=bucket_name,
+                PublicAccessBlockConfiguration={
+                    'BlockPublicAcls': True,
+                    'IgnorePublicAcls': True,
+                    'BlockPublicPolicy': True,
+                    'RestrictPublicBuckets': True
+                }
+            )
+
+            print("Remediation executed successfully")
+            print(json.dumps(response, indent=2, default=str))
+            return {
+              "response": {
+                "status": "Success",
+                "message": "Remediation executed successfully."
+              }
+            }
+
+          except Exception as e:
+            print(e)
+            exit("Exception while enabling Block Public Access setting")
+
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+        - Id: '{{ParseInput.FindingId}}'
+          ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Enabled Block Public Access setting at bucket level successfully'
+        UpdatedBy: 'SHARR_Remediation_AFSBP_S3.8'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

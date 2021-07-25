@@ -70,7 +70,8 @@ export class AfsbpPrimaryStack extends cdk.Stack {
         'Lambda.1',
         'RDS.1',
         'RDS.6',
-        'RDS.7'
+        'RDS.7',
+        'S3.8'
     ]
 
     for (let controlId of remediations) {
