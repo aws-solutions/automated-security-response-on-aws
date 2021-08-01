@@ -416,6 +416,24 @@ export class CisPermissionsStack extends cdk.Stack {
         }
     };
 
+    //CIS 3.1
+    const cis31 = new PolicyStatement();
+    cis31.addActions("ec2:UpdateSecurityGroupRuleDescriptionsEgress")
+    cis31.effect = Effect.ALLOW
+    cis31.addResources("arn:" + this.partition + ":ec2:*:"+this.account+":security-group/*");
+
+    const cis31Policy = new PolicyDocument();
+    cis31Policy.addStatements(cis31)
+
+    new AssumeRoleConstruct(this, 'cis31assumerole', {
+      adminAccountNumber: adminAccountNumber,
+      solutionId: props.solutionId,
+      lambdaPolicy: cis31Policy,
+      lambdaHandlerName: 'CIS31',
+      region: this.region,
+      aws_partition: this.partition
+    });
+
     //CIS 4.1 & 4.2
     const cis4142ec2 = new PolicyStatement();
     cis4142ec2.addActions("ec2:DescribeSecurityGroupReferences")

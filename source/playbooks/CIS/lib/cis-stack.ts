@@ -314,6 +314,30 @@ export class CisStack extends cdk.Stack {
     cisPerms.addDependsOn(cis29playbook.lambdaRole.node.findChild('Resource') as CfnRole)
 
     //---------------------------------------------------------------------
+    // CIS29
+    //
+    let cis31findings = [
+      "3.1 Ensure a log metric filter and alarm exist for unauthorized API calls"
+    ];
+
+    const cis31playbook: PlaybookConstruct = new PlaybookConstruct(this, 'cis31playbook', {
+      name: 'CIS31',
+      description: 'Remediates CIS 3.1 creating a log metric filter and alarm for unauthorized API calls.',
+      aws_region: this.region,
+      aws_partition: this.partition,
+      aws_accountid: this.account,
+      custom_action_name: 'CIS 3.1',
+      findings: cis31findings,
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      solutionName: props.solutionName,
+      distName: props.solutionDistName,
+      distBucket: props.solutionDistBucket
+    });
+    cisPerms.addDependsOn(cis31playbook.lambdaRole.node.findChild('Resource') as CfnRole)
+
+
+    //---------------------------------------------------------------------
     // CIS4142
     //
     let cis4142findings = [
