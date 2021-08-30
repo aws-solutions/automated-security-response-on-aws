@@ -1,0 +1,67 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - SHARR-MakeEBSSnapshotPrivate
+
+  ## What does this document do?
+  This runbook works an the account level to remove public share on all EBS snapshots
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  
+  ## Output Parameters
+
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0: EC2.1
+  * CIS v1.2.0:   n/a
+  * PCI:          EC2.1
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AccountId:
+    type: String
+    description: Account ID of the account for which snapshots are to be checked.
+    allowedPattern: ^[0-9]{12}$
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+  TestMode:
+    type: Boolean
+    description: Enables test mode, which generates a list of fake volume Ids
+    default: false
+
+outputs:
+  -  Remediation.Output
+mainSteps:
+  - name: GetPublicSnapshotIds
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Snapshots
+        Selector: $.Payload
+        Type: MapList
+    inputs:
+      InputPayload:
+        region: '{{global:REGION}}'
+        account_id: '{{AccountId}}'
+        testmode: '{{TestMode}}'
+      Runtime: python3.7
+      Handler: get_public_snapshots
+      Script: |-
+        %%SCRIPT=GetPublicEBSSnapshots.py%%
+
+  - name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        region: '{{global:REGION}}'
+        snapshots: '{{GetPublicSnapshotIds.Snapshots}}'
+      Runtime: python3.7
+      Handler: make_snapshots_private
+      Script: |-
+        %%SCRIPT=MakeEBSSnapshotsPrivate.py%%

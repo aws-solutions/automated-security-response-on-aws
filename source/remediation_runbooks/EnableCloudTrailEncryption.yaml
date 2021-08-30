@@ -1,0 +1,61 @@
+description: |
+  ### Document Name - SHARR-EnableCloudTrailEncryption
+  ## What does this document do?
+  Enables encryption on a CloudTrail using the provided KMS CMK
+  
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
+  * TrailRegion: region of the CloudTrail to encrypt
+  * TrailArn: ARN of the CloudTrail to encrypt
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:   CloudTrail.2
+  * CIS v1.2.0:     2.7
+  * PCI:            CloudTrail.1
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  KMSKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    description: The ARN of the KMS key created by SHARR for this remediation
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  TrailRegion:
+    type: String
+    description: 'Region the CloudTrail is in'
+    allowedPattern: '^[a-z]{2}(?:-gov)?-[a-z]+-\d$'
+  TrailArn:
+    type: String
+    description: 'ARN of the CloudTrail'
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):cloudtrail:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:trail/[A-Za-z0-9._-]{3,128}$'
+outputs:
+  - Remediation.Output
+
+mainSteps:
+  - 
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload: 
+        exec_region: '{{global:REGION}}'
+        trail_region: '{{TrailRegion}}'
+        trail: '{{TrailArn}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'        
+      Runtime: python3.7
+      Handler: enable_trail_encryption
+      Script: |-
+        %%SCRIPT=EnableCloudTrailEncryption.py%%
+
+    isEnd: true

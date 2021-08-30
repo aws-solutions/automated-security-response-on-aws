@@ -1,0 +1,61 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableKeyRotation
+
+  ## What does this document do?
+  This document enables automatic key rotation for the given AWS Key Management Service (KMS) symmetric customer master key(CMK) using [EnableKeyRotation](https://docs.aws.amazon.com/kms/latest/APIReference/API_EnableKeyRotation.html) API.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * KeyId: (Required) The Key ID of the AWS KMS symmetric CMK.
+
+  ## Output Parameters
+  * EnableKeyRotation.EnableKeyRotationResponse: The standard HTTP response from the EnableKeyRotation API.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+  KeyId:
+    type: String
+    description: (Required) The Key ID of the AWS KMS symmetric CMK.
+    allowedPattern: "[a-z0-9-]{1,2048}"
+
+outputs:
+  - EnableKeyRotation.EnableKeyRotationResponse
+mainSteps:
+  -
+    name: EnableKeyRotation
+    action: aws:executeAwsApi
+    description: |
+      ## EnableKeyRotation
+      Enables automatic key rotation for the given AWS KMS CMK.
+      ## Outputs
+      * EnableKeyRotationResponse: The standard HTTP response from the EnableKeyRotation API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: kms
+      Api: EnableKeyRotation
+      KeyId: "{{ KeyId }}"
+    outputs:
+      - Name: EnableKeyRotationResponse
+        Selector: $
+        Type: StringMap
+  -
+    name: VerifyKeyRotation
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## VerifyKeyRotation
+      Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
+    inputs:
+      Service: kms
+      Api: GetKeyRotationStatus
+      KeyId: "{{ KeyId }}"
+      PropertySelector: $.KeyRotationEnabled
+      DesiredValues:
+        - "True"

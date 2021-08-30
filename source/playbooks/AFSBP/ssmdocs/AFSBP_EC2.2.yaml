@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR_Remediation_AFSBP_EC2.2
+  ### Document Name - SHARR-AFSBP_1.0.0_EC2.2
 
   ## What does this document do?
   This document deletes ingress and egress rules from default security 
@@ -11,6 +11,10 @@ description: |
 
   ## Output Parameters
   * Remediation.Output - Output from AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules SSM doc
+
+  ## Documentation Links
+  * [AFSBP EC2.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-2)
+  
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
@@ -24,12 +28,13 @@ parameters:
   Finding:
     type: StringMap
     description: The input from Step function for EC2.2 finding
+
 mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'
     outputs:
       - Name: GroupId
-        Selector: $.Payload.group_id
+        Selector: $.Payload.resource_id
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -43,55 +48,22 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:security-group/(sg-[0-9a-f]*)$'
+        expected_control_id: 'EC2.2'
       Runtime: python3.7
       Handler: parse_event
       Script: |-
-        import re
-        def parse_event(event, context):
-          my_control_id = 'EC2.2'
-          finding = event['Finding']
+        %%SCRIPT=afsbp_parse_input.py%%
 
-          finding_id = finding['Id']
-          control_id = ''
-          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
-          if not check_finding_id:
-            exit(f'ERROR: Finding Id is invalid: {finding_id}')
-          else:
-            control_id = check_finding_id.group(1)
-
-          if not control_id:
-            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
-
-          if control_id != my_control_id:
-            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
-
-          product_arn = finding['ProductArn']
-          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
-            exit(f'ERROR: ProductArn is invalid: {product_arn}')
-
-          account_id = finding['AwsAccountId']
-          if not re.match('^\d{12}$', account_id):
-            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
-
-          group_id = finding['Resources'][0]['Details']['AwsEc2SecurityGroup']['GroupId']
-
-          if not re.match(
-            '^sg-(?:[0-9a-f]{8}|[0-9a-f]{17})$',
-            group_id
-            ):
-            exit(f'ERROR: Security Group Id is invalid: {group_id}')
-
-          object = {'Type': 'SecurityGroup', 'Id': group_id, 'OutputKey': 'Remediation.Output'}
-          return {"group_id": group_id, "finding_id": finding_id, "product_arn": product_arn, "object": object}
     isEnd: false
   - name: Remediation
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules
+      DocumentName: SHARR-RemoveVPCDefaultSecurityGroupRules
       RuntimeParameters:
-        GroupId: '{{ ParseInput.GroupId }}'
-        AutomationAssumeRole: '{{ AutomationAssumeRole }}'
+        GroupId: '{{ParseInput.GroupId}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RemoveVPCDefaultSecurityGroupRules_{{global:REGION}}'
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:
@@ -102,7 +74,7 @@ mainSteps:
           ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: Removed rules on default security group
-        UpdatedBy: SHARR_Remediation_AFSBP_EC2.2
+        UpdatedBy: SHARR-AFSBP_1.0.0_EC2.2
       Workflow:
         Status: RESOLVED
     description: Update finding

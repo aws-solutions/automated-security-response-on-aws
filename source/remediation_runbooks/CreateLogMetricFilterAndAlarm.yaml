@@ -1,0 +1,68 @@
+description: |
+  ### Document Name - SHARR-CreateLogMetricFilterAndAlarm
+  ## What does this document do?
+  Creates a metric filter for a given log group and also creates and alarm for the metric.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * CloudWatch Log Group Name: Name of the CloudWatch log group to use to create metric filter
+  * Alarm Value: Threshhold value for the creating an alarm for the CloudWatch Alarm
+
+  ## Security Standards / Controls
+  * CIS v1.2.0:     3.1-3.14
+schemaVersion: '0.3'
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+  LogGroupName:
+    type: String
+    description: Name of the log group to be used to create metric filter
+  FilterName:
+    type: String
+    description: Name for the metric filter
+  FilterPattern:
+    type: String
+    description: Filter pattern to create metric filter
+  MetricName:
+    type: String
+    description: Name of the metric for metric filter
+  MetricValue:
+    type: Integer
+    description: Value of the metric for metric filter
+  MetricNamespace:
+    type: String
+    description: Namespace where the metrics will be sent
+  AlarmName:
+    type: String
+    description: Name of the Alarm to be created for the metric filter
+  AlarmDesc:
+    type: String
+    description: Description of the Alarm to be created for the metric filter
+  AlarmThreshold:
+    type: Integer
+    description: Threshold value for the alarm
+mainSteps:
+  - name: CreateMetricFilerAndAlarm
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        LogGroupName: '{{LogGroupName}}'
+        FilterName: '{{FilterName}}'
+        FilterPattern: '{{FilterPattern}}'
+        MetricName: '{{MetricName}}'
+        MetricNamespace: '{{MetricNamespace}}' 
+        MetricValue: '{{MetricValue}}'
+        AlarmName: '{{AlarmName}}'
+        AlarmDesc: '{{AlarmDesc}}'
+        AlarmThreshold: '{{AlarmThreshold}}'
+      Runtime: python3.7
+      Handler: verify
+      Script: |-
+        %%SCRIPT=CreateLogMetricFilterAndAlarm.py%%

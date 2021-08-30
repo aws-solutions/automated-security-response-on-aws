@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -15,6 +15,7 @@
 ###############################################################################
 
 import json
+import re
 from json.decoder import JSONDecodeError
 import boto3
 import os
@@ -28,85 +29,129 @@ from metrics import Metrics
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')   # MUST BE SET in global variables
 AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')           # MUST BE SET in global variables
-ORCH_ROLE_BASE_NAME = 'SO0111-SHARR-Orchestrator-Member'               # role to use for cross-account
+ORCH_ROLE_BASE_NAME = 'SO0111-SHARR-Orchestrator-Member'    # role to use for cross-account
 
 # initialise loggers
 LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 
-BOTO_CONFIG = Config(
-    retries={
-        'max_attempts': 10
-    }
-)
+def _get_ssm_client(account, role, region):
+    """
+    Create a client for ssm
+    """
+    sess = BotoSession(
+        account,
+        f'{role}_{region}'
+    )
+    return sess.client('ssm')
+
+class ParameterError(Exception):
+    error = 'Invalid parameter input'
+    def __init__(self, error=''):
+        if error:
+            self.error = error
+        super().__init__(self.error)
+
+    def __str__(self):
+        return f'{self.error}'
+
+class AutomationExecution(object):
+    status = None
+    outputs = {}
+    failure_message = None
+    exec_id = None
+    account = None
+    role_base_name = None
+    region = None
+    _ssm_client = None
+
+    def __init__(self, exec_id, account, role_base_name, region):
+        if not re.match('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', exec_id):
+            raise ParameterError(f'Invalid Automation Execution Id: {exec_id}')
+        self.exec_id = exec_id
+        if not re.match('^[0-9]{12}$', account):
+            raise ParameterError(f'Invalid Value for Account: {account}')
+        self.account = account
+        if not re.match('^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$', region):
+            raise ParameterError(f'Invalid Value for Region: {region}')
+        self.region = region
+        if not re.match('^[a-zA-Z0-9_+=,.@-]{1,64}$', role_base_name):
+            raise ParameterError(f'Invalid Value for Role_Base_Name: {role_base_name}')
+        self.region = region
+        self._ssm_client = _get_ssm_client(self.account, role_base_name, self.region)
+        self.get_execution_state()
+
+    def get_execution_state(self):
+        automation_exec_info = self._ssm_client.describe_automation_executions(
+            Filters=[
+                {
+                    'Key': 'ExecutionId',
+                    'Values': [
+                        self.exec_id
+                    ]
+                }
+            ]
+        )
+
+        self.status = automation_exec_info.get(
+            "AutomationExecutionMetadataList"
+        )[0].get(
+            "AutomationExecutionStatus", 
+            "ERROR"
+        )
+
+        self.outputs = automation_exec_info.get(
+            "AutomationExecutionMetadataList"
+        )[0].get(
+            "Outputs", 
+            {}
+        )
+        
+        if 'Remediation.Output' in self.outputs:
+            if isinstance(self.outputs['Remediation.Output'], list):
+                if len(self.outputs['Remediation.Output']) == 1:
+                    if self.outputs['Remediation.Output'][0] == "No output available yet because the step is not successfully executed":
+                        self.outputs['Remediation.Output'][0] = "See Automation Execution output for details"
+
+        self.failure_message = automation_exec_info.get(
+            "AutomationExecutionMetadataList"
+        )[0].get(
+            "FailureMessage", 
+            ""
+        )
 
 def get_lambda_role(role_base_name, security_standard, aws_region):
     return role_base_name + '-' + security_standard + '_' + aws_region
 
+def valid_automation_doc(automation_doc):
+    return "SecurityStandard" in automation_doc and \
+       "ControlId" in automation_doc and \
+       "AccountId" in automation_doc
+
 def lambda_handler(event, context):
-    # Expected:
-    # {
-    #   Finding: {
-    #       AwsAccountId: <aws account>
-    #   },
-    #   SSMExecution: {
-    #     ExecId: string
-    #   }
-    # }
-    # Returns:
-    # {
-    #   status: { 'UNKNOWN'|'Pending'|'InProgress'|'Waiting'|'Success'|'TimedOut'|'Cancelling'|'Cancelled'|'Failed' },
-    #   message: { '' | string }
-    # {
+    answer = utils.StepFunctionLambdaAnswer()
+    automation_doc = event['AutomationDocument']
+
+    if not valid_automation_doc(automation_doc):
+        answer.update({
+            'status':'ERROR',
+            'message':'Missing AutomationDocument data in request: ' + json.dumps(automation_doc)
+        })
+        LOGGER.error(answer.message)
+        return answer.json()
 
     SSM_EXEC_ID = event['SSMExecution']['ExecId']
 
     metrics_obj = Metrics(
-        event['Metrics'],
         event['EventType']
     )
-
     metrics_data = metrics_obj.get_metrics_from_finding(event['Finding'])
 
-    answer = utils.StepFunctionLambdaAnswer()
-
-    if "SecurityStandard" not in event or \
-       "ControlId" not in event:
-        answer.update({
-            'status':'ERROR',
-            'message':'Missing required data in request'
-        })
-        LOGGER.error(answer.message)
-        return answer.json()
-
-    if "AwsAccountId" not in event['Finding']:
-        answer.update({
-            'status':'ERROR',
-            'message':'Missing AccountId in request'
-        })
-        LOGGER.error(answer.message)
-        return answer.json()
-
-    # Connect to APIs
-    sess = BotoSession(
-        event['Finding']['AwsAccountId'],
-        get_lambda_role(ORCH_ROLE_BASE_NAME, event['SecurityStandard'], AWS_REGION)
-    )
-    ssm = sess.client('ssm')
-
-    # Check status
-    automation_exec_info = ssm.describe_automation_executions(
-        Filters=[
-            {
-                'Key': 'ExecutionId',
-                'Values': [
-                    SSM_EXEC_ID
-                ]
-            }
-        ]
-    )
-
-    ssm_exec_status = automation_exec_info.get("AutomationExecutionMetadataList")[0].get("AutomationExecutionStatus", "ERROR")
+    try:
+        automation_exec_info = AutomationExecution(SSM_EXEC_ID, automation_doc['AccountId'], ORCH_ROLE_BASE_NAME, AWS_REGION)
+    except Exception as e:
+        LOGGER.error(f'Unable to retrieve AutomationExecution data: {str(e)}')
+        raise e
 
     # Terminal states - get log data from AutomationExecutionMetadataList
     #
@@ -123,10 +168,11 @@ def lambda_handler(event, context):
     #       remediation.
     
     def get_execution_log(response_data):
+        logdata = []
         if 'ExecutionLog' in response_data:
-            return response_data['ExecutionLog'].split('\n')
-        else:
-            return []
+            logdata = response_data['ExecutionLog'].split('\n')
+
+        return logdata
 
     def get_affected_object(response_data):
         affected_object_out = 'UNKNOWN'
@@ -160,9 +206,9 @@ def lambda_handler(event, context):
             message = response_data['message']
         return message
 
-    if ssm_exec_status in ('Success', 'TimedOut', 'Cancelled', 'Cancelling', 'Failed'):
+    if automation_exec_info.status in ('Success', 'TimedOut', 'Cancelled', 'Cancelling', 'Failed'):
         remediation_response = {}
-        ssm_outputs = automation_exec_info.get("AutomationExecutionMetadataList")[0].get("Outputs")
+        ssm_outputs = automation_exec_info.outputs
         affected_object = get_affected_object(ssm_outputs)
         remediation_response_raw = None
 
@@ -171,7 +217,7 @@ def lambda_handler(event, context):
         elif 'VerifyRemediation.Output' in ssm_outputs:
             remediation_response_raw = ssm_outputs['VerifyRemediation.Output']
         else:
-            remediation_response_raw = ['']
+            remediation_response_raw = json.dumps(ssm_outputs)
 
         # Remediation.Response is a list, if present. Only the first item should exist. 
         if isinstance(remediation_response_raw, list):
@@ -185,9 +231,9 @@ def lambda_handler(event, context):
         elif isinstance(remediation_response_raw, str):
             remediation_response = { "message": remediation_response_raw}
 
-        status_for_message = ssm_exec_status
-        if ssm_exec_status == 'Success':
-            remediation_status = get_remediation_status(remediation_response, ssm_exec_status)
+        status_for_message = automation_exec_info.status
+        if automation_exec_info.status == 'Success':
+            remediation_status = get_remediation_status(remediation_response, automation_exec_info.status)
             status_for_message = remediation_status
             print(f'Remediation Status: {remediation_status}')
 
@@ -196,11 +242,11 @@ def lambda_handler(event, context):
         remediation_logdata = get_execution_log(remediation_response)
 
         # FailureMessage is only set when the remediation was another SSM doc, not 
-        if "FailureMessage" in automation_exec_info.get("AutomationExecutionMetadataList")[0]:
-            remediation_logdata.append(automation_exec_info.get("AutomationExecutionMetadataList")[0].get('FailureMessage'))
+        if automation_exec_info.failure_message:
+            remediation_logdata.append(automation_exec_info.failure_message)
 
         answer.update({
-            'status': ssm_exec_status,
+            'status': automation_exec_info.status,
             'remediation_status': status_for_message,
             'message': remediation_message,
             'executionid': SSM_EXEC_ID,
@@ -218,7 +264,7 @@ def lambda_handler(event, context):
     else:
 
         answer.update({
-            'status': ssm_exec_status,
+            'status': automation_exec_info.status,
             'remediation_status': 'running',
             'message': 'Waiting for completion',
             'executionid': SSM_EXEC_ID,

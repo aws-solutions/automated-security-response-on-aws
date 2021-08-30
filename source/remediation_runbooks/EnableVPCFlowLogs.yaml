@@ -1,0 +1,60 @@
+description: |
+  ### Document Name - SHARR-EnableVPCFlowLogs
+  ## What does this document do?
+  Enables VPC Flow Logs for a given VPC
+  
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * VPC: VPC Id of the VPC for which logs are to be enabled
+  * RemediationRole: role arn of the role to use for logging
+  * KMSKeyArn: Amazon Resource Name (ARN) of the KMS Customer-Managed Key to use to encrypt the log group
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:   CloudTrail.2
+  * CIS v1.2.0:     2.7
+  * PCI:            CloudTrail.1
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  VPC:
+    type: String
+    allowedPattern: '^vpc-[0-9a-f]{8,17}'
+    description: The VPC ID of the VPC
+  RemediationRole:
+    type: String
+    description: The ARN of the role that will allow VPC Flow Logs to log to CloudWatch logs
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  KMSKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    description: The ARN of the KMS key created by SHARR for remediations requiring encryption
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+
+outputs:
+  - Remediation.Output
+
+mainSteps:
+  - 
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload: 
+        vpc: '{{VPC}}'
+        remediation_role: '{{RemediationRole}}'   
+        kms_key_arn: '{{KMSKeyArn}}'      
+      Runtime: python3.7
+      Handler: enable_flow_logs
+      Script: |-
+        %%SCRIPT=EnableVPCFlowLogs.py%%
+
+    isEnd: true

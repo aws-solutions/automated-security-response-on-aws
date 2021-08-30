@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -18,7 +18,6 @@
 # Required Modules:
 # *******************************************************************
 import os
-import json
 import boto3
 from botocore.config import Config
 
@@ -29,14 +28,19 @@ class AWSCachedClient:
     account = ''
     region = ''
     client = {}
+    solution_id = ''
+    solution_version = 'undefined'
 
     def __init__(self, region):
         """
         Create a Boto3 Client object. Region is used for operations such
         as retrieving account number, and as the default for get_connection.
         """
+        self.solution_id = os.getenv('SOLUTION_ID', 'SO0111')
+        self.solutionVersion = os.getenv('SOLUTION_VERSION', 'undefined')
         self.region = region
         self.boto_config = Config(
+            user_agent_extra=f'AwsSolution/{self.solution_id}/{self.solution_version}',
             retries ={
                 'max_attempts': 10,
                 'mode': 'standard'
@@ -111,7 +115,10 @@ class BotoSession:
             self.role = role
         self.session = None
         self.partition = os.getenv('AWS_PARTITION', partition)
+        self.solution_id = os.getenv('SOLUTION_ID', 'SO0111')
+        self.solution_version = os.getenv('SOLUTION_VERSION', 'undefined')
         self.boto_config = Config(
+            user_agent_extra=f'AwsSolution/{self.solution_id}/{self.solution_version}',
             retries ={
                 'max_attempts': 10,
                 'mode': 'standard'

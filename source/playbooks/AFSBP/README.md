@@ -1,10 +1,26 @@
-# AFSBP Playbook
+# AWS Foundational Security Best Practices v1.0.0 Playbook
 
-aws-security-hub-automated-response-and-remediation solution AWS Foundational Security Best Practices (AFSBP) playbook creates the necessary AWS resources for remediating selected AFSBP findings. See the Implementation Guide for details.
+The AWS Foundational Security Best Practices (AFSBP) playbook is part of the AWS Security Hub Automated Response and Remediation solution. It creates the necessary AWS resources for remediating the following Controls:
 
-Each playbook creates the following AWS resources,
-* Custom Action in AWS Security Hub
-* AWS Lambda Step Function for processing incoming Findings
-* AWS Systems Manager Runbooks for performing remediations
-* AWS CloudWatch Event rule for custom action and automated trigger
-* AWS CloudWatch Log group for each set of AFSBP Control
+* AutoScaling.1
+* CloudTrail.1
+* Config.1
+* CloudTrail.1
+* CloudTrail.2
+* EC2.1
+* EC2.2
+* EC2.6
+* EC2.7
+* IAM.7
+* IAM.8
+* Lambda.1
+* RDS.1
+* RDS.6
+* RDS.7
+* S3.1
+* S3.2
+* S3.3
+  
+See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information on this Playbook.
+
+See [AWS Foundational Security Best Practices controls](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html) for more information on controls and remediations in [AWS Security Hub](https://aws.amazon.com/security-hub)

@@ -1,1 +1,0 @@
-GovCloud and opt-in region support

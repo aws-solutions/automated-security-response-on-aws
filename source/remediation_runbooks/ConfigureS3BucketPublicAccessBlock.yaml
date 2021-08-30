@@ -1,0 +1,139 @@
+description:  |
+  ### Document Name - AWSConfigRemediation-ConfigureS3BucketPublicAccessBlock
+
+  ## What does this document do?
+  This document is used to create or modify the PublicAccessBlock configuration for an Amazon S3 bucket.
+
+  ## Input Parameters
+  * BucketName: (Required) Name of the S3 bucket (not the ARN).
+  * RestrictPublicBuckets: (Optional) Specifies whether Amazon S3 should restrict public bucket policies for this bucket. Setting this element to TRUE restricts access to this bucket to only AWS services and authorized users within this account if the bucket has a public policy.
+    * Default: "true"
+  * BlockPublicAcls: (Optional) Specifies whether Amazon S3 should block public access control lists (ACLs) for this bucket and objects in this bucket.
+    * Default: "true"
+  * IgnorePublicAcls: (Optional) Specifies whether Amazon S3 should ignore public ACLs for this bucket and objects in this bucket. Setting this element to TRUE causes Amazon S3 to ignore all public ACLs on this bucket and objects in this bucket.
+    * Default: "true"
+  * BlockPublicPolicy: (Optional) Specifies whether Amazon S3 should block public bucket policies for this bucket. Setting this element to TRUE causes Amazon S3 to reject calls to PUT Bucket policy if the specified bucket policy allows public access.
+    * Default: "true"
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * GetBucketPublicAccessBlock.Output - JSON formatted response from the GetPublicAccessBlock API call
+  
+  ## Note: this is a local copy of the AWS-owned document to enable support in aws-cn and aws-us-gov partitions.
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+outputs:
+  - GetBucketPublicAccessBlock.Output
+parameters:
+  BucketName:
+    type: String
+    description: (Required) The bucket name (not the ARN).
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+  RestrictPublicBuckets:
+    type: Boolean
+    description: (Optional) Specifies whether Amazon S3 should restrict public bucket policies for this bucket. Setting this element to TRUE restricts access to this bucket to only AWS services and authorized users within this account if the bucket has a public policy.
+    default: true
+    allowedValues:
+      - true
+      - false
+  BlockPublicAcls:
+    type: Boolean
+    description: (Optional) Specifies whether Amazon S3 should block public access control lists (ACLs) for this bucket and objects in this bucket.
+    default: true
+    allowedValues:
+      - true
+      - false
+  IgnorePublicAcls:
+    type: Boolean
+    description: (Optional) Specifies whether Amazon S3 should ignore public ACLs for this bucket and objects in this bucket. Setting this element to TRUE causes Amazon S3 to ignore all public ACLs on this bucket and objects in this bucket.
+    default: true
+    allowedValues:
+      - true
+      - false
+  BlockPublicPolicy:
+    type: Boolean
+    description: (Optional) Specifies whether Amazon S3 should block public bucket policies for this bucket. Setting this element to TRUE causes Amazon S3 to reject calls to PUT Bucket policy if the specified bucket policy allows public access.
+    default: true
+    allowedValues:
+      - true
+      - false
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+
+mainSteps:
+  - name: PutBucketPublicAccessBlock
+    action: "aws:executeAwsApi"
+    description: |
+      ## PutBucketPublicAccessBlock
+      Creates or modifies the PublicAccessBlock configuration for a S3 Bucket.
+    isEnd: false
+    inputs:
+      Service: s3
+      Api: PutPublicAccessBlock
+      Bucket: "{{BucketName}}"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: "{{ RestrictPublicBuckets }}"
+        BlockPublicAcls: "{{ BlockPublicAcls }}"
+        IgnorePublicAcls: "{{ IgnorePublicAcls }}"
+        BlockPublicPolicy: "{{ BlockPublicPolicy }}"
+    isCritical: true
+    maxAttempts: 2
+    timeoutSeconds: 600
+  - name: GetBucketPublicAccessBlock
+    action: "aws:executeScript"
+    description: |
+      ## GetBucketPublicAccessBlock
+      Retrieves the S3 PublicAccessBlock configuration for a S3 Bucket.
+      ## Outputs
+      * Output: JSON formatted response from the GetPublicAccessBlock API call.
+    timeoutSeconds: 600
+    isCritical: true
+    isEnd: true
+    inputs:
+      Runtime: python3.6
+      Handler: validate_s3_bucket_publicaccessblock
+      InputPayload:
+        Bucket: "{{BucketName}}"
+        RestrictPublicBuckets: "{{ RestrictPublicBuckets }}"
+        BlockPublicAcls: "{{ BlockPublicAcls }}"
+        IgnorePublicAcls: "{{ IgnorePublicAcls }}"
+        BlockPublicPolicy: "{{ BlockPublicPolicy }}"
+      Script: |-
+        import boto3
+
+        def validate_s3_bucket_publicaccessblock(event, context):
+          s3_client = boto3.client("s3")
+          bucket = event["Bucket"]
+          restrict_public_buckets = event["RestrictPublicBuckets"]
+          block_public_acls = event["BlockPublicAcls"]
+          ignore_public_acls = event["IgnorePublicAcls"]
+          block_public_policy = event["BlockPublicPolicy"]
+
+          output = s3_client.get_public_access_block(Bucket=bucket)
+          updated_block_acl = output["PublicAccessBlockConfiguration"]["BlockPublicAcls"]
+          updated_ignore_acl = output["PublicAccessBlockConfiguration"]["IgnorePublicAcls"]
+          updated_block_policy = output["PublicAccessBlockConfiguration"]["BlockPublicPolicy"]
+          updated_restrict_buckets = output["PublicAccessBlockConfiguration"]["RestrictPublicBuckets"]
+
+          if updated_block_acl == block_public_acls and updated_ignore_acl == ignore_public_acls \
+          and updated_block_policy == block_public_policy and updated_restrict_buckets == restrict_public_buckets:
+            return {
+              "output":
+                {
+                  "message": "Bucket public access block configuration successfully set.",
+                  "configuration": output["PublicAccessBlockConfiguration"]
+                }
+            }
+          else:
+              info = "CONFIGURATION VALUES DO NOT MATCH WITH PARAMETERS PROVIDED VALUES RestrictPublicBuckets: {}, BlockPublicAcls: {}, IgnorePublicAcls: {}, BlockPublicPolicy: {}".format(
+                        restrict_public_buckets,
+                        block_public_acls,
+                        ignore_public_acls,
+                        block_public_policy
+                      )
+              raise Exception(info)
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap

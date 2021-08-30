@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -17,19 +17,22 @@
 import os
 import json
 import boto3
-import botocore
+from botocore.config import Config
+from botocore.exceptions import ClientError
 import hashlib
 from logger import Logger
 import requests
 from urllib.request import Request, urlopen
 from datetime import datetime
+from metrics import Metrics
+from awsapi_cached_client import AWSCachedClient
 
 # initialise logger
 LOG_LEVEL = os.getenv('log_level', 'info')
 logger_obj = Logger(loglevel=LOG_LEVEL)
 SEND_METRICS = os.environ.get('sendAnonymousMetrics', 'No')
 
-def send(event, context, response_status, response_data, physical_resource_id, logger_obj, reason=None):
+def send_status_to_cfn(event, context, response_status, response_data, physical_resource_id, logger_obj, reason=None):
 
     response_url = event['ResponseURL']
     logger_obj.debug("CFN response URL: " + response_url)
@@ -74,48 +77,29 @@ def send(event, context, response_status, response_data, physical_resource_id, l
         logger_obj.error("send(..) failed executing requests.put(..): " + str(e))
         raise
 
-def send_metrics(data):
-    try:
-        if SEND_METRICS.lower() == 'yes':
-            id = data['Id'][23:]
-            id_as_bytes = str.encode(id)
-            hash_lib = hashlib.sha256()
-            hash_lib.update(id_as_bytes)
-            id = hash_lib.hexdigest()
-            data['Id'] = id
-            usage_data = {
-                'Solution': 'SO0111',
-                'TimeStamp': str(datetime.utcnow().isoformat()),
-                'UUID': id,
-                'Data': data
-            }
-            url = 'https://metrics.awssolutionsbuilder.com/generic'
-            req = Request( url, 
-                        method = 'POST',
-                        data=bytes(json.dumps(usage_data),
-                        encoding='utf-8'),
-                        headers = {'Content-Type': 'application/json'}
-                        )
-            rsp = urlopen(req)
-            rspcode = rsp.getcode()
-            logger_obj.debug(rspcode)
-        return 
-    except Exception as excep:
-        print(excep)
-        return 
-
 def lambda_handler(event, context):
+
+    boto3_session = boto3.session.Session()
+    region = boto3_session.region_name
 
     response_data = {}
     physical_resource_id = ''
+    metrics = Metrics({
+        'detail-type': 'installation'
+    })
+    metrics.get_metrics_from_finding({
+        'GeneratorId': 'createCustomAction lambda',
+        'Title': 'SHARR Installation - Create Custom Action',
+        'ProductArn': 'N/A'
+    })
 
     try:
         properties = event['ResourceProperties']
         logger_obj.debug(json.dumps(properties))
         region = os.environ['AWS_REGION']
         partition = os.getenv('AWS_PARTITION', default='aws') # Set by deployment template
-        client = boto3.client('securityhub', region_name=region)
-        
+        client = AWSCachedClient(region).get_connection('securityhub')
+
         physical_resource_id = 'CustomAction' + properties.get('Id', 'ERROR')
         
         if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
@@ -127,9 +111,12 @@ def lambda_handler(event, context):
                     Id=properties['Id']
                 )
                 response_data['Arn'] = response['ActionTargetArn']
-            except botocore.exceptions.ClientError as error:
+            except ClientError as error:
                 if error.response['Error']['Code'] == 'ResourceConflictException':
                     logger_obj.info('ResourceConflictException: already exists. Continuing')
+                elif error.response['Error']['Code'] == 'InvalidAccessException':
+                    logger_obj.info('InvalidAccessException - Account is not subscribed to AWS Security Hub.')
+                    raise
                 else:
                     logger_obj.error(error)
                     raise
@@ -139,7 +126,7 @@ def lambda_handler(event, context):
                     'Id': event['StackId'],
                     'err_msg': event['RequestType']
                     }
-                send_metrics(metrics_data)
+                metrics.send_metrics(metrics_data)
                 logger_obj.error(e)
                 raise
         elif event['RequestType'] == 'Delete':
@@ -149,9 +136,11 @@ def lambda_handler(event, context):
                 client.delete_action_target(
                     ActionTargetArn=f"arn:{partition}:securityhub:{region}:{account_id}:action/custom/{properties['Id']}"
                 )
-            except botocore.exceptions.ClientError as error:
+            except ClientError as error:
                 if error.response['Error']['Code'] == 'ResourceNotFoundException':
                     logger_obj.info('ResourceNotFoundException - nothing to delete.')
+                elif error.response['Error']['Code'] == 'InvalidAccessException':
+                    logger_obj.info('InvalidAccessException - not subscribed to Security Hub (nothing to delete).')
                 else:
                     logger_obj.error(error)
                     raise
@@ -161,13 +150,13 @@ def lambda_handler(event, context):
                     'Id': event['StackId'],
                     'err_msg': event['RequestType']
                     }
-                send_metrics(metrics_data)
+                metrics.send_metrics(metrics_data)
                 logger_obj.error(e)
                 raise
         else:
             err_msg = 'Invalid RequestType: ' + event['RequestType']
             logger_obj.error(err_msg)
-            send(
+            send_status_to_cfn(
                 event, context,
                 "FAILED",
                 response_data,
@@ -176,7 +165,7 @@ def lambda_handler(event, context):
                 reason=err_msg,
             )
 
-        send(
+        send_status_to_cfn(
             event,
             context,
             "SUCCESS",
@@ -186,9 +175,10 @@ def lambda_handler(event, context):
         )
         metrics_data = {
             'status': 'Success',
+            'message': f'Created custom action {properties["Name"]}',
             'Id': event['StackId']
         }
-        send_metrics(metrics_data)
+        metrics.send_metrics(metrics_data)
         return
 
     except Exception as err:
@@ -200,8 +190,8 @@ def lambda_handler(event, context):
             'Id': event['StackId'],
             'err_msg': 'stack installation failed.'
         }
-        send_metrics(metrics_data)
-        send(
+        metrics.send_metrics(metrics_data)
+        send_status_to_cfn(
             event,
             context,
             "FAILED",

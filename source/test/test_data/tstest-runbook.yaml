@@ -1,0 +1,81 @@
+description: |
+  ### Document Name - SHARR-EnableCloudTrailToCloudWatchLogging
+  ## What does this document do?
+  Creates a CloudWatch logs group for CloudTrail data.
+  
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:   N/A
+  * CIS v1.2.0:     2.4
+  * PCI:            CloudTrail.4
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  TrailName:
+    type: String
+    description: (Required) The name of the CloudTrail.
+    allowedPattern: '^[A-Za-z0-9._-]{3,128}$'
+  CloudWatchLogsRole:
+    type: String
+    description: (Required) The ARN of the role that allows CloudTrail to log to CloudWatch.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+' 
+  LogGroupName:
+    type: String
+    description: (Required) The name of the Log Group for CloudTrail logs.
+    allowedPattern: '^[A-Za-z0-9_-\/.]{1,512}$' 
+outputs:
+  - UpdateTrailToCWLogs.Output
+
+mainSteps:
+  - 
+    name: CreateLogGroup
+    action: 'aws:executeAPI'
+    inputs:
+      Service: logs
+      Api: CreateLogGroup
+      LogGroupName: '{{LogGroupName}}'
+    description: Create the log group
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+  - 
+    name: WaitForCreation
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload:       
+        LogGroup: '{{LogGroupName}}'
+      Runtime: python3.7
+      Handler: wait_for_loggroup
+      Script: |-
+        %%SCRIPT=EnableCloudTrailToCloudWatchLogging_waitforloggroup.py%%
+    outputs:
+      - Name: CloudWatchLogsGroupArn
+        Selector: $.Payload
+        Type: String
+
+    isEnd: false
+
+  - 
+    name: UpdateTrailToCWLogs
+    action: 'aws:executeAPI'
+    inputs:
+      Service: cloudtrail
+      Api: UpdateTrail
+      Name: '{{TrailName}}'
+      CloudWatchLogsGroupArn: '{{WaitForCreation.CloudWatchLogsGroupArn}}'
+      CloudWatchLogsRoleArn: '{{CloudWatchLogsRole}}'
+    description: Enable logging to CloudWatch Logs
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+  

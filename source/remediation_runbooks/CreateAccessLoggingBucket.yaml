@@ -1,0 +1,42 @@
+description: |
+  ### Document Name - SHARR-CreateAccessLoggingBucket
+  
+  ## What does this document do?
+  Creates an S3 bucket for access logging.
+  
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * BucketName: (Required) Name of the bucket to create
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  BucketName:
+    type: String
+    description: (Required) The bucket name (not the ARN).
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+outputs:
+  - CreateAccessLoggingBucket.Output
+
+mainSteps:
+  - 
+    name: CreateAccessLoggingBucket
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload:       
+        BucketName: '{{BucketName}}'
+        AWS_REGION: '{{global:REGION}}'
+      Runtime: python3.7
+      Handler: create_logging_bucket
+      Script: |-
+        %%SCRIPT=CreateAccessLoggingBucket_createloggingbucket.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap
+
+    isEnd: true

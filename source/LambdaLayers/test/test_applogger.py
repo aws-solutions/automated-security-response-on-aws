@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -22,24 +22,32 @@ import os
 from datetime import date
 from botocore.stub import Stubber, ANY
 import pytest
+from pytest_mock import mocker
 from applogger import LogHandler
+from awsapi_cached_client import AWSCachedClient
+
+AWS = AWSCachedClient('us-east-1')
+
+logsclient = AWS.get_connection('logs')
 
 #------------------------------------------------------------------------------
-# 
+#
 #------------------------------------------------------------------------------
 def test_init_default():
 
     applogger = LogHandler('mystream')
     assert applogger.log_group == 'SO0111-SHARR'
-    
+
 #------------------------------------------------------------------------------
-# 
+#
 #------------------------------------------------------------------------------
-def test_create_logstream():
+def test_create_logstream(mocker):
 
     applogger = LogHandler('mystream')
-    stubber = Stubber(applogger._log_client)
-    stubber.add_response(
+    assert applogger.log_group == 'SO0111-SHARR'
+
+    stubbed_logs_client = Stubber(logsclient)
+    stubbed_logs_client.add_response(
         'create_log_stream',
         {},
         {
@@ -47,22 +55,11 @@ def test_create_logstream():
             'logStreamName': 'MYSTREAM-' + str(date.today())
         }
     )
-    stubber.activate()
-    assert applogger.log_group == 'SO0111-SHARR'
-    applogger.add_message('A door is ajar')
-
-#------------------------------------------------------------------------------
-# 
-#------------------------------------------------------------------------------
-def test_add_message():
-
-    applogger = LogHandler('mystream')
-    stubber = Stubber(applogger._log_client)
-    stubber.add_response(
-        'create_log_stream',
-        {},
-    )
-    stubber.add_response(
+    # stubbed_logs_client.add_response(
+    #     'put_log_events',
+    #     {},
+    # )
+    stubbed_logs_client.add_response(
         'put_log_events',
         {
             'nextSequenceToken': 'string',
@@ -79,16 +76,18 @@ def test_add_message():
             'sequenceToken': '0'
         }
     )
-    stubber.activate()
-    assert applogger.log_group == 'SO0111-SHARR'
+    stubbed_logs_client.activate()
+
+    mocker.patch('applogger.get_logs_connection', return_value=logsclient)
+    
     applogger.add_message('A door is ajar')
     assert len(applogger._buffer) == 1
     assert applogger._buffer_size == 40
     applogger.flush()
 
-#------------------------------------------------------------------------------
-# 
-#------------------------------------------------------------------------------
+# #------------------------------------------------------------------------------
+# # 
+# #------------------------------------------------------------------------------
 def test_init_custom():
 
     os.environ['SOLUTION_LOGGROUP'] = 'MY-LOG-GROUP'

@@ -1,0 +1,15 @@
+description: |
+  ### Document Name - SHARR-SECTEST_1.2.3_TEST.1
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - VerifySGRules.Response
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for TEST1 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    

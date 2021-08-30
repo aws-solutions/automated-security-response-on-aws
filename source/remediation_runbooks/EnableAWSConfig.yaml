@@ -1,0 +1,125 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - SHARR-EnableAWSConfig
+
+  ## What does this document do?
+  Enables AWS Config:
+  * Turns on recording for all resources.
+  * Creates an encrypted bucket for Config logging.
+  * Creates a logging bucket for access logs for the config bucket
+  * Creates an SNS topic for Config notifications
+  * Creates a service-linked role
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * KMSKeyArn: KMS Customer-managed key to use for encryption of Config log data and SNS Topic
+  * AWSServiceRoleForConfig: (Optional) The name of the exiting IAM role to use for the Config service. Default: aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig
+  * SNSTopicName: (Required) Name of the SNS Topic to use to post AWS Config messages.
+
+  ## Output Parameters
+  * Remediation.Output: STDOUT and messages from the remediation steps.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+
+  KMSKeyArn:
+    type: String
+    description: The ARN of a KMS key to use for encryption of the SNS Topic and Config bucket
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  AWSServiceRoleForConfig:
+    type: String
+    default: aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig
+    allowedPattern: '^(:?[\w+=,.@-]+/)+[\w+=,.@-]+$'
+  SNSTopicName:
+    type: String
+    allowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$
+outputs:
+  - Remediation.Output
+  
+mainSteps:
+  - 
+    name: CreateTopic
+    action: 'aws:executeScript'
+    outputs:
+      - Name: TopicArn
+        Selector: $.Payload.topic_arn
+        Type: String
+    inputs:
+      InputPayload: 
+        kms_key_arn: '{{KMSKeyArn}}'
+        topic_name: '{{SNSTopicName}}'
+      Runtime: python3.7
+      Handler: create_encrypted_topic
+      Script: |-
+        %%SCRIPT=EnableAWSConfig_createtopic.py%%
+    isEnd: false
+
+  - name: CreateAccessLoggingBucket
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: SHARR-CreateAccessLoggingBucket
+      RuntimeParameters:
+        BucketName: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket_{{global:REGION}}'
+       
+  - name: CreateConfigBucket
+    action: 'aws:executeScript'
+    isEnd: false
+    outputs:
+      - Name: ConfigBucketName
+        Selector: $.Payload.config_bucket
+        Type: String
+    inputs:
+      InputPayload:
+        logging_bucket: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        partition: '{{global:AWS_PARTITION}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+      Runtime: python3.7
+      Handler: create_encrypted_bucket
+      Script: |-
+        %%SCRIPT=EnableAWSConfig_createconfigbucket.py%%
+
+  -
+    name: EnableConfig
+    action: 'aws:executeScript'
+    outputs:
+      - Name: ConfigBucketName
+        Selector: $.Payload.config_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        partition: '{{global:AWS_PARTITION}}'
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
+        aws_service_role: '{{AWSServiceRoleForConfig}}'
+        topic_arn: '{{CreateTopic.TopicArn}}'        
+      Runtime: python3.7
+      Handler: enable_config
+      Script: |-
+        %%SCRIPT=EnableAWSConfig_enableconfig.py%%
+    isEnd: false
+
+  -
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+    inputs:
+      InputPayload:
+        config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
+        logging_bucket: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
+        sns_topic_arn: '{{CreateTopic.TopicArn}}'
+      Runtime: python3.7
+      Handler: process_results
+      Script: |-
+        %%SCRIPT=EnableAWSConfig_summary.py%%
+    isEnd: true

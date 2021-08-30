@@ -1,0 +1,162 @@
+description: |
+  ### Document Name - SHARR-CIS_1.2.0_3.x
+
+  ## What does this document do?
+  Remediates the following CIS findings:
+  
+  3.1 - Creates a log metric filter and alarm for unauthorized API calls
+  3.2 - Creates a log metric filter and alarm for AWS Management Console sign-in without MFA
+  3.3 - Creates a log metric filter and alarm for usage of "root" account
+  3.4 - Creates a log metric filter and alarm for for IAM policy changes
+  3.5 - Creates a log metric filter and alarm for CloudTrail configuration changes
+  3.6 - Creates a log metric filter and alarm for AWS Management Console authentication failures
+  3.7 - Creates a log metric filter and alarm for disabling or scheduled deletion of customer created CMKs
+  3.8 - Creates a log metric filter and alarm for S3 bucket policy changes
+  3.9 - Creates a log metric filter and alarm for AWS Config configuration changes
+  3.10 - Creates a log metric filter and alarm for security group changes
+  3.11 - Creates a log metric filter and alarm for changes to Network Access Control Lists (NACL)
+  3.12 - Creates a log metric filter and alarm for changes to network gateways
+  3.13 - Creates a log metric filter and alarm for route table changes
+  3.14 - Creates a log metric filter and alarm for VPC changes
+
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  
+  ## Output Parameters
+  * Remediation.Output - Output of remediation runbook.
+
+  ## Documentation Links
+  [CIS v1.2.0 3.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.1)
+  [CIS v1.2.0 3.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.2)
+  [CIS v1.2.0 3.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.3)
+  [CIS v1.2.0 3.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.4)
+  [CIS v1.2.0 3.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.5)
+  [CIS v1.2.0 3.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.6)
+  [CIS v1.2.0 3.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.7)
+  [CIS v1.2.0 3.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.8)
+  [CIS v1.2.0 3.9](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.9)
+  [CIS v1.2.0 3.10](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.10)
+  [CIS v1.2.0 3.11](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.11)
+  [CIS v1.2.0 3.12](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.12)
+  [CIS v1.2.0 3.13](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.13)
+  [CIS v1.2.0 3.14](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-3.14)
+
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output 
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for finding
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  LogGroupName:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/Metrics_LogGroupName}}
+    description: The name of the Log group to be used to create filters and metric alarms
+  MetricNamespace:
+    type: String
+    default: 'LogMetrics'
+    description: The name of the metric namespace where the metrics will be logged
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: GroupId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: ControlId
+        Selector: $.Payload.control_id
+        Type: String
+    inputs:
+      InputPayload:
+        parse_id_pattern: ''
+        Finding: '{{Finding}}'
+        expected_control_id: [ '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13','3.14']
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=cis_parse_input.py%%
+    isEnd: false
+
+  - name: GetMetricFilterAndAlarmInputValue
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FilterName
+        Selector: $.Payload.filter_name
+        Type: String
+      - Name: FilterPattern
+        Selector: $.Payload.filter_pattern
+        Type: String
+      - Name: MetricName
+        Selector: $.Payload.metric_name
+        Type: String
+      - Name: MetricValue
+        Selector: $.Payload.metric_value
+        Type: Integer
+      - Name: AlarmName
+        Selector: $.Payload.alarm_name
+        Type: String
+      - Name: AlarmDesc
+        Selector: $.Payload.alarm_desc
+        Type: String
+      - Name: AlarmThreshold
+        Selector: $.Payload.alarm_threshold
+        Type: Integer
+    inputs:
+      InputPayload:
+        ControlId: '{{ParseInput.ControlId}}'
+      Runtime: python3.7
+      Handler: verify
+      Script: |-
+        %%SCRIPT=cis_get_input_values.py%%
+
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: SHARR-CreateLogMetricFilterAndAlarm
+      RuntimeParameters:
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateLogMetricFilterAndAlarm_{{global:REGION}}'
+        FilterName: '{{ GetMetricFilterAndAlarmInputValue.FilterName }}'
+        FilterPattern: '{{ GetMetricFilterAndAlarmInputValue.FilterPattern }}'
+        MetricName: '{{ GetMetricFilterAndAlarmInputValue.MetricName }}'
+        MetricValue: '{{ GetMetricFilterAndAlarmInputValue.MetricValue }}'
+        MetricNamespace: '{{ MetricNamespace }}'
+        AlarmName: '{{ GetMetricFilterAndAlarmInputValue.AlarmName }}'
+        AlarmDesc: '{{ GetMetricFilterAndAlarmInputValue.AlarmDesc }}'
+        AlarmThreshold: '{{ GetMetricFilterAndAlarmInputValue.AlarmThreshold }}'
+        LogGroupName: '{{ LogGroupName }}'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Added metric filter to the log group to monitor unauthorized API calls.'
+        UpdatedBy: 'SHARR-CIS_1.2.0_3.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

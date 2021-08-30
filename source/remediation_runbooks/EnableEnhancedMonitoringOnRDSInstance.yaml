@@ -1,0 +1,155 @@
+schemaVersion: "0.3"
+description: |
+   ### Document Name - AWSConfigRemediation-EnableEnhancedMonitoringOnRDSInstance
+
+   ## What does this document do?
+   This document is used to enable enhanced monitoring on an RDS Instance using the input parameter DB Instance resourceId.
+
+   ## Input Parameters
+   * ResourceId: (Required) Resource ID of the RDS DB Instance.
+   * MonitoringInterval: (Optional)
+      * The interval, in seconds, between points when Enhanced Monitoring metrics are collected for the DB instance.
+      * If MonitoringRoleArn is specified, then you must also set MonitoringInterval to a value other than 0.
+      * Valid Values: 1, 5, 10, 15, 30, 60
+      * Default: 60
+   * MonitoringRoleArn: (Required) The ARN for the IAM role that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs.
+   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+   ## Output Parameters
+   * EnableEnhancedMonitoring.DbInstance - The standard HTTP response from the ModifyDBInstance API.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[a-zA-Z0-9+=,.@_/-]+$
+  ResourceId:
+    type: String
+    description: (Required) Resource ID of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.
+    allowedPattern: "db-[A-Z0-9]{26}"
+  MonitoringInterval:
+    type: Integer
+    description: (Optional) The interval, in seconds, between points when Enhanced Monitoring metrics are collected for the DB instance.
+    default: 60
+    allowedValues:
+      - 1
+      - 5
+      - 10
+      - 15
+      - 30
+      - 60
+  MonitoringRoleArn:
+    type: String
+    description: (Required) The ARN for the IAM role that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[a-zA-Z0-9+=,.@_/-]+$
+outputs:
+  - EnableEnhancedMonitoring.DbInstance
+mainSteps:
+  -
+    name: DescribeDBInstances
+    action: "aws:executeAwsApi"
+    description: |
+      ## DescribeDBInstances
+        Makes describeDBInstances API call using RDS Instance DbiResourceId to get DBInstanceId.
+      ## Outputs
+      * DbInstanceIdentifier: DBInstance Identifier of the RDS Instance.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      Filters:
+        - Name: "dbi-resource-id"
+          Values:
+            - "{{ ResourceId }}"
+    outputs:
+      - Name: DbInstanceIdentifier
+        Selector: $.DBInstances[0].DBInstanceIdentifier
+        Type: String
+  -
+    name: VerifyDBInstanceStatus
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: false
+    description: |
+      ## VerifyDBInstanceStatus
+      Verifies if DB Instance status is available before enabling enhanced monitoring.
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
+      PropertySelector: "$.DBInstances[0].DBInstanceStatus"
+      DesiredValues:
+        - "available"
+  -
+    name: EnableEnhancedMonitoring
+    action: "aws:executeAwsApi"
+    description: |
+      ## EnableEnhancedMonitoring
+        Makes ModifyDBInstance API call to enable Enhanced Monitoring on the RDS Instance
+        using the DBInstanceId from the previous action.
+      ## Outputs
+        * DbInstance: The standard HTTP response from the ModifyDBInstance API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+       Service: rds
+       Api: ModifyDBInstance
+       ApplyImmediately: False
+       DBInstanceIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
+       MonitoringInterval: "{{ MonitoringInterval }}"
+       MonitoringRoleArn: "{{ MonitoringRoleArn }}"
+    outputs:
+      - Name: DbInstance
+        Selector: $
+        Type: StringMap
+  -
+    name: VerifyEnhancedMonitoringEnabled
+    action: "aws:executeScript"
+    description: |
+      ## VerifyEnhancedMonitoringEnabled
+      Checks that the enhanced monitoring is enabled on RDS Instance in the previous step exists.
+      ## Outputs
+      * Output: The standard HTTP response from the ModifyDBInstance API.
+    isEnd: true
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.6
+      Handler: handler
+      InputPayload:
+        MonitoringInterval: "{{ MonitoringInterval }}"
+        DBIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
+      Script: |-
+        import boto3
+        import time
+
+        def handler(event, context):
+            rds_client = boto3.client("rds")
+            db_instance_id = event["DBIdentifier"]
+            monitoring_interval = event["MonitoringInterval"]
+
+            try:
+                rds_waiter = rds_client.get_waiter("db_instance_available")
+                rds_waiter.wait(DBInstanceIdentifier=db_instance_id)
+
+                db_instances = rds_client.describe_db_instances(
+                    DBInstanceIdentifier=db_instance_id)
+
+                for db_instance in db_instances.get("DBInstances", [{}]):
+                    db_monitoring_interval = db_instance.get("MonitoringInterval")
+
+                if db_monitoring_interval == monitoring_interval:
+                    return {
+                              "output": db_instances["ResponseMetadata"]
+                            }
+                else:
+                    info = "VERIFICATION FAILED. RDS INSTANCE MONITORING INTERVAL {} IS NOT ENABLED WITH THE REQUIRED VALUE {}".format(
+                            db_monitoring_interval, monitoring_interval)
+                    raise Exception(info)
+            except Exception as e:
+                raise e
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap

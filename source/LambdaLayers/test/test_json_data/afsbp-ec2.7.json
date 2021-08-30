@@ -1,0 +1,72 @@
+{
+  "version": "0",
+  "id": "1622bd23-7237-fdec-8fb0-a019cccfd3cb",
+  "detail-type": "Security Hub Findings - Imported",
+  "source": "aws.securityhub",
+  "account": "111111111111",
+  "time": "2020-05-27T03:37:40Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.3/finding/6e842abe-6cbf-4bc1-aa55-3b2ae63aabd6"
+  ],
+  "detail": {
+    "findings": [
+      {
+        "SchemaVersion": "2018-10-08",
+        "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.7/finding/0003b335-cf3f-4f93-a025-6b1a7baced06",
+        "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+        "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/EC2.7",
+        "AwsAccountId": "111111111111",
+        "Types": [
+          "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+        ],
+        "FirstObservedAt": "2021-02-17T14:56:09.063Z",
+        "LastObservedAt": "2021-02-17T14:56:11.440Z",
+        "CreatedAt": "2021-02-17T14:56:09.063Z",
+        "UpdatedAt": "2021-02-17T14:56:09.063Z",
+        "Severity": {
+          "Product": 0,
+          "Label": "INFORMATIONAL",
+          "Normalized": 0,
+          "Original": "INFORMATIONAL"
+        },
+        "Title": "EC2.7 EBS default encryption should be enabled",
+        "Description": "This control checks whether Amazon Elastic Block Store (EBS) encryption is enabled by default. The control fails if EBS default encryption is not enabled.",
+        "Remediation": {
+          "Recommendation": {
+            "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+            "Url": "https://docs.aws.amazon.com/console/securityhub/EC2.7/remediation"
+          }
+        },
+        "ProductFields": {
+          "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+          "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+          "ControlId": "EC2.7",
+          "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/EC2.7/remediation",
+          "RelatedAWSResources:0/name": "securityhub-ec2-ebs-encryption-by-default-d60ccae6",
+          "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+          "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/EC2.7",
+          "aws/securityhub/ProductName": "Security Hub",
+          "aws/securityhub/CompanyName": "AWS",
+          "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.7/finding/0003b335-cf3f-4f93-a025-6b1a7baced06"
+        },
+        "Resources": [
+          {
+            "Type": "AwsAccount",
+            "Id": "AWS::::Account:111111111111",
+            "Partition": "aws",
+            "Region": "us-east-1"
+          }
+        ],
+        "Compliance": {
+          "Status": "FAILED"
+        },
+        "WorkflowState": "NEW",
+        "Workflow": {
+          "Status": "NEW"
+        },
+        "RecordState": "ACTIVE"
+      }
+    ]
+  }
+}

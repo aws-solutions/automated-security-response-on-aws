@@ -1,0 +1,67 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - SHARR-EnableAutoScalingGroupELBHealthCheck
+
+  ## What does this document do?
+  This runbook enables health checks for the Amazon EC2 Auto Scaling (Auto Scaling) group you specify using the [UpdateAutoScalingGroup](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_UpdateAutoScalingGroup.html) API.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * AutoScalingGroupARN: (Required) The Amazon Resource Name (ARN) of the auto scaling group that you want to enable health checks on.
+  * HealthCheckGracePeriod: (Optional) The amount of time, in seconds, that Auto Scaling waits before checking the health status of an Amazon Elastic Compute Cloud (Amazon EC2) instance that has come into service.
+  
+  ## Output Parameters
+
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0: Autoscaling.1
+  * CIS v1.2.0:   2.1
+  * PCI:          Autoscaling.1
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+  AutoScalingGroupName:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the auto scaling group that you want to enable health checks on.
+    allowedPattern: ^[\u0020-\uD7FF\uE000-\uFFFD\uD800\uDC00-\uDBFF\uDFFF]{1,255}$
+  HealthCheckGracePeriod:
+    type: Integer
+    description: (Optional) The amount of time, in seconds, that Auto Scaling waits before checking the health status of an Amazon Elastic Compute Cloud (Amazon EC2) instance that has come into service.
+    allowedPattern: ^[0-9]\d*$
+    default: 300
+
+outputs:
+  -  Remediation.Output
+mainSteps:
+  - name: EnableELBHealthCheck
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: autoscaling
+      Api: UpdateAutoScalingGroup
+      AutoScalingGroupName: '{{AutoScalingGroupName}}'
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: '{{HealthCheckGracePeriod}}'
+    description: Enable ELB health check type on ASG
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+
+  - name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        AsgName: '{{AutoScalingGroupName}}'
+      Runtime: python3.7
+      Handler: verify
+      Script: |-
+        %%SCRIPT=EnableAutoScalingGroupELBHealthCheck_validate.py%%

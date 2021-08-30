@@ -1,0 +1,53 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - SHARR-MakeRDSSnapshotPrivate
+
+  ## What does this document do?
+  This runbook removes public access to an RDS Snapshot
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * DBSnapshotId: identifier of the public snapshot
+  * DBSnapshotType: snapshot or cluster-snapshot
+
+  ## Output Parameters
+
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0: RDS.1
+  * CIS v1.2.0:   n/a
+  * PCI:          RDS.1
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  DBSnapshotId: 
+    type: String
+    allowedPattern: ^[a-zA-Z](?:[0-9a-zA-Z]+[-]{1})*[0-9a-zA-Z]{1,}$
+  DBSnapshotType: 
+    type: String
+    allowedValues:
+    - cluster-snapshot
+    - snapshot
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+
+outputs:
+  -  MakeRDSSnapshotPrivate.Output
+mainSteps:
+  - name: MakeRDSSnapshotPrivate
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        DBSnapshotType: '{{DBSnapshotType}}'
+        DBSnapshotId: '{{DBSnapshotId}}'
+      Runtime: python3.7
+      Handler: make_snapshot_private
+      Script: |-
+        %%SCRIPT=MakeRDSSnapshotPrivate.py%%

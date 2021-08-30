@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -18,10 +18,8 @@ import json
 from json.decoder import JSONDecodeError
 import boto3
 import os
-from botocore.config import Config
 import sechub_findings
 from logger import Logger
-from applogger import LogHandler
 from metrics import Metrics
 
 # Get AWS region from Lambda environment. If not present then we're not
@@ -33,11 +31,6 @@ AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')           # MUST BE SET in glo
 LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 
-BOTO_CONFIG = Config(
-    retries={
-        'max_attempts': 10
-    }
-)
 def format_details_for_output(details):
     """Handle various possible formats in the details"""
     details_formatted = []
@@ -45,7 +38,7 @@ def format_details_for_output(details):
         details_formatted = details
     elif isinstance(details, str) and details[0:6] == "Cause:":
         try:
-            details_formatted = json.loads(details[7:]).split("\n")
+            details_formatted = json.dumps(json.loads(details[7:]), indent=2).split('\n')
         except JSONDecodeError:
             details_formatted.append(details[7:])
     elif isinstance(details, str):
@@ -76,7 +69,7 @@ def lambda_handler(event, context):
         message_prefix += ': '
     message_suffix = event['Notification'].get('AffectedObject', '')
     if message_suffix:
-        message_suffix = ': ' + message_suffix
+        message_suffix = f' ({message_suffix})'
 
     # Get finding status
     finding_status = 'FAILED' # default state
@@ -89,34 +82,38 @@ def lambda_handler(event, context):
 
     # Send anonymous metrics
     if 'EventType' in event and 'Finding' in event:
-        metrics = Metrics(event['Metrics'],event['EventType'])
+        metrics = Metrics(event['EventType'])
         metrics_data = metrics.get_metrics_from_finding(event['Finding'])
         metrics_data['status'] = finding_status
         metrics.send_metrics(metrics_data)
 
     if event['Notification']['State'].upper() == 'SUCCESS':
         notification = sechub_findings.SHARRNotification(
-            event.get('SecurityStandard', 'APP'),
-            event.get('ControlId', None),
-            'ORCHESTRATOR'
+            event.get('SecurityStandard', 'SHARR'),
+            AWS_REGION,
+            event.get('ControlId', None)
         )
         notification.severity = 'INFO'
         notification.send_to_sns = True
 
     elif event['Notification']['State'].upper() == 'WRONGSTANDARD':
-        notification = sechub_findings.SHARRNotification('APP', None, 'ORCHESTRATOR')
+        notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
+        notification.severity = 'ERROR'
+        
+    elif event['Notification']['State'].upper() == 'LAMBDAERROR':
+        notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
         notification.severity = 'ERROR'
 
     else:
         notification = sechub_findings.SHARRNotification(
-            event.get('SecurityStandard', 'APP'),
-            event.get('ControlId', None),
-            'ORCHESTRATOR'
+            event.get('SecurityStandard', 'SHARR'),
+            AWS_REGION,
+            event.get('ControlId', None)
         )
         notification.severity = 'ERROR'
         if finding:
             finding.flag(event['Notification']['Message'])
-
+ 
     notification.message = message_prefix + event['Notification']['Message'] + message_suffix
     if 'Details' in event['Notification'] and event['Notification']['Details'] != 'MISSING':
         notification.logdata = format_details_for_output(event['Notification']['Details'])

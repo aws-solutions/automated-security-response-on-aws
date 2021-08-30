@@ -13,7 +13,9 @@ function getTestStack(): cdk.Stack {
     solutionDistBucket: 'solutions',
     solutionTMN: 'aws-security-hub-automated-response-and-remediation',
     solutionName: 'AWS Security Hub Automated Response & Remediation',
-    runtimePython: lambda.Runtime.PYTHON_3_8
+    runtimePython: lambda.Runtime.PYTHON_3_8,
+    orchLogGroup: 'ORCH_LOG_GROUP'
+
   })
   return stack;
 }

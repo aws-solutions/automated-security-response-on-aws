@@ -1,0 +1,61 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableCloudTrailLogFileValidation
+
+  ## What does this document do?
+  This runbook enables log file validation for your AWS CloudTrail trail using the [UpdateTrail](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_UpdateTrail.html) API.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * TrailName: (Required) The name or Amazon Resource Name (ARN) of the trail you want to enable log file validation for.
+
+  ## Output Parameters
+  * UpdateTrail.Output: The response of the UpdateTrail API call.
+
+  ## Note: this is a local copy of the AWS-owned document to enable support in aws-cn and aws-us-gov partitions.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+
+  TrailName:
+    type: String
+    description: (Required) The name or Amazon Resource Name (ARN) of the trail you want to enable log file validation for.
+    allowedPattern: (^arn:(aws[a-zA-Z-]*)?:cloudtrail:[a-z0-9-]+:\d{12}:trail\/(?![-_.])(?!.*[-_.]{2})(?!.*[-_.]$)(?!^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$)[-\w.]{3,128}$)|(^(?![-_.])(?!.*[-_.]{2})(?!.*[-_.]$)(?!^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$)[-\w.]{3,128}$)
+outputs:
+  - UpdateTrail.Output
+mainSteps:
+  - name: UpdateTrail
+    action: aws:executeAwsApi
+    description: |
+      ## UpdateTrail
+      Enables log file validation for the AWS CloudTrail trail you specify in the TrailName parameter.
+      ## Outputs
+      * Output: Response from the UpdateTrail API call.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: cloudtrail
+      Api: UpdateTrail
+      Name: "{{ TrailName }}"
+      EnableLogFileValidation: True
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+  - name: VerifyTrail
+    action: aws:assertAwsResourceProperty
+    description: |
+      ## VerifyTrail
+      Verifies log file validation is enabled for your trail.
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Service: cloudtrail
+      Api: GetTrail
+      Name: "{{ TrailName }}"
+      PropertySelector: $.Trail.LogFileValidationEnabled
+      DesiredValues:
+        - "True"

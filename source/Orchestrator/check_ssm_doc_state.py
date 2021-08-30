@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -21,47 +21,35 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 from logger import Logger
 from awsapi_cached_client import BotoSession
+from sechub_findings import Finding
 import utils
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')   # MUST BE SET in global variables
 AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')           # MUST BE SET in global variables
-ORCH_ROLE_BASE_NAME = 'SO0111-SHARR-Orchestrator-Member'               # role to use for cross-account
+ORCH_ROLE_BASE_NAME = 'SO0111-SHARR-Orchestrator-Member'    # role to use for cross-account
 
 # initialise loggers
 LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 
-BOTO_CONFIG = Config(
-    retries={
-        'max_attempts': 10
-    }
-)
-
-def get_lambda_role(role_base_name, security_standard, aws_region):
-    return role_base_name + '-' + security_standard + '_' + aws_region
+def _get_ssm_client(account, role, region):
+    """
+    Create a client for ssm
+    """
+    sess = BotoSession(
+        account,
+        f'{role}_{region}'
+    )
+    return sess.client('ssm')
 
 def lambda_handler(event, context):
-    # Expected:
-    # {
-    #   Finding: {
-    #       AwsAccountId: <aws account>
-    #   },
-    #   AutomationDocId: <name>
-    # }
-    # Returns:
-    # {
-    #   status: { 'UNKNOWN' | string },
-    #   message: { '' | string }
-    # }
 
     answer = utils.StepFunctionLambdaAnswer()
-
     LOGGER.info(event)
-
-    if "SecurityStandard" not in event or \
-       "ControlId" not in event:
+    if "Finding" not in event or \
+       "EventType" not in event:
         answer.update({
             'status':'ERROR',
             'message':'Missing required data in request'
@@ -69,36 +57,49 @@ def lambda_handler(event, context):
         LOGGER.error(answer.message)
         return answer.json()
 
-    if "AwsAccountId" not in event['Finding']:
+    finding = Finding(event['Finding'])
+
+    answer.update({
+        'securitystandard': finding.standard_shortname,
+        'securitystandardversion': finding.standard_version,
+        'controlid': finding.standard_control,
+        'standardsupported': finding.standard_version_supported, # string True/False
+        'accountid': finding.account_id
+    })  
+
+    if finding.standard_version_supported != 'True':
         answer.update({
-            'status':'ERROR',
-            'message':'Missing AccountId in request Finding data'
+            'status':'NOTENABLED',
+            'message':f'Security Standard is not enabled": "{finding.standard_name} version {finding.standard_version}"'
         })
-        LOGGER.error(answer.message)
         return answer.json()
 
     # Connect to APIs
 
-    sess = BotoSession(
-        event["Finding"]["AwsAccountId"], 
-        get_lambda_role(ORCH_ROLE_BASE_NAME, event['SecurityStandard'], AWS_REGION)
-    )
-    ssm = sess.client('ssm')
+    ssm = _get_ssm_client(finding.account_id, ORCH_ROLE_BASE_NAME, AWS_REGION)
+    
+    automation_docid = f'SHARR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
+    remediation_role = f'SO0111-Remediate-{finding.standard_shortname}-{finding.standard_version}-{finding.remediation_control}'
+    
+    answer.update({
+        'automationdocid': automation_docid,
+        'remediationrole': remediation_role
+        })
 
     # Validate input
     try:
         docinfo = ssm.describe_document(
-            Name=event["AutomationDocId"]
-        ).get("Document")
+            Name=automation_docid
+            )['Document']
 
         doctype = docinfo.get('DocumentType', 'unknown')
+
         if doctype != "Automation":
             answer.update({
                 'status':'ERROR',
                 'message':'Document Type is not "Automation": ' + str(doctype)
             })
             LOGGER.error(answer.message)
-            return answer.json()
 
         docstate = docinfo.get('Status', 'unknown')
         if docstate != "Active":
@@ -107,30 +108,25 @@ def lambda_handler(event, context):
                 'message':'Document Status is not "Active": ' + str(docstate)
             })
             LOGGER.error(answer.message)
-            return answer.json()
 
         answer.update({
             'status':'ACTIVE'
         })
-        return answer.json()
 
     except ClientError as ex:
         exception_type = ex.response['Error']['Code']
-        # stream did exist but need new token, get it from exception data
         if exception_type in "InvalidDocument":
             answer.update({
                 'status':'NOTFOUND',
-                'message':'Document ' + event["AutomationDocId"] + ' does not exist.'
+                'message': f'Document {automation_docid} does not exist.'
             })
             LOGGER.error(answer.message)
-            return json.dumps(answer)
         else:
             answer.update({
                 'status':'CLIENTERROR',
                 'message':'An unhandled client error occurred: ' + exception_type
             })
             LOGGER.error(answer.message)
-            return answer.json()
 
     except Exception as e:
         answer.update({
@@ -138,4 +134,5 @@ def lambda_handler(event, context):
             'message':'An unhandled error occurred: ' + str(e)
         })
         LOGGER.error(answer.message)
-        return answer.json()
+    
+    return answer.json()

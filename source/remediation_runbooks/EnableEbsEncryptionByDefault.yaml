@@ -1,0 +1,55 @@
+schemaVersion: "0.3"
+description: |
+   ### Document Name - AWSConfigRemediation-EnableEbsEncryptionByDefault
+
+   ## What does this document do?
+   This document enables EBS encryption by default for an AWS account in the current region using the [EnableEbsEncryptionByDefault](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_EnableEbsEncryptionByDefault.html) API.
+
+   ## Input Parameters
+   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+   ## Output Parameters
+   * ModifyAccount.EnableEbsEncryptionByDefaultResponse: JSON formatted response from the EnableEbsEncryptionByDefault API.
+
+  ## Note: this is a local copy of the AWS-owned document to enable support in aws-cn and aws-us-gov partitions.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
+outputs:
+  - ModifyAccount.EnableEbsEncryptionByDefaultResponse
+mainSteps:
+  -
+    name: ModifyAccount
+    action: "aws:executeAwsApi"
+    description: |
+      ## ModifyAccount
+      Enables EBS encryption by default for the account in the current region.
+      ## Outputs
+      * EnableEbsEncryptionByDefaultResponse: Response from the EnableEbsEncryptionByDefault API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: ec2
+      Api: EnableEbsEncryptionByDefault
+    outputs:
+      - Name: EnableEbsEncryptionByDefaultResponse
+        Selector: $
+        Type: StringMap
+  -
+    name: VerifyEbsEncryptionByDefault
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## VerifyEbsEncryptionByDefault
+      Checks if EbsEncryptionByDefault is enabled correctly from the previous step.
+    inputs:
+      Service: ec2
+      Api: GetEbsEncryptionByDefault
+      PropertySelector: "$.EbsEncryptionByDefault"
+      DesiredValues:
+        - "True"

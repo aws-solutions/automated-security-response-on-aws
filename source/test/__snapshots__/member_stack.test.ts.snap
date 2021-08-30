@@ -1,0 +1,413 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`default stack 1`] = `
+Object {
+  "Description": "test;",
+  "Mappings": Object {
+    "SourceCode": Object {
+      "General": Object {
+        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.1.1",
+        "S3Bucket": "sharrbukkit",
+      },
+    },
+  },
+  "Metadata": Object {
+    "AWS::CloudFormation::Interface": Object {
+      "ParameterGroups": Array [
+        Object {
+          "Label": Object {
+            "default": "LogGroup Configuration",
+          },
+          "Parameters": Array [
+            "LogGroupName",
+          ],
+        },
+      ],
+      "ParameterLabels": Object {
+        "LogGroupName": Object {
+          "default": "Provide the name of the LogGroup to be used to create Metric Filters and Alarms",
+        },
+      },
+    },
+  },
+  "Parameters": Object {
+    "LogGroupName": Object {
+      "Description": "Name of the log group to be used to create metric filters and cloudwatch alarms",
+      "Type": "String",
+    },
+    "SecHubAdminAccount": Object {
+      "AllowedPattern": "\\\\d{12}",
+      "Description": "Admin account number",
+      "Type": "String",
+    },
+  },
+  "Resources": Object {
+    "OrchestratorMemberRoleMemberAccountRoleBE9AD9D5": Object {
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W11",
+              "reason": "Resource * is required due to the administrative nature of the solution.",
+            },
+            Object {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "AWS": Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      Object {
+                        "Ref": "SecHubAdminAccount",
+                      },
+                      ":role/SO0111-SHARR-Orchestrator-Admin_",
+                      Object {
+                        "Ref": "AWS::Region",
+                      },
+                    ],
+                  ],
+                },
+                "Service": "ssm.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": Array [
+          Object {
+            "PolicyDocument": Object {
+              "Statement": Array [
+                Object {
+                  "Action": Array [
+                    "iam:PassRole",
+                    "iam:GetRole",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":role/SO0111-*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "ssm:DescribeAutomationExecutions",
+                    "ssm:DescribeDocument",
+                    "ssm:GetParameters",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ":*:*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "ssm:StartAutomationExecution",
+                    "ssm:GetAutomationExecution",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":document/SHARR-*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":automation-definition/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          "::automation-definition/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:",
+                          Object {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":automation-execution/*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "member_orchestrator",
+          },
+        ],
+        "RoleName": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "SO0111-SHARR-Orchestrator-Member_",
+              Object {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "OrchestratorMemberRoleSHARRKeyAliasAF329C03": Object {
+      "Properties": Object {
+        "Description": "KMS Customer Managed Key that will encrypt data for remediations",
+        "Name": "/Solutions/SO0111/CMK_REMEDIATION_ARN",
+        "Type": "String",
+        "Value": Object {
+          "Fn::GetAtt": Array [
+            "OrchestratorMemberRoleSHARRRemediationKey8F55D497",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "OrchestratorMemberRoleSHARRRemediationKey8F55D497": Object {
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "EnableKeyRotation": true,
+        "KeyPolicy": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "kms:GenerateDataKey",
+                "kms:GenerateDataKeyPair",
+                "kms:GenerateDataKeyPairWithoutPlaintext",
+                "kms:GenerateDataKeyWithoutPlaintext",
+                "kms:Decrypt",
+                "kms:Encrypt",
+                "kms:ReEncryptFrom",
+                "kms:ReEncryptTo",
+                "kms:DescribeKey",
+                "kms:DescribeCustomKeyStores",
+              ],
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": Array [
+                  "sns.amazonaws.com",
+                  "s3.amazonaws.com",
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "logs.",
+                        Object {
+                          "Ref": "AWS::Region",
+                        },
+                        ".",
+                        Object {
+                          "Ref": "AWS::URLSuffix",
+                        },
+                      ],
+                    ],
+                  },
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "cloudtrail.",
+                        Object {
+                          "Ref": "AWS::URLSuffix",
+                        },
+                      ],
+                    ],
+                  },
+                ],
+              },
+              "Resource": "*",
+            },
+            Object {
+              "Action": "kms:*",
+              "Effect": "Allow",
+              "Principal": Object {
+                "AWS": Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      Object {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::KMS::Key",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "OrchestratorMemberRoleSHARRRemediationKeyAlias3BD00A05": Object {
+      "Properties": Object {
+        "AliasName": "alias/SO0111-SHARR-Remediation-Key",
+        "TargetKeyId": Object {
+          "Fn::GetAtt": Array [
+            "OrchestratorMemberRoleSHARRRemediationKey8F55D497",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::KMS::Alias",
+    },
+    "RunbookStack": Object {
+      "Properties": Object {
+        "Parameters": Object {
+          "SecHubAdminAccount": Object {
+            "Ref": "SecHubAdminAccount",
+          },
+        },
+        "TemplateURL": Object {
+          "Fn::Join": Array [
+            "",
+            Array [
+              "https://",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              Object {
+                "Fn::FindInMap": Array [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/aws-sharr-remediations.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "SSMParameterLogGroupName47918519": Object {
+      "Properties": Object {
+        "Description": "Parameter to store log group name",
+        "Name": "/Solutions/SO0111/Metrics_LogGroupName",
+        "Type": "String",
+        "Value": Object {
+          "Ref": "LogGroupName",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+  },
+}
+`;

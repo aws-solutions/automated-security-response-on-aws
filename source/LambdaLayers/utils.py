@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -22,12 +22,20 @@ class StepFunctionLambdaAnswer:
     """
     Maintains a hash of AWS API Client connections by region and service
     """
-    status = ''
+    status = 'init'
     message = ''
     executionid = ''
     affected_object = ''
     remediation_status = ''
     logdata = []
+    securitystandard = ''
+    securitystandardversion = ''
+    standardsupported = ''
+    controlid = ''
+    accountid = ''
+    automationdocid = ''
+    remediationrole = ''
+    eventtype = ''
 
     def __init__(self):
         """Set message and status - minimum required fields"""
@@ -66,6 +74,38 @@ class StepFunctionLambdaAnswer:
         """Set execution id (string)"""
         self.remediation_status = status
 
+    def update_securitystandard(self, value):
+        """Set securitystandard (string)"""
+        self.securitystandard = value
+
+    def update_securitystandardversion(self, value):
+        """Set securitystandardversion (string)"""
+        self.securitystandardversion = value
+
+    def update_standardsupported(self, value):
+        """Set standardsupported (string)"""
+        self.standardsupported = value
+        
+    def update_controlid(self, value):
+        """Set controlid (string)"""
+        self.controlid = value
+
+    def update_accountid(self, value):
+        """Set accountid (string)"""
+        self.accountid = value
+
+    def update_automationdocid(self, value):
+        """Set automationdocid (string)"""
+        self.automationdocid = value
+
+    def update_remediationrole(self, value):
+        """Set remediationrole (string)"""
+        self.remediationrole = value
+
+    def update_eventtype(self, value):
+        """Set eventtype (string)"""
+        self.eventtype = value
+
     def update(self, answer_data):
         if "status" in answer_data:
             self.update_status(answer_data['status'])
@@ -79,6 +119,22 @@ class StepFunctionLambdaAnswer:
             self.update_executionid(answer_data['executionid'])
         if "affected_object" in answer_data:
             self.update_affected_object(answer_data['affected_object'])
+        if "securitystandard" in answer_data:
+            self.update_securitystandard(answer_data['securitystandard'])
+        if "securitystandardversion" in answer_data:
+            self.update_securitystandardversion(answer_data['securitystandardversion'])
+        if "standardsupported" in answer_data:
+            self.update_standardsupported(answer_data['standardsupported'])
+        if "controlid" in answer_data:
+            self.update_controlid(answer_data['controlid'])
+        if "accountid" in answer_data:
+            self.update_accountid(answer_data['accountid'])
+        if "automationdocid" in answer_data:
+            self.update_automationdocid(answer_data['automationdocid'])
+        if "remediationrole" in answer_data:
+            self.update_remediationrole(answer_data['remediationrole'])
+        if "eventtype" in answer_data:
+            self.update_eventtype(answer_data['eventtype'])
 
 def resource_from_arn(arn):
     """

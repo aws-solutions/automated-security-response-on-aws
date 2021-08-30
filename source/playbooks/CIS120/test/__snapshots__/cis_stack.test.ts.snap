@@ -1,0 +1,1104 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`default stack 1`] = `
+Object {
+  "Description": "test;",
+  "Mappings": Object {
+    "SourceCode": Object {
+      "General": Object {
+        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.1.1",
+        "S3Bucket": "sharrbukkit",
+      },
+    },
+  },
+  "Parameters": Object {
+    "CIS11AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 1.1",
+      "Type": "String",
+    },
+    "CIS12AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 1.2",
+      "Type": "String",
+    },
+    "CIS13AutoTrigger": Object {
+      "AllowedValues": Array [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 1.3",
+      "Type": "String",
+    },
+    "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter": Object {
+      "Default": "/Solutions/SO0111/OrchestratorArn",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": Object {
+    "CIS11AutoEventRule5178D649": Object {
+      "Properties": Object {
+        "Description": "Remediate CIS 1.1 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "GeneratorId": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.1",
+                    ],
+                  ],
+                },
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS_1.1_AutoTrigger",
+        "State": Object {
+          "Ref": "CIS11AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "CIS11EventsRuleRoleB8D228E0",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CIS11EventsRuleRoleB8D228E0": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CIS11EventsRuleRoleDefaultPolicy66E09676": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CIS11EventsRuleRoleDefaultPolicy66E09676",
+        "Roles": Array [
+          Object {
+            "Ref": "CIS11EventsRuleRoleB8D228E0",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CIS12AutoEventRuleD40B64BC": Object {
+      "Properties": Object {
+        "Description": "Remediate CIS 1.2 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "GeneratorId": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.2",
+                    ],
+                  ],
+                },
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS_1.2_AutoTrigger",
+        "State": Object {
+          "Ref": "CIS12AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "CIS12EventsRuleRoleA8389A61",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CIS12EventsRuleRoleA8389A61": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CIS12EventsRuleRoleDefaultPolicyA48EF9DD": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CIS12EventsRuleRoleDefaultPolicyA48EF9DD",
+        "Roles": Array [
+          Object {
+            "Ref": "CIS12EventsRuleRoleA8389A61",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CIS13AutoEventRuleC6C84C81": Object {
+      "Properties": Object {
+        "Description": "Remediate CIS 1.3 automatic remediation trigger event rule.",
+        "EventPattern": Object {
+          "detail": Object {
+            "findings": Object {
+              "Compliance": Object {
+                "Status": Array [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "GeneratorId": Array [
+                Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
+                    ],
+                  ],
+                },
+              ],
+              "Workflow": Object {
+                "Status": Array [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": Array [
+            "Security Hub Findings - Imported",
+          ],
+          "source": Array [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS_1.3_AutoTrigger",
+        "State": Object {
+          "Ref": "CIS13AutoTrigger",
+        },
+        "Targets": Array [
+          Object {
+            "Arn": Object {
+              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "Id": "Target0",
+            "RoleArn": Object {
+              "Fn::GetAtt": Array [
+                "CIS13EventsRuleRoleFEBE574F",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CIS13EventsRuleRoleDefaultPolicy2E3E119B": Object {
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": Object {
+                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CIS13EventsRuleRoleDefaultPolicy2E3E119B",
+        "Roles": Array [
+          Object {
+            "Ref": "CIS13EventsRuleRoleFEBE574F",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CIS13EventsRuleRoleFEBE574F": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "StandardShortName7DDF6BE6": Object {
+      "Properties": Object {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+        "Type": "String",
+        "Value": "CIS",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "StandardVersionCB2C6951": Object {
+      "Properties": Object {
+        "Description": "This parameter controls whether the SHARR step function will process findings for this version of the standard.",
+        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/status",
+        "Type": "String",
+        "Value": "enabled",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+  },
+}
+`;
+
+exports[`default stack 2`] = `
+Object {
+  "Conditions": Object {
+    "CIS13Enable13Condition31A4889D": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "CIS13Active",
+        },
+        "Available",
+      ],
+    },
+    "CIS15Enable15ConditionB99E94E1": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "CIS15Active",
+        },
+        "Available",
+      ],
+    },
+    "CIS21Enable21ConditionBEEACA68": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "CIS21Active",
+        },
+        "Available",
+      ],
+    },
+  },
+  "Description": "test;",
+  "Parameters": Object {
+    "CIS13Active": Object {
+      "AllowedValues": Array [
+        "Available",
+        "NOT Available",
+      ],
+      "Default": "Available",
+      "Description": "Enable/disable availability of remediation for CIS version 1.2.0 Control 1.3 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "CIS15Active": Object {
+      "AllowedValues": Array [
+        "Available",
+        "NOT Available",
+      ],
+      "Default": "Available",
+      "Description": "Enable/disable availability of remediation for CIS version 1.2.0 Control 1.5 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "CIS21Active": Object {
+      "AllowedValues": Array [
+        "Available",
+        "NOT Available",
+      ],
+      "Default": "Available",
+      "Description": "Enable/disable availability of remediation for CIS version 1.2.0 Control 2.1 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "SecHubAdminAccount": Object {
+      "AllowedPattern": "\\\\d{12}",
+      "Description": "Admin account number",
+      "Type": "String",
+    },
+  },
+  "Resources": Object {
+    "CIS13AutomationDocumentBF2E2E96": Object {
+      "Condition": "CIS13Enable13Condition31A4889D",
+      "Properties": Object {
+        "Content": Object {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - SHARR-CIS_1.2.0_1.3
+
+## What does this document do?
+This document ensures that credentials unused for 90 days or greater are disabled.
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* Remediation.Output - Output of DescribeAutoScalingGroups API.
+
+## Documentation Links
+* [CIS v1.2.0 1.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.3)
+",
+          "mainSteps": Array [
+            Object {
+              "action": "aws:executeScript",
+              "inputs": Object {
+                "Handler": "parse_event",
+                "InputPayload": Object {
+                  "Finding": "{{Finding}}",
+                  "expected_control_id": "1.3",
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):iam::\\\\d{12}:user/([A-Za-z0-9=,.@\\\\_\\\\-+]{1,64})$",
+                },
+                "Runtime": "python3.7",
+                "Script": "import re
+
+def get_value_by_path(finding, path):
+    path_levels = path.split('.')
+    previous_level = finding
+    for level in path_levels:
+        this_level = previous_level.get(level)
+        previous_level = this_level
+    return this_level
+
+def parse_event(event, context):
+    expected_control_id = event['expected_control_id']
+    parse_id_pattern = event['parse_id_pattern']
+    resource_id_matches = []
+
+    finding = event['Finding']
+
+    testmode = False
+    if 'testmode' in finding:
+        testmode = True
+
+    finding_id = finding['Id']
+    control_id = ''
+    # Finding Id present and valid
+    check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\\\\\d):\\\\\\\\d{12}:subscription/cis-aws-foundations-benchmark/v/1\\\\\\\\.2\\\\\\\\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+
+    if not check_finding_id:
+        exit(f'ERROR: Finding Id is invalid: {finding_id}')
+    else:
+        control_id = check_finding_id.group(1)
+
+    account_id = finding['AwsAccountId']
+    if not re.match('^\\\\\\\\d{12}$', account_id):
+        exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+    # ControlId present and valid
+    if not control_id:
+        exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+    # ControlId is the expected value
+    if control_id not in expected_control_id:
+        exit(f'ERROR: Control Id from input ({control_id}) does not match {str(expected_control_id)}')
+
+    # ProductArn present and valid
+    product_arn = finding['ProductArn']
+    if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\\\\\d)::product/aws/securityhub$', product_arn):
+        exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+    # ResourceType
+    resource_type = finding['Resources'][0]['Type']
+
+    details = {}
+    # Details
+    if 'Details' in finding['Resources'][0]:
+        details = finding['Resources'][0]['Details']
+
+    # Regex match Id to get remediation-specific identifier
+    identifier_raw = finding['Resources'][0]['Id']
+
+    if parse_id_pattern:
+        identifier_match = re.match(
+            parse_id_pattern,
+            identifier_raw
+        )
+
+        if not identifier_match:
+            exit(f'ERROR: Invalid resource Id {identifier_raw}')
+        else:
+            for group in range(1, len(identifier_match.groups())+1):
+                resource_id_matches.append(identifier_match.group(group))
+            if 'resource_index' in event:
+                resource_id = identifier_match.group(event['resource_index'])
+            else:
+                resource_id = identifier_match.group(1)
+    else:
+        resource_id = identifier_raw
+
+    if not resource_id:
+        exit('ERROR: Resource Id is missing from the finding json Resources (Id)')
+
+    affected_object = {'Type': resource_type, 'Id': resource_id, 'OutputKey': 'Remediation.Output'}
+    return {
+        \\"account_id\\": account_id,
+        \\"resource_id\\": resource_id, 
+        \\"finding_id\\": finding_id, 
+        \\"control_id\\": control_id,
+        \\"product_arn\\": product_arn, 
+        \\"object\\": affected_object,
+        \\"matches\\": resource_id_matches,
+        \\"details\\": details,
+        \\"testmode\\": testmode
+    }",
+              },
+              "isEnd": false,
+              "name": "ParseInput",
+              "outputs": Array [
+                Object {
+                  "Name": "IAMUser",
+                  "Selector": "$.Payload.resource_id",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "FindingId",
+                  "Selector": "$.Payload.finding_id",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "ProductArn",
+                  "Selector": "$.Payload.product_arn",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "AffectedObject",
+                  "Selector": "$.Payload.object",
+                  "Type": "StringMap",
+                },
+                Object {
+                  "Name": "IAMResourceId",
+                  "Selector": "$.Payload.details.AwsIamUser.UserId",
+                  "Type": "String",
+                },
+              ],
+            },
+            Object {
+              "action": "aws:executeAutomation",
+              "inputs": Object {
+                "DocumentName": "SHARR-RevokeUnusedIAMUserCredentials",
+                "RuntimeParameters": Object {
+                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials_{{global:REGION}}",
+                  "IAMResourceId": "{{ ParseInput.IAMResourceId }}",
+                },
+              },
+              "isEnd": false,
+              "name": "Remediation",
+            },
+            Object {
+              "action": "aws:executeAwsApi",
+              "description": "Update finding",
+              "inputs": Object {
+                "Api": "BatchUpdateFindings",
+                "FindingIdentifiers": Array [
+                  Object {
+                    "Id": "{{ParseInput.FindingId}}",
+                    "ProductArn": "{{ParseInput.ProductArn}}",
+                  },
+                ],
+                "Note": Object {
+                  "Text": "Deactivated unused keys and expired logins for {{ ParseInput.IAMUser }}.",
+                  "UpdatedBy": "SHARR-CIS_1.2.0_1.3",
+                },
+                "Service": "securityhub",
+                "Workflow": Object {
+                  "Status": "RESOLVED",
+                },
+              },
+              "isEnd": true,
+              "name": "UpdateFinding",
+            },
+          ],
+          "outputs": Array [
+            "ParseInput.AffectedObject",
+            "Remediation.Output",
+          ],
+          "parameters": Object {
+            "AutomationAssumeRole": Object {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\\\d{12}:role/[\\\\w+=,.@-]+",
+              "default": "",
+              "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "Finding": Object {
+              "description": "The input from Step function for finding",
+              "type": "StringMap",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentType": "Automation",
+        "Name": "SHARR-CIS_1.2.0_1.3",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "CIS15AutomationDocument03646554": Object {
+      "Condition": "CIS15Enable15ConditionB99E94E1",
+      "Properties": Object {
+        "Content": Object {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - SHARR-CIS_1.2.0_1.5
+
+## What does this document do?
+This document establishes a default password policy.
+
+## Security Standards and Controls
+* CIS 1.5 - 1.11
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+## Output Parameters
+* Remediation.Output
+
+## Documentation Links
+* [CIS v1.2.0 1.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.5)
+* [CIS v1.2.0 1.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.6)
+* [CIS v1.2.0 1.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.7)
+* [CIS v1.2.0 1.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.8)
+* [CIS v1.2.0 1.9](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.9)
+* [CIS v1.2.0 1.10](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.10)
+* [CIS v1.2.0 1.11](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.11)
+",
+          "mainSteps": Array [
+            Object {
+              "action": "aws:executeScript",
+              "inputs": Object {
+                "Handler": "parse_event",
+                "InputPayload": Object {
+                  "Finding": "{{Finding}}",
+                  "expected_control_id": Array [
+                    "1.5",
+                    "1.6",
+                    "1.7",
+                    "1.8",
+                    "1.9",
+                    "1.10",
+                    "1.11",
+                  ],
+                  "parse_id_pattern": "",
+                },
+                "Runtime": "python3.7",
+                "Script": "import re
+
+def get_value_by_path(finding, path):
+    path_levels = path.split('.')
+    previous_level = finding
+    for level in path_levels:
+        this_level = previous_level.get(level)
+        previous_level = this_level
+    return this_level
+
+def parse_event(event, context):
+    expected_control_id = event['expected_control_id']
+    parse_id_pattern = event['parse_id_pattern']
+    resource_id_matches = []
+
+    finding = event['Finding']
+
+    testmode = False
+    if 'testmode' in finding:
+        testmode = True
+
+    finding_id = finding['Id']
+    control_id = ''
+    # Finding Id present and valid
+    check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\\\\\d):\\\\\\\\d{12}:subscription/cis-aws-foundations-benchmark/v/1\\\\\\\\.2\\\\\\\\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+
+    if not check_finding_id:
+        exit(f'ERROR: Finding Id is invalid: {finding_id}')
+    else:
+        control_id = check_finding_id.group(1)
+
+    account_id = finding['AwsAccountId']
+    if not re.match('^\\\\\\\\d{12}$', account_id):
+        exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+    # ControlId present and valid
+    if not control_id:
+        exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+    # ControlId is the expected value
+    if control_id not in expected_control_id:
+        exit(f'ERROR: Control Id from input ({control_id}) does not match {str(expected_control_id)}')
+
+    # ProductArn present and valid
+    product_arn = finding['ProductArn']
+    if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\\\\\d)::product/aws/securityhub$', product_arn):
+        exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+    # ResourceType
+    resource_type = finding['Resources'][0]['Type']
+
+    details = {}
+    # Details
+    if 'Details' in finding['Resources'][0]:
+        details = finding['Resources'][0]['Details']
+
+    # Regex match Id to get remediation-specific identifier
+    identifier_raw = finding['Resources'][0]['Id']
+
+    if parse_id_pattern:
+        identifier_match = re.match(
+            parse_id_pattern,
+            identifier_raw
+        )
+
+        if not identifier_match:
+            exit(f'ERROR: Invalid resource Id {identifier_raw}')
+        else:
+            for group in range(1, len(identifier_match.groups())+1):
+                resource_id_matches.append(identifier_match.group(group))
+            if 'resource_index' in event:
+                resource_id = identifier_match.group(event['resource_index'])
+            else:
+                resource_id = identifier_match.group(1)
+    else:
+        resource_id = identifier_raw
+
+    if not resource_id:
+        exit('ERROR: Resource Id is missing from the finding json Resources (Id)')
+
+    affected_object = {'Type': resource_type, 'Id': resource_id, 'OutputKey': 'Remediation.Output'}
+    return {
+        \\"account_id\\": account_id,
+        \\"resource_id\\": resource_id, 
+        \\"finding_id\\": finding_id, 
+        \\"control_id\\": control_id,
+        \\"product_arn\\": product_arn, 
+        \\"object\\": affected_object,
+        \\"matches\\": resource_id_matches,
+        \\"details\\": details,
+        \\"testmode\\": testmode
+    }",
+              },
+              "isEnd": false,
+              "name": "ParseInput",
+              "outputs": Array [
+                Object {
+                  "Name": "FindingId",
+                  "Selector": "$.Payload.finding_id",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "ProductArn",
+                  "Selector": "$.Payload.product_arn",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "AffectedObject",
+                  "Selector": "$.Payload.object",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            Object {
+              "action": "aws:executeAutomation",
+              "inputs": Object {
+                "DocumentName": "SHARR-SetIAMPasswordPolicy",
+                "RuntimeParameters": Object {
+                  "AllowUsersToChangePassword": true,
+                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetIAMPasswordPolicy_{{global:REGION}}",
+                  "HardExpiry": true,
+                  "MaxPasswordAge": 90,
+                  "MinimumPasswordLength": 14,
+                  "PasswordReusePrevention": 24,
+                  "RequireLowercaseCharacters": true,
+                  "RequireNumbers": true,
+                  "RequireSymbols": true,
+                  "RequireUppercaseCharacters": true,
+                },
+              },
+              "isEnd": false,
+              "name": "Remediation",
+            },
+            Object {
+              "action": "aws:executeAwsApi",
+              "description": "Update finding",
+              "inputs": Object {
+                "Api": "BatchUpdateFindings",
+                "FindingIdentifiers": Array [
+                  Object {
+                    "Id": "{{ParseInput.FindingId}}",
+                    "ProductArn": "{{ParseInput.ProductArn}}",
+                  },
+                ],
+                "Note": Object {
+                  "Text": "Established a baseline password policy using the AWSConfigRemediation-SetIAMPasswordPolicy runbook.",
+                  "UpdatedBy": "SHARR-CIS_1.2.0_1.5",
+                },
+                "Service": "securityhub",
+                "Workflow": Object {
+                  "Status": "RESOLVED",
+                },
+              },
+              "isEnd": true,
+              "name": "UpdateFinding",
+            },
+          ],
+          "outputs": Array [
+            "ParseInput.AffectedObject",
+            "Remediation.Output",
+          ],
+          "parameters": Object {
+            "AutomationAssumeRole": Object {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\\\d{12}:role/[\\\\w+=,.@-]+",
+              "default": "",
+              "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "Finding": Object {
+              "description": "The input from Step function for finding",
+              "type": "StringMap",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentType": "Automation",
+        "Name": "SHARR-CIS_1.2.0_1.5",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "CIS21AutomationDocument7655FE02": Object {
+      "Condition": "CIS21Enable21ConditionBEEACA68",
+      "Properties": Object {
+        "Content": Object {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - SHARR-CIS_1.2.0_2.1
+
+## What does this document do?
+Creates a multi-region trail with KMS encryption and enables CloudTrail
+Note: this remediation will create a NEW trail.
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Documentation Links
+* [CIS v1.2.0 2.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-2.1)
+",
+          "mainSteps": Array [
+            Object {
+              "action": "aws:executeScript",
+              "inputs": Object {
+                "Handler": "parse_event",
+                "InputPayload": Object {
+                  "Finding": "{{Finding}}",
+                  "expected_control_id": "2.1",
+                  "parse_id_pattern": "",
+                },
+                "Runtime": "python3.7",
+                "Script": "import re
+
+def get_value_by_path(finding, path):
+    path_levels = path.split('.')
+    previous_level = finding
+    for level in path_levels:
+        this_level = previous_level.get(level)
+        previous_level = this_level
+    return this_level
+
+def parse_event(event, context):
+    expected_control_id = event['expected_control_id']
+    parse_id_pattern = event['parse_id_pattern']
+    resource_id_matches = []
+
+    finding = event['Finding']
+
+    testmode = False
+    if 'testmode' in finding:
+        testmode = True
+
+    finding_id = finding['Id']
+    control_id = ''
+    # Finding Id present and valid
+    check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\\\\\d):\\\\\\\\d{12}:subscription/cis-aws-foundations-benchmark/v/1\\\\\\\\.2\\\\\\\\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
+
+    if not check_finding_id:
+        exit(f'ERROR: Finding Id is invalid: {finding_id}')
+    else:
+        control_id = check_finding_id.group(1)
+
+    account_id = finding['AwsAccountId']
+    if not re.match('^\\\\\\\\d{12}$', account_id):
+        exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+    # ControlId present and valid
+    if not control_id:
+        exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
+
+    # ControlId is the expected value
+    if control_id not in expected_control_id:
+        exit(f'ERROR: Control Id from input ({control_id}) does not match {str(expected_control_id)}')
+
+    # ProductArn present and valid
+    product_arn = finding['ProductArn']
+    if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\\\\\d)::product/aws/securityhub$', product_arn):
+        exit(f'ERROR: ProductArn is invalid: {product_arn}')
+
+    # ResourceType
+    resource_type = finding['Resources'][0]['Type']
+
+    details = {}
+    # Details
+    if 'Details' in finding['Resources'][0]:
+        details = finding['Resources'][0]['Details']
+
+    # Regex match Id to get remediation-specific identifier
+    identifier_raw = finding['Resources'][0]['Id']
+
+    if parse_id_pattern:
+        identifier_match = re.match(
+            parse_id_pattern,
+            identifier_raw
+        )
+
+        if not identifier_match:
+            exit(f'ERROR: Invalid resource Id {identifier_raw}')
+        else:
+            for group in range(1, len(identifier_match.groups())+1):
+                resource_id_matches.append(identifier_match.group(group))
+            if 'resource_index' in event:
+                resource_id = identifier_match.group(event['resource_index'])
+            else:
+                resource_id = identifier_match.group(1)
+    else:
+        resource_id = identifier_raw
+
+    if not resource_id:
+        exit('ERROR: Resource Id is missing from the finding json Resources (Id)')
+
+    affected_object = {'Type': resource_type, 'Id': resource_id, 'OutputKey': 'Remediation.Output'}
+    return {
+        \\"account_id\\": account_id,
+        \\"resource_id\\": resource_id, 
+        \\"finding_id\\": finding_id, 
+        \\"control_id\\": control_id,
+        \\"product_arn\\": product_arn, 
+        \\"object\\": affected_object,
+        \\"matches\\": resource_id_matches,
+        \\"details\\": details,
+        \\"testmode\\": testmode
+    }",
+              },
+              "isEnd": false,
+              "name": "ParseInput",
+              "outputs": Array [
+                Object {
+                  "Name": "ResourceId",
+                  "Selector": "$.Payload.resource_id",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "FindingId",
+                  "Selector": "$.Payload.finding_id",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "ProductArn",
+                  "Selector": "$.Payload.product_arn",
+                  "Type": "String",
+                },
+                Object {
+                  "Name": "AffectedObject",
+                  "Selector": "$.Payload.object",
+                  "Type": "StringMap",
+                },
+                Object {
+                  "Name": "AWSPartition",
+                  "Selector": "$.Payload.partition",
+                  "Type": "String",
+                },
+              ],
+            },
+            Object {
+              "action": "aws:executeAutomation",
+              "inputs": Object {
+                "DocumentName": "SHARR-CreateCloudTrailMultiRegionTrail",
+                "RuntimeParameters": Object {
+                  "AWSPartition": "{{global:AWS_PARTITION}}",
+                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateCloudTrailMultiRegionTrail_{{global:REGION}}",
+                },
+              },
+              "isEnd": false,
+              "name": "Remediation",
+            },
+            Object {
+              "action": "aws:executeAwsApi",
+              "description": "Update finding",
+              "inputs": Object {
+                "Api": "BatchUpdateFindings",
+                "FindingIdentifiers": Array [
+                  Object {
+                    "Id": "{{ParseInput.FindingId}}",
+                    "ProductArn": "{{ParseInput.ProductArn}}",
+                  },
+                ],
+                "Note": Object {
+                  "Text": "Multi-region, encrypted AWS CloudTrail successfully created",
+                  "UpdatedBy": "SHARR-CIS_1.2.0_2.11",
+                },
+                "Service": "securityhub",
+                "Workflow": Object {
+                  "Status": "RESOLVED",
+                },
+              },
+              "isEnd": true,
+              "name": "UpdateFinding",
+            },
+          ],
+          "outputs": Array [
+            "Remediation.Output",
+            "ParseInput.AffectedObject",
+          ],
+          "parameters": Object {
+            "AutomationAssumeRole": Object {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\\\d{12}:role/[\\\\w+=,.@-]+",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "Finding": Object {
+              "description": "The input from Step function for the finding",
+              "type": "StringMap",
+            },
+            "KMSKeyArn": Object {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\\\d):\\\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
+              "description": "The ARN of the KMS key created by SHARR for this remediation",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentType": "Automation",
+        "Name": "SHARR-CIS_1.2.0_2.1",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "RemapCIS4245EB49A0": Object {
+      "Properties": Object {
+        "Description": "Remap the CIS 4.2 finding to CIS 4.1 remediation",
+        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0-4.2",
+        "Type": "String",
+        "Value": "4.1",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+  },
+}
+`;

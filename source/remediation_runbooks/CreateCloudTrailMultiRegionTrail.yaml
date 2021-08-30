@@ -1,0 +1,128 @@
+description: |
+  ### Document Name - SHARR-CreateCloudTrailMultiRegionTrail
+  ## What does this document do?
+  Creates a multi-region trail with KMS encryption and enables CloudTrail
+  Note: this remediation will create a NEW trail.
+  
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:   CloudTrail.1
+  * CIS v1.2.0:     2.1
+  * PCI:            CloudTrail.2
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  KMSKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    description: The ARN of the KMS key created by SHARR for this remediation
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  AWSPartition:
+    type: String
+    default: 'aws'
+    description: 'Partition for creation of ARNs.'
+    allowedValues:
+      - aws
+      - aws-cn
+      - aws-us-gov
+
+outputs:
+  - Remediation.Output
+
+mainSteps:
+  - 
+    name: CreateLoggingBucket
+    action: 'aws:executeScript'
+    outputs:
+      - Name: LoggingBucketName
+        Selector: $.Payload.logging_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'        
+      Runtime: python3.7
+      Handler: create_logging_bucket
+      Script: |-
+        %%SCRIPT=CreateCloudTrailMultiRegionTrail_createloggingbucket.py%%
+
+    isEnd: false
+
+  - 
+    name: CreateCloudTrailBucket
+    action: 'aws:executeScript'
+    outputs:
+      - Name: CloudTrailBucketName
+        Selector: $.Payload.cloudtrail_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+        logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
+      Runtime: python3.7
+      Handler: create_encrypted_bucket
+      Script: |-
+        %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.py%%
+        
+    isEnd: false
+
+  - 
+    name: CreateCloudTrailBucketPolicy
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload: 
+        cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
+        partition: '{{AWSPartition}}'
+        account: '{{global:ACCOUNT_ID}}'
+      Runtime: python3.7
+      Handler: create_bucket_policy
+      Script: |-
+        %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucketpolicy.py%%
+    isEnd: false
+
+  -
+    name: EnableCloudTrail
+    action: 'aws:executeScript'
+    outputs:
+      - Name: CloudTrailBucketName
+        Selector: $.Payload.cloudtrail_bucket
+        Type: String
+    inputs:
+      InputPayload: 
+        cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
+        kms_key_arn: '{{KMSKeyArn}}'
+      Runtime: python3.7
+      Handler: enable_cloudtrail
+      Script: |-
+        %%SCRIPT=CreateCloudTrailMultiRegionTrail_enablecloudtrail.py%%
+
+    isEnd: false
+
+  -
+    name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+    inputs:
+      InputPayload:
+        cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
+        logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
+      Runtime: python3.7
+      Handler: process_results
+      Script: |-
+        %%SCRIPT=CreateCloudTrailMultiRegionTrail_process_results.py%%
+    isEnd: true

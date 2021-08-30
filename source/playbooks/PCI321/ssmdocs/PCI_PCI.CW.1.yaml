@@ -1,0 +1,132 @@
+description: |
+  ### Document Name - SHARR-PCI_3.2.1_CW.1
+  ## What does this document do?
+  Creates a log metric filter and alarm for usage of "root" account
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  
+  ## Output Parameters
+  * Remediation.Output - Output of remediation runbook.
+
+  ## Documentation Links
+  [PCI v3.2.1 PCI.CW.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-pci-controls.html#pcidss-cw-1-remediation)
+  
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output 
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for finding
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  LogGroupName:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/Metrics_LogGroupName}}
+    description: The name of the Log group to be used to create filters and metric alarms
+  MetricNamespace:
+    type: String
+    default: 'LogMetrics'
+    description: The name of the metric namespace where the metrics will be logged
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: GroupId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: ControlId
+        Selector: $.Payload.control_id
+        Type: String
+    inputs:
+      InputPayload:
+        parse_id_pattern: ''
+        Finding: '{{Finding}}'
+        expected_control_id: [ 'PCI.CW.1' ]
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=pci_parse_input.py%%
+    isEnd: false
+
+  - name: GetMetricFilterAndAlarmInputValue
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FilterName
+        Selector: $.Payload.filter_name
+        Type: String
+      - Name: FilterPattern
+        Selector: $.Payload.filter_pattern
+        Type: String
+      - Name: MetricName
+        Selector: $.Payload.metric_name
+        Type: String
+      - Name: MetricValue
+        Selector: $.Payload.metric_value
+        Type: Integer
+      - Name: AlarmName
+        Selector: $.Payload.alarm_name
+        Type: String
+      - Name: AlarmDesc
+        Selector: $.Payload.alarm_desc
+        Type: String
+      - Name: AlarmThreshold
+        Selector: $.Payload.alarm_threshold
+        Type: Integer
+    inputs:
+      InputPayload:
+        ControlId: '{{ParseInput.ControlId}}'
+      Runtime: python3.7
+      Handler: verify
+      Script: |-
+        %%SCRIPT=pci_get_input_values.py%%
+
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: SHARR-CreateLogMetricFilterAndAlarm
+      RuntimeParameters:
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateLogMetricFilterAndAlarm_{{global:REGION}}'
+        FilterName: '{{ GetMetricFilterAndAlarmInputValue.FilterName }}'
+        FilterPattern: '{{ GetMetricFilterAndAlarmInputValue.FilterPattern }}'
+        MetricName: '{{ GetMetricFilterAndAlarmInputValue.MetricName }}'
+        MetricValue: '{{ GetMetricFilterAndAlarmInputValue.MetricValue }}'
+        MetricNamespace: '{{ MetricNamespace }}'
+        AlarmName: '{{ GetMetricFilterAndAlarmInputValue.AlarmName }}'
+        AlarmDesc: '{{ GetMetricFilterAndAlarmInputValue.AlarmDesc }}'
+        AlarmThreshold: '{{ GetMetricFilterAndAlarmInputValue.AlarmThreshold }}'
+        LogGroupName: '{{ LogGroupName }}'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Added metric filter and alarm to the log group.'
+        UpdatedBy: 'SHARR-PCI_3.2.1_CW.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -23,6 +23,7 @@ from urllib.request import Request, urlopen
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
+import awsapi_cached_client
 
 class Metrics(object):
 
@@ -35,25 +36,18 @@ class Metrics(object):
     ssm_client = None
     metrics_parameter_name = '/Solutions/SO0111/anonymous_metrics_uuid'
 
-    def __update_solution_uuid(self, new_uuid):
-        ssm = boto3.client('ssm')
-        ssm.put_parameter(
-            Name=self.metrics_parameter_name,
-            Description='Unique Id for anonymous metrics collection',
-            Value=new_uuid,
-            Type='String'
-        )
-
-    def __init__(self, metrics_options, event):
+    def __init__(self, event):
         self.session = boto3.session.Session()
         self.region = self.session.region_name
 
-        if 'sendAnonymousMetrics' in metrics_options:
-            self.send_metrics_option = metrics_options.get('sendAnonymousMetrics','No')
+        self.ssm_client = self.connect_to_ssm()
+
+        if not self.send_anonymous_metrics_enabled():
+            return
+
         if 'detail-type' in event:
             self.event_type = event.get('detail-type')
 
-        self.ssm_client = self.connect_to_ssm()
         self.__get_solution_uuid()
 
         try:
@@ -73,11 +67,31 @@ class Metrics(object):
 
         self.solution_version = solution_version_from_ssm
 
+    def send_anonymous_metrics_enabled(self):
+        is_enabled = False # default value
+        try:
+            ssm_parm = '/Solutions/SO0111/sendAnonymousMetrics'
+            send_anonymous_metrics_from_ssm = self.ssm_client.get_parameter(
+                Name=ssm_parm
+            ).get('Parameter').get('Value').lower()
+
+            if send_anonymous_metrics_from_ssm != 'yes' and send_anonymous_metrics_from_ssm != 'no':
+                print(f'Unexpected value for {ssm_parm}: {send_anonymous_metrics_from_ssm}. Defaulting to "no"')
+            elif send_anonymous_metrics_from_ssm == 'yes':
+                is_enabled = True
+
+        except Exception as e:
+            print(e)
+
+        return is_enabled
+
     def connect_to_ssm(self):
-        if self.ssm_client:
-            return self.ssm_client
-        else:
-            return boto3.client('ssm', self.region)
+        try:
+            if not self.ssm_client:
+                new_ssm_client = awsapi_cached_client.AWSCachedClient(self.region).get_connection('ssm')
+                return new_ssm_client
+        except Exception as e:
+            print(f'Could not connect to ssm: {str(e)}')
 
     def __update_solution_uuid(self, new_uuid):
         self.ssm_client.put_parameter(
@@ -126,7 +140,7 @@ class Metrics(object):
     def send_metrics(self, metrics_data):
 
         try:
-            if metrics_data is not None and self.send_metrics_option.lower() == 'yes':
+            if metrics_data is not None and self.send_anonymous_metrics_enabled():
                 usage_data = {
                     'Solution': 'SO0111',
                     'UUID': self.solution_uuid,

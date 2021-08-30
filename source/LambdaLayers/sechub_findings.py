@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -20,19 +20,20 @@ import json
 import inspect
 import os
 import boto3
-from botocore.config import Config
 from utils import publish_to_sns
-
-boto_config = Config(
-    retries = {
-        'max_attempts': 10
-    }
-)
+from awsapi_cached_client import AWSCachedClient
+from botocore.exceptions import ClientError
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
-AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
-securityhub = boto3.client('securityhub', config=boto_config, region_name=AWS_REGION)
+securityhub = AWSCachedClient(os.getenv('AWS_DEFAULT_REGION', 'us-east-1')).get_connection('securityhub')
+UNHANDLED_CLIENT_ERROR = 'An unhandled client error occurred: '
+
+# Local functions
+
+def get_ssm_connection(apiclient):
+    # returns a client id for ssm in the region of the finding via apiclient
+    return apiclient.get_connection('ssm')
 
 # Classes
 
@@ -46,23 +47,51 @@ class Finding(object):
     details = {} # Assuming ONE finding per event. We'll take the first.
     generator_id = 'error'
     account_id = 'error'
+    standard_name = ''
+    standard_shortname = 'error'
+    standard_version = 'error'
+    standard_control = 'error'
+    remediation_control = ''
+    standard_version_supported = 'False'
+    title = ''
+    description = ''
+    region = None
 
     def __init__(self, finding_rec):
+        self.region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+        self.aws_api_client = AWSCachedClient(self.region)
 
         self.details = finding_rec
         self.generator_id = self.details.get('GeneratorId', 'error')
+        self.account_id = self.details.get('AwsAccountId', 'error')
 
-        if self.generator_id == 'error':
+        if not self.is_valid_finding_json():
             raise InvalidFindingJson
+
+        self.title = self.details.get('Title', 'error')
+        self.description = self.details.get('Description', 'error')
+        self.remediation_url = self.details.get('Remediation', {}).get('Recommendation', {}).get('Url', '')
+
+        self._get_security_standard_fields_from_arn(
+            self.details.get('ProductFields').get('StandardsControlArn')
+        )
+        self._get_security_standard_abbreviation_from_ssm()
+        self._get_control_remap()
+        self._set_standard_version_supported()
+    
+    def is_valid_finding_json(self):
+        if self.generator_id == 'error':
+            return False
 
         # Verify finding['Id']
         if not self.details.get('Id'):
-            raise InvalidFindingJson
+            return False
 
         # Account Id
-        self.account_id = self.details.get('AwsAccountId', 'error')
         if self.account_id == 'error':
-            raise InvalidFindingJson
+            return False
+
+        return True
 
     def resolve(self, message):
         """
@@ -107,47 +136,78 @@ class Finding(object):
             print(e)
             raise
 
-    def is_cis_ruleset(self):
-        """
-        Returns false or a decomposition of the GeneratorId specific to the
-        AWS CIS Foundations Benchmark ruleset
-        """
+    def _get_security_standard_fields_from_arn(self, arn):
+        standards_arn_parts = arn.split(':')[5].split('/')
+        self.standard_name = standards_arn_parts[1]
+        self.standard_version = standards_arn_parts[3]
+        self.standard_control = standards_arn_parts[4]
 
-        # GeneratorId identifies the specific compliance matched. Examples:
-        # arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
-        genid_regex = re.search(
-            '^arn:.*?:ruleset/cis-aws-foundations-benchmark/v/(?P<version>.*?)/rule/(?P<rule>.*?)$',
-            self.generator_id)
+    def _get_control_remap(self):
+        self.remediation_control = self.standard_control # Defaults to self
+        try:
+            local_ssm = get_ssm_connection(self.aws_api_client)
+            remap = local_ssm.get_parameter(
+                Name=f'/Solutions/SO0111/{self.standard_shortname}/{self.standard_version}/{self.standard_control}/remap'
+            ).get('Parameter').get('Value')
+            self.remediation_control = remap
 
-        if not genid_regex:
-            return False
+        except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            if exception_type in "ParameterNotFound":
+                return
+            else:
+                print(UNHANDLED_CLIENT_ERROR + exception_type)
+                return
 
-        return {
-            'ruleset': 'cis-aws-foundations-benchmark',
-            'version': genid_regex.group('version'),
-            'ruleid': genid_regex.group('rule')
-        }
+        except Exception as e:
+            print(UNHANDLED_CLIENT_ERROR + str(e))
+            return
 
-    def is_aws_fsbp_ruleset(self):
-        """
-        Returns false or a decomposition of the GeneratorId specific to the
-        AWS Foundational Security Best Practices ruleset
-        """
+    def _get_security_standard_abbreviation_from_ssm(self):
 
-        # Generator Id example:
-        # aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1
-        genid_regex = re.search(
-            '^aws-foundational-security-best-practices/v/(?P<version>.*?)/(?P<rule>.*?)$',
-            self.generator_id)
+        try:
+            local_ssm = get_ssm_connection(self.aws_api_client)
+            abbreviation = local_ssm.get_parameter(
+                Name=f'/Solutions/SO0111/{self.standard_name}/shortname'
+            ).get('Parameter').get('Value')
+            self.standard_shortname = abbreviation
 
-        if not genid_regex:
-            return False
+        except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            if exception_type in "ParameterNotFound":
+                self.security_standard = 'notfound'
+            else:
+                print(UNHANDLED_CLIENT_ERROR + exception_type)
+                return
 
-        return {
-            'ruleset': 'aws-foundational-security-best-practices',
-            'version': genid_regex.group('version'),
-            'ruleid': genid_regex.group('rule')
-        }
+        except Exception as e:
+            print(UNHANDLED_CLIENT_ERROR + str(e))
+            return
+
+    def _set_standard_version_supported(self):
+        try:
+            local_ssm = get_ssm_connection(self.aws_api_client)
+
+            version_status = local_ssm.get_parameter(
+                Name=f'/Solutions/SO0111/{self.standard_name}/{self.standard_version}/status'
+            ).get('Parameter').get('Value')
+
+            if version_status == 'enabled':
+                self.standard_version_supported = 'True'
+            else:
+                self.standard_version_supported = 'False'
+
+        except ClientError as ex:
+            exception_type = ex.response['Error']['Code']
+            if exception_type in "ParameterNotFound":
+                self.standard_version_supported = 'False'
+            else:
+                print(UNHANDLED_CLIENT_ERROR + exception_type)
+                self.standard_version_supported = 'False'
+
+        except Exception as e:
+            print(UNHANDLED_CLIENT_ERROR + str(e))
+            self.standard_version_supported = 'False'
 
 #================
 # Utilities
@@ -158,38 +218,39 @@ class InvalidValue(Exception):
 class SHARRNotification(object):
     # These are private - they cannot be changed after the object is created
     __security_standard = ''
-    __control_id =''
-    __notification_type = ''
-    __applogger = ''
+    __controlid = None
+    __region = ''
 
     severity = 'INFO'
     message = ''
     logdata = []
     send_to_sns = False
 
-    def __init__(self, security_standard, controlid=None, notification_type='ORCHESTRATOR'):
+    def __init__(self, security_standard, region, controlid=None):
         """
         Initialize the class
-        applogger_name determines the log stream name in CW Logs. Use
-        notification_type='SHARR' and security_standard='APP' for app-level logs
-        For orchestrator, specify security_standard='APP' for general log, otherwise
-        specify security_standard and controlid
+        applogger_name determines the log stream name in CW Logs
+        ex. SHARRNotification(<string>, 'us-east-1', None) -> logs to <string>-2021-01-22
+        ex. SHARRNotification('AFSBP', 'us-east-1', 'EC2.1') -> logs to AFSBP-EC2.1-2021-01-22
+        """
+        self.__security_standard = security_standard
+        self.__region = region
+        if controlid:
+            self.__controlid = controlid
+        self.applogger = self._get_log_handler()
 
-        ex. SHARRNotification('APP', None, 'SHARR') -> logs to SHARR-APP-2021-01-22
-        ex. SHARRNotification('APP') -> logs to ORCHESTRATOR-APP-2021-01-22
-        ex. SHARRNotification('AFSBP') -> logs to ORCHESTRATOR-AFSBP-2021-01-22
-        ex. SHARRNotification('AFSBP','EC2.1') -> logs to ORCHESTRATOR-AFSBP-EC2.1-2021-01-22
+    def _get_log_handler(self):
+        """
+        Create a loghandler object
         """
         from applogger import LogHandler
 
-        self.__security_standard = security_standard
-        self.__notification_type = notification_type
-        applogger_name = self.__notification_type + '-' + self.__security_standard
-        if controlid:
-            self.__controlid = controlid
-            applogger_name += '-' + controlid
+        applogger_name = self.__security_standard
+        if self.__controlid:
+            applogger_name += '-' + self.__controlid
 
-        self.applogger = LogHandler(applogger_name)
+        applogger = LogHandler(applogger_name)
+        return applogger
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
@@ -200,7 +261,7 @@ class SHARRNotification(object):
         """
 
         if self.send_to_sns:
-            publish_to_sns('SO0111-SHARR_Topic', self.severity + ':' + self.message, AWS_REGION)
+            publish_to_sns('SO0111-SHARR_Topic', self.severity + ':' + self.message, self.__region)
 
         self.applogger.add_message(
             self.severity + ': ' + self.message

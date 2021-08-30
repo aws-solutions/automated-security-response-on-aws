@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -27,9 +27,14 @@ import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
 from utils import partition_from_region
+import awsapi_cached_client
 
 LOG_MAX_BATCH_SIZE = 1048576    # Controls when the buffer is flushed to the stream
 LOG_ENTRY_ADDITIONAL = 26
+
+def get_logs_connection(apiclient):
+    # returns a client id for ssm in the region of the finding via apiclient
+    return apiclient.get_connection('logs')
 
 class FailedToCreateLogGroup(Exception):
     pass
@@ -38,14 +43,9 @@ class LogHandler(object):
 
     def __init__(self, stream_name):
 
-        self.boto_config = Config(
-            retries = {
-                'max_attempts': 10
-            }
-        )
+        self.apiclient = awsapi_cached_client.AWSCachedClient(os.getenv('AWS_DEFAULT_REGION', 'us-east-1'))
         self.stream_name = stream_name.upper()
         self.log_group = os.getenv('SOLUTION_LOGGROUP', 'SO0111-SHARR')
-        self._log_client = boto3.client('logs', config=self.boto_config)
         self._stream_token = None
         self._buffer = []
         self._buffer_size = 0
@@ -57,7 +57,7 @@ class LogHandler(object):
     def _create_log_group(self):
         """Create the application log group"""
         try:
-            self._log_client.create_log_group(
+            get_logs_connection(self.apiclient).create_log_group(
                 logGroupName=self.log_group
                 )
         except Exception as e:
@@ -72,7 +72,7 @@ class LogHandler(object):
         log_stream = log_stream + '-' + str(date.today())
         try:
             print(("Creating log stream {}".format(log_stream)))
-            self._log_client.create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
+            get_logs_connection(self.apiclient).create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
             self._stream_token = "0"
         except Exception as e:
             # if the stream was created in between the call ignore the error
@@ -80,7 +80,7 @@ class LogHandler(object):
                 print('Log Stream already exists')
             elif type(e).__name__ == "ResourceNotFoundException":
                 if self._create_log_group():
-                    self._log_client.create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
+                    get_logs_connection(self.apiclient).create_log_stream(logGroupName=self.log_group, logStreamName=log_stream)
                 else:
                     raise FailedToCreateLogGroup
             else:
@@ -123,7 +123,7 @@ class LogHandler(object):
                 # add sequence token to API call parms if present
                 if self._stream_token:
                     put_event_args["sequenceToken"] = self._stream_token
-                resp = self._log_client.put_log_events(**put_event_args)
+                resp = get_logs_connection(self.apiclient).put_log_events(**put_event_args)
                 self._stream_token = resp.get("nextSequenceToken", None)
                 break
             except ClientError as ex:
@@ -142,7 +142,7 @@ class LogHandler(object):
                     print(("Error logstream {}, {}".format(self.stream_name, str(ex))))
                     break
 
-        self._buffer.clear()
+        self.clear()
         self._buffer_size = 0
 
     def clear(self):
