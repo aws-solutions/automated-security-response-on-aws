@@ -72,7 +72,7 @@ def put_metric_filter(cw_log_group, filter_name, filter_pattern, metric_name, me
     log.debug("Successfully added the metric filter.")
 
 
-def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace):
+def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace, topic_arn):
     """
     Puts the metric alarm for the metric name with provided values
     :param alarm_name: Name for the alarm
@@ -88,7 +88,13 @@ def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metri
         cw_client.put_metric_alarm(
             AlarmName=alarm_name,
             AlarmDescription=alarm_desc,
-            ActionsEnabled=False,
+            ActionsEnabled=True,
+            OKActions=[
+                topic_arn
+            ],
+            AlarmActions=[
+                topic_arn
+            ],
             MetricName=metric_name,
             Namespace=metric_namespace,
             Statistic='Sum',
@@ -117,9 +123,10 @@ def verify(event, context):
     alarm_desc = event['AlarmDesc']
     alarm_threshold = event['AlarmThreshold']
     cw_log_group = event['LogGroupName']
+    topic_arn = event['TopicArn']
 
     put_metric_filter(cw_log_group, filter_name, filter_pattern, metric_name, metric_namespace, metric_value)
-    put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace)
+    put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace, topic_arn)
     return {
         "response": {
             "message": f'Created filter {event["FilterName"]} for metric {event["MetricName"]}, and alarm {event["AlarmName"]}',

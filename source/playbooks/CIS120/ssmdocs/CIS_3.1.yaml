@@ -66,6 +66,13 @@ parameters:
     type: String
     default: 'LogMetrics'
     description: The name of the metric namespace where the metrics will be logged
+  KMSKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    description: The ARN of the KMS key created by SHARR for remediations
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+
 mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'
@@ -144,6 +151,8 @@ mainSteps:
         AlarmDesc: '{{ GetMetricFilterAndAlarmInputValue.AlarmDesc }}'
         AlarmThreshold: '{{ GetMetricFilterAndAlarmInputValue.AlarmThreshold }}'
         LogGroupName: '{{ LogGroupName }}'
+        SNSTopicName: 'SO0111-SHARR-LocalAlarmNotification'
+        KMSKeyArn: '{{KMSKeyArn}}'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
@@ -154,7 +163,7 @@ mainSteps:
       - Id: '{{ParseInput.FindingId}}'
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
-        Text: 'Added metric filter to the log group to monitor unauthorized API calls.'
+        Text: 'Added metric filter to the log group and notifications to SNS topic SO0111-SHARR-LocalAlarmNotification.'
         UpdatedBy: 'SHARR-CIS_1.2.0_3.1'
       Workflow:
         Status: RESOLVED

@@ -127,6 +127,54 @@ export class RemediationRunbookStack extends cdk.Stack {
         }
     }
     //-----------------------
+    // CreateLogMetricAndAlarm
+    //
+    {
+        const remediationName = 'CreateLogMetricFilterAndAlarm'
+        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        
+        const remediationPolicy = new PolicyStatement();
+        remediationPolicy.addActions(
+            "logs:PutMetricFilter",
+            "cloudwatch:PutMetricAlarm"
+            )
+        remediationPolicy.effect = Effect.ALLOW
+        remediationPolicy.addResources(`arn:${this.partition}:logs:*:${this.account}:log-group:*`);
+        remediationPolicy.addResources(`arn:${this.partition}:cloudwatch:*:${this.account}:alarm:*`);
+
+        inlinePolicy.addStatements(remediationPolicy)
+
+        {
+            var snsPerms = new PolicyStatement();
+            snsPerms.addActions(
+                "sns:CreateTopic",
+                "sns:SetTopicAttributes"
+            )
+            snsPerms.effect = Effect.ALLOW
+            snsPerms.addResources(
+                `arn:${this.partition}:sns:${this.region}:${this.account}:SO0111-SHARR-LocalAlarmNotification`
+            );
+            inlinePolicy.addStatements(snsPerms)
+        }
+
+        new SsmRole(this, 'RemediationRole ' + remediationName, {
+            solutionId: props.solutionId,
+            ssmDocName: remediationName,
+            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
+            remediationPolicy: inlinePolicy,
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+        })
+
+        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
+            ssmDocName: remediationName,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${remediationName}.yaml`,
+            scriptPath: `${ssmdocs}/scripts`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket
+        })
+    }
+    //-----------------------
     // EnableAutoScalingGroupELBHealthCheck
     //
     {
@@ -1296,43 +1344,6 @@ export class RemediationRunbookStack extends cdk.Stack {
                 }]
             }
         }
-    }
-
-    //****
-    //Create remediation books for CIS findings 3.1 through 3.14
-    //
-
-    {
-        const remediationName = 'CreateLogMetricFilterAndAlarm'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
-        
-        const remediationPolicy = new PolicyStatement();
-        remediationPolicy.addActions(
-            "logs:PutMetricFilter",
-            "cloudwatch:PutMetricAlarm"
-            )
-        remediationPolicy.effect = Effect.ALLOW
-        remediationPolicy.addResources(`arn:${this.partition}:logs:*:${this.account}:log-group:*`);
-        remediationPolicy.addResources(`arn:${this.partition}:cloudwatch:*:${this.account}:alarm:*`);
-
-        inlinePolicy.addStatements(remediationPolicy)
-
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
-            solutionId: props.solutionId,
-            ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
-            remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
-        })
-
-        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
-            ssmDocName: remediationName,
-            ssmDocPath: ssmdocs,
-            ssmDocFileName: `${remediationName}.yaml`,
-            scriptPath: `${ssmdocs}/scripts`,
-            solutionVersion: props.solutionVersion,
-            solutionDistBucket: props.solutionDistBucket
-        })
     }
 
   }

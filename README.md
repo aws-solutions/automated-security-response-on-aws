@@ -52,7 +52,7 @@ v1.0.0.
 
 ### Architecture Diagram
 
-![](SHARR_v1.2.jpg)
+![](./SHARR_v1.2.jpg)
 
 <a name="aws-solutions-constructs"></a>
 

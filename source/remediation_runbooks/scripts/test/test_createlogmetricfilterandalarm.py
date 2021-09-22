@@ -38,7 +38,8 @@ def test_verify(mocker):
         'AlarmName': 'test_alarm',
         'AlarmDesc': 'alarm_desc',
         'AlarmThreshold': 'alarm_threshold',
-        'LogGroupName': 'test_log'
+        'LogGroupName': 'test_log',
+        'TopicArn': 'arn:aws:sns:us-east-1:111111111111:test-topic-name'
     }
     context = {}
     mocker.patch('CreateLogMetricFilterAndAlarm.put_metric_filter')
@@ -47,7 +48,7 @@ def test_verify(mocker):
     metric_alarm_spy = mocker.spy(logMetricAlarm, 'put_metric_alarm')
     logMetricAlarm.verify(event, context)
     metric_filter_spy.assert_called_once_with('test_log', 'test_filter', 'test_pattern', 'test_metric', 'test_metricnamespace', 'test_metric_value')
-    metric_alarm_spy.assert_called_once_with('test_alarm', 'alarm_desc', 'alarm_threshold', 'test_metric', 'test_metricnamespace')
+    metric_alarm_spy.assert_called_once_with('test_alarm', 'alarm_desc', 'alarm_threshold', 'test_metric', 'test_metricnamespace', 'arn:aws:sns:us-east-1:111111111111:test-topic-name')
 
 
 def test_put_metric_filter_pass(mocker):
@@ -60,7 +61,8 @@ def test_put_metric_filter_pass(mocker):
         'AlarmName': 'test_alarm',
         'AlarmDesc': 'alarm_desc',
         'AlarmThreshold': 'alarm_threshold',
-        'LogGroupName': 'test_log'
+        'LogGroupName': 'test_log',
+        'TopicArn': 'arn:aws:sns:us-east-1:111111111111:test-topic-name'
     }
 
     BOTO_CONFIG = Config(
@@ -109,7 +111,8 @@ def test_put_metric_filter_error(mocker):
         'AlarmName': 'test_alarm',
         'AlarmDesc': 'alarm_desc',
         'AlarmThreshold': 'alarm_threshold',
-        'LogGroupName': 'test_log'
+        'LogGroupName': 'test_log',
+        'TopicArn': 'arn:aws:sns:us-east-1:111111111111:test-topic-name'
     }
 
     BOTO_CONFIG = Config(
@@ -146,7 +149,8 @@ def test_put_metric_alarm(mocker):
         'AlarmName': 'test_alarm',
         'AlarmDesc': 'alarm_desc',
         'AlarmThreshold': 1,
-        'LogGroupName': 'test_log'
+        'LogGroupName': 'test_log',
+        'TopicArn': 'arn:aws:sns:us-east-1:111111111111:test-topic-name'
     }
 
     BOTO_CONFIG = Config(
@@ -164,7 +168,13 @@ def test_put_metric_alarm(mocker):
         {
             'AlarmName': event['AlarmName'],
             'AlarmDescription': event['AlarmDesc'],
-            'ActionsEnabled': False,
+            'ActionsEnabled': True,
+            'OKActions': [
+                'arn:aws:sns:us-east-1:111111111111:test-topic-name'
+            ],
+            'AlarmActions': [
+                'arn:aws:sns:us-east-1:111111111111:test-topic-name'
+            ],
             'MetricName': event['MetricName'],
             'Namespace': event['MetricNamespace'],
             'Statistic': 'Sum',
@@ -179,7 +189,7 @@ def test_put_metric_alarm(mocker):
     mocker.patch('CreateLogMetricFilterAndAlarm.get_service_client', return_value=cloudwatch)
     logMetricAlarm.put_metric_alarm(
         event['AlarmName'], event['AlarmDesc'], event['AlarmThreshold'],
-        event['MetricName'], event['MetricNamespace']
+        event['MetricName'], event['MetricNamespace'], event['TopicArn']
     )
     assert cloudwatch_stubber.assert_no_pending_responses() is None
     cloudwatch_stubber.deactivate()
@@ -195,7 +205,8 @@ def test_put_metric_alarm_error(mocker):
         'AlarmName': 'test_alarm',
         'AlarmDesc': 'alarm_desc',
         'AlarmThreshold': 1,
-        'LogGroupName': 'test_log'
+        'LogGroupName': 'test_log',
+        'TopicArn': 'arn:aws:sns:us-east-1:111111111111:test-topic-name'
     }
 
     BOTO_CONFIG = Config(
@@ -217,7 +228,7 @@ def test_put_metric_alarm_error(mocker):
     with pytest.raises(SystemExit) as pytest_wrapped_exception:
         logMetricAlarm.put_metric_alarm(
             event['AlarmName'], event['AlarmDesc'], event['AlarmThreshold'],
-            event['MetricName'], event['MetricNamespace']
+            event['MetricName'], event['MetricNamespace'], event['TopicArn']
         )
     assert pytest_wrapped_exception.type == SystemExit
     cloudwatch_stubber.deactivate()

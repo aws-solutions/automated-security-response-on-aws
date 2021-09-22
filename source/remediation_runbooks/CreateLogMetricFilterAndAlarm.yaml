@@ -44,8 +44,33 @@ parameters:
   AlarmThreshold:
     type: Integer
     description: Threshold value for the alarm
+  KMSKeyArn:
+    type: String
+    description: The ARN of a KMS key to use for encryption of the SNS Topic and Config bucket
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  SNSTopicName:
+    type: String
+    allowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$
+
 mainSteps:
-  - name: CreateMetricFilerAndAlarm
+  - 
+    name: CreateTopic
+    action: 'aws:executeScript'
+    outputs:
+      - Name: TopicArn
+        Selector: $.Payload.topic_arn
+        Type: String
+    inputs:
+      InputPayload: 
+        kms_key_arn: '{{KMSKeyArn}}'
+        topic_name: '{{SNSTopicName}}'
+      Runtime: python3.7
+      Handler: create_encrypted_topic
+      Script: |-
+        %%SCRIPT=CreateLogMetricFilterAndAlarm_createtopic.py%%
+        
+  - 
+    name: CreateMetricFilerAndAlarm
     action: 'aws:executeScript'
     outputs:
       - Name: Output
@@ -62,6 +87,7 @@ mainSteps:
         AlarmName: '{{AlarmName}}'
         AlarmDesc: '{{AlarmDesc}}'
         AlarmThreshold: '{{AlarmThreshold}}'
+        TopicArn: '{{CreateTopic.TopicArn}}'    
       Runtime: python3.7
       Handler: verify
       Script: |-

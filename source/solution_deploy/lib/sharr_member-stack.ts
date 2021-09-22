@@ -218,7 +218,7 @@ export class MemberStack extends cdk.Stack {
     const logGroupName = new cdk.CfnParameter(this, "LogGroupName",
     {
         type: "String",
-        description: "Name of the log group to be used to create metric filters and cloudwatch alarms"
+        description: "Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail"
     });
 
     /********************

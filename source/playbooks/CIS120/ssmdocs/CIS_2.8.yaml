@@ -33,7 +33,7 @@ mainSteps:
     action: 'aws:executeScript'
     outputs:
       - Name: KMSKeyId
-        Selector: $.Payload.resource_id
+        Selector: $.Payload.details.AwsKmsKey.KeyId
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -47,7 +47,7 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
-        parse_id_pattern: '^AWS::KMS::Key:([a-f0-9-]{8}-[a-f0-9-]{4}-[a-f0-9-]{4}-[a-f0-9-]{4}-[a-f0-9-]{12})$'
+        parse_id_pattern: ''
         expected_control_id: '2.8'
       Runtime: python3.7
       Handler: parse_event
