@@ -54,7 +54,7 @@ def test_EnableVPCFlowLogs_success(mocker):
         'FlowLogs': [
             {
                 "CreationTime": "2020-10-27T19:37:52.871000+00:00",
-                "DeliverLogsPermissionArn": f'arn:aws:iam::733881326153:role/{event["remediation_role"]}_{my_region}',
+                "DeliverLogsPermissionArn": f'arn:aws:iam::111122223333:role/{event["remediation_role"]}_{my_region}',
                 "DeliverLogsStatus": "SUCCESS",
                 "FlowLogId": "fl-0a3f6513bef12ff9a",
                 "FlowLogStatus": "ACTIVE",
@@ -174,7 +174,7 @@ def test_EnableVPCFlowLogs_loggroup_exists(mocker):
         'FlowLogs': [
             {
                 "CreationTime": "2020-10-27T19:37:52.871000+00:00",
-                "DeliverLogsPermissionArn": f'arn:aws:iam::733881326153:role/{event["remediation_role"]}_{my_region}',
+                "DeliverLogsPermissionArn": f'arn:aws:iam::111122223333:role/{event["remediation_role"]}_{my_region}',
                 "DeliverLogsStatus": "SUCCESS",
                 "FlowLogId": "fl-0a3f6513bef12ff9a",
                 "FlowLogStatus": "ACTIVE",

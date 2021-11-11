@@ -85,8 +85,9 @@ def test_put_metric_filter_pass(mocker):
                 {
                     'metricName': event['MetricName'],
                     'metricNamespace':event['MetricNamespace'],
-                    'metricValue': str (event['MetricValue'])
-                },
+                    'metricValue': str (event['MetricValue']),
+                    'unit': 'Count'
+                }
             ]
         }
     )
@@ -179,10 +180,12 @@ def test_put_metric_alarm(mocker):
             'Namespace': event['MetricNamespace'],
             'Statistic': 'Sum',
             'Period': 300,
-            'Unit': 'Seconds',
-            'EvaluationPeriods': 240,
+            'Unit': 'Count',
+            'EvaluationPeriods': 12,
+            'DatapointsToAlarm': 1,
             'Threshold': (event['AlarmThreshold']),
-            'ComparisonOperator': 'GreaterThanOrEqualToThreshold'
+            'ComparisonOperator': 'GreaterThanOrEqualToThreshold',
+            'TreatMissingData': 'notBreaching'
         }
     )
     cloudwatch_stubber.activate()

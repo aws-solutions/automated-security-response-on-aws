@@ -63,8 +63,9 @@ def put_metric_filter(cw_log_group, filter_name, filter_pattern, metric_name, me
                 {
                     'metricName': metric_name,
                     'metricNamespace': metric_namespace,
-                    'metricValue': str(metric_value)
-                },
+                    'metricValue': str(metric_value),
+                    'unit': 'Count'
+                }
             ]
         )
     except Exception as e:
@@ -99,10 +100,12 @@ def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metri
             Namespace=metric_namespace,
             Statistic='Sum',
             Period=300,
-            Unit='Seconds',
-            EvaluationPeriods=240,
+            Unit='Count',
+            EvaluationPeriods=12,
+            DatapointsToAlarm=1,
             Threshold=alarm_threshold,
-            ComparisonOperator='GreaterThanOrEqualToThreshold'
+            ComparisonOperator='GreaterThanOrEqualToThreshold',
+            TreatMissingData='notBreaching'
         )
     except Exception as e:
         exit("Exception occurred while putting metric alarm: " + str(e))
