@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2021-11-09
+- Corrected CIS 3.1 filter pattern
+- Corrected SNS Access Policy for SO0111-SHARR-LocalAlarmNotification
+- Corrected KMS CMK Access Policy used by the SNS topic to allow CloudWatch use
+- EvaluationPeriods for CIS 3.x alarms changed from 240 (20 hours) to 12 (1 hour)
+
 ## [1.3.1] - 2021-09-10
 
 ### Changed

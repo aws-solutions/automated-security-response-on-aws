@@ -20,7 +20,7 @@
 # This controls the CDK and AWS Solutions Constructs version. Solutions
 # Constructs versions map 1:1 to CDK versions. When setting this value, 
 # choose the latest AWS Solutions Constructs version.
-required_cdk_version=1.117.0
+required_cdk_version=1.132.0
 
 # Functions to reduce repetitive code
 # do_cmd will exit if the command has a non-zero return code.

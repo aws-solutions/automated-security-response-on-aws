@@ -317,6 +317,17 @@ Object {
                       ],
                     ],
                   },
+                  Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "cloudwatch.",
+                        Object {
+                          "Ref": "AWS::URLSuffix",
+                        },
+                      ],
+                    ],
+                  },
                 ],
               },
               "Resource": "*",

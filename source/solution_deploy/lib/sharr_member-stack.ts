@@ -67,6 +67,7 @@ export class OrchestratorMemberRole extends cdk.Construct {
     kmsPerms.addPrincipals(new ServicePrincipal('s3.amazonaws.com'))
     kmsPerms.addPrincipals(new ServicePrincipal(`logs.${stack.region}.${stack.urlSuffix}`))
     kmsPerms.addPrincipals(new ServicePrincipal(`cloudtrail.${stack.urlSuffix}`))
+    kmsPerms.addPrincipals(new ServicePrincipal(`cloudwatch.${stack.urlSuffix}`))
     kmsKeyPolicy.addStatements(kmsPerms)
 
     const kmsKey:Key = new Key(this, 'SHARR Remediation Key', {
