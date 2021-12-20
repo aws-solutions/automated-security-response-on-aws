@@ -22,29 +22,31 @@ from botocore.exceptions import ClientError
 from logger import Logger
 from awsapi_cached_client import BotoSession
 from applogger import LogHandler
+from sechub_findings import Finding, SHARRNotification
 import utils
 
-# Get AWS region from Lambda environment. If not present then we're not
-# running under lambda, so defaulting to us-east-1
-AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')   # MUST BE SET in global variables
-AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')           # MUST BE SET in global variables
+AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')    
+AWS_REGION = os.getenv('AWS_REGION', 'aws')   
 SOLUTION_ID = os.getenv('SOLUTION_ID', 'SO0111')
 SOLUTION_ID = re.sub(r'^DEV-', '', SOLUTION_ID)
-SOLUTION_VERSION = os.getenv('SOLUTION_VERSION', 'undefined')
 
 # initialise loggers
 LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 
-def _get_ssm_client(accountid, role):
+def _get_ssm_client(account, role, region=''):
     """
     Create a client for ssm
     """
-    return BotoSession(
-        accountid,
-        role
-    ).client('ssm')
+    kwargs = {}
 
+    if region:
+        kwargs['region_name'] = region
+
+    return BotoSession(
+        account,
+        f'{role}'
+    ).client('ssm', **kwargs)
 
 def _get_iam_client(accountid, role):
     """
@@ -55,9 +57,13 @@ def _get_iam_client(accountid, role):
         role
     ).client('iam')
 
-def lambda_role_exists(client, rolename):
+def lambda_role_exists(account, rolename):
+    iam = _get_iam_client(
+        account, 
+        SOLUTION_ID + '-SHARR-Orchestrator-Member'
+    )
     try:
-        client.get_role(
+        iam.get_role(
             RoleName=rolename
         )
         return True
@@ -78,7 +84,8 @@ def lambda_handler(event, context):
     #       ControlId: string
     #   },
     #   RemediationRole: string,
-    #   AutomationDocId: string
+    #   AutomationDocId: string.
+    #   SSMExecution: json data
     # }
     # Returns:
     # {
@@ -86,10 +93,29 @@ def lambda_handler(event, context):
     #   message: { '' | string },
     #   executionid: { '' | string }
     # }
-
     answer = utils.StepFunctionLambdaAnswer()
+    LOGGER.info(event)
+    if "Finding" not in event or \
+       "EventType" not in event:
+        answer.update({
+            'status':'ERROR',
+            'message':'Missing required data in request'
+        })
+        LOGGER.error(answer.message)
+        return answer.json()
+    
+    finding = Finding(event['Finding'])
 
     automation_doc = event['AutomationDocument']
+    alt_workflow_doc = event.get('Workflow',{}).get('WorkflowDocument', None)
+    alt_workflow_account = event.get('Workflow',{}).get('WorkflowAccount', None)
+    alt_workflow_role = event.get('Workflow',{}).get('WorkflowRole', None)
+    alt_workflow_config = event.get('Workflow',{}).get('WorkflowConfig', None)
+
+    remote_workflow_doc = alt_workflow_doc if alt_workflow_doc else event['AutomationDocument']['AutomationDocId']
+
+    execution_account = alt_workflow_account if alt_workflow_account else automation_doc['AccountId']
+    execution_region = AWS_REGION if alt_workflow_account else automation_doc.get('ResourceRegion', '')
 
     if "SecurityStandard" not in automation_doc or \
        "ControlId" not in automation_doc or \
@@ -101,44 +127,52 @@ def lambda_handler(event, context):
         LOGGER.error(answer.message)
         return answer.json()
 
-    orchestrator_member_role = SOLUTION_ID + '-SHARR-Orchestrator-Member_' + AWS_REGION
-    standard_role = automation_doc['RemediationRole'] + '_' + AWS_REGION
+    # Execution role will be, in order of precedence
+    # 1) remote_workflow_role
+    # 2) Derived from standard and control if it exists
+    # 3) Orchestrator Member role
+    #
+    # In most cases the Orchestrator Member role is used, and it passes
+    # the value in RemediationRole as the AutomationExectutionRole
+    remediation_role = SOLUTION_ID + '-SHARR-Orchestrator-Member' # default
+    if alt_workflow_doc and alt_workflow_role:
+        remediation_role = alt_workflow_role
+    elif lambda_role_exists(execution_account, automation_doc['RemediationRole']):
+        remediation_role = automation_doc['RemediationRole']
 
-    # If the standard/version/control has a specific role defined then use it
-    # Otherwise, use the Orchestrator Member role
-    remediation_role = orchestrator_member_role
-    iam = _get_iam_client(automation_doc['AccountId'], remediation_role)
+    print(f'Using role {remediation_role} to execute {remote_workflow_doc} in {execution_account}  {execution_region}')
 
-    if lambda_role_exists(iam, standard_role):
-        remediation_role = standard_role
-
-    print(f'Using role {remediation_role} for remediation in {automation_doc["AccountId"]} document {automation_doc["AutomationDocId"]}')
-    remediation_role_arn = 'arn:' + AWS_PARTITION + ':iam::' + automation_doc['AccountId'] + \
-        ':role/' + remediation_role
+    remediation_role_arn = f'arn:{AWS_PARTITION}:iam::{execution_account}:role/{remediation_role}'
     print(f'ARN: {remediation_role_arn}')
     
-    ssm = _get_ssm_client(automation_doc['AccountId'], remediation_role)
+    ssm = _get_ssm_client(execution_account, remediation_role, execution_region)
+
+    ssm_parameters = {
+        "Finding": [
+            json.dumps(event['Finding'])
+        ],
+        "AutomationAssumeRole": [
+            remediation_role_arn
+        ]
+    }
+    if remote_workflow_doc != automation_doc['AutomationDocId']:
+        ssm_parameters["RemediationDoc"] = [automation_doc['AutomationDocId']]
+        ssm_parameters["Workflow"] = [json.dumps(event.get('Workflow', {}))]
   
     exec_id = ssm.start_automation_execution(
         # Launch SSM Doc via Automation
-        DocumentName=automation_doc['AutomationDocId'],
-        Parameters={
-            "Finding": [
-                json.dumps(event['Finding'])
-            ],
-            "AutomationAssumeRole": [
-                remediation_role_arn
-            ]
-        }
+        DocumentName=remote_workflow_doc,
+        Parameters=ssm_parameters
     )['AutomationExecutionId']
 
     answer.update({
-        'status':'SUCCESS',
-        'message': automation_doc['ControlId'] +
-                   ' remediation was successfully invoked via AWS Systems Manager in account ' +
-                   automation_doc['AccountId'] + ': ' + exec_id,
-        'executionid': exec_id
+        'status':'QUEUED',
+        'message': f'{exec_id}: {automation_doc["ControlId"]} remediation was successfully invoked via AWS Systems Manager in account {automation_doc["AccountId"]} {execution_region}',
+        'executionid': exec_id,
+        'executionregion': execution_region,
+        'executionaccount': execution_account
     })
+
     LOGGER.info(answer.message)
         
     return answer.json()

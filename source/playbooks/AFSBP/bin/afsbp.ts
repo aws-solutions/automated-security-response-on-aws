@@ -54,7 +54,8 @@ const remediations: IControl[] = [
 	{ 
 		"control": 'S3.3',
 		"executes": 'S3.2' 
-	}
+	},
+	{ "control": 'S3.5' }
 ]
 
 const adminStack = new PlaybookPrimaryStack(app, 'AFSBPStack', {

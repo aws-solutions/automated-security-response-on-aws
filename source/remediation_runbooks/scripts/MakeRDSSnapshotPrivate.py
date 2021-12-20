@@ -19,16 +19,17 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-def connect_to_rds(boto_config):
-    return boto3.client('rds', config=boto_config)
-
-def make_snapshot_private(event, context):
+def connect_to_rds():
     boto_config = Config(
         retries ={
             'mode': 'standard'
         }
     )
-    rds_client = connect_to_rds(boto_config)
+    return boto3.client('rds', config=boto_config)
+
+def make_snapshot_private(event, context):
+
+    rds_client = connect_to_rds()
     snapshot_id = event['DBSnapshotId']
     snapshot_type = event['DBSnapshotType']
     try:
@@ -44,6 +45,9 @@ def make_snapshot_private(event, context):
                 AttributeName='restore',
                 ValuesToRemove=['all']
             )
+        else:
+            exit(f'Unrecognized snapshot_type {snapshot_type}')
+
         print(f'Remediation completed: {snapshot_id} public access removed.')
         return {
             "response": {

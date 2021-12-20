@@ -43,6 +43,13 @@ def remove_resource_policy(functionname, sid, client):
     except Exception as e:
         exit(f'FAILED: SID {sid} was NOT removed from Lambda function {functionname} - {str(e)}')
 
+def remove_public_statement(client, functionname, statement, principal_source):
+    for principal in list(principal_source):
+        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*"):
+            print_policy_before(statement)
+            remove_resource_policy(functionname, statement['Sid'], client)
+            break # there will only be one that matches
+
 def remove_lambda_public_access(event, context):
 
     client = connect_to_lambda(boto_config)
@@ -57,20 +64,9 @@ def remove_lambda_public_access(event, context):
         print('Scanning for public resource policies in ' + functionname)
 
         for statement in statements:
-            principal_statements = []
+            remove_public_statement(client, functionname, statement, list(statement['Principal']))
 
-            if isinstance(statement['Principal'], list):
-                principal_statements = statement['Principal']
-            else:
-                principal_statements = [statement['Principal']]
-
-            for principal in principal_statements:
-                if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*"):
-                    print_policy_before(statement)
-                    remove_resource_policy(functionname, statement['Sid'], client)
-                    break
-
-        result = client.get_policy(FunctionName=functionname)
+        client.get_policy(FunctionName=functionname)
 
         verify(functionname)
     except ClientError as ex:

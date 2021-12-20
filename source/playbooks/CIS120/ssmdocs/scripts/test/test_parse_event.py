@@ -102,7 +102,8 @@ def expected():
         },
         "matches": [ "cloudtrail-awslogs-111111111111-kjfskljdfl" ],
         'details': {},
-        'testmode': False
+        'testmode': False,
+        'resource': event().get('Finding').get('Resources')[0]
     }
 
 def cis41_event():
@@ -229,16 +230,8 @@ def cis41_expected():
             "OutputKey": 'Remediation.Output'
         },
         "matches": [ "sg-087af114e4ae4c6ea" ],
-        'details': {'AwsEc2SecurityGroup': {'GroupId': 'sg-087af114e4ae4c6ea',
-            'GroupName': 'launch-wizard-17',
-            'IpPermissions': [{'FromPort': 22,
-                'IpProtocol': 'tcp',
-                'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
-                'ToPort': 22}],
-            'IpPermissionsEgress': [{'IpProtocol': '-1',
-                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]}],
-            'OwnerId': '111111111111',
-            'VpcId': 'vpc-e5b8f483'}},
+        'details': cis41_event().get('Finding').get('Resources')[0].get('Details'),
+        'resource': cis41_event().get('Finding').get('Resources')[0]
     }
 def test_parse_event():
     parsed_event = parse_event(event(), {})

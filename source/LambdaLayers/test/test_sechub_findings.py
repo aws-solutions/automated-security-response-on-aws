@@ -27,7 +27,6 @@ import sechub_findings as findings
 from logger import Logger
 from applogger import LogHandler
 import utils
-from awsapi_cached_client import AWSCachedClient
 
 log_level = 'info'
 logger = Logger(loglevel=log_level)
@@ -37,9 +36,7 @@ stubber = Stubber(findings.securityhub)
 my_session = boto3.session.Session()
 my_region = my_session.region_name
 
-AWS = AWSCachedClient(my_region)
-
-ssmclient = AWS.get_connection('ssm')
+ssmclient = boto3.client('ssm')
 stubbed_ssm_client = Stubber(ssmclient)
 
 #------------------------------------------------------------------------------
@@ -115,7 +112,6 @@ def test_parse_unsupported_version(mocker):
     event = json.loads(test_data_in.read())
     test_data_in.close()
 
-    # ssmclient = AWS.get_connection('ssm')
     stubbed_ssm_client = Stubber(ssmclient)
 
     stubbed_ssm_client.add_response(
@@ -161,7 +157,6 @@ def test_parse_afsbp_v100(mocker):
     event = json.loads(test_data_in.read())
     test_data_in.close()
 
-    # ssmclient = AWS.get_connection('ssm')
     stubbed_ssm_client = Stubber(ssmclient)
 
     stubbed_ssm_client.add_response(
@@ -220,7 +215,6 @@ def test_undefined_security_standard(mocker):
     event['detail']['findings'][0]['ProductFields']['StandardsControlArn'] = \
         "arn:aws:securityhub:::standards/aws-invalid-security-standard/v/1.2.3/ABC.1"
 
-    # ssmclient = AWS.get_connection('ssm')
     stubbed_ssm_client = Stubber(ssmclient)
 
     stubbed_ssm_client.add_client_error(
@@ -250,3 +244,27 @@ def test_undefined_security_standard(mocker):
     assert finding.standard_version_supported == 'False'
 
     stubbed_ssm_client.deactivate()
+
+# def test_simple_notification(mocker):
+#     mocker.patch('utils.publish_to_sns', return_value='11111111')
+#     notification = findings.SHARRNotification(
+#         'AFSBP',
+#         my_region,
+#         's3.5'
+#     )
+#     notification.severity = 'INFO'
+#     notification.send_to_sns = True
+#     notification.finding_info = {
+#         'finding_id': 'aaaaaaaa-bbbb-cccc-dddd-123456789012',
+#         'finding_description': 'finding description',
+#         'standard_name': 'standard long name',
+#         'standard_version': 'v1.0.0',
+#         'standard_control': 's3.5',
+#         'title': 'A door should not be ajar',
+#         'region': 'us-west-2',
+#         'account': '111122223333',
+#         'finding_arn': "arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1/PCI.S3.1/finding/3f74c9bf-bbb3-40d8-8781-796096b35571",
+#     }
+    
+#     assert notification.notify() == '11111111'
+#     utils.publish_to_sns.assert_called_once_with('foo')

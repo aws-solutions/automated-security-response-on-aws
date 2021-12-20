@@ -101,7 +101,7 @@ mainSteps:
     inputs:
       Service: iam
       Api: GetRole
-      RoleName: 'SO0111-SHARR-RDSEnhancedMonitoring_{{global:REGION}}'
+      RoleName: 'SO0111-SHARR-RDSEnhancedMonitoring'
     outputs:
     - Name: Arn
       Selector: $.Role.Arn

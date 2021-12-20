@@ -138,6 +138,7 @@ class LogHandler(object):
                             self.stream_name, self._stream_token)))
                     except:
                         self._stream_token = None
+                        raise
                 else:
                     print(("Error logstream {}, {}".format(self.stream_name, str(ex))))
                     break

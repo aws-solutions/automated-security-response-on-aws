@@ -47,6 +47,7 @@ class Finding(object):
     details = {} # Assuming ONE finding per event. We'll take the first.
     generator_id = 'error'
     account_id = 'error'
+    resource_region = 'error'
     standard_name = ''
     standard_shortname = 'error'
     standard_version = 'error'
@@ -56,14 +57,20 @@ class Finding(object):
     title = ''
     description = ''
     region = None
+    arn = ''
+    uuid = ''
 
     def __init__(self, finding_rec):
         self.region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
         self.aws_api_client = AWSCachedClient(self.region)
 
         self.details = finding_rec
+        self.arn = self.details.get('Id', 'error')
+        self.uuid = self.arn.split ('/finding/')[1]
         self.generator_id = self.details.get('GeneratorId', 'error')
         self.account_id = self.details.get('AwsAccountId', 'error')
+        resource = self.details.get('Resources',[])[0]
+        self.resource_region = resource.get('Region','error')
 
         if not self.is_valid_finding_json():
             raise InvalidFindingJson
@@ -225,7 +232,8 @@ class SHARRNotification(object):
     message = ''
     logdata = []
     send_to_sns = False
-
+    finding_info = {}
+    
     def __init__(self, security_standard, region, controlid=None):
         """
         Initialize the class
@@ -259,10 +267,23 @@ class SHARRNotification(object):
         """
         Send notifications to the application CW Logs stream and sns
         """
+        sns_notify_json = {
+            'severity': self.severity,
+            'message': self.message,
+            'finding': self.finding_info
+        }
 
         if self.send_to_sns:
-            publish_to_sns('SO0111-SHARR_Topic', self.severity + ':' + self.message, self.__region)
-
+            sent_id = publish_to_sns(
+                'SO0111-SHARR_Topic', 
+                json.dumps(
+                    sns_notify_json, 
+                    indent=2, 
+                    default=str
+                ), 
+                self.__region
+            )
+            print(f'Notification message ID {sent_id} sent.')
         self.applogger.add_message(
             self.severity + ': ' + self.message
         )

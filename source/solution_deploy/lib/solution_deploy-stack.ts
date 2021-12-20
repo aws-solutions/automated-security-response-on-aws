@@ -14,7 +14,6 @@
  *****************************************************************************/
 
 import * as cdk from '@aws-cdk/core';
-import * as iam from '@aws-cdk/aws-iam';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as sns from '@aws-cdk/aws-sns';
 import * as lambda from '@aws-cdk/aws-lambda';
@@ -22,6 +21,10 @@ import { StringParameter, CfnParameter } from '@aws-cdk/aws-ssm';
 import * as kms from '@aws-cdk/aws-kms';
 import * as fs from 'fs';
 import { 
+    Role,
+    CfnRole,
+    Policy,
+    CfnPolicy,
     PolicyStatement, 
     PolicyDocument, 
     ServicePrincipal,
@@ -177,12 +180,12 @@ export class SolutionDeployStack extends cdk.Stack {
 
     /**
      * @description Policy for role used by common Orchestrator Lambdas
-     * @type {iam.Policy}
+     * @type {Policy}
      */
-    const orchestratorPolicy = new iam.Policy(this, 'orchestratorPolicy', {
+    const orchestratorPolicy = new Policy(this, 'orchestratorPolicy', {
         policyName: RESOURCE_PREFIX + '-SHARR_Orchestrator',
         statements: [
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'logs:CreateLogGroup',
                     'logs:CreateLogStream',
@@ -190,7 +193,7 @@ export class SolutionDeployStack extends cdk.Stack {
                 ],
                 resources: ['*']
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'ssm:GetParameter',
                     'ssm:GetParameters',
@@ -198,13 +201,12 @@ export class SolutionDeployStack extends cdk.Stack {
                 ],
                 resources: [`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`]
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                  actions: [
                     'sts:AssumeRole'
                 ],
                 resources: [
-                    'arn:' + this.partition + ':iam::*:role/' + RESOURCE_PREFIX +
-                        '-SHARR-Orchestrator-Member_' + this.region,
+                    `arn:${this.partition}:iam::*:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`,
                     'arn:' + this.partition + ':iam::*:role/' + RESOURCE_PREFIX +
                         '-Remediate-*', 
                 ]
@@ -213,7 +215,7 @@ export class SolutionDeployStack extends cdk.Stack {
     })
 
     {
-        let childToMod = orchestratorPolicy.node.findChild('Resource') as iam.CfnPolicy;
+        let childToMod = orchestratorPolicy.node.findChild('Resource') as CfnPolicy;
         childToMod.cfnOptions.metadata = {
             cfn_nag: {
                 rules_to_suppress: [{
@@ -226,19 +228,19 @@ export class SolutionDeployStack extends cdk.Stack {
 
     /**
      * @description Role used by common Orchestrator Lambdas
-     * @type {iam.Role}
+     * @type {Role}
      */
 
-    const orchestratorRole = new iam.Role(this, 'orchestratorRole', {
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+    const orchestratorRole = new Role(this, 'orchestratorRole', {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
         description: 'Lambda role to allow cross account read-only SHARR orchestrator functions',
-        roleName: RESOURCE_PREFIX + '-SHARR-Orchestrator-Admin_' + this.region
+        roleName: `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin`
     });
 
     orchestratorRole.attachInlinePolicy(orchestratorPolicy);
 
     {
-        let childToMod = orchestratorRole.node.findChild('Resource') as iam.CfnRole;
+        let childToMod = orchestratorRole.node.findChild('Resource') as CfnRole;
         childToMod.cfnOptions.metadata = {
             cfn_nag: {
                 rules_to_suppress: [{
@@ -296,6 +298,53 @@ export class SolutionDeployStack extends cdk.Stack {
             }
         };
     }
+
+    /**
+     * @description getApprovalRequirement - determine whether manual approval is required
+     * @type {lambda.Function}
+     */
+         const getApprovalRequirement = new lambda.Function(this, 'getApprovalRequirement', {
+            functionName: RESOURCE_PREFIX + '-SHARR-getApprovalRequirement',
+            handler: 'get_approval_requirement.lambda_handler',
+            runtime: props.runtimePython,
+            description: 'Determines if a manual approval is required for remediation',
+            code: lambda.Code.fromBucket(
+                SolutionsBucket,
+                props.solutionTMN + '/' + props.solutionVersion + '/lambda/get_approval_requirement.py.zip'
+            ),
+            environment: {
+                log_level: 'info',
+                AWS_PARTITION: this.partition,
+                SOLUTION_ID: props.solutionId,
+                SOLUTION_VERSION: props.solutionVersion,
+                WORKFLOW_RUNBOOK: ''
+            },
+            memorySize: 256,
+            timeout: cdk.Duration.seconds(600),
+            role: orchestratorRole,
+            layers: [sharrLambdaLayer]
+        });
+    
+        {
+            const childToMod = getApprovalRequirement.node.findChild('Resource') as lambda.CfnFunction;
+    
+            childToMod.cfnOptions.metadata = {
+                cfn_nag: {
+                    rules_to_suppress: [{
+                        id: 'W58',
+                        reason: 'False positive. Access is provided via a policy'
+                    },{
+                        id: 'W89',
+                        reason: 'There is no need to run this lambda in a VPC'
+                    },
+                    {
+                        id: 'W92',
+                        reason: 'There is no need for Reserved Concurrency'
+                    }]
+                }
+            };
+        }
+    
 
     /**
      * @description execAutomation - initiate an SSM automation document in a target account
@@ -389,12 +438,12 @@ export class SolutionDeployStack extends cdk.Stack {
 
     /**
      * @description Policy for role used by common Orchestrator notification lambda
-     * @type {iam.Policy}
+     * @type {Policy}
      */
-    const notifyPolicy = new iam.Policy(this, 'notifyPolicy', {
+    const notifyPolicy = new Policy(this, 'notifyPolicy', {
         policyName: RESOURCE_PREFIX + '-SHARR_Orchestrator_Notifier',
         statements: [
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'logs:CreateLogGroup',
                     'logs:CreateLogStream',
@@ -402,19 +451,19 @@ export class SolutionDeployStack extends cdk.Stack {
                 ],
                 resources: ['*']
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'securityhub:BatchUpdateFindings'
                 ],
                 resources: ['*']
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'ssm:GetParameter'
                 ],
-                resources: [`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`]
+                resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter/Solutions/SO0111/*`]
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'kms:Encrypt',
                     'kms:Decrypt',
@@ -422,18 +471,19 @@ export class SolutionDeployStack extends cdk.Stack {
                 ],
                 resources: [kmsKey.keyArn]
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'sns:Publish'
                 ],
-                resources: ['arn:' + this.partition + ':sns:' + this.region + ':' +
-                    this.account + ':' + RESOURCE_PREFIX + '-SHARR_Topic']
+                resources: [ 
+                    `arn:${this.partition}:sns:${this.region}:${this.account}:${RESOURCE_PREFIX}-SHARR_Topic`
+                ]
             })
         ]
     })
 
     {
-        let childToMod = notifyPolicy.node.findChild('Resource') as iam.CfnPolicy;
+        let childToMod = notifyPolicy.node.findChild('Resource') as CfnPolicy;
         childToMod.cfnOptions.metadata = {
             cfn_nag: {
                 rules_to_suppress: [{
@@ -447,20 +497,22 @@ export class SolutionDeployStack extends cdk.Stack {
         }
     }
 
+    notifyPolicy.attachToRole(orchestratorRole) // Any Orchestrator Lambda can send to sns
+    
     /**
      * @description Role used by common Orchestrator Lambdas
-     * @type {iam.Role}
+     * @type {Role}
      */
 
-    const notifyRole = new iam.Role(this, 'notifyRole', {
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+    const notifyRole = new Role(this, 'notifyRole', {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
         description: 'Lambda role to perform notification and logging from orchestrator step function'
     });
 
     notifyRole.attachInlinePolicy(notifyPolicy);
 
     {
-        let childToMod = notifyRole.node.findChild('Resource') as iam.CfnRole;
+        let childToMod = notifyRole.node.findChild('Resource') as CfnRole;
         childToMod.cfnOptions.metadata = {
             cfn_nag: {
                 rules_to_suppress: [{
@@ -519,16 +571,16 @@ export class SolutionDeployStack extends cdk.Stack {
     //-------------------------------------------------------------------------
     // Custom Lambda Policy
     //
-    const createCustomActionPolicy = new iam.Policy(this, 'createCustomActionPolicy', {
+    const createCustomActionPolicy = new Policy(this, 'createCustomActionPolicy', {
         policyName: RESOURCE_PREFIX + '-SHARR_Custom_Action',
         statements: [
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'cloudwatch:PutMetricData'
                 ],
                 resources: ['*']
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'logs:CreateLogGroup',
                     'logs:CreateLogStream',
@@ -536,14 +588,14 @@ export class SolutionDeployStack extends cdk.Stack {
                 ],
                 resources: ['*']
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'securityhub:CreateActionTarget',
                     'securityhub:DeleteActionTarget'
                 ],
                 resources: ['*']
             }),
-            new iam.PolicyStatement({
+            new PolicyStatement({
                 actions: [
                     'ssm:GetParameter',
                     'ssm:GetParameters',
@@ -554,7 +606,7 @@ export class SolutionDeployStack extends cdk.Stack {
         ]
     })
 
-    const createCAPolicyResource = createCustomActionPolicy.node.findChild('Resource') as iam.CfnPolicy;
+    const createCAPolicyResource = createCustomActionPolicy.node.findChild('Resource') as CfnPolicy;
 
     createCAPolicyResource.cfnOptions.metadata = {
         cfn_nag: {
@@ -568,14 +620,14 @@ export class SolutionDeployStack extends cdk.Stack {
     //-------------------------------------------------------------------------
     // Custom Lambda Role
     //
-    const createCustomActionRole = new iam.Role(this, 'createCustomActionRole', {
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+    const createCustomActionRole = new Role(this, 'createCustomActionRole', {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
         description: 'Lambda role to allow creation of Security Hub Custom Actions'
     });
 
     createCustomActionRole.attachInlinePolicy(createCustomActionPolicy);
 
-    const createCARoleResource = createCustomActionRole.node.findChild('Resource') as iam.CfnRole;
+    const createCARoleResource = createCustomActionRole.node.findChild('Resource') as CfnRole;
 
     createCARoleResource.cfnOptions.metadata = {
         cfn_nag: {
@@ -637,6 +689,7 @@ export class SolutionDeployStack extends cdk.Stack {
         ssmExecDocLambda: execAutomation.functionArn,
         ssmExecMonitorLambda: monitorSSMExecState.functionArn,
         notifyLambda: sendNotifications.functionArn,
+        getApprovalRequirementLambda: getApprovalRequirement.functionArn,
         solutionId: RESOURCE_PREFIX,
         solutionName: props.solutionName,
         solutionVersion: props.solutionVersion,
@@ -654,14 +707,18 @@ export class SolutionDeployStack extends cdk.Stack {
     //
     new OneTrigger(this, 'RemediateWithSharr', {
         targetArn: orchStateMachine.stateMachineArn,
-        prereq: createCAFuncResource
+        serviceToken: createCustomAction.functionArn,
+        prereq: [
+            createCAFuncResource,
+            createCAPolicyResource
+        ]
     })
 
     //-------------------------------------------------------------------------
     // Loop through all of the Playbooks and create an option to load each
     //
     const PB_DIR = `${__dirname}/../../playbooks`
-    var ignore = ['.DS_Store', 'core', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK'];
+    var ignore = ['.DS_Store', 'core', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     let illegalChars = /[\._]/g;
 
     var standardLogicalNames: string[] = []
@@ -677,8 +734,8 @@ export class SolutionDeployStack extends cdk.Stack {
                 let parmname = file.replace(illegalChars, '')
                 let adminStackOption = new cdk.CfnParameter(this, `LoadAdminStack${parmname}`, {
                     type: "String",
-                    description: `Load Playbook Admin stack for ${file}?`,
-                    default: "no",
+                    description: `Load CloudWatch Event Rules for ${file}?`,
+                    default: "yes",
                     allowedValues: ["yes", "no"],
                 })
                 adminStackOption.overrideLogicalId(`Load${parmname}AdminStack`)
@@ -702,20 +759,11 @@ export class SolutionDeployStack extends cdk.Stack {
     stack.templateOptions.metadata = {
         "AWS::CloudFormation::Interface": {
             ParameterGroups: [
-                // {
-                //     Label: {default: "Service Catalog Configuration"},
-                //     Parameters: [useServiceCatalog.logicalId]
-                // },
                 {
                     Label: {default: "Security Standard Playbooks"},
                     Parameters: standardLogicalNames
                 }
-            ],
-            // ParameterLabels: {
-            //     [useServiceCatalog.logicalId]: {
-            //         default: "Choose whether to use Service Catalog for Security Standard templates in the Admin account.",
-            //     }
-            // },
+            ]
         },
     };
   }

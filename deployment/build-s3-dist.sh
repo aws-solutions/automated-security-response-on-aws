@@ -22,6 +22,13 @@
 # choose the latest AWS Solutions Constructs version.
 required_cdk_version=1.132.0
 
+# Get reference for all important folders
+template_dir="$PWD"
+template_dist_dir="$template_dir/global-s3-assets"
+build_dist_dir="$template_dir/regional-s3-assets"
+source_dir="../source"
+temp_work_dir="${template_dir}/temp"
+
 # Functions to reduce repetitive code
 # do_cmd will exit if the command has a non-zero return code.
 do_cmd () {
@@ -40,6 +47,20 @@ do_replace() {
     do_cmd sed -i '' -e $replace $file
 }
 
+clean() {
+    echo "------------------------------------------------------------------------------"
+    echo "[Init] Clean old dist, node_modules and bower_components folders"
+    echo "------------------------------------------------------------------------------"
+    do_cmd rm -rf $template_dist_dir
+    do_cmd rm -rf $build_dist_dir
+    do_cmd rm -rf $temp_work_dir
+    do_cmd rm -rf ${template_dir}/${source_dir}/node_modules
+    cd $source_dir
+    # remove node_modules
+    find . -name node_modules | while read file;do rm -rf $file; done
+    cd $template_dir
+}
+
 #------------------------------------------------------------------------------
 # Validate command line parameters
 #------------------------------------------------------------------------------
@@ -47,18 +68,22 @@ do_replace() {
 # Command line from the buildspec is, by convention:
 # chmod +x ./build-s3-dist.sh && ./build-s3-dist.sh $DIST_OUTPUT_BUCKET $SOLUTION_NAME $VERSION $DEVBUILD
 
-while getopts ":b:v:t:h" opt;
+while getopts ":b:v:tch" opt;
 do
     case "${opt}" in
         b ) bucket=${OPTARG};;
         v ) version=${OPTARG};;
-        t ) devtest=${OPTARG};;
-        h )
-            echo "Usage: $0 -b <bucket> [-v <version>] [-t DEVTEST]"
+        t ) devtest=1;;
+        c) 
+            clean
+            exit 0
+            ;;
+        *)
+            echo "Usage: $0 -b <bucket> [-v <version>] [-t]"
             echo "Version must be provided via a parameter or ../version.txt. Others are optional." 
-            echo "-t DEVTEST indicates this is a pre-prod build and instructs the build to use a non-prod Solution ID, DEV-SOxxxx"
+            echo "-t indicates this is a pre-prod build and instructs the build to use a non-prod Solution ID, DEV-SOxxxx"
             echo "Production example: ./build-s3-dist.sh -b solutions -v v1.0.0"
-            echo "Dev example: ./build-s3-dist.sh -b solutions -v v1.0.0 -t DEVTEST"  
+            echo "Dev example: ./build-s3-dist.sh -b solutions -v v1.0.0 -t"  
             exit 1 
             ;;
     esac
@@ -77,6 +102,8 @@ echo "export DIST_OUTPUT_BUCKET=$bucket" > ./setenv.sh
 # Version from the command line is definitive. Otherwise, use version.txt
 if [[ ! -z "$version" ]]; then
     echo Version is $version from the command line
+elif ( command -v jq ) && [[ -f ${template_dir}/${source_dir}/package.json ]]; then
+    version=`cat ${template_dir}/${source_dir}/package.json | jq -r .version`
 elif [[ -e ../source/version.txt ]]; then
     version=`cat ../source/version.txt`
     echo Version is $version from ../source/version.txt
@@ -146,51 +173,23 @@ echo "==========================================================================
 echo "Building $SOLUTION_NAME ($SOLUTION_ID) version $version for bucket $bucket"
 echo "=========================================================================="
 
-# Get reference for all important folders
-template_dir="$PWD"
-template_dist_dir="$template_dir/global-s3-assets"
-build_dist_dir="$template_dir/regional-s3-assets"
-source_dir="$template_dir/../source"
-temp_work_dir="${template_dir}/temp"
-
-echo "------------------------------------------------------------------------------"
-echo "[Init] Clean old dist, node_modules and bower_components folders"
-echo "------------------------------------------------------------------------------"
-do_cmd rm -rf $template_dist_dir
-do_cmd mkdir -p $template_dist_dir
-do_cmd rm -rf $build_dist_dir
-do_cmd mkdir -p $build_dist_dir
-do_cmd rm -rf $temp_work_dir
-do_cmd mkdir -p $temp_work_dir
+clean
 
 echo "------------------------------------------------------------------------------"
 echo "[Init] Create folders"
 echo "------------------------------------------------------------------------------"
-mkdir ${build_dist_dir}/lambda
-mkdir -p ${template_dist_dir}/playbooks
-
-echo "------------------------------------------------------------------------------"
-echo "[Copy] Copy source to temp, remove unwanted files"
-echo "------------------------------------------------------------------------------"
-do_cmd cp -r $source_dir $temp_work_dir # make a copy to work from
-cd $temp_work_dir
-# remove node_modules
-find . -name node_modules | while read file;do rm -rf $file; done
-# remove package-lock.json
-find . -name package-lock.json | while read file;do rm $file; done
-
-# Propagate the $required_cdk_version to all of the package.json files.
-# This makes it very simple to update the version by changing the value above.
-cd $temp_work_dir/source
-find . -name package.json | while read package; do
-    do_replace $package "###CDK###" $required_cdk_version
-done
+do_cmd mkdir -p $template_dist_dir
+do_cmd mkdir -p $build_dist_dir
+do_cmd mkdir -p $temp_work_dir
+do_cmd mkdir ${build_dist_dir}/lambda
+do_cmd mkdir -p ${template_dist_dir}/playbooks
 
 echo "------------------------------------------------------------------------------"
 echo "[Install] CDK"
 echo "------------------------------------------------------------------------------"
 
-cd $temp_work_dir/source
+# cd $temp_work_dir/source
+cd $source_dir
 do_cmd npm install      # local install per package.json
 do_cmd npm install aws-cdk@$required_cdk_version
 export PATH=$(npm bin):$PATH
@@ -207,9 +206,16 @@ echo "--------------------------------------------------------------------------
 echo "[Pack] Lambda Layer (used by playbooks)"
 echo "------------------------------------------------------------------------------"
 cd $template_dir
+do_cmd cp -r $source_dir $temp_work_dir # make a copy to work from
+cd $temp_work_dir
+# remove node_modules
+find . -name node_modules | while read file;do rm -rf $file; done
+# remove package-lock.json
+find . -name package-lock.json | while read file;do rm $file; done
+
 mkdir -p $temp_work_dir/source/solution_deploy/lambdalayer/python
-cp $source_dir/LambdaLayers/*.py $temp_work_dir/source/solution_deploy/lambdalayer/python
-pip install -r ./requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
+cp ${template_dir}/${source_dir}/LambdaLayers/*.py $temp_work_dir/source/solution_deploy/lambdalayer/python
+pip install -r $template_dir/requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
 cd $temp_work_dir/source/solution_deploy/lambdalayer
 zip --recurse-paths ${build_dist_dir}/lambda/layer.zip python
 
@@ -226,7 +232,7 @@ do_cmd cp ../../LambdaLayers/*.py .
 echo "------------------------------------------------------------------------------"
 echo "[Pack] Orchestrator Lambdas"
 echo "------------------------------------------------------------------------------"
-cd $template_dir
+# cd $template_dir
 cd $temp_work_dir/source/Orchestrator
 ls | while read file; do 
     if [ ! -d $file ]; then
@@ -240,12 +246,12 @@ do_cmd cp ../LambdaLayers/*.py .
 echo "------------------------------------------------------------------------------"
 echo "[Create] Playbooks"
 echo "------------------------------------------------------------------------------"
-for playbook in `ls ${temp_work_dir}/source/playbooks`; do
-    if [ $playbook == 'NEWPLAYBOOK' ]; then
+for playbook in `ls ${template_dir}/${source_dir}/playbooks`; do
+    if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ]; then
         continue
     fi
     echo Create $playbook playbook
-    do_cmd cd $temp_work_dir/source/playbooks/${playbook}
+    do_cmd cd ${template_dir}/${source_dir}/playbooks/${playbook}
         for template in `cdk list`; do
         echo Create $playbook template $template
         # do_cmd npm run build
@@ -257,7 +263,7 @@ echo "--------------------------------------------------------------------------
 echo "[Create] Deployment Templates"
 echo "------------------------------------------------------------------------------"
 # Don't build the deployment template until AFTER the playbooks
-cd $temp_work_dir/source/solution_deploy
+cd ${template_dir}/${source_dir}/solution_deploy
 
 # Output YAML - this is currently the only way to do this for multiple templates
 for template in `cdk ls`; do
@@ -273,5 +279,6 @@ mv ${template_dist_dir}/SolutionDeployStack.template ${template_dist_dir}/aws-sh
 mv ${template_dist_dir}/MemberStack.template ${template_dist_dir}/aws-sharr-member.template
 mv ${template_dist_dir}/RunbookStack.template ${template_dist_dir}/aws-sharr-remediations.template
 mv ${template_dist_dir}/OrchestratorLogStack.template ${template_dist_dir}/aws-sharr-orchestrator-log.template
+mv ${template_dist_dir}/MemberRoleStack.template ${template_dist_dir}/aws-sharr-member-roles.template
 
 echo Build Complete

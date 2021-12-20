@@ -160,4 +160,4 @@ class Metrics(object):
         url = 'https://metrics.awssolutionsbuilder.com/generic'
         req = Request(url, method='POST', data=bytes(json.dumps(
             request_data), encoding='utf8'), headers={'Content-Type': 'application/json'})
-        urlopen(req)
+        urlopen(req) # nosec

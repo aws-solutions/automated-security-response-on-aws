@@ -21,11 +21,11 @@ from botocore.config import Config
 import pytest
 
 import CreateLogMetricFilterAndAlarm as logMetricAlarm
+import CreateLogMetricFilterAndAlarm_createtopic as topicutil
 import unittest
 
 my_session = boto3.session.Session()
 my_region = my_session.region_name
-
 
 def test_verify(mocker):
 
@@ -235,3 +235,52 @@ def test_put_metric_alarm_error(mocker):
         )
     assert pytest_wrapped_exception.type == SystemExit
     cloudwatch_stubber.deactivate()
+
+def topic_event():
+    return {
+        'topic_name': 'sharr-test-topic',
+        'kms_key_arn': 'arn:aws:kms:ap-northeast-1:111122223333:key/foobarbaz'
+    }
+
+def test_create_new_topic(mocker):
+    BOTO_CONFIG = Config(
+        retries ={
+          'mode': 'standard'
+        },
+        region_name=my_region
+    )
+    ssm_client = botocore.session.get_session().create_client('ssm', config=BOTO_CONFIG)
+    ssm_stubber = Stubber(ssm_client)
+    ssm_stubber.add_response(
+        'put_parameter',
+        {},
+        { 
+            'Name': '/Solutions/SO0111/SNS_Topic_CIS3.x',
+            'Description': 'SNS Topic for AWS Config updates',
+            'Type': 'String',
+            'Overwrite': True,
+            'Value': 'arn:aws:sns:us-east-1:111111111111:sharr-test-topic'
+        }
+    )
+    ssm_stubber.activate()
+
+    sns_client = botocore.session.get_session().create_client('sns', config=BOTO_CONFIG)
+    sns_stubber = Stubber(sns_client)
+    sns_stubber.add_response(
+        'create_topic',
+        {
+            'TopicArn': 'arn:aws:sns:us-east-1:111111111111:sharr-test-topic'
+        }
+    )
+    sns_stubber.add_response(
+        'set_topic_attributes',
+        {}
+    )
+    sns_stubber.activate()
+    mocker.patch('CreateLogMetricFilterAndAlarm_createtopic.connect_to_ssm', return_value=ssm_client)
+    mocker.patch('CreateLogMetricFilterAndAlarm_createtopic.connect_to_sns', return_value=sns_client)
+
+    assert topicutil.create_encrypted_topic(topic_event(), {}) == { 
+        'topic_arn': 'arn:aws:sns:us-east-1:111111111111:sharr-test-topic'
+    }
+    

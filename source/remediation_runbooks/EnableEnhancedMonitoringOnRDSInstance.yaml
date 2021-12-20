@@ -115,7 +115,7 @@ mainSteps:
     isEnd: true
     timeoutSeconds: 600
     inputs:
-      Runtime: python3.6
+      Runtime: python3.7
       Handler: handler
       InputPayload:
         MonitoringInterval: "{{ MonitoringInterval }}"

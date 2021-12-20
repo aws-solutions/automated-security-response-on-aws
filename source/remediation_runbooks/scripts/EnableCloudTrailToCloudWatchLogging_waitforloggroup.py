@@ -35,13 +35,12 @@ def wait_for_loggroup(event, context):
         try:
             describe_group = cwl_client.describe_log_groups(logGroupNamePrefix=event['LogGroup'])
             print(len(describe_group['logGroups']))
-            if len(describe_group['logGroups']) == 1: 
-                return str(describe_group['logGroups'][0]['arn'])
-            elif len(describe_group['logGroups']) > 1:
-                exit(f'More than one Log Group matches {event["LogGroup"]}')
-            else: 
-                time.sleep(2)
-                attempts += 1
+            for group in describe_group['logGroups']:
+                if group['logGroupName'] == event['LogGroup']:
+                    return str(group['arn'])
+            # no match - wait and retry
+            time.sleep(2)
+            attempts += 1
 
         except Exception as e:
             exit(f'Failed to create Log Group {event["LogGroup"]}: {str(e)}')

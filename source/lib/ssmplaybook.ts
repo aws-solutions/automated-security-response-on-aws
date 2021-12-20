@@ -32,6 +32,7 @@ import {
 } from '@aws-cdk/aws-iam';
 import { StateMachine } from '@aws-cdk/aws-stepfunctions';
 import { IRuleTarget, EventPattern, Rule } from '@aws-cdk/aws-events';
+import { MemberRoleStack } from '../solution_deploy/lib/remediation_runbook-stack';
 
 /*
  * @author AWS Solutions Development
@@ -125,7 +126,7 @@ export class SsmPlaybook extends cdk.Construct {
 export interface ITriggerProps {
     description?: string,
     securityStandard: string;     // ex. AFSBP
-    generatorId: string;          // ex. arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
+    generatorId: string;    // ex. "arn:aws-cn:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0"
     controlId: string;
     targetArn: string;
 }
@@ -180,18 +181,29 @@ export class Trigger extends cdk.Construct {
     });
 
     enable_auto_remediation_param.overrideLogicalId(`${props.securityStandard}${props.controlId.replace(illegalChars, '')}AutoTrigger`)
-
-    let triggerPattern: events.EventPattern = {
+    
+    interface IPattern {
+        source: any,
+        detailType: any
+        detail: any
+    }
+    let eventPattern: IPattern = {
         source: ["aws.securityhub"],
         detailType: ["Security Hub Findings - Imported"],
         detail: {
             findings: { 
-                GeneratorId: [ props.generatorId ],
+                GeneratorId: [props.generatorId],
+                ProductFields: {
+                    ControlId: [props.controlId]
+                },
                 Workflow: workflowStatusFilter,
                 Compliance: complianceStatusFilter
             }
         }
     }
+
+    let triggerPattern: events.EventPattern = eventPattern
+    
     // Adding an automated even rule for the playbook
     const eventRule_auto = new events.Rule(this, 'AutoEventRule', {
         description: description + ' automatic remediation trigger event rule.',
@@ -208,7 +220,8 @@ export class Trigger extends cdk.Construct {
 export interface IOneTriggerProps {
     description?: string,
     targetArn: string;
-    prereq: cdk.CfnResource;
+    serviceToken: string;
+    prereq: cdk.CfnResource[];
 }
 export class OneTrigger extends cdk.Construct {
 // used in place of Trigger. Sends all finding events for which the 
@@ -236,7 +249,7 @@ export class OneTrigger extends cdk.Construct {
 
     // Note: Id is max 20 characters
     const customAction = new cdk.CustomResource(this, 'Custom Action', {
-        serviceToken: `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:SO0111-SHARR-CustomAction`,
+        serviceToken: props.serviceToken,
         resourceType: 'Custom::ActionTarget',
         properties: {
             Name: 'Remediate with SHARR',
@@ -246,7 +259,9 @@ export class OneTrigger extends cdk.Construct {
     });
     {
         let child = customAction.node.defaultChild as cdk.CfnCustomResource
-        child.addDependsOn(props.prereq)
+        for (var prereq of props.prereq) {
+            child.addDependsOn(prereq)
+        }
     }
 
     // Create an IAM role for Events to start the State Machine
@@ -288,11 +303,10 @@ export class OneTrigger extends cdk.Construct {
 }
 
 export interface RoleProps {
-    solutionId: string;
-    ssmDocName: string;
-    adminAccountNumber: string;
-    remediationPolicy: Policy;
-    remediationRoleName: string;
+    readonly solutionId: string;
+    readonly ssmDocName: string;
+    readonly remediationPolicy: Policy;
+    readonly remediationRoleName: string;
 }
 
 export class SsmRole extends cdk.Construct {
@@ -300,9 +314,11 @@ export class SsmRole extends cdk.Construct {
   constructor(scope: cdk.Construct, id: string, props: RoleProps) {
     super(scope, id);
     const stack = cdk.Stack.of(this)
+    const roleStack = MemberRoleStack.of(this)
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
-    const adminRoleName = `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin_${stack.region}`
+    const adminRoleName = `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin`
     const basePolicy = new Policy(this, 'SHARR-Member-Base-Policy')
+    const adminAccount = roleStack.node.findChild('AdminAccountParameter').node.findChild('Admin Account Number') as cdk.CfnParameter;
 
     const ssmParmPerms = new PolicyStatement();
     ssmParmPerms.addActions(
@@ -312,7 +328,7 @@ export class SsmRole extends cdk.Construct {
     )
     ssmParmPerms.effect = Effect.ALLOW
     ssmParmPerms.addResources(
-        `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/SO0111/*`
+        `arn:${stack.partition}:ssm:*:${stack.account}:parameter/Solutions/SO0111/*`
     );
     basePolicy.addStatements(ssmParmPerms)
 
@@ -322,7 +338,7 @@ export class SsmRole extends cdk.Construct {
     principalPolicyStatement.effect = Effect.ALLOW;
 
     let roleprincipal = new ArnPrincipal(
-        'arn:' + stack.partition + ':iam::' + props.adminAccountNumber + 
+        'arn:' + stack.partition + ':iam::' + adminAccount.valueAsString +
         ':role/' + adminRoleName
     );
 
@@ -339,6 +355,7 @@ export class SsmRole extends cdk.Construct {
 
     memberRole.attachInlinePolicy(basePolicy)
     memberRole.attachInlinePolicy(props.remediationPolicy)
+    memberRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN)
 
     const memberRoleResource = memberRole.node.findChild('Resource') as CfnRole;
 
@@ -362,9 +379,7 @@ export interface RemediationRunbookProps {
     ssmDocFileName: string;
     solutionVersion: string;
     solutionDistBucket: string;
-    adminRoleName?: string;
     remediationPolicy?: Policy;
-    adminAccountNumber?: string;
     solutionId?: string;
     scriptPath?: string;
 }
@@ -373,7 +388,6 @@ export class SsmRemediationRunbook extends cdk.Construct {
     
   constructor(scope: cdk.Construct, id: string, props: RemediationRunbookProps) {
     super(scope, id);
-    const stack = cdk.Stack.of(this)
 
     // Add prefix to ssmDocName
     let ssmDocName = `SHARR-${props.ssmDocName}`
@@ -417,17 +431,5 @@ export class SsmRemediationRunbook extends cdk.Construct {
         documentType: 'Automation',
         name: ssmDocName
     })
-
-    if (props.adminRoleName && props.solutionId && props.adminAccountNumber && props.remediationPolicy) {
-        const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
-        const remediationRoleNameBase = `${RESOURCE_PREFIX}-Remediate-${props.ssmDocName}-`
-        new SsmRole(this, 'RemediationRole ' + props.ssmDocName, {
-            solutionId: props.solutionId,
-            ssmDocName: ssmDocName,
-            adminAccountNumber: props.adminAccountNumber,
-            remediationPolicy: props.remediationPolicy,
-            remediationRoleName: `${remediationRoleNameBase}_${stack.region}`
-        })
-    }
   }
 }

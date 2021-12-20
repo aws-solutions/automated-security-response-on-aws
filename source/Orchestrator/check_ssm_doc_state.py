@@ -24,72 +24,37 @@ from awsapi_cached_client import BotoSession
 from sechub_findings import Finding
 import utils
 
-# Get AWS region from Lambda environment. If not present then we're not
-# running under lambda, so defaulting to us-east-1
-AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')   # MUST BE SET in global variables
-AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')           # MUST BE SET in global variables
-ORCH_ROLE_BASE_NAME = 'SO0111-SHARR-Orchestrator-Member'    # role to use for cross-account
+ORCH_ROLE_NAME = 'SO0111-SHARR-Orchestrator-Member'    # role to use for cross-account
 
 # initialise loggers
 LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 
-def _get_ssm_client(account, role, region):
+def _get_ssm_client(account, role, region=''):
     """
     Create a client for ssm
     """
-    sess = BotoSession(
+    kwargs = {}
+
+    if region:
+        kwargs['region_name'] = region
+
+    return BotoSession(
         account,
-        f'{role}_{region}'
-    )
-    return sess.client('ssm')
+        f'{role}'
+    ).client('ssm', **kwargs)
 
-def lambda_handler(event, context):
-
-    answer = utils.StepFunctionLambdaAnswer()
-    LOGGER.info(event)
-    if "Finding" not in event or \
-       "EventType" not in event:
-        answer.update({
-            'status':'ERROR',
-            'message':'Missing required data in request'
-        })
-        LOGGER.error(answer.message)
-        return answer.json()
-
-    finding = Finding(event['Finding'])
-
-    answer.update({
-        'securitystandard': finding.standard_shortname,
-        'securitystandardversion': finding.standard_version,
-        'controlid': finding.standard_control,
-        'standardsupported': finding.standard_version_supported, # string True/False
-        'accountid': finding.account_id
-    })  
-
-    if finding.standard_version_supported != 'True':
-        answer.update({
-            'status':'NOTENABLED',
-            'message':f'Security Standard is not enabled": "{finding.standard_name} version {finding.standard_version}"'
-        })
-        return answer.json()
-
+def _add_doc_state_to_answer(doc, account, region, answer):
     # Connect to APIs
-
-    ssm = _get_ssm_client(finding.account_id, ORCH_ROLE_BASE_NAME, AWS_REGION)
-    
-    automation_docid = f'SHARR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
-    remediation_role = f'SO0111-Remediate-{finding.standard_shortname}-{finding.standard_version}-{finding.remediation_control}'
-    
-    answer.update({
-        'automationdocid': automation_docid,
-        'remediationrole': remediation_role
-        })
-
+    ssm = _get_ssm_client(
+        account, 
+        ORCH_ROLE_NAME, 
+        region
+    )
     # Validate input
     try:
         docinfo = ssm.describe_document(
-            Name=automation_docid
+            Name=doc
             )['Document']
 
         doctype = docinfo.get('DocumentType', 'unknown')
@@ -118,7 +83,7 @@ def lambda_handler(event, context):
         if exception_type in "InvalidDocument":
             answer.update({
                 'status':'NOTFOUND',
-                'message': f'Document {automation_docid} does not exist.'
+                'message': f'Document {doc} does not exist.'
             })
             LOGGER.error(answer.message)
         else:
@@ -134,5 +99,61 @@ def lambda_handler(event, context):
             'message':'An unhandled error occurred: ' + str(e)
         })
         LOGGER.error(answer.message)
+
+def lambda_handler(event, context):
+
+    answer = utils.StepFunctionLambdaAnswer() # holds the response to the step function
+    LOGGER.info(event)
+    if "Finding" not in event or \
+       "EventType" not in event:
+        answer.update({
+            'status':'ERROR',
+            'message':'Missing required data in request'
+        })
+        LOGGER.error(answer.message)
+        return answer.json()
+
+    finding = Finding(event['Finding'])
+
+    answer.update({
+        'securitystandard': finding.standard_shortname,
+        'securitystandardversion': finding.standard_version,
+        'controlid': finding.standard_control,
+        'standardsupported': finding.standard_version_supported,
+        'accountid': finding.account_id,
+        'resourceregion': finding.resource_region
+    })  
+
+    if finding.standard_version_supported != 'True':
+        answer.update({
+            'status':'NOTENABLED',
+            'message':f'Security Standard is not enabled": "{finding.standard_name} version {finding.standard_version}"'
+        })
+        return answer.json()
+
+    # Is there alt workflow configuration?
+    alt_workflow_doc = event.get('Workflow',{}).get('WorkflowDocument', None)
     
+    automation_docid = f'SHARR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
+    remediation_role = f'SO0111-Remediate-{finding.standard_shortname}-{finding.standard_version}-{finding.remediation_control}'
+    
+    answer.update({
+        'automationdocid': automation_docid,
+        'remediationrole': remediation_role
+    })
+
+    # If alt workflow is configured we don't need to check doc state, as we checked
+    # it in get_approval_requirement
+    if alt_workflow_doc:
+        answer.update({
+            'status': 'ACTIVE'
+        })
+    else:
+        _add_doc_state_to_answer(
+            automation_docid, 
+            finding.account_id, 
+            finding.resource_region, 
+            answer
+        )
+
     return answer.json()

@@ -24,10 +24,11 @@ import pytest
 import boto3
 from botocore.stub import Stubber, ANY
 from exec_ssm_doc import lambda_handler
-from awsapi_cached_client import AWSCachedClient
 from pytest_mock import mocker
 
-REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+my_session = boto3.session.Session()
+my_region = my_session.region_name
+os.environ['AWS_REGION'] = my_region
 
 def test_exec_runbook(mocker):
     """
@@ -108,6 +109,12 @@ def test_exec_runbook(mocker):
             "ControlId": "AutoScaling.1",
             "SecurityStandard": "AFSBP",
             "SecurityStandardSupported": "True"
+        },
+        "SSMExecution": {
+            "workflow_data": {
+                "impact": "nondestructive",
+                "approvalrequired": "false"
+            }
         }
     }
 
@@ -116,13 +123,12 @@ def test_exec_runbook(mocker):
         'logdata': [],
         'message': 'AutoScaling.1 remediation was successfully invoked via AWS Systems Manager in account 111111111111: 43374019-a309-4627-b8a2-c641e0140262',
         'remediation_status': '',
-        'status': 'SUCCESS'
+        'status': 'QUEUED'
     }
 
-    AWS = AWSCachedClient(REGION)
-    account = AWS.get_connection('sts').get_caller_identity()['Account']
+    account = boto3.client('sts').get_caller_identity()['Account']
     step_input['AutomationDocument']['AccountId'] = account
-    iam_c = AWS.get_connection('iam')
+    iam_c = boto3.client('iam')
     iamc_stub = Stubber(iam_c)
     iamc_stub.add_client_error(
         'get_role',
@@ -130,7 +136,7 @@ def test_exec_runbook(mocker):
     )
     iamc_stub.activate()
 
-    ssm_c = AWS.get_connection('ssm')
+    ssm_c = boto3.client('ssm')
     ssmc_stub = Stubber(ssm_c)
     ssmc_stub.add_response(
         'start_automation_execution',
@@ -147,12 +153,12 @@ def test_exec_runbook(mocker):
                     ANY
                 ]
             }
-        }
-        )
+        })
 
     ssmc_stub.activate()
     mocker.patch('exec_ssm_doc._get_ssm_client', return_value=ssm_c)
     mocker.patch('exec_ssm_doc._get_iam_client', return_value=iam_c)
+    mocker.patch('sechub_findings.SHARRNotification.notify')
 
     response = lambda_handler(step_input, {})
     assert response['executionid'] == expected_result['executionid']

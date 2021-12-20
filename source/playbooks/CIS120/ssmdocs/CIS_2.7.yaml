@@ -45,7 +45,7 @@ mainSteps:
         Selector: $.Payload.resource_id
         Type: String
       - Name: TrailRegion
-        Selector: $.Payload.details.AwsCloudTrailTrail.HomeRegion
+        Selector: $.Payload.resource.Region
         Type: String
     inputs:
       InputPayload:
@@ -56,7 +56,6 @@ mainSteps:
       Handler: parse_event
       Script: |-
         %%SCRIPT=cis_parse_input.py%%
-    isEnd: false
 
   - 
     name: Remediation
@@ -66,9 +65,8 @@ mainSteps:
       RuntimeParameters:
         TrailRegion: '{{ParseInput.TrailRegion}}'
         TrailArn: '{{ParseInput.TrailArn}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableCloudTrailEncryption_{{global:REGION}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableCloudTrailEncryption'
         KMSKeyArn: '{{KMSKeyArn}}'
-    isEnd: false
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

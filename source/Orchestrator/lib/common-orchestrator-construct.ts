@@ -34,6 +34,7 @@ export interface ConstructProps {
     ssmExecDocLambda: string;
     ssmExecMonitorLambda: string;
     notifyLambda: string;
+    getApprovalRequirementLambda: string;
     solutionId: string;
     solutionName: string;
     solutionVersion: string;
@@ -82,11 +83,17 @@ export class OrchestratorConstruct extends cdk.Construct {
     let execRemediationFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'execRemediationFunc',{
         functionArn: props.ssmExecDocLambda
     })
+
     let execMonFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'getExecStatusFunc',{
         functionArn: props.ssmExecMonitorLambda
     })
+
     let notifyFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'notifyFunc',{
         functionArn: props.notifyLambda
+    })
+
+    let getApprovalRequirementFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'getRequirementFunc',{
+        functionArn: props.getApprovalRequirementLambda
     })
 
     const orchestratorFailed = new sfn.Pass(this, 'Orchestrator Failed', {
@@ -113,11 +120,26 @@ export class OrchestratorConstruct extends cdk.Construct {
             "ControlId.$": "$.Payload.controlid",
             "AccountId.$": "$.Payload.accountid",
             "RemediationRole.$": "$.Payload.remediationrole",
-            "AutomationDocId.$": "$.Payload.automationdocid"
+            "AutomationDocId.$": "$.Payload.automationdocid",
+            "ResourceRegion.$": "$.Payload.resourceregion"
         },
         resultPath: "$.AutomationDocument"
     })
     getDocState.addCatch(orchestratorFailed)
+
+    const getApprovalRequirement = new LambdaInvoke(this, 'Get Remediation Approval Requirement', {
+        comment:  "Determine whether the selected remediation requires manual approval",
+        lambdaFunction: getApprovalRequirementFunc,
+        timeout: cdk.Duration.minutes(5),
+        resultSelector: {
+            "WorkflowDocument.$": "$.Payload.workflowdoc",
+            "WorkflowAccount.$": "$.Payload.workflowaccount",
+            "WorkflowRole.$": "$.Payload.workflowrole",
+            "WorkflowConfig.$": "$.Payload.workflow_data"
+        },
+        resultPath: "$.Workflow"
+    })
+    getApprovalRequirement.addCatch(orchestratorFailed)
 
     const remediateFinding = new LambdaInvoke(this, 'Execute Remediation', {
         comment: "Execute the SSM Automation Document in the target account",
@@ -127,7 +149,9 @@ export class OrchestratorConstruct extends cdk.Construct {
         resultSelector: {
             "ExecState.$": "$.Payload.status",
             "Message.$": "$.Payload.message",
-            "ExecId.$": "$.Payload.executionid"
+            "ExecId.$": "$.Payload.executionid",
+            "Account.$": "$.Payload.executionaccount",
+            "Region.$": "$.Payload.executionregion"
         },
         resultPath: "$.SSMExecution"
     })
@@ -155,6 +179,14 @@ export class OrchestratorConstruct extends cdk.Construct {
         lambdaFunction: notifyFunc,
         heartbeat: cdk.Duration.seconds(60),
         timeout: cdk.Duration.minutes(5)
+    })
+
+    const notifyQueued = new LambdaInvoke(this, 'Queued Notification', {
+        comment: "Send notification that a remediation has queued",
+        lambdaFunction: notifyFunc,
+        heartbeat: cdk.Duration.seconds(60),
+        timeout: cdk.Duration.minutes(5),
+        resultPath: "$.notificationResult"
     })
 
     new sfn.Fail(this, 'Job Failed', {
@@ -267,12 +299,8 @@ export class OrchestratorConstruct extends cdk.Construct {
         parameters: {
             "EventType.$": "$.EventType",
             "Finding.$": "$.Finding",
-            "AccountId.$": "$.AutomationDocument.AccountId",
-            "AutomationDocId.$": "$.AutomationDocument.AutomationDocId",
-            "RemediationRole.$": "$.AutomationDocument.RemediationRole",
-            "ControlId.$": "$.AutomationDocument.ControlId",
-            "SecurityStandard.$": "$.AutomationDocument.SecurityStandard",
-            "SecurityStandardVersion.$": "$.AutomationDocument.SecurityStandardVersion",
+            "SSMExecution.$": "$.SSMExecution",
+            "AutomationDocument.$": "$.AutomationDocument",
             "Notification": {
                 "Message.$": "States.Format('Remediation failed for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)",
                 "State.$": "$.Remediation.ExecState",
@@ -304,6 +332,21 @@ export class OrchestratorConstruct extends cdk.Construct {
         }
     })
 
+    const remediationQueued = new sfn.Pass(this, 'Remediation Queued', {
+        comment: 'Set parameters for notification',
+        parameters: {
+            "EventType.$": "$.EventType",
+            "Finding.$": "$.Finding",
+            "AutomationDocument.$": "$.AutomationDocument",
+            "SSMExecution.$": "$.SSMExecution",
+            "Notification": {
+                "Message.$": "States.Format('Remediation queued for {} control {} in account {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId)",
+                "State.$": "States.Format('QUEUED')",
+                "ExecId.$": "$.SSMExecution.ExecId"
+            }
+        }
+    })
+
     //-----------------------------------------------------------------
     // State Machine
     //
@@ -326,7 +369,7 @@ export class OrchestratorConstruct extends cdk.Construct {
                 ),     
             )
         ),
-        getDocState
+        getApprovalRequirement
     )
     checkWorkflowNew.otherwise(docNotNew)
 
@@ -334,6 +377,8 @@ export class OrchestratorConstruct extends cdk.Construct {
 
     // Call Lambda to get status of the automation document in the target account
     getDocState.next(checkDocState)
+
+    getApprovalRequirement.next(getDocState)
 
     checkDocState.when(
         sfn.Condition.stringEquals(
@@ -370,7 +415,14 @@ export class OrchestratorConstruct extends cdk.Construct {
     docStateError.next(notify)
 
     // Execute the remediation
-    remediateFinding.next(execMonitor)
+    // remediateFinding.next(execMonitor)
+
+    // Send a notification
+    remediateFinding.next(remediationQueued)
+
+    remediationQueued.next(notifyQueued)
+
+    notifyQueued.next(execMonitor)
 
     execMonitor.next(isdone)
 
@@ -448,7 +500,8 @@ export class OrchestratorConstruct extends cdk.Construct {
                 `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${getDocStateFunc.functionName}`,
                 `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${execRemediationFunc.functionName}`,
                 `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${execMonFunc.functionName}`,
-                `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${notifyFunc.functionName}`
+                `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${notifyFunc.functionName}`,
+                `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${getApprovalRequirementFunc.functionName}`
             ]
         })
     )
@@ -473,6 +526,7 @@ export class OrchestratorConstruct extends cdk.Construct {
             'BasePolicy': orchestratorPolicy
         }
     });
+    orchestratorRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN)
 
     {
         let childToMod = orchestratorRole.node.defaultChild as CfnRole

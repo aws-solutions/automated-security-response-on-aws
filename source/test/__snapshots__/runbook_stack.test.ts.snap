@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`default stack 1`] = `
+exports[`Global Roles Stack 1`] = `
 Object {
   "Description": "test;",
   "Parameters": Object {
@@ -11,7 +11,7 @@ Object {
     },
   },
   "Resources": Object {
-    "EnableVPCFlowLogsremediationrole00848CDF": Object {
+    "OrchestratorMemberRoleMemberAccountRoleBE9AD9D5": Object {
       "Metadata": Object {
         "cfn_nag": Object {
           "rules_to_suppress": Array [
@@ -33,7 +33,23 @@ Object {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": Object {
-                "Service": "vpc-flow-logs.amazonaws.com",
+                "AWS": Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      Object {
+                        "Ref": "SecHubAdminAccount",
+                      },
+                      ":role/SO0111-SHARR-Orchestrator-Admin",
+                    ],
+                  ],
+                },
+                "Service": "ssm.amazonaws.com",
               },
             },
           ],
@@ -45,11 +61,120 @@ Object {
               "Statement": Array [
                 Object {
                   "Action": Array [
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:DescribeLogGroups",
-                    "logs:DescribeLogStreams",
-                    "logs:PutLogEvents",
+                    "iam:PassRole",
+                    "iam:GetRole",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::",
+                        Object {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":role/SO0111-*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "ssm:DescribeAutomationExecutions",
+                    "ssm:DescribeDocument",
+                    "ssm:GetParameters",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Object {
+                    "Fn::Join": Array [
+                      "",
+                      Array [
+                        "arn:",
+                        Object {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":ssm:*:*:*",
+                      ],
+                    ],
+                  },
+                },
+                Object {
+                  "Action": Array [
+                    "ssm:StartAutomationExecution",
+                    "ssm:GetAutomationExecution",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": Array [
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:*:",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":document/SHARR-*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:*:",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":automation-definition/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:*::automation-definition/*",
+                        ],
+                      ],
+                    },
+                    Object {
+                      "Fn::Join": Array [
+                        "",
+                        Array [
+                          "arn:",
+                          Object {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":ssm:*:",
+                          Object {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":automation-execution/*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                Object {
+                  "Action": Array [
+                    "cloudwatch:PutMetricData",
+                    "securityhub:BatchUpdateFindings",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
@@ -57,2542 +182,21 @@ Object {
               ],
               "Version": "2012-10-17",
             },
-            "PolicyName": "default_lambdaPolicy",
+            "PolicyName": "member_orchestrator",
           },
         ],
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableVPCFlowLogs-remediationRole_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
+        "RoleName": "SO0111-SHARR-Orchestrator-Member",
       },
       "Type": "AWS::IAM::Role",
     },
-    "Rds6EnhancedMonitoringRole2FD1E9A5": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W28",
-              "reason": "Static names required to allow use in automated remediation runbooks.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "Service": "monitoring.rds.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-RDSMonitoring-remediationRole_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "Rds6EnhancedMonitoringRoleRDS6EnhancedMonitoringPolicyA2EB4EE9": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "logs:CreateLogGroup",
-                "logs:PutRetentionPolicy",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":logs:*:",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":log-group:RDS*",
-                  ],
-                ],
-              },
-              "Sid": "EnableCreationAndManagementOfRDSCloudwatchLogGroups",
-            },
-            Object {
-              "Action": Array [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-                "logs:DescribeLogStreams",
-                "logs:GetLogEvents",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":logs:*:",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":log-group:RDS*:log-stream:*",
-                  ],
-                ],
-              },
-              "Sid": "EnableCreationAndManagementOfRDSCloudwatchLogStreams",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "Rds6EnhancedMonitoringRoleRDS6EnhancedMonitoringPolicyA2EB4EE9",
-        "Roles": Array [
-          Object {
-            "Ref": "Rds6EnhancedMonitoringRole2FD1E9A5",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleConfigureS3BucketLoggingMemberAccountRoleE068390D": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-ConfigureS3BucketLogging_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleConfigureS3BucketLoggingSHARRMemberBasePolicyAC4F82A8": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleConfigureS3BucketLoggingSHARRMemberBasePolicyAC4F82A8",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleConfigureS3BucketLoggingMemberAccountRoleE068390D",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleConfigureS3BucketPublicAccessBlockMemberAccountRoleC78F6EE7": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-ConfigureS3BucketPublicAccessBlock_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleConfigureS3BucketPublicAccessBlockSHARRMemberBasePolicyB9DCBD99": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleConfigureS3BucketPublicAccessBlockSHARRMemberBasePolicyB9DCBD99",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleConfigureS3BucketPublicAccessBlockMemberAccountRoleC78F6EE7",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleConfigureS3PublicAccessBlockMemberAccountRole98A4BC1D": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-ConfigureS3PublicAccessBlock_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleConfigureS3PublicAccessBlockSHARRMemberBasePolicy26BF29A6": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleConfigureS3PublicAccessBlockSHARRMemberBasePolicy26BF29A6",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleConfigureS3PublicAccessBlockMemberAccountRole98A4BC1D",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleCreateAccessLoggingBucketMemberAccountRole3E1569D8": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-CreateAccessLoggingBucket_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleCreateAccessLoggingBucketSHARRMemberBasePolicy0B9908F2": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleCreateAccessLoggingBucketSHARRMemberBasePolicy0B9908F2",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleCreateAccessLoggingBucketMemberAccountRole3E1569D8",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleCreateCloudTrailMultiRegionTrailMemberAccountRoleF70577FF": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-CreateCloudTrailMultiRegionTrail_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleCreateCloudTrailMultiRegionTrailSHARRMemberBasePolicyA86222AF": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleCreateCloudTrailMultiRegionTrailSHARRMemberBasePolicyA86222AF",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleCreateCloudTrailMultiRegionTrailMemberAccountRoleF70577FF",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleCreateLogMetricFilterAndAlarmMemberAccountRoleAA3E3C8A": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-CreateLogMetricFilterAndAlarm_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleCreateLogMetricFilterAndAlarmSHARRMemberBasePolicy2AFEEF94": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleCreateLogMetricFilterAndAlarmSHARRMemberBasePolicy2AFEEF94",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleCreateLogMetricFilterAndAlarmMemberAccountRoleAA3E3C8A",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleDisablePublicAccessForSecurityGroupMemberAccountRole3BED8BF4": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-DisablePublicAccessForSecurityGroup_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleDisablePublicAccessForSecurityGroupSHARRMemberBasePolicy3076FC8A": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleDisablePublicAccessForSecurityGroupSHARRMemberBasePolicy3076FC8A",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleDisablePublicAccessForSecurityGroupMemberAccountRole3BED8BF4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableAWSConfigMemberAccountRole3914B25F": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableAWSConfig_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableAWSConfigSHARRMemberBasePolicy535B8C0F": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableAWSConfigSHARRMemberBasePolicy535B8C0F",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableAWSConfigMemberAccountRole3914B25F",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableAutoScalingGroupELBHealthCheckMemberAccountRole03AE4AEA": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableAutoScalingGroupELBHealthCheck_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableAutoScalingGroupELBHealthCheckSHARRMemberBasePolicy3ED01525": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableAutoScalingGroupELBHealthCheckSHARRMemberBasePolicy3ED01525",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableAutoScalingGroupELBHealthCheckMemberAccountRole03AE4AEA",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableCloudTrailEncryptionMemberAccountRoleA936699B": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableCloudTrailEncryption_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableCloudTrailEncryptionSHARRMemberBasePolicy6489774E": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableCloudTrailEncryptionSHARRMemberBasePolicy6489774E",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableCloudTrailEncryptionMemberAccountRoleA936699B",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableCloudTrailLogFileValidationMemberAccountRole3F5F7157": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableCloudTrailLogFileValidation_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableCloudTrailLogFileValidationSHARRMemberBasePolicy85A07C2D": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableCloudTrailLogFileValidationSHARRMemberBasePolicy85A07C2D",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableCloudTrailLogFileValidationMemberAccountRole3F5F7157",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableCloudTrailToCloudWatchLoggingMemberAccountRoleE7E9C206": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableCloudTrailToCloudWatchLogging_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableCloudTrailToCloudWatchLoggingSHARRMemberBasePolicy0E4130D5": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableCloudTrailToCloudWatchLoggingSHARRMemberBasePolicy0E4130D5",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableCloudTrailToCloudWatchLoggingMemberAccountRoleE7E9C206",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableEbsEncryptionByDefaultMemberAccountRoleDF17FF59": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableEbsEncryptionByDefault_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableEbsEncryptionByDefaultSHARRMemberBasePolicy77CF4834": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableEbsEncryptionByDefaultSHARRMemberBasePolicy77CF4834",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableEbsEncryptionByDefaultMemberAccountRoleDF17FF59",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableEnhancedMonitoringOnRDSInstanceMemberAccountRoleB3EFCB99": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableEnhancedMonitoringOnRDSInstance_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableEnhancedMonitoringOnRDSInstanceSHARRMemberBasePolicy4D03FBD0": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableEnhancedMonitoringOnRDSInstanceSHARRMemberBasePolicy4D03FBD0",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableEnhancedMonitoringOnRDSInstanceMemberAccountRoleB3EFCB99",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableKeyRotationMemberAccountRole2366F17F": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableKeyRotation_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableKeyRotationSHARRMemberBasePolicyA6E832D4": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableKeyRotationSHARRMemberBasePolicyA6E832D4",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableKeyRotationMemberAccountRole2366F17F",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableRDSClusterDeletionProtectionMemberAccountRole019A1667": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableRDSClusterDeletionProtection_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableRDSClusterDeletionProtectionSHARRMemberBasePolicy90D2EA44": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableRDSClusterDeletionProtectionSHARRMemberBasePolicy90D2EA44",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableRDSClusterDeletionProtectionMemberAccountRole019A1667",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleEnableVPCFlowLogsMemberAccountRoleB79F3729": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-EnableVPCFlowLogs_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleEnableVPCFlowLogsSHARRMemberBasePolicy0D33A918": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleEnableVPCFlowLogsSHARRMemberBasePolicy0D33A918",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableVPCFlowLogsMemberAccountRoleB79F3729",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleMakeEBSSnapshotsPrivateMemberAccountRoleFA05CFAF": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-MakeEBSSnapshotsPrivate_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleMakeEBSSnapshotsPrivateSHARRMemberBasePolicy7DE85B9C": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleMakeEBSSnapshotsPrivateSHARRMemberBasePolicy7DE85B9C",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleMakeEBSSnapshotsPrivateMemberAccountRoleFA05CFAF",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleMakeRDSSnapshotPrivateMemberAccountRole6760FE6D": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-MakeRDSSnapshotPrivate_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleMakeRDSSnapshotPrivateSHARRMemberBasePolicyFF0FBF31": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleMakeRDSSnapshotPrivateSHARRMemberBasePolicyFF0FBF31",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleMakeRDSSnapshotPrivateMemberAccountRole6760FE6D",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleRemoveLambdaPublicAccessMemberAccountRoleB266862C": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-RemoveLambdaPublicAccess_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleRemoveLambdaPublicAccessSHARRMemberBasePolicy6AACE4BE": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleRemoveLambdaPublicAccessSHARRMemberBasePolicy6AACE4BE",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleRemoveLambdaPublicAccessMemberAccountRoleB266862C",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleRemoveVPCDefaultSecurityGroupRulesMemberAccountRole406D320B": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-RemoveVPCDefaultSecurityGroupRules_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleRemoveVPCDefaultSecurityGroupRulesSHARRMemberBasePolicy18B08253": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleRemoveVPCDefaultSecurityGroupRulesSHARRMemberBasePolicy18B08253",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleRemoveVPCDefaultSecurityGroupRulesMemberAccountRole406D320B",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleRevokeUnusedIAMUserCredentialsMemberAccountRole5C008B43": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-RevokeUnusedIAMUserCredentials_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleRevokeUnusedIAMUserCredentialsSHARRMemberBasePolicy6519E750": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleRevokeUnusedIAMUserCredentialsSHARRMemberBasePolicy6519E750",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleRevokeUnusedIAMUserCredentialsMemberAccountRole5C008B43",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "RemediationRoleSetIAMPasswordPolicyMemberAccountRoleA1FF47B4": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W11",
-              "reason": "Resource * is required due to the administrative nature of the solution.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "AWS": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "SecHubAdminAccount",
-                      },
-                      ":role/SO0111-SHARR-Orchestrator-Admin_",
-                      Object {
-                        "Ref": "AWS::Region",
-                      },
-                    ],
-                  ],
-                },
-                "Service": "ssm.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-SetIAMPasswordPolicy_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "RemediationRoleSetIAMPasswordPolicySHARRMemberBasePolicy3E89D2C9": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:PutParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/Solutions/SO0111/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "RemediationRoleSetIAMPasswordPolicySHARRMemberBasePolicy3E89D2C9",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleSetIAMPasswordPolicyMemberAccountRoleA1FF47B4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
+  },
+}
+`;
+
+exports[`Regional Documents 1`] = `
+Object {
+  "Description": "test;",
+  "Resources": Object {
     "SHARRConfigureS3BucketPublicAccessBlockAutomationDocumentD9BFB480": Object {
       "Properties": Object {
         "Content": Object {
@@ -2658,7 +262,7 @@ Retrieves the S3 PublicAccessBlock configuration for a S3 Bucket.
                   "IgnorePublicAcls": "{{ IgnorePublicAcls }}",
                   "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
                 },
-                "Runtime": "python3.6",
+                "Runtime": "python3.7",
                 "Script": "import boto3
 
 def validate_s3_bucket_publicaccessblock(event, context):
@@ -4117,7 +1721,7 @@ def create_topic_policy(topic_arn):
               "inputs": Object {
                 "DocumentName": "SHARR-CreateAccessLoggingBucket",
                 "RuntimeParameters": Object {
-                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket_{{global:REGION}}",
+                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket",
                   "BucketName": "so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}",
                 },
               },
@@ -4970,13 +2574,12 @@ def wait_for_loggroup(event, context):
         try:
             describe_group = cwl_client.describe_log_groups(logGroupNamePrefix=event['LogGroup'])
             print(len(describe_group['logGroups']))
-            if len(describe_group['logGroups']) == 1: 
-                return str(describe_group['logGroups'][0]['arn'])
-            elif len(describe_group['logGroups']) > 1:
-                exit(f'More than one Log Group matches {event[\\"LogGroup\\"]}')
-            else: 
-                time.sleep(2)
-                attempts += 1
+            for group in describe_group['logGroups']:
+                if group['logGroupName'] == event['LogGroup']:
+                    return str(group['arn'])
+            # no match - wait and retry
+            time.sleep(2)
+            attempts += 1
 
         except Exception as e:
             exit(f'Failed to create Log Group {event[\\"LogGroup\\"]}: {str(e)}')
@@ -5229,7 +2832,7 @@ Checks that the enhanced monitoring is enabled on RDS Instance in the previous s
                   "DBIdentifier": "{{ DescribeDBInstances.DbInstanceIdentifier }}",
                   "MonitoringInterval": "{{ MonitoringInterval }}",
                 },
-                "Runtime": "python3.6",
+                "Runtime": "python3.7",
                 "Script": "import boto3
 import time
 
@@ -5821,131 +3424,11 @@ def get_public_snapshots(event, context):
 
     if 'testmode' in event and event['testmode']:
         return [
-            {
-                \\"Description\\": \\"Snapshot of idle volume before deletion\\",
-                \\"Encrypted\\": False,
-                \\"OwnerId\\": \\"111111111111\\",
-                \\"Progress\\": \\"100%\\",
-                \\"SnapshotId\\": \\"snap-12341234123412345\\",
-                \\"StartTime\\": \\"2021-03-11T08:23:02.785Z\\",
-                \\"State\\": \\"completed\\",
-                \\"VolumeId\\": \\"vol-12341234123412345\\",
-                \\"VolumeSize\\": 4,
-                \\"Tags\\": [
-                    {
-                        \\"Key\\": \\"SnapshotDate\\",
-                        \\"Value\\": \\"2021-03-11 08:23:02.376859\\"
-                    },
-                    {
-                        \\"Key\\": \\"DeleteEBSVolOnCompletion\\",
-                        \\"Value\\": \\"False\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotReason\\",
-                        \\"Value\\": \\"Idle Volume\\"
-                    }
-                ]
-            },
-            {
-                \\"Description\\": \\"Snapshot of idle volume before deletion\\",
-                \\"Encrypted\\": False,
-                \\"OwnerId\\": \\"111111111111\\",
-                \\"Progress\\": \\"100%\\",
-                \\"SnapshotId\\": \\"snap-12341234123412345\\",
-                \\"StartTime\\": \\"2021-03-11T08:20:37.399Z\\",
-                \\"State\\": \\"completed\\",
-                \\"VolumeId\\": \\"vol-12341234123412345\\",
-                \\"VolumeSize\\": 4,
-                \\"Tags\\": [
-                    {
-                        \\"Key\\": \\"DeleteEBSVolOnCompletion\\",
-                        \\"Value\\": \\"False\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotDate\\",
-                        \\"Value\\": \\"2021-03-11 08:20:37.224101\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotReason\\",
-                        \\"Value\\": \\"Idle Volume\\"
-                    }
-                ]
-            },
-            {
-                \\"Description\\": \\"Snapshot of idle volume before deletion\\",
-                \\"Encrypted\\": False,
-                \\"OwnerId\\": \\"111111111111\\",
-                \\"Progress\\": \\"100%\\",
-                \\"SnapshotId\\": \\"snap-12341234123412345\\",
-                \\"StartTime\\": \\"2021-03-11T08:22:48.936Z\\",
-                \\"State\\": \\"completed\\",
-                \\"VolumeId\\": \\"vol-12341234123412345\\",
-                \\"VolumeSize\\": 4,
-                \\"Tags\\": [
-                    {
-                        \\"Key\\": \\"SnapshotReason\\",
-                        \\"Value\\": \\"Idle Volume\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotDate\\",
-                        \\"Value\\": \\"2021-03-11 08:22:48.714893\\"
-                    },
-                    {
-                        \\"Key\\": \\"DeleteEBSVolOnCompletion\\",
-                        \\"Value\\": \\"False\\"
-                    }
-                ]
-            },
-            {
-                \\"Description\\": \\"Snapshot of idle volume before deletion\\",
-                \\"Encrypted\\": False,
-                \\"OwnerId\\": \\"111111111111\\",
-                \\"Progress\\": \\"100%\\",
-                \\"SnapshotId\\": \\"snap-12341234123412345\\",
-                \\"StartTime\\": \\"2021-03-11T08:23:05.156Z\\",
-                \\"State\\": \\"completed\\",
-                \\"VolumeId\\": \\"vol-12341234123412345\\",
-                \\"VolumeSize\\": 4,
-                \\"Tags\\": [
-                    {
-                        \\"Key\\": \\"DeleteEBSVolOnCompletion\\",
-                        \\"Value\\": \\"False\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotReason\\",
-                        \\"Value\\": \\"Idle Volume\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotDate\\",
-                        \\"Value\\": \\"2021-03-11 08:23:04.876640\\"
-                    }
-                ]
-            },
-            {
-                \\"Description\\": \\"Snapshot of idle volume before deletion\\",
-                \\"Encrypted\\": False,
-                \\"OwnerId\\": \\"111111111111\\",
-                \\"Progress\\": \\"100%\\",
-                \\"SnapshotId\\": \\"snap-12341234123412345\\",
-                \\"StartTime\\": \\"2021-03-11T08:22:34.850Z\\",
-                \\"State\\": \\"completed\\",
-                \\"VolumeId\\": \\"vol-12341234123412345\\",
-                \\"VolumeSize\\": 4,
-                \\"Tags\\": [
-                    {
-                        \\"Key\\": \\"DeleteEBSVolOnCompletion\\",
-                        \\"Value\\": \\"False\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotReason\\",
-                        \\"Value\\": \\"Idle Volume\\"
-                    },
-                    {
-                        \\"Key\\": \\"SnapshotDate\\",
-                        \\"Value\\": \\"2021-03-11 08:22:34.671355\\"
-                    }
-                ]
-            }
+            \\"snap-12341234123412345\\",
+            \\"snap-12341234123412345\\",
+            \\"snap-12341234123412345\\",
+            \\"snap-12341234123412345\\",
+            \\"snap-12341234123412345\\"
         ]
 
     return list_public_snapshots(account_id)
@@ -5955,7 +3438,7 @@ def list_public_snapshots(account_id):
     control_token = 'start'
     try:
 
-        buffer = []
+        public_snapshot_ids = []
 
         while control_token:
 
@@ -5969,19 +3452,21 @@ def list_public_snapshots(account_id):
             }
             if control_token:
                 kwargs['NextToken'] = control_token
-
+                
             response = ec2.describe_snapshots(
-                **kwargs
-            )
+                        **kwargs
+                )
+        
+            for snapshot in response['Snapshots']:
+                public_snapshot_ids.append(snapshot['SnapshotId'])
 
             if 'NextToken' in response:
                 control_token = response['NextToken']
             else:
                 control_token = ''
 
-            buffer += response['Snapshots']
-
-        return buffer
+        return public_snapshot_ids
+        
     except Exception as e:
         print(e)
         exit('Failed to describe_snapshots')",
@@ -5991,7 +3476,7 @@ def list_public_snapshots(account_id):
                 Object {
                   "Name": "Snapshots",
                   "Selector": "$.Payload",
-                  "Type": "MapList",
+                  "Type": "StringList",
                 },
               ],
             },
@@ -6042,22 +3527,22 @@ def make_snapshots_private(event, context):
 
     success_count = 0
     
-    for snapshot in snapshots:
+    for snapshot_id in snapshots:
         try:
             ec2.modify_snapshot_attribute(
                 Attribute='CreateVolumePermission',
                 CreateVolumePermission={
                     'Remove': [{'Group': 'all'}]
                 },
-                SnapshotId=snapshot['SnapshotId']
+                SnapshotId=snapshot_id
             )
-            print('Snapshot ' + snapshot['SnapshotId'] + ' permissions set to private')
+            print(f'Snapshot {snapshot_id} permissions set to private')
 
-            remediated.append(snapshot['SnapshotId'])
+            remediated.append(snapshot_id)
             success_count += 1
         except Exception as e:
             print(e)
-            print('FAILED to remediate Snapshot ' + snapshot['SnapshotId'])
+            print(f'FAILED to remediate Snapshot {snapshot_id}')
 
     result=json.dumps(ec2.describe_snapshots(
             SnapshotIds=remediated
@@ -6162,16 +3647,17 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-def connect_to_rds(boto_config):
-    return boto3.client('rds', config=boto_config)
-
-def make_snapshot_private(event, context):
+def connect_to_rds():
     boto_config = Config(
         retries ={
             'mode': 'standard'
         }
     )
-    rds_client = connect_to_rds(boto_config)
+    return boto3.client('rds', config=boto_config)
+
+def make_snapshot_private(event, context):
+
+    rds_client = connect_to_rds()
     snapshot_id = event['DBSnapshotId']
     snapshot_type = event['DBSnapshotType']
     try:
@@ -6187,6 +3673,9 @@ def make_snapshot_private(event, context):
                 AttributeName='restore',
                 ValuesToRemove=['all']
             )
+        else:
+            exit(f'Unrecognized snapshot_type {snapshot_type}')
+
         print(f'Remediation completed: {snapshot_id} public access removed.')
         return {
             \\"response\\": {
@@ -6234,1200 +3723,6 @@ def make_snapshot_private(event, context):
         "Name": "SHARR-MakeRDSSnapshotPrivate",
       },
       "Type": "AWS::SSM::Document",
-    },
-    "SHARRRemediationPolicyConfigureS3BucketLogging9F85EEE2": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "s3:PutBucketLogging",
-                "s3:CreateBucket",
-                "s3:PutEncryptionConfiguration",
-                "s3:PutBucketAcl",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyConfigureS3BucketLogging9F85EEE2",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleConfigureS3BucketLoggingMemberAccountRoleE068390D",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyConfigureS3BucketPublicAccessBlock2E4EF13D": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "s3:PutBucketPublicAccessBlock",
-                "s3:GetBucketPublicAccessBlock",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyConfigureS3BucketPublicAccessBlock2E4EF13D",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleConfigureS3BucketPublicAccessBlockMemberAccountRoleC78F6EE7",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyConfigureS3PublicAccessBlockEAD9CA55": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "s3:PutAccountPublicAccessBlock",
-                "s3:GetAccountPublicAccessBlock",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyConfigureS3PublicAccessBlockEAD9CA55",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleConfigureS3PublicAccessBlockMemberAccountRole98A4BC1D",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyCreateAccessLoggingBucket4A1677D6": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resources.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "s3:CreateBucket",
-                "s3:PutEncryptionConfiguration",
-                "s3:PutBucketAcl",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyCreateAccessLoggingBucket4A1677D6",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleCreateAccessLoggingBucketMemberAccountRole3E1569D8",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyCreateCloudTrailMultiRegionTrail59B12044": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "cloudtrail:CreateTrail",
-                "cloudtrail:UpdateTrail",
-                "cloudtrail:StartLogging",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": Array [
-                "s3:CreateBucket",
-                "s3:PutEncryptionConfiguration",
-                "s3:PutBucketPublicAccessBlock",
-                "s3:PutBucketLogging",
-                "s3:PutBucketAcl",
-                "s3:PutBucketPolicy",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":s3:::so0111-*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyCreateCloudTrailMultiRegionTrail59B12044",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleCreateCloudTrailMultiRegionTrailMemberAccountRoleF70577FF",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyCreateLogMetricFilterAndAlarm102AC980": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "logs:PutMetricFilter",
-                "cloudwatch:PutMetricAlarm",
-              ],
-              "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":logs:*:",
-                      Object {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":log-group:*",
-                    ],
-                  ],
-                },
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":cloudwatch:*:",
-                      Object {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":alarm:*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            Object {
-              "Action": Array [
-                "sns:CreateTopic",
-                "sns:SetTopicAttributes",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":sns:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":SO0111-SHARR-LocalAlarmNotification",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyCreateLogMetricFilterAndAlarm102AC980",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleCreateLogMetricFilterAndAlarmMemberAccountRoleAA3E3C8A",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyDisablePublicAccessForSecurityGroupE214EF9A": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ec2:DescribeSecurityGroupReferences",
-                "ec2:DescribeSecurityGroups",
-                "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
-                "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-                "ec2:RevokeSecurityGroupIngress",
-                "ec2:RevokeSecurityGroupEgress",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyDisablePublicAccessForSecurityGroupE214EF9A",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleDisablePublicAccessForSecurityGroupMemberAccountRole3BED8BF4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableAWSConfig8A0259D3": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "iam:GetRole",
-                "iam:PassRole",
-              ],
-              "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig",
-                    ],
-                  ],
-                },
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      Object {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":role/SO0111-CreateAccessLoggingBucket_*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            Object {
-              "Action": Array [
-                "sns:CreateTopic",
-                "sns:SetTopicAttributes",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":sns:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":SO0111-SHARR-AWSConfigNotification",
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": "ssm:StartAutomationExecution",
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":automation-definition/SHARR-CreateAccessLoggingBucket:*",
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": Array [
-                "ssm:GetAutomationExecution",
-                "config:PutConfigurationRecorder",
-                "config:PutDeliveryChannel",
-                "config:DescribeConfigurationRecorders",
-                "config:StartConfigurationRecorder",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": Array [
-                "s3:CreateBucket",
-                "s3:PutEncryptionConfiguration",
-                "s3:PutBucketPublicAccessBlock",
-                "s3:PutBucketLogging",
-                "s3:PutBucketAcl",
-                "s3:PutBucketPolicy",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":s3:::so0111-*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableAWSConfig8A0259D3",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableAWSConfigMemberAccountRole3914B25F",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableAutoScalingGroupELBHealthCheckD6F46CE8": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* ASG.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "autoscaling:UpdateAutoScalingGroup",
-                "autoscaling:DescribeAutoScalingGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableAutoScalingGroupELBHealthCheckD6F46CE8",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableAutoScalingGroupELBHealthCheckMemberAccountRole03AE4AEA",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableCloudTrailEncryption5715DA83": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "cloudtrail:UpdateTrail",
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableCloudTrailEncryption5715DA83",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableCloudTrailEncryptionMemberAccountRoleA936699B",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableCloudTrailLogFileValidation00359A88": Object {
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "cloudtrail:UpdateTrail",
-                "cloudtrail:GetTrail",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":cloudtrail:*:",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":trail/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableCloudTrailLogFileValidation00359A88",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableCloudTrailLogFileValidationMemberAccountRole3F5F7157",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableCloudTrailToCloudWatchLoggingA9BBB945": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow creation and description of any log group",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static resource names are required to enable cross-account functionality",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "cloudtrail:UpdateTrail",
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":cloudtrail:*:",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":trail/*",
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": "iam:PassRole",
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::GetAtt": Array [
-                  "ctcwremediationrole7AB69D0B",
-                  "Arn",
-                ],
-              },
-            },
-            Object {
-              "Action": Array [
-                "logs:CreateLogGroup",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableCloudTrailToCloudWatchLoggingA9BBB945",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableCloudTrailToCloudWatchLoggingMemberAccountRoleE7E9C206",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableEbsEncryptionByDefaultED8BC775": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ec2:EnableEBSEncryptionByDefault",
-                "ec2:GetEbsEncryptionByDefault",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableEbsEncryptionByDefaultED8BC775",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableEbsEncryptionByDefaultMemberAccountRoleDF17FF59",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableEnhancedMonitoringOnRDSInstance6E7C63B0": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* RDS database.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "iam:GetRole",
-                "iam:PassRole",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":iam::",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":role/SO0111-RDSMonitoring-remediationRole_",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": Array [
-                "rds:DescribeDBInstances",
-                "rds:ModifyDBInstance",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableEnhancedMonitoringOnRDSInstance6E7C63B0",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableEnhancedMonitoringOnRDSInstanceMemberAccountRoleB3EFCB99",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableKeyRotation7DBFDFE8": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "kms:EnableKeyRotation",
-                "kms:GetKeyRotationStatus",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableKeyRotation7DBFDFE8",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableKeyRotationMemberAccountRole2366F17F",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableRDSClusterDeletionProtectionBC66754B": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* RDS database.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "iam:GetRole",
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":iam::",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":role/RDSEnhancedMonitoringRole",
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": "config:GetResourceConfigHistory",
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-            Object {
-              "Action": Array [
-                "rds:DescribeDBClusters",
-                "rds:ModifyDBCluster",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableRDSClusterDeletionProtectionBC66754B",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableRDSClusterDeletionProtectionMemberAccountRole019A1667",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyEnableVPCFlowLogs22F36069": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* resources.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": "ec2:CreateFlowLogs",
-              "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":ec2:*:",
-                      Object {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":vpc/*",
-                    ],
-                  ],
-                },
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":ec2:*:",
-                      Object {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":vpc-flow-log/*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            Object {
-              "Action": "iam:PassRole",
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":iam::",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":role/SO0111-EnableVPCFlowLogs-remediationRole_",
-                    Object {
-                      "Ref": "AWS::Region",
-                    },
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": Array [
-                "ec2:DescribeFlowLogs",
-                "logs:CreateLogGroup",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyEnableVPCFlowLogs22F36069",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleEnableVPCFlowLogsMemberAccountRoleB79F3729",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyMakeEBSSnapshotsPrivate64D2F13D": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* snapshot.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ec2:ModifySnapshotAttribute",
-                "ec2:DescribeSnapshots",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyMakeEBSSnapshotsPrivate64D2F13D",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleMakeEBSSnapshotsPrivateMemberAccountRoleFA05CFAF",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyMakeRDSSnapshotPrivate26FDF037": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for *any* snapshot.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "rds:ModifyDBSnapshotAttribute",
-                "rds:ModifyDBClusterSnapshotAttribute",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyMakeRDSSnapshotPrivate26FDF037",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleMakeRDSSnapshotPrivateMemberAccountRole6760FE6D",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyRemoveLambdaPublicAccessDD6213D0": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for any resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "lambda:GetPolicy",
-                "lambda:RemovePermission",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyRemoveLambdaPublicAccessDD6213D0",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleRemoveLambdaPublicAccessMemberAccountRoleB266862C",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyRemoveVPCDefaultSecurityGroupRules94040124": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for any resource.",
-            },
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
-                "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-                "ec2:RevokeSecurityGroupIngress",
-                "ec2:RevokeSecurityGroupEgress",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ec2:*:",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":security-group/*",
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": Array [
-                "ec2:DescribeSecurityGroupReferences",
-                "ec2:DescribeSecurityGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyRemoveVPCDefaultSecurityGroupRules94040124",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleRemoveVPCDefaultSecurityGroupRulesMemberAccountRole406D320B",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicyRevokeUnusedIAMUserCredentialsEEF45939": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for any resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "iam:UpdateAccessKey",
-                "iam:ListAccessKeys",
-                "iam:GetAccessKeyLastUsed",
-                "iam:GetUser",
-                "iam:GetLoginProfile",
-                "iam:DeleteLoginProfile",
-              ],
-              "Effect": "Allow",
-              "Resource": Object {
-                "Fn::Join": Array [
-                  "",
-                  Array [
-                    "arn:",
-                    Object {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":iam::",
-                    Object {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":user/*",
-                  ],
-                ],
-              },
-            },
-            Object {
-              "Action": "config:ListDiscoveredResources",
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicyRevokeUnusedIAMUserCredentialsEEF45939",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleRevokeUnusedIAMUserCredentialsMemberAccountRole5C008B43",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "SHARRRemediationPolicySetIAMPasswordPolicy044BED0C": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W12",
-              "reason": "Resource * is required for to allow remediation for any resource.",
-            },
-          ],
-        },
-      },
-      "Properties": Object {
-        "PolicyDocument": Object {
-          "Statement": Array [
-            Object {
-              "Action": Array [
-                "iam:UpdateAccountPasswordPolicy",
-                "iam:GetAccountPasswordPolicy",
-                "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-                "ec2:RevokeSecurityGroupIngress",
-                "ec2:RevokeSecurityGroupEgress",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "SHARRRemediationPolicySetIAMPasswordPolicy044BED0C",
-        "Roles": Array [
-          Object {
-            "Ref": "RemediationRoleSetIAMPasswordPolicyMemberAccountRoleA1FF47B4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
     },
     "SHARRRemoveLambdaPublicAccessAutomationDocumentB33C7F4F": Object {
       "Properties": Object {
@@ -7507,6 +3802,13 @@ def remove_resource_policy(functionname, sid, client):
     except Exception as e:
         exit(f'FAILED: SID {sid} was NOT removed from Lambda function {functionname} - {str(e)}')
 
+def remove_public_statement(client, functionname, statement, principal_source):
+    for principal in list(principal_source):
+        if principal == \\"*\\" or (isinstance(principal, dict) and principal.get(\\"AWS\\",\\"\\") == \\"*\\"):
+            print_policy_before(statement)
+            remove_resource_policy(functionname, statement['Sid'], client)
+            break # there will only be one that matches
+
 def remove_lambda_public_access(event, context):
 
     client = connect_to_lambda(boto_config)
@@ -7521,20 +3823,9 @@ def remove_lambda_public_access(event, context):
         print('Scanning for public resource policies in ' + functionname)
 
         for statement in statements:
-            principal_statements = []
+            remove_public_statement(client, functionname, statement, list(statement['Principal']))
 
-            if isinstance(statement['Principal'], list):
-                principal_statements = statement['Principal']
-            else:
-                principal_statements = [statement['Principal']]
-
-            for principal in principal_statements:
-                if principal == \\"*\\" or (isinstance(principal, dict) and principal.get(\\"AWS\\",\\"\\") == \\"*\\"):
-                    print_policy_before(statement)
-                    remove_resource_policy(functionname, statement['Sid'], client)
-                    break
-
-        result = client.get_policy(FunctionName=functionname)
+        client.get_policy(FunctionName=functionname)
 
         verify(functionname)
     except ClientError as ex:
@@ -7716,6 +4007,134 @@ def handler(event, context):
       },
       "Type": "AWS::SSM::Document",
     },
+    "SHARRRevokeUnrotatedKeysAutomationDocumentB68F3672": Object {
+      "Properties": Object {
+        "Content": Object {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - SHARR-RevokeUnrotatedKeys
+
+## What does this document do?
+This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* MaxCredentialUsageAge: (Optional) Maximum number of days a key is allowed to be unrotated before revoking it. DEFAULT: 90
+
+## Output Parameters
+* RevokeUnrotatedKeys.Output
+",
+          "mainSteps": Array [
+            Object {
+              "action": "aws:executeScript",
+              "description": "## RevokeUnrotatedKeys
+
+This step deactivates IAM user access keys that have not been rotated in more than MaxCredentialUsageAge days
+## Outputs
+* Output: Success message or failure Exception.
+",
+              "inputs": Object {
+                "Handler": "unrotated_key_handler",
+                "InputPayload": Object {
+                  "IAMResourceId": "{{ IAMResourceId }}",
+                  "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
+                },
+                "Runtime": "python3.7",
+                "Script": "#!/usr/bin/python
+###############################################################################
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#                                                                             #
+#  Licensed under the Apache License Version 2.0 (the \\"License\\"). You may not #
+#  use this file except in compliance with the License. A copy of the License #
+#  is located at                                                              #
+#                                                                             #
+#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
+#                                                                             #
+#  or in the \\"license\\" file accompanying this file. This file is distributed  #
+#  on an \\"AS IS\\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
+#  or implied. See the License for the specific language governing permis-    #
+#  sions and limitations under the License.                                   #
+###############################################################################
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+def connect_to_cloudtrail(region, boto_config):
+    return boto3.client('cloudtrail', region_name=region, config=boto_config)
+
+def enable_trail_encryption(event, context):
+    \\"\\"\\"
+    remediates CloudTrail.2 by enabling SSE-KMS
+    On success returns a string map
+    On failure returns NoneType
+    \\"\\"\\"
+    boto_config = Config(
+        retries ={
+          'mode': 'standard'
+        }
+    )
+  
+    if event['trail_region'] != event['exec_region']:
+        exit('ERROR: cross-region remediation is not yet supported')
+
+    ctrail_client = connect_to_cloudtrail(event['trail_region'], boto_config)
+    kms_key_arn = event['kms_key_arn'] 
+
+    try:
+        ctrail_client.update_trail(
+            Name=event['trail'],
+            KmsKeyId=kms_key_arn
+        )
+        return {
+            \\"response\\": {
+                \\"message\\": f'Enabled KMS CMK encryption on {event[\\"trail\\"]}',
+                \\"status\\": \\"Success\\"
+            }
+        }
+    except Exception as e:
+        exit(f'Error enabling SSE-KMS encryption: {str(e)}')",
+              },
+              "isEnd": true,
+              "name": "RevokeUnrotatedKeys",
+              "outputs": Array [
+                Object {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": Array [
+            "RevokeUnrotatedKeys.Output",
+          ],
+          "parameters": Object {
+            "AutomationAssumeRole": Object {
+              "allowedPattern": "^arn:(aws[a-zA-Z-]*)?:iam::\\\\d{12}:role/[\\\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "IAMResourceId": Object {
+              "allowedPattern": "^[\\\\w+=,.@_-]{1,128}$",
+              "description": "(Required) IAM resource unique identifier.",
+              "type": "String",
+            },
+            "MaxCredentialUsageAge": Object {
+              "allowedPattern": "^(\\\\b([0-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000)\\\\b)$",
+              "default": "90",
+              "description": "(Required) Maximum number of days within which a credential must be used. The default value is 90 days.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentType": "Automation",
+        "Name": "SHARR-RevokeUnrotatedKeys",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "SHARRRevokeUnusedIAMUserCredentialsAutomationDocument12B378F9": Object {
       "Properties": Object {
         "Content": Object {
@@ -7749,7 +4168,7 @@ This step deactivates expired IAM User access keys, deletes expired login profil
                   "IAMResourceId": "{{ IAMResourceId }}",
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
-                "Runtime": "python3.6",
+                "Runtime": "python3.7",
                 "Script": "import boto3
 from datetime import datetime
 from datetime import timedelta
@@ -8043,95 +4462,169 @@ def update_and_verify_iam_user_password_policy(event, context):
       },
       "Type": "AWS::SSM::Document",
     },
-    "ctcwremediationrole7AB69D0B": Object {
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
-              "id": "W28",
-              "reason": "Static names chosen intentionally to provide integration in cross-account permissions",
-            },
-          ],
-        },
-      },
+    "SHARRSetSSLBucketPolicyAutomationDocument5C7D5BF3": Object {
       "Properties": Object {
-        "AssumeRolePolicyDocument": Object {
-          "Statement": Array [
+        "Content": Object {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - SHARR-SetSSLBucketPolicy
+
+## What does this document do?
+This document adds a bucket policy to require transmission over HTTPS for the given S3 bucket by adding a policy statement to the bucket policy.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+* BucketName: (Required) Name of the bucket to modify.
+* AccountId: (Required) Account to which the bucket belongs
+
+## Output Parameters
+
+* Remediation.Output - stdout messages from the remediation
+
+## Security Standards / Controls
+* AFSBP v1.0.0: S3.5
+* CIS v1.2.0:   n/a
+* PCI:          S3.5
+",
+          "mainSteps": Array [
             Object {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": Object {
-                "Service": Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "cloudtrail.",
-                      Object {
-                        "Ref": "AWS::URLSuffix",
-                      },
-                    ],
-                  ],
+              "action": "aws:executeScript",
+              "inputs": Object {
+                "Handler": "add_ssl_bucket_policy",
+                "InputPayload": Object {
+                  "accountid": "{{AccountId}}",
+                  "bucket": "{{BucketName}}",
                 },
-              },
-            },
-          ],
-          "Version": "2012-10-17",
+                "Runtime": "python3.7",
+                "Script": "#!/usr/bin/python
+###############################################################################
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
+#                                                                             #
+#  Licensed under the Apache License Version 2.0 (the \\"License\\"). You may not #
+#  use this file except in compliance with the License. A copy of the License #
+#  is located at                                                              #
+#                                                                             #
+#      http://www.apache.org/licenses/LICENSE-2.0/                            #
+#                                                                             #
+#  or in the \\"license\\" file accompanying this file. This file is distributed  #
+#  on an \\"AS IS\\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
+#  or implied. See the License for the specific language governing permis-    #
+#  sions and limitations under the License.                                   #
+###############################################################################
+
+import json
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+boto_config = Config(
+    retries = {
+            'mode': 'standard',
+            'max_attempts': 10
+        }
+    )
+
+def connect_to_s3():
+    return boto3.client('s3', config=boto_config)
+
+def policy_to_add(bucket):
+    return {
+        \\"Sid\\": \\"AllowSSLRequestsOnly\\",
+        \\"Action\\": \\"s3:*\\",
+        \\"Effect\\": \\"Deny\\",
+        \\"Resource\\": [
+            f'arn:aws:s3:::{bucket}',
+            f'arn:aws:s3:::{bucket}/*'
+        ],
+        \\"Condition\\": {
+            \\"Bool\\": {
+                    \\"aws:SecureTransport\\": \\"false\\"
+            }
         },
-        "Policies": Array [
-          Object {
-            "PolicyDocument": Object {
-              "Statement": Array [
+        \\"Principal\\": \\"*\\"
+    }
+def new_policy():
+    return {
+        \\"Id\\": \\"BucketPolicy\\",
+        \\"Version\\": \\"2012-10-17\\",
+        \\"Statement\\": []
+    }
+
+def add_ssl_bucket_policy(event, context):
+    bucket_name = event['bucket']
+    account_id = event['accountid']
+    s3 = connect_to_s3()
+    bucket_policy = {}
+    try:
+        existing_policy = s3.get_bucket_policy(
+            Bucket=bucket_name,
+            ExpectedBucketOwner=account_id
+        )
+        bucket_policy = json.loads(existing_policy['Policy'])
+    except ClientError as ex:
+        exception_type = ex.response['Error']['Code']
+        # delivery channel already exists - return
+        if exception_type not in [\\"NoSuchBucketPolicy\\"]:
+            exit(f'ERROR: Boto3 s3 ClientError: {exception_type} - {str(ex)}')
+    except Exception as e:
+        exit(f'ERROR getting bucket policy for {bucket_name}: {str(e)}')
+
+    if not bucket_policy:
+        bucket_policy = new_policy()
+
+    print(f'Existing policy: {bucket_policy}')
+    bucket_policy['Statement'].append(policy_to_add(bucket_name))
+
+    try:
+        result = s3.put_bucket_policy(
+            Bucket=bucket_name,
+            Policy=json.dumps(bucket_policy, indent=4, default=str),
+            ExpectedBucketOwner=account_id
+        )
+        print(result)
+    except ClientError as ex:
+        exception_type = ex.response['Error']['Code']
+        exit(f'ERROR: Boto3 s3 ClientError: {exception_type} - {str(ex)}')
+    except Exception as e:
+        exit(f'ERROR putting bucket policy for {bucket_name}: {str(e)}')
+
+    print(f'New policy: {bucket_policy}')",
+              },
+              "name": "Remediation",
+              "outputs": Array [
                 Object {
-                  "Action": "logs:CreateLogStream",
-                  "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
-                      "",
-                      Array [
-                        "arn:",
-                        Object {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":logs:*:*:log-group:*",
-                      ],
-                    ],
-                  },
-                },
-                Object {
-                  "Action": "logs:PutLogEvents",
-                  "Effect": "Allow",
-                  "Resource": Object {
-                    "Fn::Join": Array [
-                      "",
-                      Array [
-                        "arn:",
-                        Object {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":logs:*:*:log-group:*:log-stream:*",
-                      ],
-                    ],
-                  },
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
                 },
               ],
-              "Version": "2012-10-17",
             },
-            "PolicyName": "default_lambdaPolicy",
-          },
-        ],
-        "RoleName": Object {
-          "Fn::Join": Array [
-            "",
-            Array [
-              "SO0111-CloudTrailToCloudWatchLogs_",
-              Object {
-                "Ref": "AWS::Region",
-              },
-            ],
           ],
+          "outputs": Array [
+            "Remediation.Output",
+          ],
+          "parameters": Object {
+            "AccountId": Object {
+              "allowedPattern": "^[0-9]{12}$",
+              "description": "Account ID of the account for the finding",
+              "type": "String",
+            },
+            "AutomationAssumeRole": Object {
+              "allowedPattern": "^arn:(aws[a-zA-Z-]*)?:iam::\\\\d{12}:role/[\\\\w+=,.@/-]+$",
+              "description": "(Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "BucketName": Object {
+              "allowedPattern": "(?=^.{3,63}$)(?!^(\\\\d+\\\\.)+\\\\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\\\\-]*[a-z0-9])\\\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\\\-]*[a-z0-9])$)",
+              "description": "Name of the bucket to have a policy added",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
         },
+        "DocumentType": "Automation",
+        "Name": "SHARR-SetSSLBucketPolicy",
       },
-      "Type": "AWS::IAM::Role",
+      "Type": "AWS::SSM::Document",
     },
   },
 }

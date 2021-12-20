@@ -40,7 +40,7 @@ mainSteps:
     outputs:
       - Name: Snapshots
         Selector: $.Payload
-        Type: MapList
+        Type: StringList
     inputs:
       InputPayload:
         region: '{{global:REGION}}'

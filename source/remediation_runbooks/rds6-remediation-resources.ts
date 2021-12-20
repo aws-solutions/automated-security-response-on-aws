@@ -74,6 +74,7 @@ export class Rds6EnhancedMonitoringRole extends cdk.Construct {
     });
 
     rds6Role.attachInlinePolicy(rds6Policy)
+    rds6Role.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN)
 
     let roleResource = rds6Role.node.findChild('Resource') as CfnRole;
     roleResource.cfnOptions.metadata = {

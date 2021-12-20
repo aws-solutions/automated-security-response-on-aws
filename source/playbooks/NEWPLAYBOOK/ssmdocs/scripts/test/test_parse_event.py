@@ -15,7 +15,7 @@
 ###############################################################################
 import pytest
 
-from cis_parse_input import parse_event
+from newplaybook_parse_input import parse_event
 def event():
     return {
         'expected_control_id': '2.3',

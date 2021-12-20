@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`AdminParm Test Stack 1`] = `
+Object {
+  "Parameters": Object {
+    "SecHubAdminAccount": Object {
+      "AllowedPattern": "\\\\d{12}",
+      "Description": "Admin account number",
+      "Type": "String",
+    },
+  },
+}
+`;

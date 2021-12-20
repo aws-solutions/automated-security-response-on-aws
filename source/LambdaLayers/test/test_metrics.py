@@ -34,10 +34,10 @@ mock_ssm_get_parameter_uuid = {
     "Parameter": {
         "Name": "/Solutions/SO0111/anonymous_metrics_uuid",
         "Type": "String",
-        "Value": "12345678-1234-1234-1234-123412341234",
+        "Value": "11111111-1111-1111-1111-111111111111",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f'arn:aws:ssm:{my_region}:1111111111111111:parameter/Solutions/SO0111/anonymous_metrics_uuid',
+        "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/anonymous_metrics_uuid',
         "DataType": "text"
     }
 }
@@ -48,7 +48,7 @@ mock_ssm_get_parameter_version = {
         "Value": "v1.2.0TEST",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f'arn:aws:ssm:{my_region}1:1111111111111111:parameter/Solutions/SO0111/solution_version',
+        "ARN": f'arn:aws:ssm:{my_region}1:111111111111:parameter/Solutions/SO0111/solution_version',
         "DataType": "text"
     }
 }
@@ -60,7 +60,7 @@ mock_ssm_get_parameter_sendmetrics_yes = {
         "Value": "Yes",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f'arn:aws:ssm:{my_region}:1111111111111111:parameter/Solutions/SO0111/sendAnonymousMetrics',
+        "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/sendAnonymousMetrics',
         "DataType": "text"
     }
 }
@@ -72,7 +72,7 @@ mock_ssm_get_parameter_sendmetrics_no = {
         "Value": "No",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f'arn:aws:ssm:{my_region}:1111111111111111:parameter/Solutions/SO0111/sendAnonymousMetrics',
+        "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/sendAnonymousMetrics',
         "DataType": "text"
     }
 }
@@ -84,7 +84,7 @@ mock_ssm_get_parameter_sendmetrics_badvalue = {
         "Value": "slartibartfast",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f'arn:aws:ssm:{my_region}:1111111111111111:parameter/Solutions/SO0111/sendAnonymousMetrics',
+        "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/sendAnonymousMetrics',
         "DataType": "text"
     }
 }
@@ -114,7 +114,7 @@ def test_metrics_construction(mocker):
 
     metrics = Metrics({"detail-type": "unit-test"})
 
-    assert metrics.solution_uuid == "12345678-1234-1234-1234-123412341234"
+    assert metrics.solution_uuid == "11111111-1111-1111-1111-111111111111"
     assert metrics.solution_version == "v1.2.0TEST"
 
 #------------------------------------------------------------------------------
@@ -188,7 +188,7 @@ def test_send_metrics(mocker):
 
     expected_response = {
         'Solution': 'SO0111',
-        'UUID': '12345678-1234-1234-1234-123412341234',
+        'UUID': '11111111-1111-1111-1111-111111111111',
         'TimeStamp': mocker.ANY,
         'Data': {
             'generator_id': 'arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3',
@@ -249,7 +249,7 @@ def test_do_not_send_metrics(mocker):
 
     expected_response = {
         'Solution': 'SO0111',
-        'UUID': '12345678-1234-1234-1234-123412341234',
+        'UUID': '11111111-1111-1111-1111-111111111111',
         'TimeStamp': mocker.ANY,
         'Data': {
             'generator_id': 'arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3',

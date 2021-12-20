@@ -1,0 +1,86 @@
+description: |
+  ### Document Name - SHARR-CIS_1.2.0_1.4
+
+  ## What does this document do?
+  This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  
+  ## Output Parameters
+  * Remediation.Output
+
+  ## Documentation Links
+  * [CIS v1.2.0 1.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.4)
+  
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output 
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from Step function for finding
+  AutomationAssumeRole:
+    type: String
+    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+    default: ''
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+  MaxCredentialUsageAge:
+    type: String
+    description: (Required) Maximum number of days a key can be unrotated. The default value is 90 days.
+    allowedPattern: ^(\b([0-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000)\b)$
+    default: "90"
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: IAMResourceId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user/([A-Za-z0-9=,.@\_\-+]{1,64})$'
+        expected_control_id: '1.4'
+      Runtime: python3.7
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=cis_parse_input.py%%
+    isEnd: false
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: SHARR-RevokeUnrotatedKeys
+      RuntimeParameters:
+        IAMResourceId: '{{ ParseInput.IAMResourceId }}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnrotatedKeys'
+        MaxCredentialUsageAge: '{{MaxCredentialUsageAge}}'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Deactivated unrotated keys for {{ ParseInput.IAMUser }}.'
+        UpdatedBy: 'SHARR-CIS_1.2.0_1.4'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

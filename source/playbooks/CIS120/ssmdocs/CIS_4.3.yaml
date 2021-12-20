@@ -63,7 +63,7 @@ mainSteps:
       DocumentName: SHARR-RemoveVPCDefaultSecurityGroupRules
       RuntimeParameters:
         GroupId: '{{ ParseInput.GroupId }}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DisablePublicAccessForSecurityGroup_{{global:REGION}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DisablePublicAccessForSecurityGroup'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

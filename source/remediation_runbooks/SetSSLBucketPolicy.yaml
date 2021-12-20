@@ -1,0 +1,53 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - SHARR-SetSSLBucketPolicy
+
+  ## What does this document do?
+  This document adds a bucket policy to require transmission over HTTPS for the given S3 bucket by adding a policy statement to the bucket policy.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * BucketName: (Required) Name of the bucket to modify.
+  * AccountId: (Required) Account to which the bucket belongs
+  
+  ## Output Parameters
+
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0: S3.5
+  * CIS v1.2.0:   n/a
+  * PCI:          S3.5
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AccountId:
+    type: String
+    description: Account ID of the account for the finding
+    allowedPattern: ^[0-9]{12}$
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+  BucketName:
+    type: String
+    description: Name of the bucket to have a policy added
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+
+outputs:
+  -  Remediation.Output
+mainSteps:
+  - name: Remediation
+    action: 'aws:executeScript'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        accountid: '{{AccountId}}'
+        bucket: '{{BucketName}}'
+      Runtime: python3.7
+      Handler: add_ssl_bucket_policy
+      Script: |-
+        %%SCRIPT=SetSSLBucketPolicy.py%%

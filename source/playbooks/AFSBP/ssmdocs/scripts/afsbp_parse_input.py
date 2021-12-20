@@ -1,40 +1,45 @@
 #!/usr/bin/python
+###############################################################################
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
+#                                                                             #
+#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
+#  use this file except in compliance with the License. A copy of the License #
+#  is located at                                                              #
+#                                                                             #
+#      http://www.apache.org/licenses/LICENSE-2.0/                            #
+#                                                                             #
+#  or in the "license" file accompanying this file. This file is distributed  #
+#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
+#  or implied. See the License for the specific language governing permis-    #
+#  sions and limitations under the License.                                   #
+###############################################################################
 import re
 
-def get_value_by_path(finding, path):
-    path_levels = path.split('.')
-    previous_level = finding
-    for level in path_levels:
-        this_level = previous_level.get(level)
-        previous_level = this_level
-    return this_level
+def get_control_id_from_arn(finding_id_arn):
+    check_finding_id = re.match(
+        '^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:subscription/aws-foundational-security-best-practices/v/1\\.0\\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',
+        finding_id_arn
+    )
+    if check_finding_id:
+        control_id = check_finding_id.group(1)
+        return control_id
+    else:
+        exit(f'ERROR: Finding Id is invalid: {finding_id_arn}')
 
 def parse_event(event, context):
     expected_control_id = event['expected_control_id']
     parse_id_pattern = event['parse_id_pattern']
     resource_id_matches = []
     finding = event['Finding']
-
-    testmode = False
-    if 'testmode' in finding:
-        testmode = True
+    testmode = bool('testmode' in finding)
 
     finding_id = finding['Id']
-    control_id = ''
-    # Finding Id present and valid
-    check_finding_id = re.match(
-        '^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:subscription/aws-foundational-security-best-practices/v/1\\.0\\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',
-        finding_id
-    )
-
-    if not check_finding_id:
-        exit(f'ERROR: Finding Id is invalid: {finding_id}')
-    else:
-        control_id = check_finding_id.group(1)
-
-    account_id = finding['AwsAccountId']
+        
+    account_id = finding.get('AwsAccountId', '')
     if not re.match('^\\d{12}$', account_id):
         exit(f'ERROR: AwsAccountId is invalid: {account_id}')
+
+    control_id = get_control_id_from_arn(finding['Id'])
 
     # ControlId present and valid
     if not control_id:
@@ -49,16 +54,14 @@ def parse_event(event, context):
     if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::product/aws/securityhub$', product_arn):
         exit(f'ERROR: ProductArn is invalid: {product_arn}')
 
-    # ResourceType
-    resource_type = finding['Resources'][0]['Type']
+    resource = finding['Resources'][0]
 
-    details = {}
     # Details
-    if 'Details' in finding['Resources'][0]:
-        details = finding['Resources'][0]['Details']
+    details = finding['Resources'][0].get('Details', {})
 
     # Regex match Id to get remediation-specific identifier
     identifier_raw = finding['Resources'][0]['Id']
+    resource_id = identifier_raw
 
     if parse_id_pattern:
         identifier_match = re.match(
@@ -66,22 +69,17 @@ def parse_event(event, context):
             identifier_raw
         )
 
-        if not identifier_match:
-            exit(f'ERROR: Invalid resource Id {identifier_raw}')
-        else:
+        if identifier_match:
             for group in range(1, len(identifier_match.groups())+1):
                 resource_id_matches.append(identifier_match.group(group))
-            if 'resource_index' in event:
-                resource_id = identifier_match.group(event['resource_index'])
-            else:
-                resource_id = identifier_match.group(1)
-    else:
-        resource_id = identifier_raw
+            resource_id = identifier_match.group(event.get('resource_index', 1))
+        else:
+            exit(f'ERROR: Invalid resource Id {identifier_raw}')   
 
     if not resource_id:
         exit('ERROR: Resource Id is missing from the finding json Resources (Id)')
 
-    affected_object = {'Type': resource_type, 'Id': resource_id, 'OutputKey': 'Remediation.Output'}
+    affected_object = {'Type': resource['Type'], 'Id': resource_id, 'OutputKey': 'Remediation.Output'}
     return {
         "account_id": account_id,
         "resource_id": resource_id, 
@@ -91,5 +89,6 @@ def parse_event(event, context):
         "object": affected_object,
         "matches": resource_id_matches,
         "details": details,
-        "testmode": testmode
+        "testmode": testmode,
+        "resource": resource
     }
