@@ -1,12 +1,12 @@
 #!/usr/bin/python
 ###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
 #                                                                             #
 #  Licensed under the Apache License Version 2.0 (the "License"). You may not #
 #  use this file except in compliance with the License. A copy of the License #
 #  is located at                                                              #
 #                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
+#      http://www.apache.org/licenses/LICENSE-2.0/                            #
 #                                                                             #
 #  or in the "license" file accompanying this file. This file is distributed  #
 #  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
@@ -113,8 +113,22 @@ def expected():
             "OutputKey": 'Remediation.Output'
         },
         "matches": [ "foo-bar@baz" ],
-        'details': {'AwsIamUser': {'CreateDate': '2016-09-23T12:42:13.000Z', 'Path': '/', 'UserId': 'AIDAIMALBCBBI4ZZHJVTO', 'UserName': 'foo-bar@baz'}}
-    }
+        'details': {'AwsIamUser': {'CreateDate': '2016-09-23T12:42:13.000Z', 'Path': '/', 'UserId': 'AIDAIMALBCBBI4ZZHJVTO', 'UserName': 'foo-bar@baz'}},
+        'resource': {
+            "Type": "AwsIamUser",
+            "Id": "arn:aws:iam::111111111111:user/foo-bar@baz",
+            "Partition": "aws",
+            "Region": "us-east-1",
+            "Details": {
+                "AwsIamUser": {
+                    "CreateDate": "2016-09-23T12:42:13.000Z",
+                    "Path": "/",
+                    "UserId": "AIDAIMALBCBBI4ZZHJVTO",
+                    "UserName": "foo-bar@baz"
+                    }
+                }
+            }
+        }   
 
 def test_parse_event():
     parsed_event = parse_event(event(), {})
@@ -146,7 +160,7 @@ def test_bad_control_id():
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         parsed_event = parse_event(test_event, {})
     assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 'ERROR: Finding is missing Control Id: arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1//finding/fec91aaf-5016-4c40-9d24-9966e4be80c4'
+    assert pytest_wrapped_e.value.code == 'ERROR: Finding Id is invalid: arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1//finding/fec91aaf-5016-4c40-9d24-9966e4be80c4 - missing Control Id'
 
 def test_control_id_nomatch():
     test_event = event()

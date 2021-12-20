@@ -21,8 +21,7 @@
 //
 import * as cdk from '@aws-cdk/core';
 import { StringParameter } from '@aws-cdk/aws-ssm';
-import { Trigger } from './ssmplaybook';
-import { SsmPlaybook } from './ssmplaybook';
+import { Trigger, SsmPlaybook } from './ssmplaybook';
 import { AdminAccountParm } from './admin_account_parm-construct';
 
 export interface IControl {
@@ -79,10 +78,17 @@ export class PlaybookPrimaryStack extends cdk.Stack {
                 stringValue: `${controlSpec.executes}`
             });
         }
+        let generatorId = ''
+        if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
+            // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
+            generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`
+        } else {
+            generatorId = `${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`
+        }
         new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {
             securityStandard: props.securityStandard,
             controlId: controlSpec.control,
-            generatorId: `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/rule/${controlSpec.control}`,
+            generatorId: generatorId,
             targetArn: orchestratorArn
         })
     }

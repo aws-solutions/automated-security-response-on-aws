@@ -16,7 +16,11 @@
 
 import json
 import re
+import os
+import boto3
 from awsapi_cached_client import AWSCachedClient
+
+AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 
 class StepFunctionLambdaAnswer:
     """
@@ -35,7 +39,12 @@ class StepFunctionLambdaAnswer:
     accountid = ''
     automationdocid = ''
     remediationrole = ''
+    workflowdoc = ''
+    workflowaccount = ''
     eventtype = ''
+    resourceregion = ''
+    workflow_data = {} # Hash for workflow data so that it can be modified in
+                       # in the future without changing the source code
 
     def __init__(self):
         """Set message and status - minimum required fields"""
@@ -106,6 +115,34 @@ class StepFunctionLambdaAnswer:
         """Set eventtype (string)"""
         self.eventtype = value
 
+    def update_workflow_data(self, value):
+        """Set eventtype (string)"""
+        self.workflow_data = value
+
+    def update_workflowdoc(self, value):
+        """Set eventtype (string)"""
+        self.workflowdoc = value
+
+    def update_workflowaccount(self, value):
+        """Set eventtype (string)"""
+        self.workflowaccount = value
+
+    def update_workflowrole(self, value):
+        """Set eventtype (string)"""
+        self.workflowrole = value
+    
+    def update_resourceregion(self, value):
+        """Set eventtype (string)"""
+        self.resourceregion = value
+
+    def update_executionregion(self, value):
+        """Set eventtype (string)"""
+        self.executionregion = value
+
+    def update_executionaccount(self, value):
+        """Set eventtype (string)"""
+        self.executionaccount = value
+
     def update(self, answer_data):
         if "status" in answer_data:
             self.update_status(answer_data['status'])
@@ -135,6 +172,20 @@ class StepFunctionLambdaAnswer:
             self.update_remediationrole(answer_data['remediationrole'])
         if "eventtype" in answer_data:
             self.update_eventtype(answer_data['eventtype'])
+        if "workflow_data" in answer_data:
+            self.update_workflow_data(answer_data['workflow_data'])
+        if "workflowdoc" in answer_data:
+            self.update_workflowdoc(answer_data['workflowdoc'])
+        if "workflowaccount" in answer_data:
+            self.update_workflowaccount(answer_data['workflowaccount'])
+        if "workflowrole" in answer_data:
+            self.update_workflowrole(answer_data['workflowrole'])
+        if "resourceregion" in answer_data:
+            self.update_resourceregion(answer_data['resourceregion'])
+        if "executionregion" in answer_data:
+            self.update_executionregion(answer_data['executionregion'])
+        if "executionaccount" in answer_data:
+            self.update_executionaccount(answer_data['executionaccount'])
 
 def resource_from_arn(arn):
     """
@@ -166,29 +217,23 @@ def partition_from_region(region_name):
         else:
             return 'aws'
     except:
-        return
+        raise
 
-def publish_to_sns(topic_name, message, region=None):
+def publish_to_sns(topic_name, message, region=''):
     """
     Post a message to an SNS topic
     """
+    if not region:
+        region = AWS_REGION
+    partition = partition_from_region(region)
     AWS = AWSCachedClient(region) # cached client object
+    account = boto3.client('sts').get_caller_identity()['Account']
 
-    partition = None
+    topic_arn = f'arn:{partition}:sns:{region}:{account}:{topic_name}'
 
-    if region:
-        partition = partition_from_region(region)
-    else:
-        partition = 'aws'
-        region = 'us-east-1'
-
-    topic_arn = 'arn:' + partition + ':sns:' + region + ':' + AWS.account + ':' + topic_name
-
-    json_message = json.dumps({"default":json.dumps(message)})
     message_id = AWS.get_connection('sns', region).publish(
         TopicArn=topic_arn,
-        Message=json_message,
-        MessageStructure='json'
+        Message=message
     ).get('MessageId', 'error')
 
     return message_id

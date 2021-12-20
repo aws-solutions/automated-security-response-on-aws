@@ -16,8 +16,7 @@
 
 import * as cdk from '@aws-cdk/core';
 import { LogGroup, CfnLogGroup, RetentionDays } from '@aws-cdk/aws-logs';
-import { Key, IKey } from '@aws-cdk/aws-kms';
-import { StringParameter } from '@aws-cdk/aws-ssm';
+import { Key } from '@aws-cdk/aws-kms';
  
 export interface OrchLogStackProps extends cdk.StackProps {
     description: string;

@@ -18,7 +18,7 @@ import * as cdk from '@aws-cdk/core';
 import * as lambda from '@aws-cdk/aws-lambda';
 import { SolutionDeployStack } from '../lib/solution_deploy-stack';
 import { MemberStack } from '../lib/sharr_member-stack';
-import { RemediationRunbookStack } from '../lib/remediation_runbook-stack';
+import { RemediationRunbookStack, MemberRoleStack } from '../lib/remediation_runbook-stack';
 import { OrchLogStack } from '../lib/orchestrator-log-stack';
 
 const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
@@ -54,12 +54,22 @@ const memberStack = new MemberStack(app, 'MemberStack', {
 });
 memberStack.templateOptions.templateFormatVersion = "2010-09-09"
 
+const roleStack = new MemberRoleStack(app, 'MemberRoleStack', {
+    description: '(' + SOLUTION_ID + 'R) ' + SOLUTION_NAME +
+        ' Remediation Roles, ' + SOLUTION_VERSION,
+    solutionId: SOLUTION_ID,
+    solutionVersion: SOLUTION_VERSION,
+    solutionDistBucket: SOLUTION_BUCKET,
+});
+roleStack.templateOptions.templateFormatVersion = "2010-09-09"
+
 const runbookStack = new RemediationRunbookStack(app, 'RunbookStack', {
     description: '(' + SOLUTION_ID + 'R) ' + SOLUTION_NAME +
         ' Remediation Runbooks, ' + SOLUTION_VERSION,
     solutionId: SOLUTION_ID,
     solutionVersion: SOLUTION_VERSION,
     solutionDistBucket: SOLUTION_BUCKET,
+    roleStack: roleStack
 });
 runbookStack.templateOptions.templateFormatVersion = "2010-09-09"
 

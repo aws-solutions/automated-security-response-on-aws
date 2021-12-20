@@ -34,131 +34,11 @@ def get_public_snapshots(event, context):
 
     if 'testmode' in event and event['testmode']:
         return [
-            {
-                "Description": "Snapshot of idle volume before deletion",
-                "Encrypted": False,
-                "OwnerId": "111111111111",
-                "Progress": "100%",
-                "SnapshotId": "snap-12341234123412345",
-                "StartTime": "2021-03-11T08:23:02.785Z",
-                "State": "completed",
-                "VolumeId": "vol-12341234123412345",
-                "VolumeSize": 4,
-                "Tags": [
-                    {
-                        "Key": "SnapshotDate",
-                        "Value": "2021-03-11 08:23:02.376859"
-                    },
-                    {
-                        "Key": "DeleteEBSVolOnCompletion",
-                        "Value": "False"
-                    },
-                    {
-                        "Key": "SnapshotReason",
-                        "Value": "Idle Volume"
-                    }
-                ]
-            },
-            {
-                "Description": "Snapshot of idle volume before deletion",
-                "Encrypted": False,
-                "OwnerId": "111111111111",
-                "Progress": "100%",
-                "SnapshotId": "snap-12341234123412345",
-                "StartTime": "2021-03-11T08:20:37.399Z",
-                "State": "completed",
-                "VolumeId": "vol-12341234123412345",
-                "VolumeSize": 4,
-                "Tags": [
-                    {
-                        "Key": "DeleteEBSVolOnCompletion",
-                        "Value": "False"
-                    },
-                    {
-                        "Key": "SnapshotDate",
-                        "Value": "2021-03-11 08:20:37.224101"
-                    },
-                    {
-                        "Key": "SnapshotReason",
-                        "Value": "Idle Volume"
-                    }
-                ]
-            },
-            {
-                "Description": "Snapshot of idle volume before deletion",
-                "Encrypted": False,
-                "OwnerId": "111111111111",
-                "Progress": "100%",
-                "SnapshotId": "snap-12341234123412345",
-                "StartTime": "2021-03-11T08:22:48.936Z",
-                "State": "completed",
-                "VolumeId": "vol-12341234123412345",
-                "VolumeSize": 4,
-                "Tags": [
-                    {
-                        "Key": "SnapshotReason",
-                        "Value": "Idle Volume"
-                    },
-                    {
-                        "Key": "SnapshotDate",
-                        "Value": "2021-03-11 08:22:48.714893"
-                    },
-                    {
-                        "Key": "DeleteEBSVolOnCompletion",
-                        "Value": "False"
-                    }
-                ]
-            },
-            {
-                "Description": "Snapshot of idle volume before deletion",
-                "Encrypted": False,
-                "OwnerId": "111111111111",
-                "Progress": "100%",
-                "SnapshotId": "snap-12341234123412345",
-                "StartTime": "2021-03-11T08:23:05.156Z",
-                "State": "completed",
-                "VolumeId": "vol-12341234123412345",
-                "VolumeSize": 4,
-                "Tags": [
-                    {
-                        "Key": "DeleteEBSVolOnCompletion",
-                        "Value": "False"
-                    },
-                    {
-                        "Key": "SnapshotReason",
-                        "Value": "Idle Volume"
-                    },
-                    {
-                        "Key": "SnapshotDate",
-                        "Value": "2021-03-11 08:23:04.876640"
-                    }
-                ]
-            },
-            {
-                "Description": "Snapshot of idle volume before deletion",
-                "Encrypted": False,
-                "OwnerId": "111111111111",
-                "Progress": "100%",
-                "SnapshotId": "snap-12341234123412345",
-                "StartTime": "2021-03-11T08:22:34.850Z",
-                "State": "completed",
-                "VolumeId": "vol-12341234123412345",
-                "VolumeSize": 4,
-                "Tags": [
-                    {
-                        "Key": "DeleteEBSVolOnCompletion",
-                        "Value": "False"
-                    },
-                    {
-                        "Key": "SnapshotReason",
-                        "Value": "Idle Volume"
-                    },
-                    {
-                        "Key": "SnapshotDate",
-                        "Value": "2021-03-11 08:22:34.671355"
-                    }
-                ]
-            }
+            "snap-12341234123412345",
+            "snap-12341234123412345",
+            "snap-12341234123412345",
+            "snap-12341234123412345",
+            "snap-12341234123412345"
         ]
 
     return list_public_snapshots(account_id)
@@ -168,7 +48,7 @@ def list_public_snapshots(account_id):
     control_token = 'start'
     try:
 
-        buffer = []
+        public_snapshot_ids = []
 
         while control_token:
 
@@ -182,19 +62,21 @@ def list_public_snapshots(account_id):
             }
             if control_token:
                 kwargs['NextToken'] = control_token
-
+                
             response = ec2.describe_snapshots(
-                **kwargs
-            )
+                        **kwargs
+                )
+        
+            for snapshot in response['Snapshots']:
+                public_snapshot_ids.append(snapshot['SnapshotId'])
 
             if 'NextToken' in response:
                 control_token = response['NextToken']
             else:
                 control_token = ''
 
-            buffer += response['Snapshots']
-
-        return buffer
+        return public_snapshot_ids
+        
     except Exception as e:
         print(e)
         exit('Failed to describe_snapshots')

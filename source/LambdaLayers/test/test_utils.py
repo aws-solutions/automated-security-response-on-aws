@@ -20,11 +20,23 @@
 #
 
 import pytest
-from botocore.stub import Stubber, ANY
 from utils import resource_from_arn, partition_from_region, publish_to_sns
-from awsapi_cached_client import AWSCachedClient
 
-AWS = AWSCachedClient('us-east-1')
+def test_notification():
+    return {
+        'INFO': 'A door is ajar',
+        'finding': {
+            'finding_id': '8f400859-26b0-4cd4-a935-1f96c82343e9',
+            'finding_description': 'Description of the finding',
+            'standard_name': 'Long Standard Name',
+            'standard_version': 'v1.0.0',
+            'standard_control': 'Control.Id',
+            'title': 'CloudTrail.1 CloudTrail should be enabled and configured with at least one multi-region trail',
+            'region': 'ap-northwest-1',
+            'account': '111122223333',
+            'finding_arn':   "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1/finding/8f400859-26b0-4cd4-a935-1f96c82343e9"
+        }
+    }
 
 def test_resource_from_arn():
 
@@ -42,55 +54,3 @@ def test_partition_from_region():
     # Note: does not validate region name. default expected
     assert partition_from_region('foo') == 'aws'
     assert partition_from_region('eu-west-1') == 'aws'
-
-#------------------------------------------------------------------------------
-# 
-#------------------------------------------------------------------------------
-def test_publish_to_sns_local():
-
-    stsclient = AWS.get_connection('sts') # in us-east-1
-    stubber1 = Stubber(stsclient)
-    stubber1.add_response(
-        'get_caller_identity',
-        {}
-    )
-    stubber1.activate()
-    snsclient = AWS.get_connection('sns') # in us-east-1
-    stubber2 = Stubber(snsclient)
-    stubber2.add_response(
-        'publish',
-        {},
-        {
-            'TopicArn': ANY,
-            'Message': ANY,
-            'MessageStructure': 'json'
-        }
-    )
-    stubber2.activate()
-    publish_to_sns('test-topic', 'Test SNS message')
-
-#------------------------------------------------------------------------------
-# 
-#------------------------------------------------------------------------------
-def test_publish_to_sns_remote():
-
-    stsclient = AWS.get_connection('sts') # in us-east-1
-    snsclient = AWS.get_connection('sns','eu-west-1') # in eu-west-1
-    stubber1 = Stubber(stsclient)
-    stubber1.add_response(
-        'get_caller_identity',
-        {}
-    )
-    stubber1.activate()
-    stubber2 = Stubber(snsclient)
-    stubber2.add_response(
-        'publish',
-        {},
-        {
-            'TopicArn': ANY,
-            'Message': ANY,
-            'MessageStructure': 'json'
-        }
-    )
-    stubber2.activate()
-    publish_to_sns('test-topic', 'Test SNS message', region='eu-west-1')

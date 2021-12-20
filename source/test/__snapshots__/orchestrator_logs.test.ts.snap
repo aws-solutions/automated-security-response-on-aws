@@ -1,0 +1,105 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Global Roles Stack 1`] = `
+Object {
+  "Conditions": Object {
+    "EncryptedLogGroup": Object {
+      "Fn::And": Array [
+        Object {
+          "Condition": "isNotGovCloud",
+        },
+        Object {
+          "Fn::Equals": Array [
+            Object {
+              "Ref": "ReuseOrchestratorLogGroup",
+            },
+            "no",
+          ],
+        },
+      ],
+    },
+    "UnencryptedLogGroup": Object {
+      "Fn::And": Array [
+        Object {
+          "Fn::Not": Array [
+            Object {
+              "Condition": "isNotGovCloud",
+            },
+          ],
+        },
+        Object {
+          "Fn::Equals": Array [
+            Object {
+              "Ref": "ReuseOrchestratorLogGroup",
+            },
+            "no",
+          ],
+        },
+      ],
+    },
+    "isNotGovCloud": Object {
+      "Fn::Not": Array [
+        Object {
+          "Fn::Equals": Array [
+            Object {
+              "Ref": "AWS::Partition",
+            },
+            "aws-us-gov",
+          ],
+        },
+      ],
+    },
+  },
+  "Description": "test;",
+  "Parameters": Object {
+    "KmsKeyArn": Object {
+      "Description": "ARN of the KMS key to use to encrypt log data.",
+      "Type": "String",
+    },
+    "ReuseOrchestratorLogGroup": Object {
+      "AllowedValues": Array [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Reuse existing Orchestrator Log Group? Choose \\"yes\\" if the log group already exists, else \\"no\\"",
+      "Type": "String",
+    },
+  },
+  "Resources": Object {
+    "OrchestratorLogsEFDFFA92": Object {
+      "Condition": "UnencryptedLogGroup",
+      "DeletionPolicy": "Retain",
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W84",
+              "reason": "KmsKeyId is not supported in GovCloud.",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "LogGroupName": "TestLogGroup",
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "OrchestratorLogsEncrypted072D6E38": Object {
+      "Condition": "EncryptedLogGroup",
+      "DeletionPolicy": "Retain",
+      "Properties": Object {
+        "KmsKeyId": Object {
+          "Ref": "KmsKeyArn",
+        },
+        "LogGroupName": "TestLogGroup",
+        "RetentionInDays": 365,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+  },
+}
+`;

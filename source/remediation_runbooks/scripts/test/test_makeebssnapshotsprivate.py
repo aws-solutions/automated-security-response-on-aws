@@ -165,6 +165,14 @@ def snaplist():
         ]
     }
 
+snapids = [
+    "snap-12341234123412345",
+    "snap-12341234123412345",
+    "snap-12341234123412345",
+    "snap-12341234123412345",
+    "snap-12341234123412345"
+]
+
 def test_get_snaps(mocker):
     event = {
         'account_id': '111111111111',
@@ -198,7 +206,7 @@ def test_get_snaps(mocker):
 
     ec2_stubber.activate()
     mocker.patch('GetPublicEBSSnapshots.connect_to_ec2', return_value=ec2)
-    assert getsnaps.get_public_snapshots(event, {}) == snaps['Snapshots'] + snaplist()['Snapshots']
+    assert getsnaps.get_public_snapshots(event, {}) == snapids + snapids
     ec2_stubber.assert_no_pending_responses()
     ec2_stubber.deactivate()
 
@@ -208,7 +216,7 @@ def test_get_snaps_testmode(mocker):
         'testmode': True
     }
 
-    assert getsnaps.get_public_snapshots(event, {}) == snaplist()['Snapshots']
+    assert getsnaps.get_public_snapshots(event, {}) == snapids
 
 def test_make_snaps_private(mocker):
     event = {
@@ -219,8 +227,8 @@ def test_make_snaps_private(mocker):
     ec2 = botocore.session.get_session().create_client('ec2', config=BOTO_CONFIG)
     ec2_stubber = Stubber(ec2)
 
-    event['snapshots'] = snaplist()['Snapshots']
-    for snaps in range(0, len(event['snapshots'])):
+    event['snapshots'] = snapids
+    for snaps in range(0, len(snapids)):
         ec2_stubber.add_response(
             'modify_snapshot_attribute',
             {},
@@ -229,7 +237,7 @@ def test_make_snaps_private(mocker):
                 'CreateVolumePermission': {
                     'Remove': [{'Group': 'all'}]
                 },
-                'SnapshotId': event['snapshots'][snaps]['SnapshotId']
+                'SnapshotId': snapids[snaps]
             }
         )
 

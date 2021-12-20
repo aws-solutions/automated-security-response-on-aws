@@ -29,24 +29,52 @@ import {
     CfnPolicy,
     CfnRole
 } from '@aws-cdk/aws-iam';
-// import { Key } from '@aws-cdk/aws-kms';
-// import { StringParameter } from '@aws-cdk/aws-ssm';
+import { OrchestratorMemberRole } from '../../lib/orchestrator_roles-construct'
 import { SsmRemediationRunbook, SsmRole } from '../../lib/ssmplaybook';
 import { AdminAccountParm } from '../../lib/admin_account_parm-construct';
 import { Rds6EnhancedMonitoringRole } from '../../remediation_runbooks/rds6-remediation-resources';
 
+export interface MemberRoleStackProps {
+    readonly description: string;
+    readonly solutionId: string;
+    readonly solutionVersion: string;
+    readonly solutionDistBucket: string;
+}
+
+export class MemberRoleStack extends cdk.Stack {
+  constructor(scope: cdk.App, id: string, props: MemberRoleStackProps) {
+    super(scope, id, props);
+    /********************
+    ** Parameters
+    ********************/
+    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
+    const adminRoleName = `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin`
+
+    const adminAccount = new AdminAccountParm(this, 'AdminAccountParameter', {
+        solutionId: props.solutionId
+    })
+    new OrchestratorMemberRole(this, 'OrchestratorMemberRole', {
+        solutionId: props.solutionId,
+        adminAccountId: adminAccount.adminAccountNumber.valueAsString,
+        adminRoleName: adminRoleName
+    })
+  }
+}
+
 export interface StackProps {
-    description: string;
-    solutionId: string;
-    solutionVersion: string;
-    solutionDistBucket: string;
+    readonly description: string;
+    readonly solutionId: string;
+    readonly solutionVersion: string;
+    readonly solutionDistBucket: string;
     ssmdocs?: string;
+    roleStack: MemberRoleStack;
 }
 
 export class RemediationRunbookStack extends cdk.Stack {
 
   constructor(scope: cdk.App, id: string, props: StackProps) {
     super(scope, id, props);
+
     let ssmdocs = ''
     if (props.ssmdocs == undefined) {
         ssmdocs = '../remediation_runbooks'
@@ -55,19 +83,14 @@ export class RemediationRunbookStack extends cdk.Stack {
     }
 
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
-
-    const adminAccount = new AdminAccountParm(this, 'AdminAccountParameter', {
-        solutionId: props.solutionId
-    })
-    // const adminRoleName = `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin_${this.region}`
     const remediationRoleNameBase = `${RESOURCE_PREFIX}-`
-    
+
     //-----------------------
     // CreateCloudTrailMultiRegionTrail
     //
     {
         const remediationName = 'CreateCloudTrailMultiRegionTrail'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const cloudtrailPerms = new PolicyStatement();
         cloudtrailPerms.addActions(
             "cloudtrail:CreateTrail",
@@ -93,13 +116,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         );
         inlinePolicy.addStatements(s3Perms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            // adminRoleName: adminRoleName,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -131,7 +152,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'CreateLogMetricFilterAndAlarm'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         
         const remediationPolicy = new PolicyStatement();
         remediationPolicy.addActions(
@@ -152,17 +173,16 @@ export class RemediationRunbookStack extends cdk.Stack {
             )
             snsPerms.effect = Effect.ALLOW
             snsPerms.addResources(
-                `arn:${this.partition}:sns:${this.region}:${this.account}:SO0111-SHARR-LocalAlarmNotification`
+                `arn:${this.partition}:sns:*:${this.account}:SO0111-SHARR-LocalAlarmNotification`
             );
             inlinePolicy.addStatements(snsPerms)
         }
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -179,7 +199,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableAutoScalingGroupELBHealthCheck'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const asPerms = new PolicyStatement();
         asPerms.addActions(
             "autoscaling:UpdateAutoScalingGroup",
@@ -189,13 +209,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         asPerms.addResources("*");
         inlinePolicy.addStatements(asPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            // adminRoleName: adminRoleName,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -223,10 +241,10 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableAWSConfig'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         {
-            var iamPerms = new PolicyStatement();
+            let iamPerms = new PolicyStatement();
             iamPerms.addActions(
                 "iam:GetRole",
                 "iam:PassRole"
@@ -234,19 +252,19 @@ export class RemediationRunbookStack extends cdk.Stack {
             iamPerms.effect = Effect.ALLOW
             iamPerms.addResources(
                 `arn:${this.partition}:iam::${this.account}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig`,
-                `arn:${this.partition}:iam::${this.account}:role/SO0111-CreateAccessLoggingBucket_*`
+                `arn:${this.partition}:iam::${this.account}:role/SO0111-CreateAccessLoggingBucket`
             );
             inlinePolicy.addStatements(iamPerms)
         }
         {
-            var snsPerms = new PolicyStatement();
+            let snsPerms = new PolicyStatement();
             snsPerms.addActions(
                 "sns:CreateTopic",
                 "sns:SetTopicAttributes"
             )
             snsPerms.effect = Effect.ALLOW
             snsPerms.addResources(
-                `arn:${this.partition}:sns:${this.region}:${this.account}:SO0111-SHARR-AWSConfigNotification`
+                `arn:${this.partition}:sns:*:${this.account}:SO0111-SHARR-AWSConfigNotification`
             );
             inlinePolicy.addStatements(snsPerms)
         }
@@ -257,7 +275,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             )
             ssmPerms.effect = Effect.ALLOW
             ssmPerms.addResources(
-                `arn:${this.partition}:ssm:${this.region}:${this.account}:automation-definition/SHARR-CreateAccessLoggingBucket:*`
+                `arn:${this.partition}:ssm:*:${this.account}:automation-definition/SHARR-CreateAccessLoggingBucket:*`
             );
             inlinePolicy.addStatements(ssmPerms)
         }
@@ -292,13 +310,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         );
         inlinePolicy.addStatements(s3Perms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            // adminRoleName: adminRoleName,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -326,7 +342,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableCloudTrailToCloudWatchLogging'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         // Role for CT->CW logging
         const ctcw_remediation_policy_statement_1 = new PolicyStatement()
@@ -347,13 +363,14 @@ export class RemediationRunbookStack extends cdk.Stack {
         ctcw_remediation_policy_doc.addStatements(ctcw_remediation_policy_statement_1) 
         ctcw_remediation_policy_doc.addStatements(ctcw_remediation_policy_statement_2) 
 
-        const ctcw_remediation_role = new Role(this, 'ctcwremediationrole', {
+        const ctcw_remediation_role = new Role(props.roleStack, 'ctcwremediationrole', {
             assumedBy: new ServicePrincipal(`cloudtrail.${this.urlSuffix}`),
             inlinePolicies: {
                 'default_lambdaPolicy': ctcw_remediation_policy_doc
             },
-            roleName: RESOURCE_PREFIX + '-CloudTrailToCloudWatchLogs_' + this.region
+            roleName: `${RESOURCE_PREFIX}-CloudTrailToCloudWatchLogs`
         });
+        ctcw_remediation_role.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN)
         {
             let childToMod = ctcw_remediation_role.node.findChild('Resource') as CfnRole;
             childToMod.cfnOptions.metadata = {
@@ -396,12 +413,11 @@ export class RemediationRunbookStack extends cdk.Stack {
             inlinePolicy.addStatements(ctcwlogs)
         }
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR ' + remediationName, {
@@ -432,7 +448,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableCloudTrailEncryption'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const cloudtrailPerms = new PolicyStatement();
         cloudtrailPerms.addActions("cloudtrail:UpdateTrail")
@@ -440,12 +456,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         cloudtrailPerms.addResources("*");
         inlinePolicy.addStatements(cloudtrailPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -478,7 +493,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableVPCFlowLogs'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         {
             let remediationPerms = new PolicyStatement();
@@ -492,7 +507,6 @@ export class RemediationRunbookStack extends cdk.Stack {
             );
             inlinePolicy.addStatements(remediationPerms)
         }
-
         {
             let iamPerms = new PolicyStatement()
             iamPerms.addActions(
@@ -500,11 +514,21 @@ export class RemediationRunbookStack extends cdk.Stack {
             )
             iamPerms.effect = Effect.ALLOW
             iamPerms.addResources(
-                `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-${remediationName}-remediationRole_${this.region}`
+                `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-${remediationName}-remediationRole`
             );
             inlinePolicy.addStatements(iamPerms)
         }
-        
+        {
+            let ssmPerms = new PolicyStatement()
+            ssmPerms.addActions(
+                "ssm:GetParameter"
+            )
+            ssmPerms.effect = Effect.ALLOW
+            ssmPerms.addResources(
+                `arn:${this.partition}:ssm:*:${this.account}:parameter/${RESOURCE_PREFIX}/CMK_REMEDIATION_ARN`
+            );
+            inlinePolicy.addStatements(ssmPerms)
+        }
         {
             let validationPerms = new PolicyStatement()
             validationPerms.addActions(
@@ -517,7 +541,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             inlinePolicy.addStatements(validationPerms)
         }
 
-        // Remediation Role
+        // Remediation Role - used in the remediation
         const remediation_policy = new PolicyStatement()
         remediation_policy.effect = Effect.ALLOW
         remediation_policy.addActions(
@@ -532,13 +556,14 @@ export class RemediationRunbookStack extends cdk.Stack {
         const remediation_doc = new PolicyDocument()
         remediation_doc.addStatements(remediation_policy)
 
-        const remediation_role = new Role(this, 'EnableVPCFlowLogs-remediationrole', {
+        const remediation_role = new Role(props.roleStack, 'EnableVPCFlowLogs-remediationrole', {
             assumedBy: new ServicePrincipal('vpc-flow-logs.amazonaws.com'),
             inlinePolicies: {
                 'default_lambdaPolicy': remediation_doc
             },
-            roleName: `${RESOURCE_PREFIX}-EnableVPCFlowLogs-remediationRole_${this.region}`
+            roleName: `${RESOURCE_PREFIX}-EnableVPCFlowLogs-remediationRole`
         });
+        remediation_role.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN)
 
         const roleResource = remediation_role.node.findChild('Resource') as CfnRole;
 
@@ -554,12 +579,11 @@ export class RemediationRunbookStack extends cdk.Stack {
             }
         };
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -587,7 +611,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'CreateAccessLoggingBucket'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const s3Perms = new PolicyStatement();
         s3Perms.addActions(
             "s3:CreateBucket",
@@ -599,12 +623,11 @@ export class RemediationRunbookStack extends cdk.Stack {
     
         inlinePolicy.addStatements(s3Perms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -632,7 +655,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'MakeEBSSnapshotsPrivate'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const ec2Perms = new PolicyStatement();
         ec2Perms.addActions(
             "ec2:ModifySnapshotAttribute",
@@ -642,12 +665,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         ec2Perms.addResources("*");
         inlinePolicy.addStatements(ec2Perms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -678,7 +700,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'MakeRDSSnapshotPrivate'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const remediationPerms = new PolicyStatement();
         remediationPerms.addActions(
             "rds:ModifyDBSnapshotAttribute",
@@ -688,12 +710,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationPerms.addResources("*");
         inlinePolicy.addStatements(remediationPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -724,7 +745,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'RemoveLambdaPublicAccess'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const lambdaPerms = new PolicyStatement();
         lambdaPerms.addActions(
@@ -735,12 +756,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         lambdaPerms.addResources('*')
         inlinePolicy.addStatements(lambdaPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -765,7 +785,106 @@ export class RemediationRunbookStack extends cdk.Stack {
             }
         }
     }
+
+    //-----------------------
+    // RevokeUnrotatedKeys
+    //
+    {
+        const remediationName = 'RevokeUnrotatedKeys'
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+        const remediationPolicy = new PolicyStatement();
+        remediationPolicy.addActions(
+            "iam:UpdateAccessKey",
+            "iam:ListAccessKeys",
+            "iam:GetAccessKeyLastUsed",
+            "iam:GetUser"
+        );
+        remediationPolicy.effect = Effect.ALLOW;
+        remediationPolicy.addResources(
+            "arn:" + this.partition + ":iam::" + this.account + ":user/*"
+        );
+        inlinePolicy.addStatements(remediationPolicy)
+
+        const cfgPerms = new PolicyStatement();
+        cfgPerms.addActions(
+            "config:ListDiscoveredResources"
+        )
+        cfgPerms.effect = Effect.ALLOW
+        cfgPerms.addResources("*")
+        inlinePolicy.addStatements(cfgPerms)
+
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+            solutionId: props.solutionId,
+            ssmDocName: remediationName,
+            remediationPolicy: inlinePolicy,
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
+        })
+
+        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
+            ssmDocName: remediationName,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${remediationName}.yaml`,
+            scriptPath: `${ssmdocs}/scripts`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket
+        })
+
+        let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+        childToMod.cfnOptions.metadata = {
+            cfn_nag: {
+                rules_to_suppress: [{
+                    id: 'W12',
+                    reason: 'Resource * is required for to allow remediation for any resource.'
+                }]
+            }
+        }
+    }
     
+    //-----------------------
+    // SetSSLBucketPolicy
+    //
+    {
+        const remediationName = 'SetSSLBucketPolicy'
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+
+        {
+            let remediationPerms = new PolicyStatement();
+            remediationPerms.addActions(
+                "s3:GetBucketPolicy",
+                "s3:PutBucketPolicy"
+            )
+            remediationPerms.effect = Effect.ALLOW
+            remediationPerms.addResources("*");
+            inlinePolicy.addStatements(remediationPerms)
+        }
+
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+            solutionId: props.solutionId,
+            ssmDocName: remediationName,
+            remediationPolicy: inlinePolicy,
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
+        })
+
+        let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+        childToMod.cfnOptions.metadata = {
+            cfn_nag: {
+                rules_to_suppress: [{
+                    id: 'W12',
+                    reason: 'Resource * is required for to allow remediation for *any* resource.'
+                }]
+            }
+        }
+
+        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
+            ssmDocName: remediationName,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${remediationName}.yaml`,
+            scriptPath: `${ssmdocs}/scripts`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket
+        })
+    }
+
     //=========================================================================
     // The following are permissions only for use with AWS-owned documents that
     //   are available to GovCloud and China partition customers.
@@ -775,7 +894,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'ConfigureS3BucketLogging'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const s3Perms = new PolicyStatement();
         s3Perms.addActions(
@@ -789,13 +908,11 @@ export class RemediationRunbookStack extends cdk.Stack {
 
         inlinePolicy.addStatements(s3Perms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            // adminRoleName: adminRoleName,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
@@ -813,7 +930,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'DisablePublicAccessForSecurityGroup'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const remediationPermsEc2 = new PolicyStatement();
             remediationPermsEc2.addActions(
@@ -828,12 +945,11 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationPermsEc2.addResources("*");
         inlinePolicy.addStatements(remediationPermsEc2)
         
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
@@ -857,7 +973,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'ConfigureS3BucketPublicAccessBlock'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const remediationPolicy = new PolicyStatement();
         remediationPolicy.addActions(
@@ -868,12 +984,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationPolicy.addResources("*")
         inlinePolicy.addStatements(remediationPolicy)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -900,7 +1015,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'ConfigureS3PublicAccessBlock'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const remediationPolicy = new PolicyStatement();
         remediationPolicy.addActions(
@@ -911,12 +1026,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationPolicy.addResources("*")
         inlinePolicy.addStatements(remediationPolicy)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -943,7 +1057,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableCloudTrailLogFileValidation'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const remediationPolicy = new PolicyStatement();
         remediationPolicy.addActions(
             "cloudtrail:UpdateTrail",
@@ -955,12 +1069,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         );
         inlinePolicy.addStatements(remediationPolicy)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -978,7 +1091,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableEbsEncryptionByDefault'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const ec2Perms = new PolicyStatement();
         ec2Perms.addActions(
             "ec2:EnableEBSEncryptionByDefault",
@@ -988,13 +1101,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         ec2Perms.addResources("*");
         inlinePolicy.addStatements(ec2Perms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            // adminRoleName: adminRoleName,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -1024,7 +1135,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableEnhancedMonitoringOnRDSInstance'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         {
             let iamPerms = new PolicyStatement()
             iamPerms.addActions(
@@ -1033,7 +1144,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             )
             iamPerms.effect = Effect.ALLOW
             iamPerms.addResources(
-                `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-RDSMonitoring-remediationRole_${this.region}`
+                `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-RDSMonitoring-remediationRole`
             );
             inlinePolicy.addStatements(iamPerms)
         }
@@ -1048,12 +1159,11 @@ export class RemediationRunbookStack extends cdk.Stack {
             inlinePolicy.addStatements(rdsPerms)
         }
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -1078,8 +1188,8 @@ export class RemediationRunbookStack extends cdk.Stack {
             }
         }
 
-        new Rds6EnhancedMonitoringRole(this, 'Rds6EnhancedMonitoringRole',  {
-            roleName: `${RESOURCE_PREFIX}-RDSMonitoring-remediationRole_${this.region}`
+        new Rds6EnhancedMonitoringRole(props.roleStack, 'Rds6EnhancedMonitoringRole',  {
+            roleName: `${RESOURCE_PREFIX}-RDSMonitoring-remediationRole`
         })
     }
     //-----------------------
@@ -1087,7 +1197,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableKeyRotation'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const remediationPerms = new PolicyStatement();
         remediationPerms.addActions(
             "kms:EnableKeyRotation",
@@ -1097,12 +1207,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationPerms.addResources("*");
         inlinePolicy.addStatements(remediationPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -1132,7 +1241,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'EnableRDSClusterDeletionProtection'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
         const iamPerms = new PolicyStatement();
         iamPerms.addActions("iam:GetRole")
@@ -1157,12 +1266,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         rdsPerms.addResources("*");
         inlinePolicy.addStatements(rdsPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -1192,7 +1300,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'RemoveVPCDefaultSecurityGroupRules'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         
         const remediationPolicy1 = new PolicyStatement();
         remediationPolicy1.addActions(
@@ -1214,12 +1322,11 @@ export class RemediationRunbookStack extends cdk.Stack {
 
         inlinePolicy.addStatements(remediationPolicy1, remediationPolicy2)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -1249,7 +1356,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'RevokeUnusedIAMUserCredentials'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         const remediationPolicy = new PolicyStatement();
         remediationPolicy.addActions(
             "iam:UpdateAccessKey",
@@ -1273,12 +1380,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         cfgPerms.addResources("*")
         inlinePolicy.addStatements(cfgPerms)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
@@ -1305,7 +1411,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     //
     {
         const remediationName = 'SetIAMPasswordPolicy'
-        const inlinePolicy = new Policy(this, `SHARR-Remediation-Policy-${remediationName}`);
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
         
         const remediationPolicy = new PolicyStatement();
         remediationPolicy.addActions(
@@ -1319,12 +1425,11 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationPolicy.addResources("*")
         inlinePolicy.addStatements(remediationPolicy)
 
-        new SsmRole(this, 'RemediationRole ' + remediationName, {
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
             ssmDocName: remediationName,
-            adminAccountNumber: adminAccount.adminAccountNumber.valueAsString,
             remediationPolicy: inlinePolicy,
-            remediationRoleName: `${remediationRoleNameBase}${remediationName}_${this.region}`
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
         new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {

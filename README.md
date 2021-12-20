@@ -3,9 +3,9 @@
 [🚀 Solution Landing
 Page](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/)
 \| [🚧 Feature
-request](https://github.com/awslabs/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
+request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
-Report](https://github.com/awslabs/aws-security-hub-automated-response-and-remediation%3E/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
+Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation%3E/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
 
 Note: If you want to use the solution without building from source, navigate to
 Solution Landing Page
@@ -89,13 +89,13 @@ Clone or download the repository to a local directory on your linux client. Note
 **Git Clone example:**
 
 ```bash
-git clone https://github.com/awslabs/aws-security-hub-automated-response-and-remediation.git
+git clone https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation.git
 ```
 
 **Download Zip example:**
 
 ```bash
-wget https://github.com/awslabs/aws-security-hub-automated-response-and-remediation/archive/main.zip
+wget https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/archive/main.zip
 ```
 
 ### Custom Playbooks
@@ -230,4 +230,4 @@ this capability, please see the
 # License
 
 See license
-[here](https://github.com/awslabs/aws-security-hub-automated-response-and-remediation/blob/main/LICENSE.txt)
+[here](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/blob/main/LICENSE.txt)

@@ -100,7 +100,8 @@ def expected():
             "OutputKey": 'Remediation.Output'
         },
         "matches": [ "sharr-test-autoscaling-1" ],
-        'details': {}
+        'details': {},
+        'resource': event().get('Finding').get('Resources')[0]
     }
 
 def test_parse_event():

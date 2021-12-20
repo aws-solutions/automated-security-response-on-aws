@@ -108,7 +108,9 @@ test_event = {
     "SSMExecution": {
         "Message": "AutoScaling.1remediation was successfully invoked via AWS Systems Manager in account 111111111111: 43374019-a309-4627-b8a2-c641e0140262",
         "ExecId": "43374019-a309-4627-b8a2-c641e0140262",
-        "ExecState": "SUCCESS"
+        "ExecState": "SUCCESS",
+        "Account": "111111111111",
+        "Region": "us-east-1"
     },
     "Remediation": {
         "LogData": [],

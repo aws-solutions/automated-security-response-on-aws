@@ -1,6 +1,6 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Automated remediation for AWS Security Hub (SO0111)",
   "bin": {
     "solution_deploy": "bin/solution_deploy.js"
@@ -18,29 +18,29 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@aws-cdk/assert": "~###CDK###",
+    "@aws-cdk/assert": "~1.132.0",
+    "@aws-cdk/aws-events": "~1.132.0",
+    "@aws-cdk/aws-iam": "~1.132.0",
+    "@aws-cdk/aws-kms": "~1.132.0",
+    "@aws-cdk/aws-lambda": "~1.132.0",
+    "@aws-cdk/aws-logs": "~1.132.0",
+    "@aws-cdk/aws-s3": "~1.132.0",
+    "@aws-cdk/aws-sns": "~1.132.0",
+    "@aws-cdk/aws-ssm": "~1.132.0",
+    "@aws-cdk/aws-stepfunctions": "~1.132.0",
+    "@aws-cdk/aws-stepfunctions-tasks": "~1.132.0",
+    "@aws-cdk/core": "~1.132.0",
+    "@types/jest": "^27.0.2",
+    "@types/js-yaml": "^4.0.4",
     "@types/node": "16.11.7",
-    "aws-cdk": "~###CDK###",
-    "ts-node": "^10.2.1",
-    "typescript": "^4.3.5",
-    "@aws-cdk/aws-events": "~###CDK###",
-    "@aws-cdk/aws-iam": "~###CDK###",
-    "@aws-cdk/aws-kms": "~###CDK###",
-    "@aws-cdk/aws-lambda": "~###CDK###",
-    "@aws-cdk/aws-logs": "~###CDK###",
-    "@aws-cdk/aws-s3": "~###CDK###",
-    "@aws-cdk/aws-sns": "~###CDK###",
-    "@aws-cdk/aws-ssm": "~###CDK###",
-    "@aws-cdk/aws-stepfunctions": "~###CDK###",
-    "@aws-cdk/aws-stepfunctions-tasks": "~###CDK###",
-    "@aws-cdk/core": "~###CDK###",
-    "@types/jest": "^27.0.1",
-    "@types/js-yaml": "^4.0.3",
-    "cdk": "~###CDK###",
-    "fs": "^0.0.2",
-    "jest": "^27.0.6",
+    "aws-cdk": "^1.132.0",
+    "cdk": "~1.132.0",
+    "fs": "^0.0.1-security",
+    "jest": "^27.3.1",
     "js-yaml": "^4.1.0",
     "source-map-support": "^0.5.19",
-    "ts-jest": "^27.0.5"
+    "ts-jest": "^27.0.7",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.2"
   }
 }

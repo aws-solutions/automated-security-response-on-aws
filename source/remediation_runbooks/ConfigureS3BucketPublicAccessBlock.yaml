@@ -91,7 +91,7 @@ mainSteps:
     isCritical: true
     isEnd: true
     inputs:
-      Runtime: python3.6
+      Runtime: python3.7
       Handler: validate_s3_bucket_publicaccessblock
       InputPayload:
         Bucket: "{{BucketName}}"

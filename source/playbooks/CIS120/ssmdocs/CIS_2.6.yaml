@@ -63,7 +63,7 @@ mainSteps:
       DocumentName: SHARR-CreateAccessLoggingBucket
       RuntimeParameters:
         BucketName: 'so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket_{{global:REGION}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket'
 
   - name: Remediation
     action: 'aws:executeAutomation'
@@ -77,7 +77,7 @@ mainSteps:
         GranteeUri: ['http://acs.amazonaws.com/groups/s3/LogDelivery']
         TargetPrefix: ['{{ParseInput.CloudTrailBucket}}/']
         TargetBucket: ['so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}']
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketLogging_{{global:REGION}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketLogging'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

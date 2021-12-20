@@ -36,22 +36,22 @@ def make_snapshots_private(event, context):
 
     success_count = 0
     
-    for snapshot in snapshots:
+    for snapshot_id in snapshots:
         try:
             ec2.modify_snapshot_attribute(
                 Attribute='CreateVolumePermission',
                 CreateVolumePermission={
                     'Remove': [{'Group': 'all'}]
                 },
-                SnapshotId=snapshot['SnapshotId']
+                SnapshotId=snapshot_id
             )
-            print('Snapshot ' + snapshot['SnapshotId'] + ' permissions set to private')
+            print(f'Snapshot {snapshot_id} permissions set to private')
 
-            remediated.append(snapshot['SnapshotId'])
+            remediated.append(snapshot_id)
             success_count += 1
         except Exception as e:
             print(e)
-            print('FAILED to remediate Snapshot ' + snapshot['SnapshotId'])
+            print(f'FAILED to remediate Snapshot {snapshot_id}')
 
     result=json.dumps(ec2.describe_snapshots(
             SnapshotIds=remediated

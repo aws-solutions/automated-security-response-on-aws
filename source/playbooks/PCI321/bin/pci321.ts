@@ -40,10 +40,10 @@ const remediations: IControl[] = [
 	{ "control": "PCI.IAM.7" },
 	{ "control": "PCI.CloudTrail.2" },
 	{ "control": "PCI.CW.1" },
-	// { "control": "PCI.S3.6" }, // == AFSBP S3.1
 	{ "control": "PCI.EC2.1" },
 	{ "control": "PCI.EC2.2" },
 	{ "control": "PCI.IAM.8" },
+	{ "control": "PCI.KMS.1" },
 	{ "control": "PCI.Lambda.1" },
 	{ "control": "PCI.RDS.1" },
 	{ "control": "PCI.CloudTrail.1" },
@@ -56,6 +56,7 @@ const remediations: IControl[] = [
 		"control": "PCI.S3.2",
 		"executes": "PCI.S3.1" 
 	},
+	{ "control": "PCI.S3.5" },
 	{ "control": "PCI.S3.6" }
 ]
 

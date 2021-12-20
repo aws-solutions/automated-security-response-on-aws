@@ -22,28 +22,29 @@ import os
 from botocore.config import Config
 from logger import Logger
 from awsapi_cached_client import BotoSession
+from sechub_findings import Finding
 import utils
 from metrics import Metrics
 
-# Get AWS region from Lambda environment. If not present then we're not
-# running under lambda, so defaulting to us-east-1
-AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')   # MUST BE SET in global variables
-AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')           # MUST BE SET in global variables
-ORCH_ROLE_BASE_NAME = 'SO0111-SHARR-Orchestrator-Member'    # role to use for cross-account
+ORCH_ROLE_NAME = 'SO0111-SHARR-Orchestrator-Member'    # role to use for cross-account
 
 # initialise loggers
 LOG_LEVEL = os.getenv('log_level', 'info')
 LOGGER = Logger(loglevel=LOG_LEVEL)
 
-def _get_ssm_client(account, role, region):
+def _get_ssm_client(account, role, region=''):
     """
     Create a client for ssm
     """
-    sess = BotoSession(
+    kwargs = {}
+
+    if region:
+        kwargs['region_name'] = region
+
+    return BotoSession(
         account,
-        f'{role}_{region}'
-    )
-    return sess.client('ssm')
+        f'{role}'
+    ).client('ssm', **kwargs)
 
 class ParameterError(Exception):
     error = 'Invalid parameter input'
@@ -62,7 +63,7 @@ class AutomationExecution(object):
     exec_id = None
     account = None
     role_base_name = None
-    region = None
+    region = None # Region where the ssm doc is running
     _ssm_client = None
 
     def __init__(self, exec_id, account, role_base_name, region):
@@ -77,7 +78,7 @@ class AutomationExecution(object):
         self.region = region
         if not re.match('^[a-zA-Z0-9_+=,.@-]{1,64}$', role_base_name):
             raise ParameterError(f'Invalid Value for Role_Base_Name: {role_base_name}')
-        self.region = region
+
         self._ssm_client = _get_ssm_client(self.account, role_base_name, self.region)
         self.get_execution_state()
 
@@ -107,11 +108,11 @@ class AutomationExecution(object):
             {}
         )
         
-        if 'Remediation.Output' in self.outputs:
-            if isinstance(self.outputs['Remediation.Output'], list):
-                if len(self.outputs['Remediation.Output']) == 1:
-                    if self.outputs['Remediation.Output'][0] == "No output available yet because the step is not successfully executed":
-                        self.outputs['Remediation.Output'][0] = "See Automation Execution output for details"
+        if 'Remediation.Output' in self.outputs and \
+            isinstance(self.outputs['Remediation.Output'], list) and \
+            len(self.outputs['Remediation.Output']) == 1 and \
+            self.outputs['Remediation.Output'][0] == "No output available yet because the step is not successfully executed":
+                self.outputs['Remediation.Output'][0] = "See Automation Execution output for details"
 
         self.failure_message = automation_exec_info.get(
             "AutomationExecutionMetadataList"
@@ -119,9 +120,6 @@ class AutomationExecution(object):
             "FailureMessage", 
             ""
         )
-
-def get_lambda_role(role_base_name, security_standard, aws_region):
-    return role_base_name + '-' + security_standard + '_' + aws_region
 
 def valid_automation_doc(automation_doc):
     return "SecurityStandard" in automation_doc and \
@@ -141,6 +139,13 @@ def lambda_handler(event, context):
         return answer.json()
 
     SSM_EXEC_ID = event['SSMExecution']['ExecId']
+    SSM_ACCOUNT = event['SSMExecution'].get('Account')
+    SSM_REGION = event['SSMExecution'].get('Region')
+
+    if not SSM_ACCOUNT or not SSM_REGION:
+        exit('ERROR: missing remediation account information. SSMExecution missing region or account.')
+
+    finding = Finding(event['Finding'])
 
     metrics_obj = Metrics(
         event['EventType']
@@ -148,7 +153,7 @@ def lambda_handler(event, context):
     metrics_data = metrics_obj.get_metrics_from_finding(event['Finding'])
 
     try:
-        automation_exec_info = AutomationExecution(SSM_EXEC_ID, automation_doc['AccountId'], ORCH_ROLE_BASE_NAME, AWS_REGION)
+        automation_exec_info = AutomationExecution(SSM_EXEC_ID, SSM_ACCOUNT, ORCH_ROLE_NAME, SSM_REGION)
     except Exception as e:
         LOGGER.error(f'Unable to retrieve AutomationExecution data: {str(e)}')
         raise e

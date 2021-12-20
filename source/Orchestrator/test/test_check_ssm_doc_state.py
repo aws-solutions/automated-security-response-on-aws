@@ -21,12 +21,70 @@ Run from /deployment/build/Orchestrator after running build-s3-dist.sh
 import os
 import pytest
 import boto3
+import botocore.session
+from botocore.config import Config
 from botocore.stub import Stubber, ANY
 from pytest_mock import mocker
 from check_ssm_doc_state import lambda_handler
 from awsapi_cached_client import AWSCachedClient
+import sechub_findings
 
-REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+my_session = boto3.session.Session()
+my_region = my_session.region_name
+
+BOTO_CONFIG = Config(
+    retries ={
+        'mode': 'standard'
+    },
+    region_name=my_region
+)
+
+def workflow_doc(): 
+    return {
+        "Document": {
+            "Status": "Active", 
+            "Hash": "15b9f136e2cb0b47490dc5b38b439905e3f36fe1a8a411c1d278f2f2eb6fe633", 
+            "Name": "test-workflow", 
+            "Parameters": [
+                {
+                    "Type": "String", 
+                    "Name": "AutomationAssumeRole", 
+                    "Description": "The ARN of the role that allows Automation to perform the actions on your behalf."
+                }, 
+                {
+                    "Type": "StringMap", 
+                    "Name": "Finding", 
+                    "Description": "The Finding data from the Orchestrator Step Function"
+                }, 
+                {
+                    "Type": "StringMap", 
+                    "Name": "SSMExec", 
+                    "Description": "Data for decision support in this runbook"
+                }, 
+                {
+                    "Type": "String", 
+                    "Name": "RemediationDoc", 
+                    "Description": "the SHARR Remediation (ingestion) runbook to execute"
+                }
+            ], 
+            "Tags": [], 
+            "DocumentType": "Automation", 
+            "PlatformTypes": [
+                "Windows", 
+                "Linux", 
+                "MacOS"
+            ], 
+            "DocumentVersion": "1", 
+            "HashType": "Sha256", 
+            "CreatedDate": 1633985125.065, 
+            "Owner": "111111111111", 
+            "SchemaVersion": "0.3", 
+            "DefaultVersion": "1", 
+            "DocumentFormat": "YAML", 
+            "LatestVersion": "1", 
+            "Description": "### Document Name - SHARR-Run_Remediation\n\n## What does this document do?\nThis document is executed by the AWS Security Hub Automated Response and Remediation Orchestrator Step Function. It implements controls such as manual approvals based on criteria passed by the Orchestrator.\n\n## Input Parameters\n* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.\n* Finding: (Required) json-formatted finding data\n* RemedationDoc: (Required) remediation runbook to execute after approval\n* SSMExec: (Required) json-formatted data for decision support in determining approval requirement\n"
+        }
+    }
 
 def test_sunny_day(mocker):
     test_input = {
@@ -66,13 +124,14 @@ def test_sunny_day(mocker):
         'message': '',
         'remediation_status': '',
         'remediationrole': 'SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1',
+        'resourceregion': 'us-east-1',
         'securitystandard': 'AFSBP',
         'securitystandardversion': '1.0.0',
         'standardsupported': 'True',
         'status': 'ACTIVE'
     }
     # use AWSCachedClient as it will us the same stub for any calls
-    AWS = AWSCachedClient(REGION)
+    AWS = AWSCachedClient(my_region)
     ssm_c = AWS.get_connection('ssm')
 
     testing_account = boto3.client('sts').get_caller_identity()['Account']
@@ -223,6 +282,7 @@ def test_doc_not_active(mocker):
         'logdata': [],
         'message': 'Document SHARR-AFSBP_1.0.0_AutoScaling.17 does not exist.',
         'remediation_status': '',
+        'resourceregion': 'us-east-1',
         'remediationrole': 'SO0111-Remediate-AFSBP-1.0.0-AutoScaling.17',
         'securitystandard': 'AFSBP',
         'securitystandardversion': '1.0.0',
@@ -230,7 +290,7 @@ def test_doc_not_active(mocker):
         'status': 'NOTFOUND'
     }
     # use AWSCachedClient as it will us the same stub for any calls
-    AWS = AWSCachedClient(REGION)
+    AWS = AWSCachedClient(my_region)
     ssm_c = AWS.get_connection('ssm')
 
     testing_account = boto3.client('sts').get_caller_identity()['Account']
@@ -318,13 +378,14 @@ def test_client_error(mocker):
         'message': 'An unhandled client error occurred: ADoorIsAjar',
         'remediation_status': '',
         'remediationrole': 'SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1',
+        'resourceregion': 'us-east-1',
         'securitystandard': 'AFSBP',
         'securitystandardversion': '1.0.0',
         'standardsupported': 'True',
         'status': 'CLIENTERROR'
     }
     # use AWSCachedClient as it will us the same stub for any calls
-    AWS = AWSCachedClient(REGION)
+    AWS = AWSCachedClient(my_region)
     ssm_c = AWS.get_connection('ssm')
 
     testing_account = boto3.client('sts').get_caller_identity()['Account']
@@ -410,13 +471,14 @@ def test_control_remap(mocker):
         'logdata': [],
         'message': '',
         'remediation_status': '',
+        'resourceregion': 'us-east-1',
         'remediationrole': 'SO0111-Remediate-CIS-1.2.0-1.5',
         'securitystandard': 'CIS',
         'securitystandardversion': '1.2.0',
         'standardsupported': 'True',
         'status': 'ACTIVE'
     }
-    AWS = AWSCachedClient(REGION)
+    AWS = AWSCachedClient(my_region)
     ssm_c = AWS.get_connection('ssm')
 
     testing_account = boto3.client('sts').get_caller_identity()['Account']
@@ -533,3 +595,102 @@ def test_control_remap(mocker):
 
     assert lambda_handler(test_input, {}) == expected_good_response
     ssmc_stub.deactivate()
+
+#===============================================================================
+def test_alt_workflow_with_role(mocker):
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+        "Finding": {
+            "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+            "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.6",
+            "RecordState": "ACTIVE",
+            "Workflow": {
+                "Status": "NEW"
+            },
+            "WorkflowState": "NEW",
+            "ProductFields": {
+                "RuleId": "1.6",
+                "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.6",
+            },
+            "AwsAccountId": "111111111111",
+            "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.6/finding/3fe13eb6-b093-48b2-ba3b-b975347c3183",
+            "Resources": [
+                {
+                    "Partition": "aws",
+                    "Type": "AwsAccount",
+                    "Region": "us-east-1",
+                    "Id": "AWS::::Account:111111111111"
+                }
+            ]
+        },
+        "Workflow": {
+            "WorkflowDocument": "AlternateDoc"
+        }
+    }
+
+    expected_good_response = {
+        'accountid': '111111111111',
+        'automationdocid': 'SHARR-CIS_1.2.0_1.6',
+        'controlid': '1.6',
+        'logdata': [],
+        'message': '',
+        'remediation_status': '',
+        'resourceregion': 'us-east-1',
+        'remediationrole': 'SO0111-Remediate-CIS-1.2.0-1.6',
+        'securitystandard': 'CIS',
+        'securitystandardversion': '1.2.0',
+        'standardsupported': 'True',
+        'status': 'ACTIVE'
+    }
+
+    ssm = botocore.session.get_session().create_client('ssm', config=BOTO_CONFIG)
+    ssm_stubber = Stubber(ssm)
+    ssm_stubber.add_response(
+        'get_parameter',
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Type": "String",
+                "Value": "CIS",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "DataType": "text"
+            }
+        },{
+            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname"
+        }
+    )
+
+    ssm_stubber.add_client_error(
+        'get_parameter',
+        'ParameterNotFound'
+    )
+
+    ssm_stubber.add_response(
+        'get_parameter',
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text"
+            }
+        }
+    )
+
+    ssm_stubber.add_response(
+        'describe_document',
+        workflow_doc()
+    )
+
+    ssm_stubber.activate()
+    mocker.patch('check_ssm_doc_state._get_ssm_client', return_value=ssm)
+    mocker.patch('sechub_findings.get_ssm_connection', return_value=ssm)
+
+    result = lambda_handler(test_input, {})
+
+    assert result == expected_good_response

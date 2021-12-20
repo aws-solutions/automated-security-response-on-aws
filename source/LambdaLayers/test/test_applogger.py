@@ -20,15 +20,16 @@ will turn into a valid API call.
 """
 import os
 from datetime import date
+import boto3
 from botocore.stub import Stubber, ANY
 import pytest
 from pytest_mock import mocker
 from applogger import LogHandler
-from awsapi_cached_client import AWSCachedClient
 
-AWS = AWSCachedClient('us-east-1')
+my_session = boto3.session.Session()
+my_region = my_session.region_name
 
-logsclient = AWS.get_connection('logs')
+logsclient = boto3.client('logs')
 
 #------------------------------------------------------------------------------
 #

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2021-12-13
+
+### Changed
+- Bug fixes for AFSBP EC2.1, CIS 3.x
+- Separated Member roles from the remediations so that roles can be deployed once per account
+- Roles are now global
+- Cross-region remediation is now supported
+- Deployment using stacksets is documented in the IG and supported by the templates
+- Member account roles for remediation runbooks are now retained when the stack is deleted so that remediations that use these roles continue to function if the solution is removed
+
+### Added
+- Added a get_approval_requirement lambda that customers can use to implement custom business logic
+- Added the ability for customers to route findings to an alterate runbook when the finding meets criteria. For example, potentially destructive remediations can be sent to a runbook that sends the finding data to Incident Manager.
+- New remediation for AFSBP & PCI S3.5
+
 ## [1.3.2] - 2021-11-09
 - Corrected CIS 3.1 filter pattern
 - Corrected SNS Access Policy for SO0111-SHARR-LocalAlarmNotification

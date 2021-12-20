@@ -35,6 +35,7 @@ const app = new cdk.App();
 // Security Standard and Control Id. See cis-member-stack
 let remediations: IControl[] = [
     { "control": "1.3" },
+	{ "control": "1.4" },
     { "control": "1.5" },
 	{ 
 		"control": "1.6",
