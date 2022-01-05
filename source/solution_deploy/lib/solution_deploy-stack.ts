@@ -459,7 +459,8 @@ export class SolutionDeployStack extends cdk.Stack {
             }),
             new PolicyStatement({
                 actions: [
-                    'ssm:GetParameter'
+                    'ssm:GetParameter',
+                    'ssm:PutParameter'
                 ],
                 resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter/Solutions/SO0111/*`]
             }),
