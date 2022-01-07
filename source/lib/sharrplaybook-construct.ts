@@ -82,7 +82,8 @@ export class PlaybookPrimaryStack extends cdk.Stack {
         if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
             // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
             generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`
-        } else {
+        }
+        else {
             generatorId = `${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`
         }
         new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {

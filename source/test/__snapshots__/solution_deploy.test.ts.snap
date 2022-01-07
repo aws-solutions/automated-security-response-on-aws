@@ -734,7 +734,10 @@ Object {
               "Resource": "*",
             },
             Object {
-              "Action": "ssm:GetParameter",
+              "Action": Array [
+                "ssm:GetParameter",
+                "ssm:PutParameter",
+              ],
               "Effect": "Allow",
               "Resource": Object {
                 "Fn::Join": Array [

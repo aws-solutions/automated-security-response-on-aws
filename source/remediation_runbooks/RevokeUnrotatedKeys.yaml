@@ -48,7 +48,7 @@ mainSteps:
         IAMResourceId: "{{ IAMResourceId }}"
         MaxCredentialUsageAge: "{{ MaxCredentialUsageAge }}"
       Script: |-
-        %%SCRIPT=EnableCloudTrailEncryption.py%%
+        %%SCRIPT=RevokeUnrotatedKeys.py%%
 
     outputs:
       - Name: Output

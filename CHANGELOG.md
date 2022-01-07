@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2022-01-05
+
+### Changed
+- Bug Fix for issue [47](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/47)
+- Bug Fix for issue [48](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/48)
+
+
 ## [1.4.0] - 2021-12-13
 
 ### Changed
