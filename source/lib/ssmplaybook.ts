@@ -191,11 +191,9 @@ export class Trigger extends cdk.Construct {
         source: ["aws.securityhub"],
         detailType: ["Security Hub Findings - Imported"],
         detail: {
-            findings: { 
+            findings: {
+                // GeneratorId includes both standard and control/rule ID
                 GeneratorId: [props.generatorId],
-                ProductFields: {
-                    ControlId: [props.controlId]
-                },
                 Workflow: workflowStatusFilter,
                 Compliance: complianceStatusFilter
             }

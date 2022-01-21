@@ -768,11 +768,6 @@ Object {
               "GeneratorId": Array [
                 "aws-foundational-security-best-practices/v/1.0.0/Example.1",
               ],
-              "ProductFields": Object {
-                "ControlId": Array [
-                  "Example.1",
-                ],
-              },
               "Workflow": Object {
                 "Status": Array [
                   "NEW",
@@ -863,11 +858,6 @@ Object {
               "GeneratorId": Array [
                 "aws-foundational-security-best-practices/v/1.0.0/Example.3",
               ],
-              "ProductFields": Object {
-                "ControlId": Array [
-                  "Example.3",
-                ],
-              },
               "Workflow": Object {
                 "Status": Array [
                   "NEW",
@@ -958,11 +948,6 @@ Object {
               "GeneratorId": Array [
                 "aws-foundational-security-best-practices/v/1.0.0/Example.5",
               ],
-              "ProductFields": Object {
-                "ControlId": Array [
-                  "Example.5",
-                ],
-              },
               "Workflow": Object {
                 "Status": Array [
                   "NEW",

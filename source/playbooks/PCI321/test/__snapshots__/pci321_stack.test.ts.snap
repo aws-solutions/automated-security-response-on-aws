@@ -60,11 +60,6 @@ Object {
               "GeneratorId": Array [
                 "pci-dss/v/3.2.1/PCI.AutoScaling.1",
               ],
-              "ProductFields": Object {
-                "ControlId": Array [
-                  "PCI.AutoScaling.1",
-                ],
-              },
               "Workflow": Object {
                 "Status": Array [
                   "NEW",
@@ -155,11 +150,6 @@ Object {
               "GeneratorId": Array [
                 "pci-dss/v/3.2.1/PCI.EC2.6",
               ],
-              "ProductFields": Object {
-                "ControlId": Array [
-                  "PCI.EC2.6",
-                ],
-              },
               "Workflow": Object {
                 "Status": Array [
                   "NEW",
@@ -250,11 +240,6 @@ Object {
               "GeneratorId": Array [
                 "pci-dss/v/3.2.1/PCI.IAM.8",
               ],
-              "ProductFields": Object {
-                "ControlId": Array [
-                  "PCI.IAM.8",
-                ],
-              },
               "Workflow": Object {
                 "Status": Array [
                   "NEW",
