@@ -1,20 +1,20 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_S3.2
+  ### Document Name - SHARR-CIS_1.2.0_1.16
 
   ## What does this document do?
-  This document blocks public access to an S3 bucket.
+  This document ensures that credentials unused for 90 days or greater are disabled.
 
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   
   ## Output Parameters
-  * Remediation.Output
+  * Remediation.Output - Output of DescribeAutoScalingGroups API.
 
   ## Documentation Links
-  * [AFSBP v1.0.0 S3.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-2)
-  * [AFSBP v1.0.0 S3.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-3)
-
+  * [CIS v1.2.0 1.16](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.16)
+  
+  
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
@@ -29,14 +29,15 @@ parameters:
     description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
     default: ''
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
-
 mainSteps:
-  - 
-    name: ParseInput
-    action: 'aws:executeScript' 
+  - name: ParseInput
+    action: 'aws:executeScript'
     outputs:
-      - Name: BucketName
+      - Name: IAMUser
         Selector: $.Payload.resource_id
+        Type: String
+      - Name: IAMResourceId
+        Selector: $.Payload.details.AwsIamUser.UserId
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -50,26 +51,21 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
-        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$'
-        expected_control_id: [ 'S3.2', 'S3.3','S3.8' ]
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user/([A-Za-z0-9=,.@\_\-+]{1,64})$'
+        expected_control_id: '1.3'
       Runtime: python3.7
       Handler: parse_event
       Script: |-
-        %%SCRIPT=afsbp_parse_input.py%%
+        %%SCRIPT=cis_parse_input.py%%
     isEnd: false
-  - 
-    name: Remediation
+  - name: Remediation
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-ConfigureS3BucketPublicAccessBlock
+      DocumentName: SHARR-RevokeUnusedIAMUserCredentials
       RuntimeParameters:
-        BucketName: '{{ParseInput.BucketName}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketPublicAccessBlock'
-        RestrictPublicBuckets: true
-        BlockPublicAcls: true
-        IgnorePublicAcls: true
-        BlockPublicPolicy: true
+        IAMResourceId: '{{ ParseInput.IAMResourceId }}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
@@ -80,8 +76,8 @@ mainSteps:
       - Id: '{{ParseInput.FindingId}}'
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
-        Text: 'Disabled public access to S3 bucket.'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_S3.2'
+        Text: 'Deactivated unused keys and expired logins for {{ ParseInput.IAMUser }}.'
+        UpdatedBy: 'SHARR-CIS_1.2.0_1.3'
       Workflow:
         Status: RESOLVED
     description: Update finding
