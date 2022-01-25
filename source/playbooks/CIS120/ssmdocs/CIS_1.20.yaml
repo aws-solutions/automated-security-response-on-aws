@@ -79,8 +79,8 @@ mainSteps:
       - Id: '{{ParseInput.FindingId}}'
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
-        Text: 'Deactivated unused keys and expired logins for {{ ParseInput.IAMUser }}.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_1.3'
+        Text: 'AWS Support Role created for {{ global:ACCOUNT_ID }}.'
+        UpdatedBy: 'SHARR-CIS_1.2.0_1.20'
       Workflow:
         Status: RESOLVED
     description: Update finding

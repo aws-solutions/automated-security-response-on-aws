@@ -62,10 +62,10 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-RevokeUnusedIAMUserCredentials
+      DocumentName: SHARR-DetachIAMPolicyFromUsers
       RuntimeParameters:
         IAMResourceId: '{{ ParseInput.IAMResourceId }}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DetachIAMPolicyFromUsers'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
@@ -76,8 +76,8 @@ mainSteps:
       - Id: '{{ParseInput.FindingId}}'
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
-        Text: 'Deactivated unused keys and expired logins for {{ ParseInput.IAMUser }}.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_1.3'
+        Text: 'Removed full "*:*" administrative privileges from  {{ ParseInput.IAMUser }}.'
+        UpdatedBy: 'SHARR-CIS_1.2.0_1.22'
       Workflow:
         Status: RESOLVED
     description: Update finding
