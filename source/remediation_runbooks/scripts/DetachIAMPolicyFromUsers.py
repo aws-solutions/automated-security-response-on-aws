@@ -27,7 +27,7 @@ boto_config = Config(
 )
 
 responses = {}
-responses["DeattachIAMPolicyFromUsersResponse"] = []
+responses["DetachIAMPolicyFromUsersResponse"] = []
 
 def connect_to_iam(boto_config):
     return boto3.client('iam', config=boto_config)
@@ -35,7 +35,7 @@ def connect_to_iam(boto_config):
 def deattach_iam_policy_from_users(event, context):
     try:
         iam = connect_to_iam(boto_config)
-        resource_id = event['Id']
+        resource_id = event['IAMResourceId']
 
         response = iam.get_policy(
             PolicyArn=resource_id
@@ -58,7 +58,7 @@ def deattach_iam_policy_from_users(event, context):
                 UserName=policy_user['UserName'],
                 PolicyArn=resource_id
             )
-            responses["DeattachIAMPolicyFromUsersResponse"].append({
+            responses["DetachIAMPolicyFromUsersResponse"].append({
                 "Id" : resource_id,
                 "UserName" : policy_user['UserName'],
                 "Response" : response

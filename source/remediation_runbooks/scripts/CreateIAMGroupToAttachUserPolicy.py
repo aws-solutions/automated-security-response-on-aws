@@ -35,7 +35,7 @@ def connect_to_iam(boto_config):
 def create_iam_group_to_attach_user_policy(event, context):
     try:
         iam = connect_to_iam(boto_config)
-        aws_iam_user = event['AwsIamUser']
+        aws_iam_user = event['Details']['AwsIamUser']
         managed_policies = aws_iam_user['AttachedManagedPolicies'] if 'AttachedManagedPolicies' in aws_iam_user else []
         username = aws_iam_user['UserName']
         user_groups = aws_iam_user['GroupList'] if 'GroupList' in aws_iam_user else []

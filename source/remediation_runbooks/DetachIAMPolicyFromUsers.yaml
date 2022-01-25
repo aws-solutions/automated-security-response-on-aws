@@ -1,6 +1,6 @@
 schemaVersion: "0.3"
 description: |
-  ### Document Name - SHARR-RevokeUnrotatedKeys
+  ### Document Name - SHARR-DetachIAMPolicyFromUsers
 
   ## What does this document do?
   This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
@@ -8,10 +8,9 @@ description: |
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * MaxCredentialUsageAge: (Optional) Maximum number of days a key is allowed to be unrotated before revoking it. DEFAULT: 90
 
   ## Output Parameters
-  * RevokeUnrotatedKeys.Output
+  * DetachIAMPolicyFromUsers.Output
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
@@ -23,32 +22,26 @@ parameters:
     type: String
     description: (Required) IAM resource unique identifier.
     allowedPattern: ^[\w+=,.@_-]{1,128}$
-  MaxCredentialUsageAge:
-    type: String
-    description: (Required) Maximum number of days within which a credential must be used. The default value is 90 days.
-    allowedPattern: ^(\b([0-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000)\b)$
-    default: "90"
 outputs:
-  - RevokeUnrotatedKeys.Output
+  - DetachIAMPolicyFromUsers.Output
 mainSteps:
-  - name: RevokeUnrotatedKeys
+  - name: DetachIAMPolicyFromUsers
     action: aws:executeScript
     timeoutSeconds: 600
     isEnd: true
     description: |
-      ## RevokeUnrotatedKeys
+      ## DetachIAMPolicyFromUsers
 
-      This step deactivates IAM user access keys that have not been rotated in more than MaxCredentialUsageAge days
+      This step deattach wild card privilege polices from users.
       ## Outputs
       * Output: Success message or failure Exception.
     inputs:
       Runtime: python3.7
-      Handler: unrotated_key_handler
+      Handler: deattach_iam_policy_from_users
       InputPayload:
         IAMResourceId: "{{ IAMResourceId }}"
-        MaxCredentialUsageAge: "{{ MaxCredentialUsageAge }}"
       Script: |-
-        %%SCRIPT=RevokeUnrotatedKeys.py%%
+        %%SCRIPT=DetachIAMPolicyFromUsers.py%%
 
     outputs:
       - Name: Output

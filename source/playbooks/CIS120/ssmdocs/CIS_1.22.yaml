@@ -1,18 +1,18 @@
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_1.3
+  ### Document Name - SHARR-CIS_1.2.0_1.22
 
   ## What does this document do?
-  This document ensures that credentials unused for 90 days or greater are disabled.
+  This document ensures that IAM policies that allow full "*:*" administrative privileges are not created.
 
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   
   ## Output Parameters
-  * Remediation.Output - Output of DescribeAutoScalingGroups API.
+  * Remediation.Output - Output of DetachUserPolicy API.
 
   ## Documentation Links
-  * [CIS v1.2.0 1.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.3)
+  * [CIS v1.2.0 1.22](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.22)
   
   
 schemaVersion: '0.3'
