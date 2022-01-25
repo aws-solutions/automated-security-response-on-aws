@@ -1,0 +1,50 @@
+schemaVersion: "0.3"
+description: |
+  ### Document Name - SHARR-CreateIAMRole
+
+  ## What does this document do?
+  This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * MaxCredentialUsageAge: (Optional) Maximum number of days a key is allowed to be unrotated before revoking it. DEFAULT: 90
+
+  ## Output Parameters
+  * CreateIAMRole.Output
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
+  Account:
+    type: String
+    description: (Required) Account id.
+    allowedPattern: ^[\w+=,.@_-]{1,128}$
+outputs:
+  - CreateIAMRole.Output
+mainSteps:
+  - name: CreateIAMRole
+    action: aws:executeScript
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## CreateIAMRole
+
+      This step deactivates IAM user access keys that have not been rotated in more than MaxCredentialUsageAge days
+      ## Outputs
+      * Output: Success message or failure Exception.
+    inputs:
+      Runtime: python3.7
+      Handler: create_iam_role
+      InputPayload:
+        Account: "{{ Account }}"
+      Script: |-
+        %%SCRIPT=CreateIAMRole.py%%
+
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
