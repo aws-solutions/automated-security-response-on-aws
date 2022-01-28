@@ -18,10 +18,9 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
-  IAMResourceId:
+  IAMUser:
     type: String
-    description: (Required) IAM resource unique identifier.
-    allowedPattern: ^[\w+=,.@_-]{1,128}$
+    description: (Required) IAM user unique identifier.
 outputs:
   - DetachIAMPolicyFromUsers.Output
 mainSteps:
@@ -39,7 +38,7 @@ mainSteps:
       Runtime: python3.7
       Handler: deattach_iam_policy_from_users
       InputPayload:
-        IAMResourceId: "{{ IAMResourceId }}"
+        IAMUser: "{{ IAMUser }}"
       Script: |-
         %%SCRIPT=DetachIAMPolicyFromUsers.py%%
 
