@@ -95,11 +95,13 @@ export class RemediationRunbookStack extends cdk.Stack {
         iamPerms.addActions(
             "iam:GetPolicy",
             "iam:ListEntitiesForPolicy",
-            "iam:DetachUserPolicy",
-            "iam:AttachGroupPolicy"
+            "iam:DetachUserPolicy"
         )
         iamPerms.effect = Effect.ALLOW
-        iamPerms.addResources(`arn:${this.partition}:iam::${this.account}:policy/*`);
+        iamPerms.addResources(
+            `arn:${this.partition}:iam::${this.account}:policy/*`,
+            `arn:${this.partition}:iam::${this.account}:user/*`
+        );
         inlinePolicy.addStatements(iamPerms)
 
         new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
