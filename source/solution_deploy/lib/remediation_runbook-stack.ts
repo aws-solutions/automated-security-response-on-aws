@@ -86,6 +86,153 @@ export class RemediationRunbookStack extends cdk.Stack {
     const remediationRoleNameBase = `${RESOURCE_PREFIX}-`
 
     //-----------------------
+    // DetachIAMPolicyFromUsers
+    //
+    {
+        const remediationName = 'DetachIAMPolicyFromUsers'
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+        const iamPerms = new PolicyStatement();
+        iamPerms.addActions(
+            "iam:GetPolicy",
+            "iam:ListEntitiesForPolicy",
+            "iam:DetachUserPolicy",
+            "iam:AttachGroupPolicy"
+        )
+        iamPerms.effect = Effect.ALLOW
+        iamPerms.addResources(`arn:${this.partition}:iam::${this.account}:policy/*`);
+        inlinePolicy.addStatements(iamPerms)
+
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+            solutionId: props.solutionId,
+            ssmDocName: remediationName,
+            remediationPolicy: inlinePolicy,
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
+        })
+
+        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
+            ssmDocName: remediationName,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${remediationName}.yaml`,
+            scriptPath: `${ssmdocs}/scripts`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket
+        })
+        // CFN-NAG
+        // WARN W12: IAM policy should not allow * resource
+
+        let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+        childToMod.cfnOptions.metadata = {
+            cfn_nag: {
+                rules_to_suppress: [{
+                    id: 'W12',
+                    reason: 'Resource * is required for to allow remediation.'
+                },{
+                    id: 'W28',
+                    reason: 'Static names chosen intentionally to provide integration in cross-account permissions.'
+                }]
+            }
+        }
+    }
+
+    //-----------------------
+    // CreateIAMGroupToAttachUserPolicy
+    //
+    {
+        const remediationName = 'CreateIAMGroupToAttachUserPolicy'
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+        const iamPerms = new PolicyStatement();
+        iamPerms.addActions(
+            "iam:GetGroup",
+            "iam:CreateGroup",
+            "iam:AddUserToGroup",
+            "iam:AttachGroupPolicy"
+        )
+        iamPerms.effect = Effect.ALLOW
+        iamPerms.addResources(`arn:${this.partition}:iam::${this.account}:group/*`);
+        inlinePolicy.addStatements(iamPerms)
+
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+            solutionId: props.solutionId,
+            ssmDocName: remediationName,
+            remediationPolicy: inlinePolicy,
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
+        })
+
+        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
+            ssmDocName: remediationName,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${remediationName}.yaml`,
+            scriptPath: `${ssmdocs}/scripts`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket
+        })
+        // CFN-NAG
+        // WARN W12: IAM policy should not allow * resource
+
+        let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+        childToMod.cfnOptions.metadata = {
+            cfn_nag: {
+                rules_to_suppress: [{
+                    id: 'W12',
+                    reason: 'Resource * is required for to allow remediation.'
+                },{
+                    id: 'W28',
+                    reason: 'Static names chosen intentionally to provide integration in cross-account permissions.'
+                }]
+            }
+        }
+    }
+
+    //-----------------------
+    // CreateIAMRole
+    //
+    {
+        const remediationName = 'CreateIAMRole'
+        const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+        const iamPerms = new PolicyStatement();
+        iamPerms.addActions(
+            "iam:GetRole",
+            "iam:CreateRole",
+            "iam:AttachRolePolicy",
+            "iam:TagRole"
+        )
+        iamPerms.effect = Effect.ALLOW
+        iamPerms.addResources(`arn:${this.partition}:iam::${this.account}:role/*`);
+        inlinePolicy.addStatements(iamPerms)
+
+        new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+            solutionId: props.solutionId,
+            ssmDocName: remediationName,
+            remediationPolicy: inlinePolicy,
+            remediationRoleName: `${remediationRoleNameBase}${remediationName}`
+        })
+
+        new SsmRemediationRunbook(this, 'SHARR '+ remediationName, {
+            ssmDocName: remediationName,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${remediationName}.yaml`,
+            scriptPath: `${ssmdocs}/scripts`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket
+        })
+        // CFN-NAG
+        // WARN W12: IAM policy should not allow * resource
+
+        let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+        childToMod.cfnOptions.metadata = {
+            cfn_nag: {
+                rules_to_suppress: [{
+                    id: 'W12',
+                    reason: 'Resource * is required for to allow remediation.'
+                },{
+                    id: 'W28',
+                    reason: 'Static names chosen intentionally to provide integration in cross-account permissions.'
+                }]
+            }
+        }
+    }   
+
+    //-----------------------
     // CreateCloudTrailMultiRegionTrail
     //
     {
