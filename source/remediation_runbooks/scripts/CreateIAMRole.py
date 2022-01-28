@@ -54,8 +54,8 @@ def create_iam_role(event, context):
         if does_role_exist(iam, role_name):
             lowercase_str = uuid.uuid4().hex
             role_name = f'{role_name}_{lowercase_str[0:8]}'
-
-        response = iam.create_role(
+        
+        iam.create_role(
             RoleName=role_name,
             AssumeRolePolicyDocument=json.dumps(aws_support_policy),
             Description='Created by SHARR security hub remediation 1.20 rule',
@@ -67,9 +67,14 @@ def create_iam_role(event, context):
             ]
         )
 
+        iam.attach_role_policy(
+            RoleName=role_name,
+            PolicyArn='arn:aws:iam::aws:policy/AWSSupportAccess',
+        )
+
         responses["CreateIAMRoleResponse"].append({
             "Account" : account,
-            "Response" : response
+            "RoleName" : role_name
         })
 
         return {
