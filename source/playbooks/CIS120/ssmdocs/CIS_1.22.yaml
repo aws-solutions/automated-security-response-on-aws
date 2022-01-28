@@ -45,8 +45,8 @@ mainSteps:
       - Name: ProductArn
         Selector: $.Payload.product_arn
         Type: String
-      - Name: AffectedObject
-        Selector: $.Payload.object
+      - Name: Details
+        Selector: $.Payload.details
         Type: StringMap
     inputs:
       InputPayload:
@@ -64,7 +64,7 @@ mainSteps:
     inputs:
       DocumentName: SHARR-DetachIAMPolicyFromUsers
       RuntimeParameters:
-        IAMUser: '{{ ParseInput.IAMUser }}'
+        Details: '{{ ParseInput.Details }}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DetachIAMPolicyFromUsers'
 
   - name: UpdateFinding
