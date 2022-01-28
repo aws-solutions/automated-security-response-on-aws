@@ -54,7 +54,7 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
-        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user/([A-Za-z0-9=,.@\_\-+]{1,64})$'
+        parse_id_pattern: ''
         expected_control_id: '1.16'
       Runtime: python3.7
       Handler: parse_event
@@ -67,7 +67,7 @@ mainSteps:
     inputs:
       DocumentName: SHARR-CreateIAMGroupToAttachUserPolicy
       RuntimeParameters:
-        IAMResourceId: '{{ ParseInput.IAMResourceId }}'
+        Details: '{{ ParseInput.Details }}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateIAMGroupToAttachUserPolicy'
 
   - name: UpdateFinding

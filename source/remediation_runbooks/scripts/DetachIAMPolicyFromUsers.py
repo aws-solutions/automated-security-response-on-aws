@@ -35,7 +35,7 @@ def connect_to_iam(boto_config):
 def deattach_iam_policy_from_users(event, context):
     try:
         iam = connect_to_iam(boto_config)
-        resource_id = event['IAMResourceId']
+        resource_id = event['IAMUser']
 
         response = iam.get_policy(
             PolicyArn=resource_id
