@@ -18,9 +18,9 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
-  IAMUser:
-    type: String
-    description: (Required) IAM user unique identifier.
+  Details:
+    type: StringMap
+    description: (Required) Finding Details object.
 outputs:
   - DetachIAMPolicyFromUsers.Output
 mainSteps:

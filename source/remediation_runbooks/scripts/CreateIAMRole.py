@@ -20,96 +20,75 @@ import uuid
 from botocore.config import Config
 import boto3
 
-boto_config = Config(
-    retries ={
-        'mode': 'standard'
-    }
-)
+boto_config = Config(retries={"mode": "standard"})
 
 responses = {}
 responses["CreateIAMRoleResponse"] = []
 
+
 def connect_to_iam(boto_config):
-    return boto3.client('iam', config=boto_config)
+    return boto3.client("iam", config=boto_config)
+
 
 def create_iam_role(event, context):
-    try:
-        account = event["Account"]
+    account = event["Account"]
 
-        aws_support_policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": "sts:AssumeRole",
-                    "Principal": {
-                        "AWS": f"arn:aws:iam::{account}:root"
-                    }
-                }
-            ]
-        }
+    aws_support_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole",
+                "Principal": {"AWS": f"arn:aws:iam::{account}:root"},
+            }
+        ],
+    }
 
-        role_name = 'aws_incident_support_role'
-        iam = connect_to_iam(boto_config)
-        if does_role_exist(iam, role_name):
-            lowercase_str = uuid.uuid4().hex
-            role_name = f'{role_name}_{lowercase_str[0:8]}'
-        
-        iam.create_role(
-            RoleName=role_name,
-            AssumeRolePolicyDocument=json.dumps(aws_support_policy),
-            Description='Created by SHARR security hub remediation 1.20 rule',
-            Tags=[
-                {
-                    'Key': 'Name',
-                    'Value': 'CIS 1.20 aws support access role'
-                },
-            ]
-        )
+    role_name = "aws_incident_support_role"
+    iam = connect_to_iam(boto_config)
+    if does_role_exist(iam, role_name):
+        lowercase_str = uuid.uuid4().hex
+        role_name = f"{role_name}_{lowercase_str[0:8]}"
 
-        iam.attach_role_policy(
-            RoleName=role_name,
-            PolicyArn='arn:aws:iam::aws:policy/AWSSupportAccess',
-        )
+    iam.create_role(
+        RoleName=role_name,
+        AssumeRolePolicyDocument=json.dumps(aws_support_policy),
+        Description="Created by SHARR security hub remediation 1.20 rule",
+        Tags=[
+            {"Key": "Name", "Value": "CIS 1.20 aws support access role"},
+        ],
+    )
 
-        responses["CreateIAMRoleResponse"].append({
-            "Account" : account,
-            "RoleName" : role_name
-        })
+    iam.attach_role_policy(
+        RoleName=role_name,
+        PolicyArn="arn:aws:iam::aws:policy/AWSSupportAccess",
+    )
 
-        return {
-            "output": "IAM role creation is successful.",
-            "http_responses": responses
-        }
+    responses["CreateIAMRoleResponse"].append(
+        {"Account": account, "RoleName": role_name}
+    )
 
-    except Exception as e:
-        print(e)
-        return {
-            "output": "IAM role creation is unsuccessful.",
-            "http_responses": responses
-        }
+    return {"output": "IAM role creation is successful.", "http_responses": responses}
 
 
 def does_role_exist(iam, role_name):
     """Check if the role name exists.
 
-        Parameters
-        ----------
-        iam: iam client, required
-        role_name: string, required
+    Parameters
+    ----------
+    iam: iam client, required
+    role_name: string, required
 
-        Returns
-        ------
-            bool: returns if the role exists
-        """
+    Returns
+    ------
+        bool: returns if the role exists
+    """
     role_exists = False
 
     try:
-        response = iam.get_role(
-            RoleName=role_name
-        )
+        response = iam.get_role(RoleName=role_name)
 
-        if 'Role' in response:
+        if "Role" in response:
             role_exists = True
 
     except iam.exceptions.NoSuchEntityException as e:
