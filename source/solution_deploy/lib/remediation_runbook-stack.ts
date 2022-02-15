@@ -94,8 +94,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         const iamPerms = new PolicyStatement();
         iamPerms.addActions(
             "iam:GetPolicy",
-            "iam:ListEntitiesForPolicy",
-            "iam:DetachUserPolicy"
+            "iam:ListEntitiesForPolicy"
         )
         iamPerms.effect = Effect.ALLOW
         iamPerms.addResources(
@@ -108,6 +107,18 @@ export class RemediationRunbookStack extends cdk.Stack {
         iamUserPerms.effect = Effect.ALLOW
         iamUserPerms.addResources(`arn:${this.partition}:iam::${this.account}:user/*`);
         inlinePolicy.addStatements(iamUserPerms)
+
+        const iamGroupPerms = new PolicyStatement();
+        iamGroupPerms.addActions("iam:DetachGroupPolicy")
+        iamGroupPerms.effect = Effect.ALLOW
+        iamGroupPerms.addResources(`arn:${this.partition}:iam::${this.account}:group/*`);
+        inlinePolicy.addStatements(iamGroupPerms)
+
+        const iamRolePerms = new PolicyStatement();
+        iamRolePerms.addActions("iam:DetachRolePolicy")
+        iamRolePerms.effect = Effect.ALLOW
+        iamRolePerms.addResources(`arn:${this.partition}:iam::${this.account}:role/*`);
+        inlinePolicy.addStatements(iamRolePerms)
 
         new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
@@ -169,6 +180,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         iamUserPerms.addActions("iam:DetachUserPolicy")
         iamUserPerms.effect = Effect.ALLOW
         iamUserPerms.addResources(`arn:${this.partition}:iam::${this.account}:user/*`);
+        inlinePolicy.addStatements(iamUserPerms)
 
         new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
             solutionId: props.solutionId,
