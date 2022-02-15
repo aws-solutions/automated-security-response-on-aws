@@ -32,32 +32,62 @@ def connect_to_iam(boto_config):
 
 def deattach_iam_policy_from_users(event, context):
     iam = connect_to_iam(boto_config)
-    resource = event["Details"]['Resources'][0]
-    resource_id = resource['Id']
+    resource = event["Resources"][0]
+    resource_id = resource["Id"]
 
     response = iam.get_policy(PolicyArn=resource_id)
 
     print("Inline policy >>>>>>>>>>>>>>>")
     print(response)
 
-    entity_response = iam.list_entities_for_policy(
-        PolicyArn=resource_id, EntityFilter="User"
-    )
+    done = False
+    marker = None
+    while not done:
+        args = {}
+        args["PolicyArn"] = resource_id
+        if marker:
+            args["Marker"] = marker
+        entity_response = iam.list_entities_for_policy(**args)
+        marker = entity_response.get("Marker", None)
+        print(entity_response)
+        policy_users = entity_response["PolicyUsers"]
+        policy_groups = entity_response["PolicyGroups"]
+        policy_roles = entity_response["PolicyRoles"]
 
-    print(entity_response)
+        for policy_user in policy_users:
+            response = iam.detach_user_policy(
+                UserName=policy_user["UserName"], PolicyArn=resource_id
+            )
+            responses["DetachIAMPolicyFromUsersResponse"].append(
+                {
+                    "Id": resource_id,
+                    "UserName": policy_user["UserName"],
+                    "Response": response,
+                }
+            )
 
-    policy_users = entity_response["PolicyUsers"]
+        for policy_group in policy_groups:
+            response = iam.detach_group_policy(
+                UserName=policy_group["GroupName"], PolicyArn=resource_id
+            )
+            responses["DetachIAMPolicyFromUsersResponse"].append(
+                {
+                    "Id": resource_id,
+                    "UserName": policy_group["GroupName"],
+                    "Response": response,
+                }
+            )
 
-    for policy_user in policy_users:
-        response = iam.detach_user_policy(
-            UserName=policy_user["UserName"], PolicyArn=resource_id
-        )
-        responses["DetachIAMPolicyFromUsersResponse"].append(
-            {
-                "Id": resource_id,
-                "UserName": policy_user["UserName"],
-                "Response": response,
-            }
-        )
+        for policy_role in policy_roles:
+            response = iam.detach_group_policy(
+                UserName=policy_role["RoleName"], PolicyArn=resource_id
+            )
+            responses["DetachIAMPolicyFromUsersResponse"].append(
+                {
+                    "Id": resource_id,
+                    "UserName": policy_role["RoleName"],
+                    "Response": response,
+                }
+            )
 
     return {"output": "IAM policy removal is successful.", "http_responses": responses}
