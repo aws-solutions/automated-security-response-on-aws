@@ -32,7 +32,7 @@ mainSteps:
   - name: ParseInput
     action: "aws:executeScript"
     outputs:
-      - Name: IAMUser
+      - Name: IAMPolicy
         Selector: $.Payload.resource_id
         Type: String
       - Name: IAMResourceId
@@ -63,7 +63,7 @@ mainSteps:
     inputs:
       DocumentName: SHARR-DetachIAMPolicyFromUsers
       RuntimeParameters:
-        Details: "{{ ParseInput.Details }}"
+        IAMPolicy: "{{ ParseInput.IAMPolicy }}"
         AutomationAssumeRole: "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DetachIAMPolicyFromUsers"
 
   - name: UpdateFinding
@@ -75,7 +75,7 @@ mainSteps:
         - Id: "{{ParseInput.FindingId}}"
           ProductArn: "{{ParseInput.ProductArn}}"
       Note:
-        Text: 'Removed full "*:*" administrative privileges from  {{ ParseInput.IAMUser }}.'
+        Text: 'Removed full "*:*" administrative privileges from  {{ ParseInput.IAMPolicy }}.'
         UpdatedBy: "SHARR-CIS_1.2.0_1.22"
       Workflow:
         Status: RESOLVED

@@ -32,8 +32,7 @@ def connect_to_iam(boto_config):
 
 def deattach_iam_policy_from_users(event, context):
     iam = connect_to_iam(boto_config)
-    resource = event["Resources"][0]
-    resource_id = resource["Id"]
+    resource_id = event["IAMPolicy"]
 
     response = iam.get_policy(PolicyArn=resource_id)
 
@@ -49,6 +48,8 @@ def deattach_iam_policy_from_users(event, context):
             args["Marker"] = marker
         entity_response = iam.list_entities_for_policy(**args)
         marker = entity_response.get("Marker", None)
+        if marker is None:
+            done = True
         print(entity_response)
         policy_users = entity_response["PolicyUsers"]
         policy_groups = entity_response["PolicyGroups"]
@@ -68,24 +69,24 @@ def deattach_iam_policy_from_users(event, context):
 
         for policy_group in policy_groups:
             response = iam.detach_group_policy(
-                UserName=policy_group["GroupName"], PolicyArn=resource_id
+                GroupName=policy_group["GroupName"], PolicyArn=resource_id
             )
             responses["DetachIAMPolicyFromUsersResponse"].append(
                 {
                     "Id": resource_id,
-                    "UserName": policy_group["GroupName"],
+                    "GroupName": policy_group["GroupName"],
                     "Response": response,
                 }
             )
 
         for policy_role in policy_roles:
-            response = iam.detach_group_policy(
-                UserName=policy_role["RoleName"], PolicyArn=resource_id
+            response = iam.detach_role_policy(
+                RoleName=policy_role["RoleName"], PolicyArn=resource_id
             )
             responses["DetachIAMPolicyFromUsersResponse"].append(
                 {
                     "Id": resource_id,
-                    "UserName": policy_role["RoleName"],
+                    "RoleName": policy_role["RoleName"],
                     "Response": response,
                 }
             )
