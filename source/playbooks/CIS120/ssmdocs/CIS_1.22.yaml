@@ -44,8 +44,8 @@ mainSteps:
       - Name: ProductArn
         Selector: $.Payload.product_arn
         Type: String
-      - Name: Details
-        Selector: $.Payload.details
+      - Name: AffectedObject
+        Selector: $.Payload.object
         Type: StringMap
     inputs:
       InputPayload:
