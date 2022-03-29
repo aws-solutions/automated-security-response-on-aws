@@ -51,7 +51,7 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: "{{Finding}}"
-        parse_id_pattern: "^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$"
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$'
         expected_control_id: ["CloudTrail.5"]
       Runtime: python3.7
       Handler: parse_event
