@@ -57,7 +57,9 @@ const remediations: IControl[] = [
 		"executes": "PCI.S3.1" 
 	},
 	{ "control": "PCI.S3.5" },
-	{ "control": "PCI.S3.6" }
+	{ "control": "PCI.S3.6" },
+	{ "control": "PCI.IAM.3" },
+	{ "control": "PCI.EC2.5" }
 ]
 
 const adminStack = new PlaybookPrimaryStack(app, 'PCI321Stack', {

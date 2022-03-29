@@ -7,4 +7,4 @@ deployment/regional-s3-assets
 **/*.d.ts
 **/cdk.out
 setenv.sh
-
+.venv
