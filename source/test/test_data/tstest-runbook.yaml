@@ -18,7 +18,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   TrailName:
     type: String
     description: (Required) The name of the CloudTrail.
@@ -26,7 +26,7 @@ parameters:
   CloudWatchLogsRole:
     type: String
     description: (Required) The ARN of the role that allows CloudTrail to log to CloudWatch.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+' 
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$' 
   LogGroupName:
     type: String
     description: (Required) The name of the Log Group for CloudTrail logs.
@@ -53,7 +53,7 @@ mainSteps:
     inputs:
       InputPayload:       
         LogGroup: '{{LogGroupName}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: wait_for_loggroup
       Script: |-
         %%SCRIPT=EnableCloudTrailToCloudWatchLogging_waitforloggroup.py%%

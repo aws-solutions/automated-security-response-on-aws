@@ -1,0 +1,101 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableCopyTagsToSnapshotOnRDSCluster
+
+  ## What does this document do?
+  The document enables CopyTagsToSnapshot on an Amazon RDS cluster using the [ModifyDBCluster API](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBCluster.html).  Please note, AWS Config is required to be enabled in this region for this document to work as it requires the Resource ID recorded by the AWS Config service.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * DbClusterResourceId: (Required) Resource ID of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
+  * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
+    * Default: false
+
+  ## Output Parameters
+  * ModifyDBClusterResponse.Output: The response of the ModifyDBCluster API call.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  DbClusterResourceId:
+    type: String
+    description: (Required) Resource ID of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
+    allowedPattern: '^cluster-[A-Z0-9]+$'
+  ApplyImmediately:
+    type: Boolean
+    description: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance.  By default, this parameter is disabled.
+    default: false
+
+outputs:
+  - EnableCopyTagsToSnapshot.Output
+mainSteps:
+- name: GetDBClusterIdentifier
+  action: aws:executeAwsApi
+  description: |
+    ## GetDBClusterIdentifier
+    Accepts the Resource ID as input and returns the DB cluster identifier.
+    ## Outputs
+    * DBClusterIdentifier: The ID of the DB cluster.
+  timeoutSeconds: 600
+  isEnd: false
+  inputs:
+    Service: config
+    Api: GetResourceConfigHistory
+    resourceId: "{{ DbClusterResourceId }}"
+    resourceType: AWS::RDS::DBCluster
+  outputs:
+    - Name: DBClusterIdentifier
+      Selector: $.configurationItems[0].resourceName
+      Type: String
+- name: VerifyStatus
+  action: aws:assertAwsResourceProperty
+  description: |
+    ## VerifyStatus
+    Verifies if `Status` is available before proeeding to the next step.
+  timeoutSeconds: 600
+  isEnd: false
+  inputs:
+    Service: rds
+    Api: DescribeDBClusters
+    DBClusterIdentifier: "{{ GetDBClusterIdentifier.DBClusterIdentifier }}"
+    PropertySelector: $.DBClusters[0].Status
+    DesiredValues:
+      - "available"
+- name: EnableCopyTagsToSnapshot
+  action: aws:executeAwsApi
+  description: |
+    ## EnableCopyTagsToSnapshot
+    Accepts the cluster name as input and modifies it to set true for `CopyTagsToSnapshot`.
+    ## Outputs
+    * Output: Response from the ModifyDBCluster API call.
+  timeoutSeconds: 600
+  isEnd: false
+  inputs:
+    Service: rds
+    Api: ModifyDBCluster
+    DBClusterIdentifier: "{{ GetDBClusterIdentifier.DBClusterIdentifier }}"
+    ApplyImmediately: "{{ ApplyImmediately }}"
+    CopyTagsToSnapshot: True
+  outputs:
+    - Name: Output
+      Selector: $
+      Type: StringMap
+- name: VerifyDBClusterCopyTagsToSnapshotEnabled
+  action: aws:assertAwsResourceProperty
+  description: |
+    ## VerifyDBClusterCopyTagsToSnapshotEnabled
+    Verifies that `CopyTagsToSnapshot` has been enabled on the target resource.
+    ## Outputs
+    * Output: A success message or failure exception.
+  timeoutSeconds: 600
+  isEnd: true
+  inputs:
+    Service: rds
+    Api: DescribeDBClusters
+    DBClusterIdentifier: "{{ GetDBClusterIdentifier.DBClusterIdentifier }}"
+    PropertySelector: $.DBClusters[0].CopyTagsToSnapshot
+    DesiredValues:
+      - "True"

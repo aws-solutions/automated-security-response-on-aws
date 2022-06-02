@@ -82,7 +82,7 @@ def workflow_doc():
             "DefaultVersion": "1", 
             "DocumentFormat": "YAML", 
             "LatestVersion": "1", 
-            "Description": "### Document Name - SHARR-Run_Remediation\n\n## What does this document do?\nThis document is executed by the AWS Security Hub Automated Response and Remediation Orchestrator Step Function. It implements controls such as manual approvals based on criteria passed by the Orchestrator.\n\n## Input Parameters\n* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.\n* Finding: (Required) json-formatted finding data\n* RemedationDoc: (Required) remediation runbook to execute after approval\n* SSMExec: (Required) json-formatted data for decision support in determining approval requirement\n"
+            "Description": "### Document Name - SHARR-Run_Remediation\n\n## What does this document do?\nThis document is executed by the AWS Security Hub Automated Response and Remediation Orchestrator Step Function. It implements controls such as manual approvals based on criteria passed by the Orchestrator.\n\n## Input Parameters\n* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.\n* Finding: (Required) json-formatted finding data\n* RemediationDoc: (Required) remediation runbook to execute after approval\n* SSMExec: (Required) json-formatted data for decision support in determining approval requirement\n"
         }
     }
 

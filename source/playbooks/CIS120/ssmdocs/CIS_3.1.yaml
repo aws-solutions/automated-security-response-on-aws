@@ -3,7 +3,7 @@ description: |
 
   ## What does this document do?
   Remediates the following CIS findings:
-  
+
   3.1 - Creates a log metric filter and alarm for unauthorized API calls
   3.2 - Creates a log metric filter and alarm for AWS Management Console sign-in without MFA
   3.3 - Creates a log metric filter and alarm for usage of "root" account
@@ -23,7 +23,7 @@ description: |
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  
+
   ## Output Parameters
   * Remediation.Output - Output of remediation runbook.
 
@@ -47,25 +47,26 @@ schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
   - ParseInput.AffectedObject
-  - Remediation.Output 
+  - Remediation.Output
 parameters:
   Finding:
     type: StringMap
-    description: The input from Step function for finding
+    description: The input from the Orchestrator Step function for the 3.1 finding
   AutomationAssumeRole:
     type: String
-    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
-    default: ''
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   LogGroupName:
     type: String
     default: >-
       {{ssm:/Solutions/SO0111/Metrics_LogGroupName}}
     description: The name of the Log group to be used to create filters and metric alarms
+    allowedPattern: '.*'
   MetricNamespace:
     type: String
     default: 'LogMetrics'
     description: The name of the metric namespace where the metrics will be logged
+    allowedPattern: '.*'
   KMSKeyArn:
     type: String
     default: >-
@@ -97,10 +98,10 @@ mainSteps:
         parse_id_pattern: ''
         Finding: '{{Finding}}'
         expected_control_id: [ '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13','3.14']
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
 
   - name: GetMetricFilterAndAlarmInputValue
@@ -130,7 +131,7 @@ mainSteps:
     inputs:
       InputPayload:
         ControlId: '{{ParseInput.ControlId}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: verify
       Script: |-
         %%SCRIPT=cis_get_input_values.py%%

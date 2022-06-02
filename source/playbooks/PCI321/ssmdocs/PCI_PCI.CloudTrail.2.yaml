@@ -3,14 +3,14 @@ description: |
   ## What does this document do?
   Creates a multi-region trail with KMS encryption and enables CloudTrail
   Note: this remediation will create a NEW trail.
-  
+
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  
+
   ## Documentation Links
   * [PCI CloudTrail.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-pci-controls.html#pcidss-cloudtrail-2)
-  
+
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
@@ -18,10 +18,10 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   Finding:
     type: StringMap
-    description: The input from Step function for the finding  
+    description: The input from the Orchestrator Step function for the PCI.CloudTrail.2 finding
   KMSKeyArn:
     type: String
     default: >-
@@ -54,11 +54,12 @@ mainSteps:
         Finding: '{{Finding}}'
         region: '{{global:REGION}}'
         parse_id_pattern: ''
-        expected_control_id: 'PCI.CloudTrail.2'
-      Runtime: python3.7
+        expected_control_id:
+        - 'PCI.CloudTrail.2'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=pci_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
 
   - name: Remediation
@@ -70,7 +71,7 @@ mainSteps:
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateCloudTrailMultiRegionTrail'
         AWSPartition: '{{global:AWS_PARTITION}}'
 
-  - 
+  -
     name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:

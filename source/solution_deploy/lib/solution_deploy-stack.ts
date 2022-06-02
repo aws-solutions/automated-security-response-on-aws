@@ -12,7 +12,7 @@
  *  express or implied. See the License for the specific language governing   *
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
-
+import * as cdk_nag from 'cdk-nag';
 import * as cdk from '@aws-cdk/core';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as sns from '@aws-cdk/aws-sns';
@@ -20,15 +20,15 @@ import * as lambda from '@aws-cdk/aws-lambda';
 import { StringParameter, CfnParameter } from '@aws-cdk/aws-ssm';
 import * as kms from '@aws-cdk/aws-kms';
 import * as fs from 'fs';
-import { 
+import {
     Role,
     CfnRole,
     Policy,
     CfnPolicy,
-    PolicyStatement, 
-    PolicyDocument, 
+    PolicyStatement,
+    PolicyDocument,
     ServicePrincipal,
-    AccountRootPrincipal 
+    AccountRootPrincipal
 } from '@aws-cdk/aws-iam';
 import { OrchestratorConstruct } from '../../Orchestrator/lib/common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from '@aws-cdk/aws-stepfunctions';
@@ -63,7 +63,7 @@ export class SolutionDeployStack extends cdk.Stack {
     // MAPPINGS
     //=========================================================================
     new cdk.CfnMapping(this, 'SourceCode', {
-        mapping: { "General": { 
+        mapping: { "General": {
             "S3Bucket": props.solutionDistBucket,
             "KeyPrefix": props.solutionTMN + '/' + props.solutionVersion
         } }
@@ -75,7 +75,7 @@ export class SolutionDeployStack extends cdk.Stack {
 
     // Key Policy
     const kmsKeyPolicy:PolicyDocument = new PolicyDocument()
-    
+
     const kmsServicePolicy = new PolicyStatement({
         principals: [
             new ServicePrincipal('sns.amazonaws.com'),
@@ -95,7 +95,7 @@ export class SolutionDeployStack extends cdk.Stack {
             ArnEquals: {
                 "kms:EncryptionContext:aws:logs:arn": this.formatArn({
                     service: 'logs',
-                    resource: 'log-group:SO0111-SHARR-*' 
+                    resource: 'log-group:SO0111-SHARR-*'
                 })
             }
         }
@@ -118,7 +118,6 @@ export class SolutionDeployStack extends cdk.Stack {
     const kmsKey = new kms.Key(this, 'SHARR-key', {
         enableKeyRotation: true,
         alias: `${RESOURCE_PREFIX}-SHARR-Key`,
-        trustAccountIdentities: true,
         policy: kmsKeyPolicy
     });
 
@@ -175,7 +174,7 @@ export class SolutionDeployStack extends cdk.Stack {
         code: lambda.Code.fromBucket(
             SolutionsBucket,
             props.solutionTMN + '/' + props.solutionVersion + '/lambda/layer.zip'
-        ), 
+        ),
     });
 
     /**
@@ -206,10 +205,15 @@ export class SolutionDeployStack extends cdk.Stack {
                     'sts:AssumeRole'
                 ],
                 resources: [
-                    `arn:${this.partition}:iam::*:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`,
-                    'arn:' + this.partition + ':iam::*:role/' + RESOURCE_PREFIX +
-                        '-Remediate-*', 
+                    `arn:${this.partition}:iam::*:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`
+                    //'arn:' + this.partition + ':iam::*:role/' + RESOURCE_PREFIX +
+                        //'-Remediate-*',
                 ]
+            }),
+            // Supports https://gitlab.aws.dev/dangibbo/sharr-remediation-framework
+            new PolicyStatement({
+                actions: ['organizations:ListTagsForResource'],
+                resources: ['*']
             })
         ]
     })
@@ -225,6 +229,10 @@ export class SolutionDeployStack extends cdk.Stack {
             }
         }
     }
+
+    cdk_nag.NagSuppressions.addResourceSuppressions(orchestratorPolicy, [
+        {id: 'AwsSolutions-IAM5', reason: 'Resource * is required for read-only policies used by orchestrator Lambda functions.'}
+    ]);
 
     /**
      * @description Role used by common Orchestrator Lambdas
@@ -324,10 +332,10 @@ export class SolutionDeployStack extends cdk.Stack {
             role: orchestratorRole,
             layers: [sharrLambdaLayer]
         });
-    
+
         {
             const childToMod = getApprovalRequirement.node.findChild('Resource') as lambda.CfnFunction;
-    
+
             childToMod.cfnOptions.metadata = {
                 cfn_nag: {
                     rules_to_suppress: [{
@@ -344,7 +352,7 @@ export class SolutionDeployStack extends cdk.Stack {
                 }
             };
         }
-    
+
 
     /**
      * @description execAutomation - initiate an SSM automation document in a target account
@@ -476,7 +484,7 @@ export class SolutionDeployStack extends cdk.Stack {
                 actions: [
                     'sns:Publish'
                 ],
-                resources: [ 
+                resources: [
                     `arn:${this.partition}:sns:${this.region}:${this.account}:${RESOURCE_PREFIX}-SHARR_Topic`
                 ]
             })
@@ -498,8 +506,12 @@ export class SolutionDeployStack extends cdk.Stack {
         }
     }
 
+    cdk_nag.NagSuppressions.addResourceSuppressions(notifyPolicy, [
+        {id: 'AwsSolutions-IAM5', reason: 'Resource * is required for CloudWatch Logs and Security Hub policies used by core solution Lambda function for notifications.'}
+    ]);
+
     notifyPolicy.attachToRole(orchestratorRole) // Any Orchestrator Lambda can send to sns
-    
+
     /**
      * @description Role used by common Orchestrator Lambdas
      * @type {Role}
@@ -618,6 +630,10 @@ export class SolutionDeployStack extends cdk.Stack {
         }
     };
 
+    cdk_nag.NagSuppressions.addResourceSuppressions(createCustomActionPolicy, [
+        {id: 'AwsSolutions-IAM5', reason: 'Resource * is required for CloudWatch Logs policies used on Lambda functions.'}
+    ]);
+
     //-------------------------------------------------------------------------
     // Custom Lambda Role
     //
@@ -719,7 +735,7 @@ export class SolutionDeployStack extends cdk.Stack {
     // Loop through all of the Playbooks and create an option to load each
     //
     const PB_DIR = `${__dirname}/../../playbooks`
-    var ignore = ['.DS_Store', 'core', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
+    var ignore = ['.DS_Store', 'common', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     let illegalChars = /[\._]/g;
 
     var standardLogicalNames: string[] = []
@@ -751,7 +767,7 @@ export class SolutionDeployStack extends cdk.Stack {
                 adminStack.addDependsOn(orchestratorArn)
 
                 adminStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
-                    expression: 
+                    expression:
                         cdk.Fn.conditionEquals(adminStackOption, "yes")
                 });
             }

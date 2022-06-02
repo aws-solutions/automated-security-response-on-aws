@@ -74,7 +74,11 @@ Detailed instructions for creating a new automated remediation in an existing Pl
 
 ### Prerequisites for Customization
 
-- a Linux client with the AWS CLI v2 installed and python 3.7+, AWS CDK 1.114.0+
+- a Linux client with the following software
+  - AWS CLI v2
+  - Python 3.7+ with pip
+  - AWS CDK 1.155.0+
+  - Node.js with npm
 - source code downloaded from GitHub
 - two S3 buckets (minimum): 1 global and 1 for each region where you will deploy
   - An Amazon S3 Bucket for solution templates - accessed globally via https.
@@ -178,6 +182,10 @@ build-s3-dist.sh -b <bucketname> -v <version>
 ```
 
 #### Run Unit Tests
+
+Some Python unit tests execute AWS API calls. The calls that create, read, or modify resources are stubbed, but some
+calls to APIs that do not require any permissions execute against the real AWS APIs (e.g. STS GetCallerIdentity). The
+recommended way to run the unit tests is to configure your credentials for a no-access console role.
 
 ```bash
 cd ./deployment

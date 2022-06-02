@@ -13,16 +13,17 @@
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
 
-import {expect as expectCDK, haveResourceLike, ResourcePart, SynthUtils} from '@aws-cdk/assert';
+import {expect as expectCDK, haveResourceLike, ResourcePart } from '@aws-cdk/assert';
 import { App, Stack } from '@aws-cdk/core';
-import { 
-  Policy, 
+import {
+  Policy,
   PolicyStatement,
   Effect
 } from '@aws-cdk/aws-iam';
 import { SsmPlaybook, Trigger, SsmRole, SsmRemediationRunbook } from '../lib/ssmplaybook';
-import { AdminAccountParm } from '../lib/admin_account_parm-construct';
 import { MemberRoleStack } from '../solution_deploy/lib/remediation_runbook-stack';
+import { AwsSolutionsChecks } from 'cdk-nag'
+import { Aspects } from '@aws-cdk/core'
 
 // ----------------------------
 // SsmPlaybook - Parse Runbook
@@ -39,8 +40,10 @@ function getSsmPlaybook(): Stack {
       ssmDocPath: 'test/test_data/',
       ssmDocFileName: 'tstest-rds1.yaml',
       solutionVersion: 'v1.1.1',
-      solutionDistBucket: 'solutionstest'
+      solutionDistBucket: 'solutionstest',
+      solutionId: 'SO0111'
     })
+    Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
     return stack;
 }
 test('Test SsmPlaybook Generation', () => {
@@ -92,7 +95,7 @@ function getTriggerStack(): Stack {
 // ---------------------
 function getSsmRemediationRunbook(): Stack {
     const app = new App();
-    const stack = new Stack(app, 'MyTestStack', { 
+    const stack = new Stack(app, 'MyTestStack', {
       stackName: 'testStack'
     });
     const roleStack = new MemberRoleStack(app, 'roles', {
@@ -106,7 +109,8 @@ function getSsmRemediationRunbook(): Stack {
       ssmDocPath: 'test/test_data/',
       ssmDocFileName: 'tstest-cis29.yaml',
       solutionVersion: 'v1.1.1',
-      solutionDistBucket: 'solutionstest'
+      solutionDistBucket: 'solutionstest',
+      solutionId: 'SO0111'
     })
     return stack;
 }
@@ -137,12 +141,15 @@ test('Test Shared Remediation Generation', () => {
 });
 
 // ------------------
-// SsmRole 
+// SsmRole
 // ------------------
 function getSsmRemediationRoleCis(): Stack {
   const app = new App();
-  const stack = new Stack(app, 'MyTestStack', {
-    stackName: 'testStack'
+  const stack = new MemberRoleStack(app, 'MyTestStack', {
+    description: 'test-description',
+    solutionId: 'SO0111',
+    solutionVersion: 'v1.0.0',
+    solutionDistBucket: 'test-bucket'
   });
   let inlinePolicy = new Policy(stack, 'Policy')
   let rdsPerms = new PolicyStatement();
@@ -150,9 +157,6 @@ function getSsmRemediationRoleCis(): Stack {
   rdsPerms.effect = Effect.ALLOW
   rdsPerms.addResources("*");
   inlinePolicy.addStatements(rdsPerms)
-  const adminAccount = new AdminAccountParm(stack, 'AdminAccountParameter', {
-      solutionId: 'SO0111'
-  })
   new SsmRole(stack, 'Role', {
     solutionId: "SO0111",
     ssmDocName: "foobar",
@@ -180,13 +184,12 @@ expectCDK(getSsmRemediationRoleCis()).to(haveResourceLike("AWS::IAM::Role", {
                 },
                 ":iam::",
                 {
-                  "Ref": "SecHubAdminAccount"
+                  "Ref": "AWS::AccountId"
                 },
-                ":role/SO0111-SHARR-Orchestrator-Admin"
+                ":role/SO0111-SHARR-Orchestrator-Member"
               ]
             ]
-          },
-          "Service": "ssm.amazonaws.com"
+          }
         }
       }
     ],

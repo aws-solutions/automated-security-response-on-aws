@@ -14,17 +14,18 @@
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
 
+import * as cdk_nag from 'cdk-nag';
 import * as cdk from '@aws-cdk/core';
 import * as sfn from '@aws-cdk/aws-stepfunctions';
 import { LambdaInvoke } from '@aws-cdk/aws-stepfunctions-tasks';
 import * as lambda from '@aws-cdk/aws-lambda';
-import { 
-    PolicyDocument, 
-    PolicyStatement, 
-    Role, 
-    Effect, 
-    ServicePrincipal, 
-    CfnRole 
+import {
+    PolicyDocument,
+    PolicyStatement,
+    Role,
+    Effect,
+    ServicePrincipal,
+    CfnRole
 } from '@aws-cdk/aws-iam';
 import { StringParameter } from '@aws-cdk/aws-ssm';
 
@@ -355,18 +356,18 @@ export class OrchestratorConstruct extends cdk.Construct {
     checkWorkflowNew.when(
         sfn.Condition.or(
             sfn.Condition.stringEquals(
-                '$.EventType', 
+                '$.EventType',
                 'Security Hub Findings - Custom Action'
-            ),     
+            ),
             sfn.Condition.and(
                 sfn.Condition.stringEquals(
-                    '$.Finding.Workflow.Status', 
+                    '$.Finding.Workflow.Status',
                     'NEW'
                 ),
                 sfn.Condition.stringEquals(
-                    '$.EventType', 
+                    '$.EventType',
                     'Security Hub Findings - Imported'
-                ),     
+                ),
             )
         ),
         getApprovalRequirement
@@ -507,7 +508,7 @@ export class OrchestratorConstruct extends cdk.Construct {
     )
     orchestratorPolicy.addStatements(
         new PolicyStatement({
-            actions: [ 
+            actions: [
                 "kms:Encrypt",
                 "kms:Decrypt",
                 "kms:GenerateDataKey"
@@ -518,7 +519,7 @@ export class OrchestratorConstruct extends cdk.Construct {
             ]
         })
     )
- 
+
     const principal = new ServicePrincipal(`states.amazonaws.com`);
     const orchestratorRole = new Role(this, 'Role', {
         assumedBy: principal,
@@ -539,6 +540,10 @@ export class OrchestratorConstruct extends cdk.Construct {
             }
         };
     }
+
+    cdk_nag.NagSuppressions.addResourceSuppressions(orchestratorRole, [
+        {id: 'AwsSolutions-IAM5', reason: 'CloudWatch Logs permissions require resource * except for DescribeLogGroups, except for GovCloud, which only works with resource *'}
+    ]);
 
     const orchestratorStateMachine = new sfn.StateMachine(this, 'StateMachine', {
         definition: extractFindings,
@@ -577,5 +582,10 @@ export class OrchestratorConstruct extends cdk.Construct {
     if (roleToModify) {
         roleToModify.node.tryRemoveChild('DefaultPolicy')
     }
+
+    cdk_nag.NagSuppressions.addResourceSuppressions(orchestratorStateMachine, [
+        {id: 'AwsSolutions-SF1', reason: 'False alarm. Logging configuration is overridden to log ALL.'},
+        {id: 'AwsSolutions-SF2', reason: 'X-Ray is not needed for this use case.'}
+    ]);
   }
 }

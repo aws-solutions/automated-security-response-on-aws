@@ -1,0 +1,186 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document Name - SHARR-AFSBP_1.0.0_Redshift.4
+
+  ## What does this document do?
+  This document disables public access to a Redshift cluster by calling another SSM document
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * RemediationRoleName: (Optional) The name of the role that allows Automation to remediate the finding on your behalf.
+
+  ## Documentation Links
+  * [AFSBP Redshift.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-redshift-1)
+assumeRole: '{{AutomationAssumeRole}}'
+outputs:
+- 'Remediation.Output'
+- 'ParseInput.AffectedObject'
+parameters:
+  Finding:
+    type: 'StringMap'
+    description: 'The input from the Orchestrator Step function for the Redshift.4 finding'
+  AutomationAssumeRole:
+    type: 'String'
+    description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  RemediationRoleName:
+    type: 'String'
+    default: 'SO0111-EnableRedshiftClusterAuditLogging'
+    allowedPattern: '^[\w+=,.@/-]+'
+mainSteps:
+- name: 'ParseInput'
+  action: 'aws:executeScript'
+  inputs:
+    InputPayload:
+      Finding: '{{Finding}}'
+      parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):redshift:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:cluster:(?!.*--)([a-z][a-z0-9-]{0,62})(?<!-)$'
+      expected_control_id:
+      - 'Redshift.4'
+    Runtime: 'python3.8'
+    Handler: 'parse_event'
+    Script: |-
+      %%SCRIPT=common/parse_input.py%%
+  outputs:
+  - Name: 'ClusterIdentifier'
+    Selector: '$.Payload.resource_id'
+    Type: 'String'
+  - Name: 'AffectedObject'
+    Selector: '$.Payload.object'
+    Type: 'StringMap'
+  - Name: 'FindingId'
+    Selector: '$.Payload.finding.Id'
+    Type: 'String'
+  - Name: 'ProductArn'
+    Selector: '$.Payload.finding.ProductArn'
+    Type: 'String'
+  - Name: 'RemediationRegion'
+    Selector: '$.Payload.resource_region'
+    Type: 'String'
+  - Name: 'RemediationAccount'
+    Selector: '$.Payload.account_id'
+    Type: 'String'
+- name: CheckIfSSMParameterWithS3BucketNameIsAvailable
+  action: 'aws:executeScript'
+  inputs:
+    Runtime: python3.8
+    Handler: check_for_s3_bucket_name
+    Script: |-
+      #!/usr/bin/python
+      ## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+      ## SPDX-License-Identifier: Apache-2.0
+
+      import re
+      import json
+      import boto3
+      from botocore.config import Config
+
+      def connect_to_config(boto_config):
+          return boto3.client('config', config=boto_config)
+
+      def connect_to_ssm(boto_config):
+          return boto3.client('ssm', config=boto_config)
+
+      def get_solution_id():
+          return 'SO0111'
+
+      def get_solution_version():
+          ssm = connect_to_ssm(
+              Config(
+                  retries = {
+                      'mode': 'standard'
+                  },
+                  user_agent_extra = f'AwsSolution/{get_solution_id()}/unknown'
+              )
+          )
+          solution_version = 'unknown'
+          try:
+              ssm_parm_value = ssm.get_parameter(
+                  Name=f'/Solutions/{get_solution_id()}/member-version'
+              )['Parameter'].get('Value', 'unknown')
+              solution_version = ssm_parm_value
+          except Exception as e:
+              print(e)
+              print(f'ERROR getting solution version')
+          return solution_version
+
+      def check_for_s3_bucket_name(event, context):
+        try:
+            ssm = connect_to_ssm(
+              Config(
+                  retries = {
+                      'mode': 'standard'
+                  },
+                  user_agent_extra = f'AwsSolution/{get_solution_id()}/unknown'
+              )
+            )
+            s3_bucket_name_for_audit_logging = ssm.get_parameter(
+                Name=f'/Solutions/{get_solution_id()}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging'
+            )['Parameter'].get('Value', 'unknown')
+        except Exception as e:
+            return {
+              "s3_bucket_name_for_redshift_audit_logging": "NOT_AVAILABLE"
+            }
+        return {
+            "s3_bucket_name_for_redshift_audit_logging": s3_bucket_name_for_audit_logging
+        }
+  outputs:
+    - Name: BucketName
+      Selector: $.Payload.s3_bucket_name_for_redshift_audit_logging
+      Type: String
+- name: 'ValidateIfS3BucketNameIsConfigured'
+  action: aws:branch
+  inputs:
+    Choices:
+    - NextStep: UpdateFindingThatS3BucketNameIsNotConfigured
+      Variable: '{{CheckIfSSMParameterWithS3BucketNameIsAvailable.BucketName}}'
+      StringEquals: 'NOT_AVAILABLE'
+    Default:
+      Remediation
+- name: 'Remediation'
+  action: 'aws:executeAutomation'
+  inputs:
+    DocumentName: 'SHARR-EnableRedshiftClusterAuditLogging'
+    TargetLocations:
+      - Accounts:
+        - '{{ParseInput.RemediationAccount}}'
+        Regions:
+        - '{{ParseInput.RemediationRegion}}'
+        ExecutionRoleName: '{{RemediationRoleName}}'
+    RuntimeParameters:
+      ClusterIdentifier: '{{ParseInput.ClusterIdentifier}}'
+      AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
+      BucketName: '{{CheckIfSSMParameterWithS3BucketNameIsAvailable.BucketName}}'
+- name: 'UpdateFinding'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'securityhub'
+    Api: 'BatchUpdateFindings'
+    FindingIdentifiers:
+    - Id: '{{ParseInput.FindingId}}'
+      ProductArn: '{{ParseInput.ProductArn}}'
+    Note:
+      Text: 'Enabled Audit logging for the Redshift cluster.'
+      UpdatedBy: 'SHARR-AFSBP_1.0.0_Redshift.4'
+    Workflow:
+      Status: 'RESOLVED'
+  description: 'Update finding'
+  isEnd: true
+- name: 'UpdateFindingThatS3BucketNameIsNotConfigured'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'securityhub'
+    Api: 'BatchUpdateFindings'
+    FindingIdentifiers:
+    - Id: '{{ParseInput.FindingId}}'
+      ProductArn: '{{ParseInput.ProductArn}}'
+    Note:
+      Text: 'Remediation failed the s3 bucket name is not available, review the cloudformation template and select the option Yes for create redshift.4 s3 bucket cloudformation parameter.'
+      UpdatedBy: 'SHARR-AFSBP_1.0.0_Redshift.4'
+    Workflow:
+      Status: 'NOTIFIED'
+  description: 'Abort remediation as s3 bucket name is unavailable.'
+  isEnd: true

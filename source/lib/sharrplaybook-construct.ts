@@ -23,6 +23,7 @@ import * as cdk from '@aws-cdk/core';
 import { StringParameter } from '@aws-cdk/aws-ssm';
 import { Trigger, SsmPlaybook } from './ssmplaybook';
 import { AdminAccountParm } from './admin_account_parm-construct';
+import { RunbookFactory } from '../solution_deploy/lib/runbook_factory';
 
 export interface IControl {
     control: string;
@@ -44,7 +45,7 @@ export class PlaybookPrimaryStack extends cdk.Stack {
 
   constructor(scope: cdk.Construct, id: string, props: PlaybookProps) {
     super(scope, id, props);
-    
+
     const stack = cdk.Stack.of(this)
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
     const orchestratorArn = StringParameter.valueForStringParameter(this, `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`)
@@ -62,12 +63,12 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     });
 
     new cdk.CfnMapping(this, 'SourceCode', {
-        mapping: { "General": { 
+        mapping: { "General": {
             "S3Bucket": props.solutionDistBucket,
             "KeyPrefix": props.solutionDistName + '/' + props.solutionVersion
         } }
     })
-    
+
     const processRemediation = function(controlSpec: IControl): void {
         if ((controlSpec.executes != undefined) &&
             (controlSpec.control != controlSpec.executes)) {
@@ -93,58 +94,58 @@ export class PlaybookPrimaryStack extends cdk.Stack {
             targetArn: orchestratorArn
         })
     }
-    
+
     props.remediations.forEach(processRemediation)
 
   }
 }
 
 export interface MemberStackProps {
-    description: string;
-    solutionId: string;
-    solutionVersion: string;
-    solutionDistBucket: string;
-    securityStandard: string;
-    securityStandardVersion: string;
-    securityStandardLongName: string;
-    ssmdocs?: string;
-    remediations: IControl[];
+  description: string;
+  solutionId: string;
+  solutionVersion: string;
+  solutionDistBucket: string;
+  securityStandard: string;
+  securityStandardVersion: string;
+  securityStandardLongName: string;
+  ssmdocs?: string;
+  commonScripts?: string;
+  remediations: IControl[];
 }
 
 export class PlaybookMemberStack extends cdk.Stack {
-
   constructor(scope: cdk.App, id: string, props: MemberStackProps) {
     super(scope, id, props);
-    const stack = cdk.Stack.of(this)
+    const stack = cdk.Stack.of(this);
 
-    let ssmdocs = ''
+    let ssmdocs = '';
     if (props.ssmdocs == undefined) {
-        ssmdocs = './ssmdocs'
+      ssmdocs = './ssmdocs';
     } else {
-        ssmdocs = props.ssmdocs
+      ssmdocs = props.ssmdocs;
     }
 
     new AdminAccountParm(this, 'AdminAccountParameter', {
-        solutionId: props.solutionId
-    })
+      solutionId: props.solutionId
+    });
 
     const processRemediation = function(controlSpec: IControl): void {
-        // Create the ssm automation document only if this is not a remapped control
-        if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
-            new SsmPlaybook(stack, `${props.securityStandard} ${controlSpec.control}`, {
-                securityStandard: props.securityStandard,
-                securityStandardVersion: props.securityStandardVersion,
-                controlId: controlSpec.control,
-                ssmDocPath: ssmdocs,
-                ssmDocFileName: `${props.securityStandard}_${controlSpec.control}.yaml`,
-                solutionVersion: props.solutionVersion,
-                solutionDistBucket: props.solutionDistBucket
-            })
-        }
-    }
-    
-    props.remediations.forEach(processRemediation)
+      // Create the ssm automation document only if this is not a remapped control
+      if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
+        RunbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
+          securityStandard: props.securityStandard,
+          securityStandardVersion: props.securityStandardVersion,
+          controlId: controlSpec.control,
+          ssmDocPath: ssmdocs,
+          ssmDocFileName: `${props.securityStandard}_${controlSpec.control}.yaml`,
+          solutionVersion: props.solutionVersion,
+          solutionDistBucket: props.solutionDistBucket,
+          solutionId: props.solutionId,
+          commonScripts: props.commonScripts
+        });
+      }
+    };
 
+    props.remediations.forEach(processRemediation);
   }
 }
-

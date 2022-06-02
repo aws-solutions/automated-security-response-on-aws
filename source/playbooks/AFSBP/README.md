@@ -4,13 +4,16 @@ The AWS Foundational Security Best Practices (AFSBP) playbook is part of the AWS
 
 * AutoScaling.1
 * CloudTrail.1
-* Config.1
-* CloudTrail.1
 * CloudTrail.2
+* CloudTrail.4
+* CloudTrail.5
+* Config.1
+* CodeBuild.2
 * EC2.1
 * EC2.2
 * EC2.6
 * EC2.7
+* IAM.3
 * IAM.7
 * IAM.8
 * Lambda.1
@@ -20,6 +23,8 @@ The AWS Foundational Security Best Practices (AFSBP) playbook is part of the AWS
 * S3.1
 * S3.2
 * S3.3
+* S3.4
+* S3.5
   
 See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information on this Playbook.
 

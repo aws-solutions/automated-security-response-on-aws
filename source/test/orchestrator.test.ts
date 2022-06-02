@@ -25,6 +25,8 @@ import {
     ServicePrincipal,
     AccountRootPrincipal,
 } from '@aws-cdk/aws-iam';
+import { AwsSolutionsChecks } from 'cdk-nag'
+import { Aspects } from '@aws-cdk/core'
 
 test('test App Orchestrator Construct', () => {
 
@@ -69,7 +71,6 @@ test('test App Orchestrator Construct', () => {
     const kmsKey = new kms.Key(stack, 'SHARR-key', {
         enableKeyRotation: true,
         alias: 'TO0111-SHARR-Key',
-        trustAccountIdentities: true,
         policy: kmsKeyPolicy
     });
 
@@ -80,18 +81,18 @@ test('test App Orchestrator Construct', () => {
     });
 
     new OrchestratorConstruct(stack, 'Orchestrator', {
-	    roleArn: 'arn:aws-test:iam::111111111111:role/TestRole',
-	    ssmDocStateLambda: 'xxx',
-	    ssmExecDocLambda: 'yyy',
-	    ssmExecMonitorLambda: 'zzz',
-	    notifyLambda: 'aaa',
-        getApprovalRequirementLambda: 'bbb',
+	    roleArn: 'arn:aws-test:iam::111122223333:role/TestRole',
+	    ssmDocStateLambda: 'arn:aws:lambda:us-east-1:111122223333:function/foobar',
+	    ssmExecDocLambda: 'arn:aws:lambda:us-east-1:111122223333:function/foobar',
+	    ssmExecMonitorLambda: 'arn:aws:lambda:us-east-1:111122223333:function/foobar',
+	    notifyLambda: 'arn:aws:lambda:us-east-1:111122223333:function/foobar',
+        getApprovalRequirementLambda: 'arn:aws:lambda:us-east-1:111122223333:function/foobar',
         solutionId: 'bbb',
         solutionName: 'This is a test',
         solutionVersion: '1.1.1',
         orchLogGroup: 'ORCH_LOG_GROUP',
         kmsKeyParm: kmsKeyParm
     });
-
+    Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
     expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
 });

@@ -1,0 +1,122 @@
+description: |
+  ### Document name - AWSConfigRemediation-EnableRedshiftClusterAuditLogging 
+
+  ## What does this document do?
+  This automation document enables audit logging on the Amazon Redshift cluster using [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API call with given bucket name and s3 key prefix. 
+
+  ## Input Parameters
+  * ClusterIdentifier: (Required) The unique identifier of the Amazon Redshift cluster on which logging to be started.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * BucketName: (Required) The name of an existing Amazon S3 bucket where the log files are to be stored.
+  * S3KeyPrefix: (Optional) The prefix applied to the log file names.  
+
+  ## Output Parameters
+  * EnableLoggingWithPrefix.Response: Standard HTTP response of the EnableLogging API.
+  * EnableLoggingWithoutPrefix.Response: Standard HTTP response of the EnableLogging API.
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+outputs:
+  - EnableLoggingWithoutPrefix.Response
+  - EnableLoggingWithPrefix.Response
+parameters:
+  ClusterIdentifier:
+    type: String
+    description: The unique identifier of the Amazon Redshift cluster on which the logging logging to be started.
+    allowedPattern: "^(?!.*--)[a-z][a-z0-9-]{0,62}(?<!-)$"
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  BucketName:
+    type: String
+    description: The name of an existing Amazon S3 bucket where the log files are to be stored.
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+  S3KeyPrefix:
+    type: String
+    description: The prefix applied to the log file names.
+    allowedPattern: ^[^"'\\ ]{0,512}$
+    default: ""
+mainSteps:
+  - name: CheckS3KeyPrefix
+    description: |
+      ## CheckS3KeyPrefix
+      Checks whether S3KeyPrefix provided in the input parameters. 
+    action: "aws:branch"
+    inputs:
+      Choices:
+        - NextStep: EnableLoggingWithoutPrefix
+          Variable: "{{S3KeyPrefix}}"
+          StringEquals: ""
+      Default: EnableLoggingWithPrefix
+    isEnd: true
+  - name: EnableLoggingWithoutPrefix
+    nextStep: AssertClusterLoggingEnabled
+    action: "aws:executeAwsApi"
+    description: |
+      ## EnableLoggingWithoutPrefix 
+      Enables logging on the given Amazon Redshift cluster using the [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API with given bucket name in input parameters.
+      ## Outputs
+      * Response: Standard HTTP response of the EnableLogging API. 
+    inputs:
+      Service: redshift
+      Api: EnableLogging
+      BucketName: "{{BucketName}}"
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+  - name: EnableLoggingWithPrefix
+    action: "aws:executeAwsApi"
+    description: |
+      ## EnableLoggingWithPrefix
+      Enables logging on the given Amazon Redshift cluster using the [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API with given bucket name and s3 key prefix in input parameters.
+      ## Outputs
+      * Response: Standard HTTP response of the EnableLogging API.
+    inputs:
+      Service: redshift
+      Api: EnableLogging
+      BucketName: "{{BucketName}}"
+      S3KeyPrefix: "{{S3KeyPrefix}}"
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+  - name: AssertClusterBucketPrefix
+    description: |
+      ## AssertClusterBucketPrefix
+      Verifies whether the value of the "S3KeyPrefix" parameter is used for logging for the given Amazon Redshift cluster.
+    action: "aws:assertAwsResourceProperty"
+    inputs:
+      Service: redshift
+      Api: DescribeLoggingStatus
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+      PropertySelector: $.S3KeyPrefix
+      DesiredValues:
+        - "{{S3KeyPrefix}}/"
+  - name: AssertClusterLoggingEnabled
+    description: |
+      ## AssertClusterLoggingEnabled
+      Verifies whether the "LoggingEnabled" property is set to "True" for the given Amazon Redshift cluster.
+    action: "aws:assertAwsResourceProperty"
+    inputs:
+      Service: redshift
+      Api: DescribeLoggingStatus
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+      PropertySelector: $.LoggingEnabled
+      DesiredValues:
+        - "True"
+  - name: AssertClusterLoggingBucket
+    description: |
+      ## AssertClusterLoggingBucket
+      Checks whether the value of the "BucketName" parameter is used for the audit logging configuration of the given Amazon Redshift cluster.
+    action: "aws:assertAwsResourceProperty"
+    inputs:
+      Service: redshift
+      Api: DescribeLoggingStatus
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+      PropertySelector: $.BucketName
+      DesiredValues:
+        - "{{BucketName}}"
+    isEnd: true

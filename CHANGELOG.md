@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2022-05-31
+
+### Added
+- New remediations - see Implementation Guide
+
+### Changed
+- Improved cross-region remediation using resource region from Resources[0].Id
+- Added custom resource provider for SSM documents to allow in-place stack upgrades
+
 ## [1.4.2] - 2022-01-14
 
 ### Changed
 - Fix to correct the generator id pattern for CIS 1.2.0 Ruleset.
-
 
 ## [1.4.1] - 2022-01-05
 
@@ -52,14 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New PCI-DSS v3.2.1 Playbook support for 17 controls (see IG for details)
 - Library of remediation SSM Automation runbooks
 - NEWPLAYBOOK as a template for custom playbook creation
-  
+
 ### Changed
 - Updated to CDK v1.117.0
 - Reduced duplicate code
 - Updated CIS playbook to Orchestrator architecture
 - Single Orchestrator deployment to enable multi-standard remediation with a single click
 - Custom Actions now consolidated to one: "Remediate with SHARR"
-  
+
 ### Removed
 - AWS Service Catalog for Playbook deployment
 

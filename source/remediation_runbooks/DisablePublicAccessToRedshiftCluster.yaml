@@ -1,0 +1,77 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - SHARR-DisablePublicAccessToRedshiftCluster
+
+  ## What does this document do?
+  The runbook disables public accessibility for the Amazon Redshift cluster you specify using the [ModifyCluster]
+  (https://docs.aws.amazon.com/redshift/latest/APIReference/API_ModifyCluster.html) API.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * ClusterIdentifier: (Required) The unique identifier of the cluster you want to disable the public accessibility.
+
+  ## Output Parameters
+  * DisableRedshiftPubliclyAccessible.Response: The standard HTTP response from the ModifyCluster API call.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern:  '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  ClusterIdentifier:
+    type: String
+    description: (Required) The unique identifier of the cluster you want to disable the public accessibility.
+    allowedPattern: "^(?!.*--)[a-z][a-z0-9-]{0,62}(?<!-)$"
+
+outputs:
+  - DisableRedshiftPubliclyAccessible.Response
+mainSteps:
+  -
+    name: DisableRedshiftPubliclyAccessible
+    action: aws:executeAwsApi
+    description: |
+      ## DisableRedshiftPubliclyAccessible
+      Disables public accessibility for the cluster specified in the ClusterIdentifer parameter.
+      ## Outputs
+      * Response: The standard HTTP response from the ModifyCluster API call.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: redshift
+      Api: ModifyCluster
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+      PubliclyAccessible: false
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+  - name: WaitForRedshiftClusterAvailability
+    action: aws:waitForAwsResourceProperty
+    description: |
+      ## WaitForRedshiftClusterAvailability
+      Waits for the state of the cluster to change to available.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: redshift
+      Api: DescribeClusters
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+      PropertySelector: $.Clusters[0].ClusterStatus
+      DesiredValues:
+        - "available"
+  -
+    name: VerifyRedshiftPubliclyAccessible
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## VerifyRedshiftPubliclyAccessible
+      Confirms the public accessibility setting is disabled on the cluster.
+    inputs:
+      Service: redshift
+      Api: DescribeClusters
+      ClusterIdentifier: "{{ ClusterIdentifier }}"
+      PropertySelector: $.Clusters[0].PubliclyAccessible
+      DesiredValues:
+        - "False"

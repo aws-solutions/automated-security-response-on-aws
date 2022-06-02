@@ -35,6 +35,7 @@ function getMemberStack(): cdk.Stack {
     securityStandardLongName: 'aws-foundational-security-best-practices',
     securityStandardVersion: '1.0.0',
     ssmdocs: 'playbooks/AFSBP/ssmdocs',
+    commonScripts: 'playbooks/common',
     remediations: [ { "control": 'EC2.1'}, {"control": 'RDS.1'}, {"control":'Lambda.1'} ]
   })
   return stack;

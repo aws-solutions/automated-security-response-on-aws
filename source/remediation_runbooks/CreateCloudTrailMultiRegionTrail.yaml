@@ -19,7 +19,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   KMSKeyArn:
     type: String
     default: >-
@@ -51,7 +51,7 @@ mainSteps:
         account: '{{global:ACCOUNT_ID}}'
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'        
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: create_logging_bucket
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createloggingbucket.py%%
@@ -71,7 +71,7 @@ mainSteps:
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'
         logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: create_encrypted_bucket
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.py%%
@@ -86,7 +86,7 @@ mainSteps:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         partition: '{{AWSPartition}}'
         account: '{{global:ACCOUNT_ID}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: create_bucket_policy
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucketpolicy.py%%
@@ -103,7 +103,7 @@ mainSteps:
       InputPayload: 
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         kms_key_arn: '{{KMSKeyArn}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: enable_cloudtrail
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_enablecloudtrail.py%%
@@ -121,7 +121,7 @@ mainSteps:
       InputPayload:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: process_results
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_process_results.py%%

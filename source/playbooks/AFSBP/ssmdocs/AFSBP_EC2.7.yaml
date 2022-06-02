@@ -16,10 +16,14 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   Finding:
     type: StringMap
-    description: The input from Step function for RDS7 finding
+    description: The input from the Orchestrator Step function for the EC2.7 finding
+  RemediationRoleName:
+    type: String
+    default: "SO0111-EnableEbsEncryptionByDefault"
+    allowedPattern: '^[\w+=,.@-]+'
 
 outputs:
   - ExecRemediation.Output
@@ -42,13 +46,14 @@ mainSteps:
       InputPayload:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
-        expected_control_id: 'EC2.7'
-      Runtime: python3.7
+        expected_control_id:
+        - 'EC2.7'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=afsbp_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
-    
+
   -
     name: ExecRemediation
     action: 'aws:executeAutomation'
@@ -56,9 +61,9 @@ mainSteps:
     inputs:
       DocumentName: SHARR-EnableEbsEncryptionByDefault
       RuntimeParameters:
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableEbsEncryptionByDefault'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
 
-  - 
+  -
     name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:
