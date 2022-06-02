@@ -14,17 +14,17 @@ description: |
 
   ## Documentation Links
   * [CIS v1.2.0 2.5](https://docs.aws.amazon.com/console/securityhub/standards-cis-2.5/remediation)
-  
+
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   Finding:
     type: StringMap
-    description: The input from the Orchestrator Step function for finding
+    description: The input from the Orchestrator Step function for the 2.5 finding
   KMSKeyArn:
     type: String
     default: >-
@@ -53,14 +53,15 @@ mainSteps:
       InputPayload:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
-        expected_control_id: '2.5'
-      Runtime: python3.7
+        expected_control_id:
+        - '2.5'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
-  
-  - 
+
+  -
     name: Remediation
     action: 'aws:executeAutomation'
     isEnd: false
@@ -70,8 +71,8 @@ mainSteps:
         SNSTopicName: 'SO0111-SHARR-AWSConfigNotification'
         KMSKeyArn: '{{KMSKeyArn}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableAWSConfig'
-        
-  - 
+
+  -
     name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:

@@ -1,0 +1,80 @@
+description: |
+  ### Document Name - SHARR-PCI_3.2.1_EC2.5
+
+  ## What does this document do?
+  Removes public access to remove server administrative ports from an EC2 Security Group
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output - Output of AWS-DisablePublicAccessForSecurityGroup runbook.
+
+  ## Documentation Links
+  * [PCI v3.2.1 EC2.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-pci-controls.html#pcidss-ec2-5)
+
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for the PCI.EC2.5 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: GroupId
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-[0-9]):[0-9]{12}:security-group/(sg-[a-f0-9]{8,17})$'
+        expected_control_id: [ 'PCI.EC2.5' ]
+      Runtime: python3.8
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=common/parse_input.py%%
+    isEnd: false
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: AWS-DisablePublicAccessForSecurityGroup
+      RuntimeParameters:
+        GroupId: '{{ ParseInput.GroupId }}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DisablePublicAccessForSecurityGroup'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Disabled public access to administrative ports in the security group {{ ParseInput.GroupId }}.'
+        UpdatedBy: 'SHARR-PCI_3.2.1_EC2.5'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

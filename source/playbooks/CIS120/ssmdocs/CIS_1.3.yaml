@@ -7,28 +7,27 @@ description: |
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  
+
   ## Output Parameters
   * Remediation.Output - Output of DescribeAutoScalingGroups API.
 
   ## Documentation Links
   * [CIS v1.2.0 1.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.3)
-  
-  
+
+
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
   - ParseInput.AffectedObject
-  - Remediation.Output 
+  - Remediation.Output
 parameters:
   Finding:
     type: StringMap
-    description: The input from Step function for finding
+    description: The input from the Orchestrator Step function for the 1.3 finding
   AutomationAssumeRole:
     type: String
-    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
-    default: ''
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'
@@ -51,12 +50,13 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
-        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user/([A-Za-z0-9=,.@\_\-+]{1,64})$'
-        expected_control_id: '1.3'
-      Runtime: python3.7
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\u002F)|(?:\u002F[\u0021-\u007F]{1,510}\u002F))([\w+=,.@-]{1,64})$'
+        expected_control_id:
+        - '1.3'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
   - name: Remediation
     action: 'aws:executeAutomation'

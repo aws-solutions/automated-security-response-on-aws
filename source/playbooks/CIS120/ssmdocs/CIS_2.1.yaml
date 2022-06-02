@@ -4,7 +4,7 @@ description: |
   ## What does this document do?
   Creates a multi-region trail with KMS encryption and enables CloudTrail
   Note: this remediation will create a NEW trail.
-  
+
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
@@ -18,10 +18,10 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   Finding:
     type: StringMap
-    description: The input from Step function for the finding  
+    description: The input from the Orchestrator Step function for the 2.1 finding
   KMSKeyArn:
     type: String
     default: >-
@@ -55,11 +55,12 @@ mainSteps:
       InputPayload:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
-        expected_control_id: '2.1'
-      Runtime: python3.7
+        expected_control_id:
+        - '2.1'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
 
     isEnd: false
 

@@ -1,0 +1,125 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - SHARR-EnableAutomaticSnapshotsOnRedshiftCluster
+
+  ## What does this document do?
+  The runbook enables automatic snapshots on a Redshift cluster.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * ClusterIdentifier: (Required) The unique identifier of the cluster.
+  * RetentionPeriod: (Optional) The minimum retention period for the automatic snapshots in days.
+
+  ## Output Parameters
+  * QueryRetentionPeriod.CurrentRetentionPeriod: The retention period of the cluster in days at the start of the automation.
+  * ModifyRetentionPeriod.Response: The response of the API call to modify the retention period of the cluster.
+assumeRole: '{{AutomationAssumeRole}}'
+parameters:
+  AutomationAssumeRole:
+    type: 'String'
+    description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    allowedPattern:  '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  ClusterIdentifier:
+    type: 'String'
+    description: '(Required) The unique identifier of the cluster.'
+    allowedPattern: '^(?!.*--)[a-z][a-z0-9-]{0,62}(?<!-)$'
+  MinRetentionPeriod:
+    type: 'Integer'
+    description: (Optional) The minimum retention period for the automatic snapshots in days.
+    default: 7
+outputs:
+- 'QueryRetentionPeriod.CurrentRetentionPeriod'
+- 'ModifyRetentionPeriod.Response'
+mainSteps:
+- name: 'QueryRetentionPeriod'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'redshift'
+    Api: 'DescribeClusters'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+  outputs:
+  - Name: 'CurrentRetentionPeriod'
+    Selector: '$.Clusters[0].AutomatedSnapshotRetentionPeriod'
+    Type: Integer
+- name: 'ChooseModifyRetentionPeriod'
+  action: 'aws:branch'
+  inputs:
+    Choices:
+    - NextStep: 'CastCurrentRetentionPeriodToString'
+      Variable: '{{QueryRetentionPeriod.CurrentRetentionPeriod}}'
+      NumericGreaterOrEquals: '{{MinRetentionPeriod}}'
+    Default: 'ModifyRetentionPeriod'
+
+- name: 'CastCurrentRetentionPeriodToString'
+  action: 'aws:executeScript'
+  inputs:
+    Runtime: 'python3.8'
+    Handler: 'event_handler'
+    InputPayload:
+      RetentionPeriod: '{{QueryRetentionPeriod.CurrentRetentionPeriod}}'
+    Script: >
+      def event_handler(event, context):
+          return str(event['RetentionPeriod'])
+  outputs:
+  - Name: 'CurrentRetentionPeriodString'
+    Selector: '$.Payload'
+    Type: 'String'
+- name: 'VerifyCurrentRetentionPeriod'
+  action: 'aws:assertAwsResourceProperty'
+  inputs:
+    Service: 'redshift'
+    Api: 'DescribeClusters'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    PropertySelector: '$.Clusters[0].AutomatedSnapshotRetentionPeriod'
+    DesiredValues:
+    - '{{CastCurrentRetentionPeriodToString.CurrentRetentionPeriodString}}'
+  isEnd: true
+
+- name: 'ModifyRetentionPeriod'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'redshift'
+    Api: 'ModifyCluster'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    AutomatedSnapshotRetentionPeriod: '{{MinRetentionPeriod}}'
+  outputs:
+  - Name: 'Response'
+    Selector: '$'
+    Type: 'StringMap'
+- name: 'WaitForClusterAvailability'
+  action: 'aws:waitForAwsResourceProperty'
+  timeoutSeconds: 600
+  inputs:
+    Service: 'redshift'
+    Api: 'DescribeClusters'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    PropertySelector: '$.Clusters[0].ClusterStatus'
+    DesiredValues:
+    - 'available'
+- name: 'CastRetentionPeriodToString'
+  action: 'aws:executeScript'
+  inputs:
+    Runtime: 'python3.8'
+    Handler: 'event_handler'
+    InputPayload:
+      RetentionPeriod: '{{MinRetentionPeriod}}'
+    Script: >
+      def event_handler(event, context):
+          return str(event['RetentionPeriod'])
+  outputs:
+  - Name: 'MinRetentionPeriodString'
+    Selector: '$.Payload'
+    Type: 'String'
+- name: 'VerifyModifiedRetentionPeriod'
+  action: 'aws:assertAwsResourceProperty'
+  inputs:
+    Service: 'redshift'
+    Api: 'DescribeClusters'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    PropertySelector: '$.Clusters[0].AutomatedSnapshotRetentionPeriod'
+    DesiredValues:
+    - '{{CastRetentionPeriodToString.MinRetentionPeriodString}}'
+  isEnd: true

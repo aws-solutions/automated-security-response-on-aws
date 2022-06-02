@@ -29,7 +29,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RestrictPublicBuckets:
     type: Boolean
     description: (Optional) Specifies whether Amazon S3 should restrict public bucket policies for buckets in this account. Setting this element to TRUE restricts access to buckets with public policies to only AWS services and authorized users within this account.
@@ -49,7 +49,7 @@ parameters:
 outputs:
   - GetPublicAccessBlock.Output
 mainSteps:
-  - 
+  -
     name: PutAccountPublicAccessBlock
     action: "aws:executeAwsApi"
     description: |
@@ -70,7 +70,7 @@ mainSteps:
       - Name: PutAccountPublicAccessBlockResponse
         Selector: $
         Type: StringMap
-  - 
+  -
     name: GetPublicAccessBlock
     action: "aws:executeScript"
     description: |
@@ -81,7 +81,7 @@ mainSteps:
     timeoutSeconds: 600
     isEnd: true
     inputs:
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: handler
       InputPayload:
         AccountId: "{{ AccountId }}"

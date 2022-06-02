@@ -14,7 +14,10 @@
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
 
-import * as cdk from '@aws-cdk/core';
+import {
+    Stack,
+    Construct,
+    ArnFormat } from '@aws-cdk/core';
 import { 
     PolicyStatement, 
     Effect, 
@@ -32,11 +35,11 @@ export interface OrchRoleProps {
     adminRoleName: string;
 }
 
-export class OrchestratorMemberRole extends cdk.Construct {
-  constructor(scope: cdk.Construct, id: string, props: OrchRoleProps) {
+export class OrchestratorMemberRole extends Construct {
+  constructor(scope: Construct, id: string, props: OrchRoleProps) {
     super(scope, id);
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
-    const stack = cdk.Stack.of(this);
+    const stack = Stack.of(this);
     const memberPolicy = new PolicyDocument();
 
     /**
@@ -53,40 +56,25 @@ export class OrchestratorMemberRole extends cdk.Construct {
         `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-*`
     );
     memberPolicy.addStatements(iamPerms)
-    const ssmROPerms = new PolicyStatement()
-    ssmROPerms.addActions(
-        "ssm:DescribeAutomationExecutions",
-        "ssm:DescribeDocument",
-        "ssm:GetParameters"
-    )
-    ssmROPerms.effect = Effect.ALLOW;
-    ssmROPerms.addResources(
-        "arn:" + stack.partition + ":ssm:*:*:*"
-    )
-    memberPolicy.addStatements(ssmROPerms)
 
     const ssmRWPerms = new PolicyStatement()
     ssmRWPerms.addActions(
-        "ssm:StartAutomationExecution",
-        "ssm:GetAutomationExecution"
+        "ssm:StartAutomationExecution"
     )
     ssmRWPerms.addResources(
-        // `arn:${stack.partition}:ssm:*:${stack.account}:document/SHARR-*`,
-        // `arn:${stack.partition}:ssm:*:${stack.account}:automation-definition/*`,
-        // `arn:${stack.partition}:ssm:*:${stack.account}:document/SHARR-*`,
         stack.formatArn({
             service: 'ssm',
             region: '*',
             resource: 'document',
             resourceName: 'SHARR-*',
-            sep: '/'
+            arnFormat: ArnFormat.SLASH_RESOURCE_NAME
         }),
         stack.formatArn({
             service: 'ssm',
             region: '*',
             resource: 'automation-definition',
             resourceName: '*',
-            sep: '/'
+            arnFormat: ArnFormat.SLASH_RESOURCE_NAME
         }),
         stack.formatArn({
             service: 'ssm',
@@ -94,17 +82,51 @@ export class OrchestratorMemberRole extends cdk.Construct {
             resource: 'automation-definition',
             account:'',
             resourceName: '*',
-            sep: '/'
+            arnFormat: ArnFormat.SLASH_RESOURCE_NAME
         }),
         stack.formatArn({
             service: 'ssm',
             region: '*',
             resource: 'automation-execution',
             resourceName: '*',
-            sep: '/'
+            arnFormat: ArnFormat.SLASH_RESOURCE_NAME
         })
     );
     memberPolicy.addStatements(ssmRWPerms)
+
+    memberPolicy.addStatements(
+        // The actions in your policy do not support resource-level permissions and require you to choose All resources
+        new PolicyStatement({
+            actions: [
+                'ssm:DescribeAutomationExecutions',
+                'ssm:GetAutomationExecution'
+            ],
+            resources: [ '*' ],
+            effect: Effect.ALLOW
+        }),
+        new PolicyStatement({
+            actions: [
+                'ssm:DescribeDocument'
+            ],
+            resources: [ `arn:${stack.partition}:ssm:*:*:document/*` ],
+            effect: Effect.ALLOW
+        }),
+        new PolicyStatement({
+            actions: [
+                'ssm:GetParameters',
+                'ssm:GetParameter'
+            ],
+            resources: [ `arn:${stack.partition}:ssm:*:*:parameter/Solutions/SO0111/*` ],
+            effect: Effect.ALLOW
+        }),
+        new PolicyStatement({
+            actions: [
+                "config:DescribeConfigRules"
+            ],
+            resources: [ "*" ],
+            effect: Effect.ALLOW
+        })
+    )
 
     const sechubPerms = new PolicyStatement();
     sechubPerms.addActions("cloudwatch:PutMetricData")

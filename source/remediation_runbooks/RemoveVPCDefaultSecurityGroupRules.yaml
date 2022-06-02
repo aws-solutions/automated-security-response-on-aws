@@ -21,7 +21,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 
 outputs:
   - RemoveRulesAndVerify.Output
@@ -59,7 +59,7 @@ mainSteps:
       ## Outputs
       * Output: Success message or failure exception.
     inputs:
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: handler
       InputPayload:
         GroupId: "{{ GroupId }}"

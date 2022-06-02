@@ -17,6 +17,8 @@ import { expect as expectCDK, matchTemplate, MatchStyle, SynthUtils } from '@aws
 import * as cdk from '@aws-cdk/core';
 import * as lambda from '@aws-cdk/aws-lambda';
 import * as SolutionDeploy from '../solution_deploy/lib/solution_deploy-stack';
+import { AwsSolutionsChecks } from 'cdk-nag'
+import { Aspects } from '@aws-cdk/core'
 
 function getTestStack(): cdk.Stack {
   const envEU = { account: '111111111111', region: 'eu-west-1' };
@@ -30,8 +32,9 @@ function getTestStack(): cdk.Stack {
     solutionName: 'AWS Security Hub Automated Response & Remediation',
     runtimePython: lambda.Runtime.PYTHON_3_8,
     orchLogGroup: 'ORCH_LOG_GROUP'
-
+    
   })
+  Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
   return stack;
 }
 

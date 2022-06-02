@@ -2,6 +2,16 @@
 
 exports[`default stack 1`] = `
 Object {
+  "Conditions": Object {
+    "EnableS3BucketForRedShift4": Object {
+      "Fn::Equals": Array [
+        Object {
+          "Ref": "CreateS3BucketForRedshiftAuditLogging",
+        },
+        "yes",
+      ],
+    },
+  },
   "Description": "test;",
   "Mappings": Object {
     "SourceCode": Object {
@@ -37,6 +47,15 @@ Object {
     },
   },
   "Parameters": Object {
+    "CreateS3BucketForRedshiftAuditLogging": Object {
+      "AllowedValues": Array [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Create S3 Bucket For Redshift Cluster Audit Logging.",
+      "Type": "String",
+    },
     "LogGroupName": Object {
       "Description": "Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail",
       "Type": "String",
@@ -48,7 +67,174 @@ Object {
     },
   },
   "Resources": Object {
+    "RunbookProviderFunction82CD9D9B": Object {
+      "DependsOn": Array [
+        "RunbookProviderRoleBC4E91CA",
+      ],
+      "Metadata": Object {
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            Object {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Code": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/lambda/updatableRunbookProvider.py.zip",
+        },
+        "Description": "Custom resource to manage versioned SSM documents",
+        "Environment": Object {
+          "Variables": Object {
+            "LOG_LEVEL": "info",
+            "SOLUTION_ID": "AwsSolution/SO0111/v1.1.1",
+          },
+        },
+        "FunctionName": "SO0111-SHARR-updatableRunbookProvider",
+        "Handler": "updatableRunbookProvider.lambda_handler",
+        "Layers": Array [
+          Object {
+            "Ref": "RunbookProviderMemberLambdaLayerF3BD824A",
+          },
+        ],
+        "MemorySize": 256,
+        "ReservedConcurrentExecutions": 1,
+        "Role": Object {
+          "Fn::GetAtt": Array [
+            "RunbookProviderRoleBC4E91CA",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.8",
+        "Timeout": 600,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "RunbookProviderMemberLambdaLayerF3BD824A": Object {
+      "Properties": Object {
+        "CompatibleRuntimes": Array [
+          "python3.8",
+        ],
+        "Content": Object {
+          "S3Bucket": Object {
+            "Fn::Join": Array [
+              "",
+              Array [
+                "sharrbukkit-",
+                Object {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.1.1/lambda/memberLayer.zip",
+        },
+        "Description": "SO0111 SHARR Common functions used by the solution member stack",
+        "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "RunbookProviderPolicy12B46DCD": Object {
+      "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Resource * is required in order to manage arbitrary SSM documents",
+            },
+          ],
+        },
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W12",
+              "reason": "Resource * is required in order to manage arbitrary SSM documents",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "cloudwatch:PutMetricData",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": Array [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            Object {
+              "Action": Array [
+                "ssm:CreateDocument",
+                "ssm:UpdateDocument",
+                "ssm:UpdateDocumentDefaultVersion",
+                "ssm:ListDocumentVersions",
+                "ssm:DeleteDocument",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SO0111-SHARR_Runbook_Provider_Policy",
+        "Roles": Array [
+          Object {
+            "Ref": "RunbookProviderRoleBC4E91CA",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "RunbookProviderRoleBC4E91CA": Object {
+      "Properties": Object {
+        "AssumeRolePolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role to allow creation of updatable SSM documents",
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "RunbookStackNoRoles": Object {
+      "DependsOn": Array [
+        "RunbookProviderFunction82CD9D9B",
+        "RunbookProviderMemberLambdaLayerF3BD824A",
+        "RunbookProviderPolicy12B46DCD",
+        "RunbookProviderRoleBC4E91CA",
+      ],
       "Properties": Object {
         "TemplateURL": Object {
           "Fn::Join": Array [
@@ -77,6 +263,109 @@ Object {
       },
       "Type": "AWS::CloudFormation::Stack",
     },
+    "S3BucketForRedShiftAuditLogging652E7355": Object {
+      "Condition": "EnableS3BucketForRedShift4",
+      "DeletionPolicy": "Retain",
+      "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-S1",
+              "reason": "Logs bucket does not require logging configuration",
+            },
+            Object {
+              "id": "AwsSolutions-S10",
+              "reason": "Secure transport requirement is redundant for this use case",
+            },
+          ],
+        },
+        "cfn_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "W35",
+              "reason": "Logs bucket does not require logging configuration",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "BucketEncryption": Object {
+          "ServerSideEncryptionConfiguration": Array [
+            Object {
+              "ServerSideEncryptionByDefault": Object {
+                "SSEAlgorithm": "AES256",
+              },
+            },
+          ],
+        },
+        "PublicAccessBlockConfiguration": Object {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "S3BucketForRedShiftAuditLoggingBucketPolicyAB8BAA40": Object {
+      "Condition": "EnableS3BucketForRedShift4",
+      "DeletionPolicy": "Retain",
+      "DependsOn": Array [
+        "S3BucketForRedShiftAuditLogging652E7355",
+      ],
+      "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-S10",
+              "reason": "Secure transport requirement is redundant for this use case",
+            },
+          ],
+        },
+      },
+      "Properties": Object {
+        "Bucket": Object {
+          "Ref": "S3BucketForRedShiftAuditLogging652E7355",
+        },
+        "PolicyDocument": Object {
+          "Statement": Array [
+            Object {
+              "Action": Array [
+                "s3:GetBucketAcl",
+                "s3:PutObject",
+              ],
+              "Effect": "Allow",
+              "Principal": Object {
+                "Service": "redshift.amazonaws.com",
+              },
+              "Resource": Array [
+                Object {
+                  "Fn::GetAtt": Array [
+                    "S3BucketForRedShiftAuditLogging652E7355",
+                    "Arn",
+                  ],
+                },
+                Object {
+                  "Fn::Sub": Array [
+                    "arn:\${AWS::Partition}:s3:::\${BucketName}/*",
+                    Object {
+                      "BucketName": Object {
+                        "Ref": "S3BucketForRedShiftAuditLogging652E7355",
+                      },
+                    },
+                  ],
+                },
+              ],
+              "Sid": "Put bucket policy needed for audit logging",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+      "UpdateReplacePolicy": "Retain",
+    },
     "SHARRKeyAliasEBF509D8": Object {
       "Properties": Object {
         "Description": "KMS Customer Managed Key that will encrypt data for remediations",
@@ -88,6 +377,15 @@ Object {
             "Arn",
           ],
         },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SHARRMemberVersionEDAB5C42": Object {
+      "Properties": Object {
+        "Description": "Version of the AWS Security Hub Automated Response and Remediation solution",
+        "Name": "/Solutions/SO0111/member-version",
+        "Type": "String",
+        "Value": "v1.1.1",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -198,6 +496,30 @@ Object {
       },
       "Type": "AWS::KMS::Key",
       "UpdateReplacePolicy": "Retain",
+    },
+    "SSMParameterForS34EncryptionKeyAlias73DD8A98": Object {
+      "Properties": Object {
+        "Description": "Parameter to store encryption key alias for the PCI.S3.4/AFSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.",
+        "Name": "/Solutions/SO0111/afsbp/1.0.0/S3.4/KmsKeyAlias",
+        "Type": "String",
+        "Value": "default-s3-encryption",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SSMParameterForS3BucketNameForREDSHIFT441DD36B1": Object {
+      "Condition": "EnableS3BucketForRedShift4",
+      "DependsOn": Array [
+        "S3BucketForRedShiftAuditLogging652E7355",
+      ],
+      "Properties": Object {
+        "Description": "Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.",
+        "Name": "/Solutions/SO0111/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging",
+        "Type": "String",
+        "Value": Object {
+          "Ref": "S3BucketForRedShiftAuditLogging652E7355",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
     },
     "SSMParameterLogGroupName47918519": Object {
       "Properties": Object {

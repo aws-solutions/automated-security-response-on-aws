@@ -1,0 +1,93 @@
+
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableMinorVersionUpgradeOnRDSDBInstance
+
+  ## What does this document do?
+  This document enables AutoMinorVersionUpgrade on the Amazon Relational Database Service (Amazon RDS) instance using the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.
+
+  ## Input parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * DbiResourceId: (Required) Resource ID of the Amazon RDS instance to be modified.
+
+  ## Output parameters
+  * ModifyDBInstance.Output: The standard HTTP response from the ModifyDBInstance API.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  DbiResourceId:
+    type: String
+    description: (Required) Resource ID of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.
+    allowedPattern: "^db-[A-Z0-9]{26}$"
+outputs:
+  - ModifyDBInstance.Output
+mainSteps:
+  - name: GetRDSInstanceIdentifier
+    action: "aws:executeAwsApi"
+    description: |
+      ## GetRDSInstanceIdentifier
+      Makes DescribeDBInstances API call using the database instance resource identifier to get DBInstanceIdentifier.
+      ## Outputs
+      * DBInstanceIdentifier: DBInstance identifier of the Amazon RDS instance.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      Filters:
+        - Name: dbi-resource-id
+          Values:
+            - "{{ DbiResourceId }}"
+    outputs:
+      - Name: DBInstanceIdentifier
+        Selector: "$.DBInstances[0].DBInstanceIdentifier"
+        Type: String
+  - name: VerifyDBInstanceStatus
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: false
+    description: |
+      ## VerifyDBInstanceStatus
+      Verifies whether AWS RDS DBInstance status is available before enabling AutoMiniorVersionUpgrade.
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}"
+      PropertySelector: "$.DBInstances[0].DBInstanceStatus"
+      DesiredValues:
+        - "available"
+  - name: ModifyDBInstance
+    action: "aws:executeAwsApi"
+    description: |
+      ## ModifyDBInstance
+      Makes ModifyDBInstance API call to enable AutoMinorVersionUpgrade on the Amazon RDS instance using the DBInstanceIdentifier.
+      ## Outputs
+      * Output: The standard HTTP response from the ModifyDBInstance API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: ModifyDBInstance
+      DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}"
+      AutoMinorVersionUpgrade: true
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+  - name: VerifyDBInstanceState
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## VerifyDBInstanceState
+      Verifies the Amazon RDS Instance's "AutoMinorVersionUpgrade" property is set to "True".
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}"
+      PropertySelector: "$.DBInstances[0].AutoMinorVersionUpgrade"
+      DesiredValues:
+        - "True"

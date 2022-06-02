@@ -23,7 +23,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[a-zA-Z0-9+=,.@_/-]+$
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   ResourceId:
     type: String
     description: (Required) Resource ID of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.
@@ -115,7 +115,7 @@ mainSteps:
     isEnd: true
     timeoutSeconds: 600
     inputs:
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: handler
       InputPayload:
         MonitoringInterval: "{{ MonitoringInterval }}"

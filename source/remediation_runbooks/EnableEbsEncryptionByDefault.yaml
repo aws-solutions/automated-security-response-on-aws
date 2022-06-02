@@ -11,14 +11,12 @@ description: |
    ## Output Parameters
    * ModifyAccount.EnableEbsEncryptionByDefaultResponse: JSON formatted response from the EnableEbsEncryptionByDefault API.
 
-  ## Note: this is a local copy of the AWS-owned document to enable support in aws-cn and aws-us-gov partitions.
-
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 outputs:
   - ModifyAccount.EnableEbsEncryptionByDefaultResponse
 mainSteps:

@@ -21,18 +21,18 @@ description: |
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
-  DBSnapshotId: 
+  DBSnapshotId:
     type: String
     allowedPattern: ^[a-zA-Z](?:[0-9a-zA-Z]+[-]{1})*[0-9a-zA-Z]{1,}$
-  DBSnapshotType: 
+  DBSnapshotType:
     type: String
     allowedValues:
     - cluster-snapshot
     - snapshot
   AutomationAssumeRole:
     type: String
-    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 
 outputs:
   -  MakeRDSSnapshotPrivate.Output
@@ -47,7 +47,7 @@ mainSteps:
       InputPayload:
         DBSnapshotType: '{{DBSnapshotType}}'
         DBSnapshotId: '{{DBSnapshotId}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: make_snapshot_private
       Script: |-
         %%SCRIPT=MakeRDSSnapshotPrivate.py%%

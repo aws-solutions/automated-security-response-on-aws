@@ -4,13 +4,13 @@ description: |
 
   ## What does this document do?
   This document removes the public resource policy. A public resource policy
-  contains a principal "*" or AWS: "*", which allows public access to the 
+  contains a principal "*" or AWS: "*", which allows public access to the
   function. The remediation is to remove the SID of the public policy.
 
   ## Input Parameters
   * FunctionName: name of the AWS Lambda function that has open access policies
   * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
-  
+
   ## Output Parameters
 
   * RemoveLambdaPublicAccess.Output - stdout messages from the remediation
@@ -22,13 +22,13 @@ description: |
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
-  FunctionName: 
+  FunctionName:
     type: String
     allowedPattern: ^[a-zA-Z0-9\-_]{1,64}$
   AutomationAssumeRole:
     type: String
-    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 
 outputs:
   -  RemoveLambdaPublicAccess.Output
@@ -42,7 +42,7 @@ mainSteps:
     inputs:
       InputPayload:
         FunctionName: '{{FunctionName}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: remove_lambda_public_access
       Script: |-
         %%SCRIPT=RemoveLambdaPublicAccess.py%%

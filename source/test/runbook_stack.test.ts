@@ -13,13 +13,15 @@
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
 
-import { expect as expectCDK, matchTemplate, SynthUtils } from '@aws-cdk/assert';
+import { SynthUtils } from '@aws-cdk/assert';
 import * as cdk from '@aws-cdk/core';
 import { MemberRoleStack, RemediationRunbookStack } from '../solution_deploy/lib/remediation_runbook-stack';
+import { AwsSolutionsChecks } from 'cdk-nag'
+import { Aspects } from '@aws-cdk/core'
 
 const app = new cdk.App();
 
-function getRoleTestStack(): cdk.Stack {
+function getRoleTestStack(): MemberRoleStack {
   const app = new cdk.App();
   const stack = new MemberRoleStack(app, 'roles', {
     description: 'test;',
@@ -43,6 +45,7 @@ function getSsmTestStack(): cdk.Stack {
     ssmdocs: 'remediation_runbooks',
     roleStack: getRoleTestStack()
   })
+  Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
   return stack;
 }
 

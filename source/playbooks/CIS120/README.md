@@ -3,6 +3,7 @@
 The Center for Internet Security AWS Foundations Benchmark v1.2.0 (CIS) playbook is part of the AWS Security Hub Automated Response and Remediation solution. It creates the necessary AWS resources for remediating the following Controls:
 
 * 1.3
+* 1.4
 * 1.5
 * 1.6
 * 1.7
