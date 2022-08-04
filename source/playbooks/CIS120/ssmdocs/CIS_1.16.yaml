@@ -56,10 +56,10 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
         expected_control_id: '1.16'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
   - name: Remediation
     action: 'aws:executeAutomation'
