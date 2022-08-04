@@ -21,14 +21,15 @@ import * as yaml from 'js-yaml';
 import * as sfn from '@aws-cdk/aws-stepfunctions';
 import * as events from '@aws-cdk/aws-events';
 import {
-    Effect, 
-    PolicyStatement, 
-    ServicePrincipal, 
-    Policy, 
-    Role, 
+    Effect,
+    PolicyStatement,
+    ServicePrincipal,
+    Policy,
+    Role,
     CfnRole,
     ArnPrincipal,
-    CompositePrincipal
+    CompositePrincipal,
+    AccountPrincipal
 } from '@aws-cdk/aws-iam';
 import { StateMachine } from '@aws-cdk/aws-stepfunctions';
 import { IRuleTarget, EventPattern, Rule } from '@aws-cdk/aws-events';
@@ -41,25 +42,26 @@ import { MemberRoleStack } from '../solution_deploy/lib/remediation_runbook-stac
  */
 
 export interface IssmPlaybookProps {
-    securityStandard: string;     // ex. AFSBP
-    securityStandardVersion: string;
-    controlId: string;
-    ssmDocPath: string;
-    ssmDocFileName: string;
-    solutionVersion: string;
-    solutionDistBucket: string;
-    adminRoleName?: string;
-    remediationPolicy?: Policy;
-    adminAccountNumber?: string;
-    solutionId?: string;
-    scriptPath?: string;
+  securityStandard: string; // ex. AFSBP
+  securityStandardVersion: string;
+  controlId: string;
+  ssmDocPath: string;
+  ssmDocFileName: string;
+  solutionVersion: string;
+  solutionDistBucket: string;
+  adminRoleName?: string;
+  remediationPolicy?: Policy;
+  adminAccountNumber?: string;
+  solutionId: string;
+  scriptPath?: string;
+  commonScripts?: string;
 }
 
 export class SsmPlaybook extends cdk.Construct {
-    
+
   constructor(scope: cdk.Construct, id: string, props: IssmPlaybookProps) {
     super(scope, id);
-    
+
     let scriptPath = ''
     if (props.scriptPath == undefined ) {
         scriptPath = `${props.ssmDocPath}/scripts`
@@ -67,7 +69,12 @@ export class SsmPlaybook extends cdk.Construct {
         scriptPath = props.scriptPath
     }
 
-    let illegalChars = /[\.]/g;
+    let commonScripts = ''
+    if (props.commonScripts == undefined ) {
+        commonScripts = '../common'
+    } else {
+        commonScripts = props.commonScripts
+    }
 
     const enableParam = new cdk.CfnParameter(this, 'Enable ' + props.controlId, {
         type: "String",
@@ -75,7 +82,6 @@ export class SsmPlaybook extends cdk.Construct {
         default: "Available",
         allowedValues: ["Available", "NOT Available"]
     })
-    enableParam.overrideLogicalId(`${props.securityStandard}${props.controlId.replace(illegalChars, '')}Active`)
 
     const installSsmDoc = new cdk.CfnCondition(this, 'Enable ' + props.controlId + ' Condition', {
         expression: cdk.Fn.conditionEquals(enableParam, "Available")
@@ -83,7 +89,7 @@ export class SsmPlaybook extends cdk.Construct {
 
     let ssmDocName = `SHARR-${props.securityStandard}_${props.securityStandardVersion}_${props.controlId}`
     let ssmDocFQFileName = `${props.ssmDocPath}/${props.ssmDocFileName}`
-    let ssmDocType = props.ssmDocFileName.substr(props.ssmDocFileName.length - 4).toLowerCase()
+    let ssmDocType = props.ssmDocFileName.substring(props.ssmDocFileName.length - 4).toLowerCase()
 
     let ssmDocIn = fs.readFileSync(ssmDocFQFileName, 'utf8')
 
@@ -93,7 +99,14 @@ export class SsmPlaybook extends cdk.Construct {
     for (let line of ssmDocIn.split('\n')) {
         let foundMatch = re.exec(line)
         if (foundMatch && foundMatch.groups && foundMatch.groups.script) {
-            let scriptIn = fs.readFileSync(`${scriptPath}/${foundMatch.groups.script}`, 'utf8')
+            let pathAndFileToInsert = foundMatch.groups.script
+            // If a relative path is provided then use it
+            if (pathAndFileToInsert.substring(0,7) === 'common/') {
+                pathAndFileToInsert = `${commonScripts}/${pathAndFileToInsert.substring(7)}`
+            } else {
+                pathAndFileToInsert = `${scriptPath}/${pathAndFileToInsert}`
+            }
+            let scriptIn = fs.readFileSync(pathAndFileToInsert, 'utf8')
             for (let scriptLine of scriptIn.split('\n')) {
                 ssmDocOut += foundMatch.groups.padding + scriptLine + '\n'
             }
@@ -112,7 +125,8 @@ export class SsmPlaybook extends cdk.Construct {
     const AutoDoc = new ssm.CfnDocument(this, 'Automation Document', {
         content: ssmDocSource,
         documentType: 'Automation',
-        name: ssmDocName
+        name: ssmDocName,
+        versionName: props.solutionVersion
     })
     AutoDoc.cfnOptions.condition = installSsmDoc
   }
@@ -132,7 +146,7 @@ export interface ITriggerProps {
 }
 
 export class Trigger extends cdk.Construct {
-    
+
   constructor(scope: cdk.Construct, id: string, props: ITriggerProps) {
     super(scope, id);
     let illegalChars = /[\.]/g;
@@ -153,6 +167,9 @@ export class Trigger extends cdk.Construct {
     let complianceStatusFilter = {
         "Status": [ "FAILED", "WARNING" ]
     }
+    const recordStateFilter: string[] = [
+        'ACTIVE'
+    ];
 
     const stateMachine = sfn.StateMachine.fromStateMachineArn(this, 'orchestrator', props.targetArn);
 
@@ -181,7 +198,7 @@ export class Trigger extends cdk.Construct {
     });
 
     enable_auto_remediation_param.overrideLogicalId(`${props.securityStandard}${props.controlId.replace(illegalChars, '')}AutoTrigger`)
-    
+
     interface IPattern {
         source: any,
         detailType: any
@@ -195,13 +212,14 @@ export class Trigger extends cdk.Construct {
                 // GeneratorId includes both standard and control/rule ID
                 GeneratorId: [props.generatorId],
                 Workflow: workflowStatusFilter,
-                Compliance: complianceStatusFilter
+                Compliance: complianceStatusFilter,
+                RecordState: recordStateFilter
             }
         }
     }
 
     let triggerPattern: events.EventPattern = eventPattern
-    
+
     // Adding an automated even rule for the playbook
     const eventRule_auto = new events.Rule(this, 'AutoEventRule', {
         description: description + ' automatic remediation trigger event rule.',
@@ -209,7 +227,7 @@ export class Trigger extends cdk.Construct {
         targets: [stateMachineTarget],
         eventPattern: triggerPattern
     });
-    
+
     const cfnEventRule_auto = eventRule_auto.node.defaultChild as events.CfnRule;
     cfnEventRule_auto.addPropertyOverride('State', enable_auto_remediation_param.valueAsString);
   }
@@ -222,7 +240,7 @@ export interface IOneTriggerProps {
     prereq: cdk.CfnResource[];
 }
 export class OneTrigger extends cdk.Construct {
-// used in place of Trigger. Sends all finding events for which the 
+// used in place of Trigger. Sends all finding events for which the
 // SHARR custom action is initiated to the Step Function
 
   constructor(scope: cdk.Construct, id: string, props: IOneTriggerProps) {
@@ -284,7 +302,7 @@ export class OneTrigger extends cdk.Construct {
         detailType: ["Security Hub Findings - Custom Action"],
         resources: [ customAction.getAttString('Arn') ],
         detail: {
-            findings: { 
+            findings: {
                 Compliance: complianceStatusFilter
             }
         }
@@ -305,39 +323,71 @@ export interface RoleProps {
     readonly ssmDocName: string;
     readonly remediationPolicy: Policy;
     readonly remediationRoleName: string;
-}
+};
 
 export class SsmRole extends cdk.Construct {
 
   constructor(scope: cdk.Construct, id: string, props: RoleProps) {
     super(scope, id);
     const stack = cdk.Stack.of(this)
-    const roleStack = MemberRoleStack.of(this)
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
-    const adminRoleName = `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin`
+    const roleStack = MemberRoleStack.of(this) as MemberRoleStack;
     const basePolicy = new Policy(this, 'SHARR-Member-Base-Policy')
     const adminAccount = roleStack.node.findChild('AdminAccountParameter').node.findChild('Admin Account Number') as cdk.CfnParameter;
 
-    const ssmParmPerms = new PolicyStatement();
-    ssmParmPerms.addActions(
-        "ssm:GetParameters",
-        "ssm:GetParameter",
-        "ssm:PutParameter"
+    basePolicy.addStatements(
+        new PolicyStatement({
+            actions: [
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+                "ssm:PutParameter"
+            ],
+            resources: [
+                `arn:${stack.partition}:ssm:*:${stack.account}:parameter/Solutions/SO0111/*`
+            ],
+            effect: Effect.ALLOW
+        }),
+        new PolicyStatement({
+            actions: [
+                "iam:PassRole"
+            ],
+            resources: [
+                `arn:${stack.partition}:iam::${stack.account}:role/${props.remediationRoleName}`
+            ],
+            effect: Effect.ALLOW
+        }),
+        new PolicyStatement({
+            actions: [
+                "ssm:StartAutomationExecution",
+                "ssm:GetAutomationExecution",
+                "ssm:DescribeAutomationStepExecutions"
+            ],
+            resources: [
+                `arn:${stack.partition}:ssm:*:${stack.account}:document/Solutions/SHARR-${props.remediationRoleName}`,
+                `arn:${stack.partition}:ssm:*:${stack.account}:automation-definition/*`,
+                `arn:${stack.partition}:ssm:*::automation-definition/*`,
+                `arn:${stack.partition}:ssm:*:${stack.account}:automation-execution/*`
+            ],
+            effect: Effect.ALLOW
+        }),
+        new PolicyStatement({
+            actions: [
+                "sts:AssumeRole"
+            ],
+            resources: [
+                `arn:${stack.partition}:iam::${stack.account}:role/${props.remediationRoleName}`
+            ],
+            effect: Effect.ALLOW
+        })
     )
-    ssmParmPerms.effect = Effect.ALLOW
-    ssmParmPerms.addResources(
-        `arn:${stack.partition}:ssm:*:${stack.account}:parameter/Solutions/SO0111/*`
-    );
-    basePolicy.addStatements(ssmParmPerms)
 
     // AssumeRole Policy
     let principalPolicyStatement = new PolicyStatement();
     principalPolicyStatement.addActions("sts:AssumeRole");
     principalPolicyStatement.effect = Effect.ALLOW;
 
+    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,'');
     let roleprincipal = new ArnPrincipal(
-        'arn:' + stack.partition + ':iam::' + adminAccount.valueAsString +
-        ':role/' + adminRoleName
+        `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`
     );
 
     let principals = new CompositePrincipal(roleprincipal);
@@ -345,6 +395,10 @@ export class SsmRole extends cdk.Construct {
 
     let serviceprincipal = new ServicePrincipal('ssm.amazonaws.com')
     principals.addPrincipals(serviceprincipal);
+
+    // Multi-account/region automations must be able to assume the remediation role
+    const accountPrincipal = new AccountPrincipal(stack.account);
+    principals.addPrincipals(accountPrincipal);
 
     let memberRole = new Role(this, 'MemberAccountRole', {
         assumedBy: principals,
@@ -354,6 +408,7 @@ export class SsmRole extends cdk.Construct {
     memberRole.attachInlinePolicy(basePolicy)
     memberRole.attachInlinePolicy(props.remediationPolicy)
     memberRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN)
+    memberRole.node.addDependency(roleStack.getOrchestratorMemberRole());
 
     const memberRoleResource = memberRole.node.findChild('Resource') as CfnRole;
 
@@ -372,18 +427,18 @@ export class SsmRole extends cdk.Construct {
 }
 
 export interface RemediationRunbookProps {
-    ssmDocName: string;
-    ssmDocPath: string;
-    ssmDocFileName: string;
-    solutionVersion: string;
-    solutionDistBucket: string;
-    remediationPolicy?: Policy;
-    solutionId?: string;
-    scriptPath?: string;
+  ssmDocName: string;
+  ssmDocPath: string;
+  ssmDocFileName: string;
+  solutionVersion: string;
+  solutionDistBucket: string;
+  remediationPolicy?: Policy;
+  solutionId: string;
+  scriptPath?: string;
 }
 
 export class SsmRemediationRunbook extends cdk.Construct {
-    
+
   constructor(scope: cdk.Construct, id: string, props: RemediationRunbookProps) {
     super(scope, id);
 

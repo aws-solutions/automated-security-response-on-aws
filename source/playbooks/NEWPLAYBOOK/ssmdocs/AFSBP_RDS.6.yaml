@@ -16,7 +16,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   Finding:
     type: StringMap
     description: The input from Step function for RDS7 finding
@@ -45,51 +45,10 @@ mainSteps:
       InputPayload:
         Finding: '{{Finding}}'        
 
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        import re
-        def parse_event(event, context):
-
-          my_control_id = 'RDS.6'
-          finding = event['Finding']
-
-          finding_id = finding['Id']
-          control_id = ''
-          check_finding_id = re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subscription/aws-foundational-security-best-practices/v/1\.0\.0/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',finding_id)
-          if not check_finding_id:
-            exit(f'ERROR: Finding Id is invalid: {finding_id}')
-          else:
-            control_id = check_finding_id.group(1)
-
-          if not control_id:
-            exit(f'ERROR: Finding Id is invalid: {finding_id} - missing Control Id')
-
-          if control_id != my_control_id:
-            exit(f'ERROR: Control Id from input ({control_id}) does not match {my_control_id}')
-
-          product_arn = finding['ProductArn']
-          if not re.match('^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', product_arn):
-            exit(f'ERROR: ProductArn is invalid: {product_arn}')
-
-          account_id = finding['AwsAccountId']
-          if not re.match('^\d{12}$', account_id):
-            exit(f'ERROR: AwsAccountId is invalid: {account_id}')
-
-          resource_id = finding['Resources'][0]['Details']['AwsRdsDbInstance']['DbiResourceId']
-          if not re.match(
-            '^db-[0-9A-Z]{16,26}$',
-            resource_id
-          ):
-            exit('ERROR: DbiResourceId {resource_id} is not valid')
-
-          object = {'Type': 'RDSDBInstance', 'Id': resource_id, 'OutputKey': 'VerifyRemediation.Output'}
-          return {
-            "resource_id": resource_id, 
-            "finding_id": finding_id, 
-            "product_arn": product_arn, 
-            "object": object
-          }
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
   - 
     name: GetMonitoringRoleArn
@@ -128,7 +87,7 @@ mainSteps:
     inputs:
       InputPayload:
         remediation_output: '{{ExecRemediation.Output}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: verify_remediation
       Script: |-
         import json

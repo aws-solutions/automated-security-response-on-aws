@@ -7,7 +7,7 @@ description: |
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  
+
   ## Output Parameters
   * Remediation.Output
 
@@ -18,20 +18,19 @@ schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
   - ParseInput.AffectedObject
-  - Remediation.Output 
+  - Remediation.Output
 parameters:
   Finding:
     type: StringMap
-    description: The input from Step function for finding
+    description: The input from the Orchestrator Step function for the S3.1 finding
   AutomationAssumeRole:
     type: String
-    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
-    default: ''
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 mainSteps:
-  - 
+  -
     name: ParseInput
-    action: 'aws:executeScript' 
+    action: 'aws:executeScript'
     outputs:
       - Name: AccountId
         Selector: $.Payload.account_id
@@ -50,12 +49,12 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
         expected_control_id: [ 'S3.1' ]
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=afsbp_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
-  - 
+  -
     name: Remediation
     action: 'aws:executeAutomation'
     isEnd: false

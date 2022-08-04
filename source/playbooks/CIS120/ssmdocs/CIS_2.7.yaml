@@ -18,17 +18,18 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   Finding:
     type: StringMap
-    description: The input from Step function for the finding
+    description: The input from the Orchestrator Step function for the 2.7 finding
   KMSKeyArn:
     type: String
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 
 mainSteps:
-  - 
+  -
     name: ParseInput
     action: 'aws:executeScript'
     outputs:
@@ -45,19 +46,20 @@ mainSteps:
         Selector: $.Payload.resource_id
         Type: String
       - Name: TrailRegion
-        Selector: $.Payload.resource.Region
+        Selector: $.Payload.resource_region
         Type: String
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
-        expected_control_id: '2.7'
-      Runtime: python3.7
+        expected_control_id:
+        - '2.7'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
 
-  - 
+  -
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:

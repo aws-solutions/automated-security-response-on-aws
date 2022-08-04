@@ -7,26 +7,26 @@ description: |
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  
+
   ## Output Parameters
   * Remediation.Output - Remediation results
 
   ## Documentation Links
   * [CIS v1.2.0 2.9](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-2.9)
-  
+
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
   - ParseInput.AffectedObject
-  - Remediation.Output 
+  - Remediation.Output
 parameters:
   Finding:
     type: StringMap
-    description: The input from Step function for finding
+    description: The input from the Orchestrator Step function for the 2.9 finding
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -48,11 +48,12 @@ mainSteps:
       InputPayload:
         Finding: '{{Finding}}'
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:.*:\d{12}:vpc/(vpc-[0-9a-f]{8,17})$'
-        expected_control_id: '2.9'
-      Runtime: python3.7
+        expected_control_id:
+        - '2.9'
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=cis_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
 
   - name: Remediation

@@ -3,3 +3,5 @@ pytest>=4.2.1
 pytest-cov
 pytest-env
 bandit
+boto3==1.23.9
+requests==2.27.1

@@ -20,7 +20,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   KMSKeyArn:
     type: String
     default: >-
@@ -53,7 +53,7 @@ mainSteps:
         trail: '{{TrailArn}}'
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'        
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: enable_trail_encryption
       Script: |-
         %%SCRIPT=EnableCloudTrailEncryption.py%%

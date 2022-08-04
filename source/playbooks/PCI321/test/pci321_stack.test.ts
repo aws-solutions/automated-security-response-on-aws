@@ -1,4 +1,4 @@
-import { expect as expectCDK, matchTemplate, SynthUtils } from '@aws-cdk/assert';
+import { SynthUtils } from '@aws-cdk/assert';
 import * as cdk from '@aws-cdk/core';
 import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
 
@@ -33,6 +33,7 @@ function getMemberStack(): cdk.Stack {
     securityStandardVersion: '3.2.1',
     securityStandardLongName: 'pci-dss',
     ssmdocs: 'playbooks/PCI321/ssmdocs',
+    commonScripts: 'playbooks/common',
     remediations: [ {"control":'PCI.AutoScaling.1'}, {"control":'PCI.EC2.6'}, {"control":'PCI.IAM.8'} ]
   })
   return stack;

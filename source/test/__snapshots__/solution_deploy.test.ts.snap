@@ -344,6 +344,41 @@ Object {
               },
               "Resource": "*",
             },
+            Object {
+              "Action": Array [
+                "kms:Create*",
+                "kms:Describe*",
+                "kms:Enable*",
+                "kms:List*",
+                "kms:Put*",
+                "kms:Update*",
+                "kms:Revoke*",
+                "kms:Disable*",
+                "kms:Get*",
+                "kms:Delete*",
+                "kms:ScheduleKeyDeletion",
+                "kms:CancelKeyDeletion",
+                "kms:GenerateDataKey",
+                "kms:TagResource",
+                "kms:UntagResource",
+              ],
+              "Effect": "Allow",
+              "Principal": Object {
+                "AWS": Object {
+                  "Fn::Join": Array [
+                    "",
+                    Array [
+                      "arn:",
+                      Object {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::111111111111:root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -435,6 +470,14 @@ Object {
     },
     "createCustomActionPolicyE424E925": Object {
       "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Resource * is required for CloudWatch Logs policies used on Lambda functions.",
+            },
+          ],
+        },
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
@@ -703,6 +746,14 @@ Object {
     },
     "notifyPolicy320847DC": Object {
       "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Resource * is required for CloudWatch Logs and Security Hub policies used by core solution Lambda function for notifications.",
+            },
+          ],
+        },
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
@@ -867,6 +918,14 @@ Object {
     },
     "orchestratorPolicy8045810D": Object {
       "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Resource * is required for read-only policies used by orchestrator Lambda functions.",
+            },
+          ],
+        },
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
@@ -911,32 +970,23 @@ Object {
             Object {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Resource": Array [
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::*:role/SO0111-SHARR-Orchestrator-Member",
-                    ],
+              "Resource": Object {
+                "Fn::Join": Array [
+                  "",
+                  Array [
+                    "arn:",
+                    Object {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iam::*:role/SO0111-SHARR-Orchestrator-Member",
                   ],
-                },
-                Object {
-                  "Fn::Join": Array [
-                    "",
-                    Array [
-                      "arn:",
-                      Object {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::*:role/SO0111-Remediate-*",
-                    ],
-                  ],
-                },
-              ],
+                ],
+              },
+            },
+            Object {
+              "Action": "organizations:ListTagsForResource",
+              "Effect": "Allow",
+              "Resource": "*",
             },
           ],
           "Version": "2012-10-17",
@@ -953,6 +1003,14 @@ Object {
     "orchestratorRole12B410FD": Object {
       "DeletionPolicy": "Retain",
       "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-IAM5",
+              "reason": "CloudWatch Logs permissions require resource * except for DescribeLogGroups, except for GovCloud, which only works with resource *",
+            },
+          ],
+        },
         "cfn_nag": Object {
           "rules_to_suppress": Array [
             Object {
@@ -1214,6 +1272,20 @@ Object {
         "orchestratorNestedLogStack4DD66790",
         "orchestratorRole12B410FD",
       ],
+      "Metadata": Object {
+        "cdk_nag": Object {
+          "rules_to_suppress": Array [
+            Object {
+              "id": "AwsSolutions-SF1",
+              "reason": "False alarm. Logging configuration is overridden to log ALL.",
+            },
+            Object {
+              "id": "AwsSolutions-SF2",
+              "reason": "X-Ray is not needed for this use case.",
+            },
+          ],
+        },
+      },
       "Properties": Object {
         "DefinitionString": Object {
           "Fn::Join": Array [

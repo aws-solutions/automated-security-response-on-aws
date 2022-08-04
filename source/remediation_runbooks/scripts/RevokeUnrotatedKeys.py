@@ -13,8 +13,7 @@
 #  or implied. See the License for the specific language governing permis-    #
 #  sions and limitations under the License.                                   #
 ###############################################################################
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 import boto3
 from botocore.config import Config
 
@@ -26,10 +25,6 @@ boto_config = Config(
 
 responses = {}
 responses["DeactivateUnusedKeysResponse"] = []
-
-def str_time_to_datetime(dt_str):
-    dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=None)
-    return dt_obj
 
 def connect_to_iam(boto_config):
     return boto3.client('iam', config=boto_config)
@@ -61,15 +56,16 @@ def deactivate_unused_keys(access_keys, max_credential_usage_age, user_name):
         print(key)
         last_used = iam_client.get_access_key_last_used(AccessKeyId=key.get("AccessKeyId")).get("AccessKeyLastUsed")
         deactivate = False
-        
-        days_since_creation = (datetime.now() - str_time_to_datetime(key.get("CreateDate"))).days
-        last_used_days = (datetime.now() - str_time_to_datetime(last_used.get("LastUsedDate"))).days
+
+        now = datetime.now(timezone.utc)
+        days_since_creation = (now - key.get("CreateDate")).days
+        last_used_days = (now - last_used.get("LastUsedDate", now)).days
 
         print(f'Key {key.get("AccessKeyId")} is {days_since_creation} days old and last used {last_used_days} days ago')
 
         if days_since_creation > max_credential_usage_age:
             deactivate = True
-        
+
         if last_used_days > max_credential_usage_age:
             deactivate = True
 
@@ -87,7 +83,7 @@ def verify_expired_credentials_revoked(responses, user_name):
             if key_data.get("Status") != "Inactive":
                 error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
                 raise Exception(error_message)
-   
+
     return {
         "output": "Verification of unrotated access keys is successful.",
         "http_responses": responses

@@ -13,9 +13,11 @@
  *  permissions and limitations under the License.                            *
  *****************************************************************************/
 
- import { expect as expectCDK, matchTemplate, SynthUtils } from '@aws-cdk/assert';
+ import { SynthUtils } from '@aws-cdk/assert';
  import * as cdk from '@aws-cdk/core';
  import { OrchLogStack } from '../solution_deploy/lib/orchestrator-log-stack';
+ import { AwsSolutionsChecks } from 'cdk-nag'
+import { Aspects } from '@aws-cdk/core'
  
  const app = new cdk.App();
  
@@ -26,6 +28,7 @@
      solutionId: 'SO0111',
      logGroupName: 'TestLogGroup'
    })
+   Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
    return stack;
  }
  test('Global Roles Stack', () => {

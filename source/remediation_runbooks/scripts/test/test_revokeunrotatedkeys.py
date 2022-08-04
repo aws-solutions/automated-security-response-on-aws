@@ -19,6 +19,7 @@ from botocore.stub import Stubber
 from botocore.config import Config
 import pytest
 from pytest_mock import mocker
+from datetime import datetime, timezone
 
 import RevokeUnrotatedKeys as remediation
 
@@ -32,66 +33,70 @@ BOTO_CONFIG = Config(
     region_name=my_region
 )
 
+def str_time_to_datetime(dt_str):
+    dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
+    return dt_obj
+
 def iam_resource():
     return {
         "resourceIdentifiers": [
             {
-                "resourceType": "AWS::IAM::User", 
-                "resourceId": "AIDACKCEVSQ6C2EXAMPLE", 
+                "resourceType": "AWS::IAM::User",
+                "resourceId": "AIDACKCEVSQ6C2EXAMPLE",
                 "resourceName": "someuser"
             }
         ]
     }
 
-def event(): 
+def event():
     return {
         "IAMResourceId": "AIDACKCEVSQ6C2EXAMPLE",
         "MaxCredentialUsageAge": "90"
     }
 
-def access_keys(): 
+def access_keys():
     return {
         "AccessKeyMetadata": [
             {
-                "UserName": "someuser", 
-                "Status": "Active", 
-                "CreateDate": "2015-05-22T14:43:16Z", 
+                "UserName": "someuser",
+                "Status": "Active",
+                "CreateDate": str_time_to_datetime("2015-05-22T14:43:16Z"),
                 "AccessKeyId": "AKIAIOSFODNN7EXAMPLE"
-            }, 
+            },
             {
-                "UserName": "someuser", 
-                "Status": "Active", 
-                "CreateDate": "2032-09-15T15:20:04Z", 
+                "UserName": "someuser",
+                "Status": "Active",
+                "CreateDate": datetime.now(timezone.utc),
                 "AccessKeyId": "AKIAI44QH8DHBEXAMPLE"
             },
             {
-                "UserName": "someuser", 
-                "Status": "Inactive", 
-                "CreateDate": "2017-10-15T15:20:04Z", 
+                "UserName": "someuser",
+                "Status": "Inactive",
+                "CreateDate": str_time_to_datetime("2017-10-15T15:20:04Z"),
                 "AccessKeyId": "AKIAI44QH8DHBEXAMPLE"
             }
         ]
     }
 
-def updated_keys(): 
+def updated_keys():
     return {
         "AccessKeyMetadata": [
             {
-                "UserName": "someuser", 
-                "Status": "Inactive", 
-                "CreateDate": "2015-05-22T14:43:16Z", 
+                "UserName": "someuser",
+                "Status": "Inactive",
+                "CreateDate": str_time_to_datetime("2015-05-22T14:43:16Z"),
                 "AccessKeyId": "AKIAIOSFODNN7EXAMPLE"
-            }, 
+            },
             {
-                "UserName": "someuser", 
-                "Status": "Active", 
-                "CreateDate": "2032-09-15T15:20:04Z", 
+                "UserName": "someuser",
+                "Status": "Active",
+                "CreateDate": datetime.now(timezone.utc),
                 "AccessKeyId": "AKIAI44QH8DHBEXAMPLE"
             },
             {
-                "UserName": "someuser", 
-                "Status": "Inactive", 
-                "CreateDate": "2017-10-15T15:20:04Z", 
+                "UserName": "someuser",
+                "Status": "Inactive",
+                "CreateDate": str_time_to_datetime("2017-10-15T15:20:04Z"),
                 "AccessKeyId": "AKIAI44QH8DHBEXAMPLE"
             }
         ]
@@ -100,19 +105,19 @@ def updated_keys():
 def last_accessed_key(id):
     return {
         "AKIAIOSFODNN7EXAMPLE": {
-            "UserName": "someuser", 
+            "UserName": "someuser",
             "AccessKeyLastUsed": {
-                "Region": "N/A", 
-                "ServiceName": "s3", 
-                "LastUsedDate": "2016-03-23T19:55:00Z"
+                "Region": "N/A",
+                "ServiceName": "s3",
+                "LastUsedDate": str_time_to_datetime("2016-03-23T19:55:00Z")
             }
         },
         "AKIAI44QH8DHBEXAMPLE": {
-            "UserName": "someuser", 
+            "UserName": "someuser",
             "AccessKeyLastUsed": {
-                "Region": "N/A", 
-                "ServiceName": "s3", 
-                "LastUsedDate": "2032-10-01T19:55:00Z"
+                "Region": "N/A",
+                "ServiceName": "s3",
+                "LastUsedDate": datetime.now(timezone.utc)
             }
         }
     }[id]
@@ -122,7 +127,7 @@ def successful():
         'http_responses': {
             'DeactivateUnusedKeysResponse': [
                 {
-                    'AccessKeyId': 'AKIAIOSFODNN7EXAMPLE', 
+                    'AccessKeyId': 'AKIAIOSFODNN7EXAMPLE',
                     'Response': {
                         'ResponseMetadata': {
                             'AccessKeyId': 'AKIAIOSFODNN7EXAMPLE'
@@ -130,10 +135,10 @@ def successful():
                     }
                 }
             ]
-        }, 
+        },
         'output': 'Verification of unrotated access keys is successful.'
     }
-    
+
 #=====================================================================================
 # SUCCESS
 #=====================================================================================
@@ -182,7 +187,7 @@ def test_success(mocker):
         },
         {
             'AccessKeyId': 'AKIAIOSFODNN7EXAMPLE',
-            'UserName': 'someuser', 
+            'UserName': 'someuser',
             'Status': 'Inactive'
         }
     )
@@ -209,6 +214,6 @@ def test_success(mocker):
     mocker.patch('RevokeUnrotatedKeys.connect_to_iam', return_value=iam_client)
 
     assert remediation.unrotated_key_handler(event(), {}) == successful()
-    
+
     cfg_stubber.deactivate()
     iam_stubber.deactivate()

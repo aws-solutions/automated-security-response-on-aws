@@ -1,0 +1,52 @@
+description: |
+  ### Document Name - SHARR-S3BlockDenyList
+
+  ## What does this document do?
+  This document adds an explicit DENY to the bucket policy to prevent cross-account access to specific sensitive API calls. By default these are s3:DeleteBucketPolicy, s3:PutBucketAcl, s3:PutBucketPolicy, s3:PutEncryptionConfiguration, and s3:PutObjectAcl.
+
+  ## Input Parameters
+  * BucketName: (Required) Bucket whose bucket policy is to be restricted.
+  * DenyList: (Required) List of permissions to be explicitly denied when the Principal contains a role or user in another account.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * PutS3BucketPolicyDeny.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  BucketName:
+    type: String
+    description: (Required) The bucket name (not the ARN).
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  DenyList:
+    type: String
+    description: (Required) Comma-delimited list (string) of permissions to be explicitly denied when the Principal contains a role or user in another account.
+    allowedPattern: '.*'
+outputs:
+  - PutS3BucketPolicyDeny.Output
+mainSteps:
+  -
+    name: PutS3BucketPolicyDeny
+    action: 'aws:executeScript'
+    description: |
+      ## PutS3BucketPolicyDeny
+      Adds an explicit deny to the bucket policy for specific restricted permissions.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        accountid: '{{global:ACCOUNT_ID}}'
+        bucket: '{{BucketName}}'
+        denylist: '{{DenyList}}'
+      Runtime: python3.8
+      Handler: update_bucket_policy
+      Script: |-
+        %%SCRIPT=PutS3BucketPolicyDeny.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap

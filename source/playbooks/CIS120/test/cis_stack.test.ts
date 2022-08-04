@@ -1,4 +1,4 @@
-import { expect as expectCDK, matchTemplate, SynthUtils } from '@aws-cdk/assert';
+import { SynthUtils } from '@aws-cdk/assert';
 import * as cdk from '@aws-cdk/core';
 import { StringParameter } from '@aws-cdk/aws-ssm';
 import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
@@ -36,6 +36,7 @@ function getMemberStack(): cdk.Stack {
     securityStandardVersion: '1.2.0',
     securityStandardLongName: 'cis-aws-foundations-benchmark',
     ssmdocs: 'playbooks/CIS120/ssmdocs',
+    commonScripts: 'playbooks/common',
     remediations: [ {"control":'1.3'}, {"control":'1.5'}, {"control":'2.1'} ]
   })
 

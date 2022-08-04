@@ -115,13 +115,17 @@ echo "--------------------------------------------------------------------------
 run_pytest "${source_dir}/remediation_runbooks/scripts" "RemediationRunbooks"
 
 echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Playbook Scripts"
+echo "[Test] Python Scripts for Playbook common scripts"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/playbooks/common" "PlaybookCommon"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Scripts for Playbooks"
 echo "------------------------------------------------------------------------------"
 for playbook in `ls ${source_dir}/playbooks`; do
-    # if [ $playbook == 'NEWPLAYBOOK' ]; then
-    #     continue
-    # fi
-    run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
+    if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ]; then
+      run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
+    fi
 done
 
 # The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list

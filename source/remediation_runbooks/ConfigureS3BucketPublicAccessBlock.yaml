@@ -18,7 +18,7 @@ description:  |
 
   ## Output Parameters
   * GetBucketPublicAccessBlock.Output - JSON formatted response from the GetPublicAccessBlock API call
-  
+
   ## Note: this is a local copy of the AWS-owned document to enable support in aws-cn and aws-us-gov partitions.
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
@@ -60,7 +60,7 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 mainSteps:
   - name: PutBucketPublicAccessBlock
     action: "aws:executeAwsApi"
@@ -91,7 +91,7 @@ mainSteps:
     isCritical: true
     isEnd: true
     inputs:
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: validate_s3_bucket_publicaccessblock
       InputPayload:
         Bucket: "{{BucketName}}"

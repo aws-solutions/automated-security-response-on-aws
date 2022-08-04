@@ -1,0 +1,127 @@
+schemaVersion: "0.3"
+description: |
+   ### Document name - SHARR-EnableMultiAZOnRDSInstance
+
+   ## What does this document do?
+   This document enables MultiAZ on an RDS instance.
+
+   ## Input Parameters
+   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+   * DbiResourceId: (Required) Resource ID of the RDS instance to be modified.
+   * ApplyImmediately: (Optional) The MultiAZ on an RDS instance change is applied during the next maintenance window unless the ApplyImmediately parameter is enabled (true) for this request. By default, this parameter is disabled (false).
+
+   ## Output Parameters
+   * EnableMultiAZ.DBInstance: The standard HTTP response from the ModifyDBInstance API.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  DbiResourceId:
+    type: String
+    description: (Required) Resource ID of the RDS instance for which MultiAZ needs to be enabled.
+    allowedPattern: ^db-[A-Z0-9]{26}$
+  ApplyImmediately:
+    type: Boolean
+    description: (Optional) MultiAZ on an RDS instance change is applied during the next maintenance window unless the ApplyImmediately parameter is enabled (true) for this request. By default, this parameter is disabled (false).
+    default: False
+    allowedValues:
+      - True
+      - False
+
+outputs:
+  - EnableMultiAZ.DBInstance
+mainSteps:
+  -
+    name: DescribeDBInstances
+    action: "aws:executeAwsApi"
+    description: |
+      ## DescribeDBInstances
+      Makes DescribeDBInstances API call using RDS DB instance resource identifiers to get DBInstanceIdentifier.
+      ## Outputs
+      * DBInstanceIdentifier: DBInstance identifier of the RDS instance.
+      * MultiAZ: MultiAZ state of the RDS instance.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      Filters:
+        - Name: "dbi-resource-id"
+          Values:
+            - "{{ DbiResourceId }}"
+    outputs:
+      - Name: DBInstanceIdentifier
+        Selector: $.DBInstances[0].DBInstanceIdentifier
+        Type: String
+      - Name: MultiAZ
+        Selector: $.DBInstances[0].MultiAZ
+        Type: Boolean
+
+  -
+    name: VerifyDBInstanceStatus
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: false
+    description: |
+      ## VerifyDBInstanceStatus
+      Verifies if DB instance status is available before enabling MultiAZ.
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: "{{ DescribeDBInstances.DBInstanceIdentifier }}"
+      PropertySelector: "$.DBInstances[0].DBInstanceStatus"
+      DesiredValues:
+        - "available"
+
+  -
+    name: EndIfMultiAZAlreadyEnabled
+    action: aws:branch
+    description: |
+      ## EndIfMultiAZAlreadyEnabled
+      Checks if MultiAZ is not enabled on the DB instance. If not enabled, proceed with EnableMultiAZ step. Otherwise, end the flow.
+    inputs:
+      Choices:
+      - NextStep: EnableMultiAZ
+        Variable: "{{ DescribeDBInstances.MultiAZ }}"
+        BooleanEquals: false
+    isEnd: true
+
+  -
+    name: EnableMultiAZ
+    action: "aws:executeAwsApi"
+    description: |
+      ## EnableMultiAZ
+      Makes ModifyDBInstance API call to enable MultiAZ on the RDS instance using the DBInstanceIdentifier from the previous step and MultiAZ as true.
+      ## Outputs
+      * DBInstance: The standard HTTP response from the ModifyDBInstance API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: ModifyDBInstance
+      DBInstanceIdentifier: "{{ DescribeDBInstances.DBInstanceIdentifier }}"
+      MultiAZ: True
+      ApplyImmediately: "{{ ApplyImmediately }}"
+    outputs:
+      - Name: DBInstance
+        Selector: $
+        Type: StringMap
+
+  -
+    name: VerifyMultiAZEnabled
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## VerifyMultiAZEnabled
+      Verifies that the RDS Instance's `PendingModifiedValues.MultiAZ` value is `True`.
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: "{{ DescribeDBInstances.DBInstanceIdentifier }}"
+      PropertySelector: "$.DBInstances[0].PendingModifiedValues.MultiAZ"
+      DesiredValues:
+        - "True"

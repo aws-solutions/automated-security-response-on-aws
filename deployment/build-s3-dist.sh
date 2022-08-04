@@ -18,9 +18,9 @@
 
 # Important: CDK global version number
 # This controls the CDK and AWS Solutions Constructs version. Solutions
-# Constructs versions map 1:1 to CDK versions. When setting this value, 
+# Constructs versions map 1:1 to CDK versions. When setting this value,
 # choose the latest AWS Solutions Constructs version.
-required_cdk_version=1.132.0
+required_cdk_version=1.155.0
 
 # Get reference for all important folders
 template_dir="$PWD"
@@ -74,17 +74,17 @@ do
         b ) bucket=${OPTARG};;
         v ) version=${OPTARG};;
         t ) devtest=1;;
-        c) 
+        c)
             clean
             exit 0
             ;;
         *)
             echo "Usage: $0 -b <bucket> [-v <version>] [-t]"
-            echo "Version must be provided via a parameter or ../version.txt. Others are optional." 
+            echo "Version must be provided via a parameter or ../version.txt. Others are optional."
             echo "-t indicates this is a pre-prod build and instructs the build to use a non-prod Solution ID, DEV-SOxxxx"
             echo "Production example: ./build-s3-dist.sh -b solutions -v v1.0.0"
-            echo "Dev example: ./build-s3-dist.sh -b solutions -v v1.0.0 -t"  
-            exit 1 
+            echo "Dev example: ./build-s3-dist.sh -b solutions -v v1.0.0 -t"
+            exit 1
             ;;
     esac
 done
@@ -92,7 +92,7 @@ done
 #------------------------------------------------------------------------------
 # DISABLE OVERRIDE WARNINGS
 #------------------------------------------------------------------------------
-# Use with care: disables the warning for overridden properties on 
+# Use with care: disables the warning for overridden properties on
 # AWS Solutions Constructs
 export overrideWarningsEnabled=false
 
@@ -127,7 +127,7 @@ echo "export DIST_VERSION=$version" >> ./setenv.sh
 #
 # It takes precedence over the command line (oddly backwards, but to prevent
 # errors)
-# 
+#
 # Ex:
 # #!/bin/bash
 # SOLUTION_ID='SO0111'
@@ -162,7 +162,7 @@ fi
 if [[ -z "$SOLUTION_TRADEMARKEDNAME" ]]; then
     echo "SOLUTION_TRADEMARKEDNAME is missing from ../solution_env.sh"
     exit 1
-else 
+else
     export SOLUTION_TRADEMARKEDNAME
     echo "export DIST_SOLUTION_NAME=$SOLUTION_TRADEMARKEDNAME" >> ./setenv.sh
 fi
@@ -196,7 +196,7 @@ export PATH=$(npm bin):$PATH
 # Check cdk version
 cdkver=`cdk --version | grep -Eo '^[0-9]{1,2}\.[0-9]+\.[0-9]+'`
 echo CDK version $cdkver
-if [[ $cdkver != $required_cdk_version ]]; then 
+if [[ $cdkver != $required_cdk_version ]]; then
     echo Required CDK version is $required_cdk_version, found $cdkver
     exit 255
 fi
@@ -215,9 +215,18 @@ find . -name package-lock.json | while read file;do rm $file; done
 
 mkdir -p $temp_work_dir/source/solution_deploy/lambdalayer/python
 cp ${template_dir}/${source_dir}/LambdaLayers/*.py $temp_work_dir/source/solution_deploy/lambdalayer/python
-pip install -r $template_dir/requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
+do_cmd pip install -r $template_dir/requirements.txt -t $temp_work_dir/source/solution_deploy/lambdalayer/python
 cd $temp_work_dir/source/solution_deploy/lambdalayer
 zip --recurse-paths ${build_dist_dir}/lambda/layer.zip python
+
+echo "------------------------------------------------------------------------------"
+echo "[Pack] Member Stack Lambda Layer (used by custom resources)"
+echo "------------------------------------------------------------------------------"
+do_cmd mkdir -p $temp_work_dir/source/solution_deploy/memberlambdalayer/python
+do_cmd cp ${template_dir}/${source_dir}/LambdaLayers/cfnresponse.py $temp_work_dir/source/solution_deploy/memberlambdalayer/python
+do_cmd cp ${template_dir}/${source_dir}/LambdaLayers/logger.py $temp_work_dir/source/solution_deploy/memberlambdalayer/python
+do_cmd cd $temp_work_dir/source/solution_deploy/memberlambdalayer
+do_cmd zip --recurse-paths ${build_dist_dir}/lambda/memberLayer.zip python
 
 echo "------------------------------------------------------------------------------"
 echo "[Pack] Custom Action Lambda"
@@ -230,11 +239,17 @@ zip ${build_dist_dir}/lambda/createCustomAction.py.zip createCustomAction.py
 do_cmd cp ../../LambdaLayers/*.py .
 
 echo "------------------------------------------------------------------------------"
+echo "[Pack] Updatable Runbook Provider Lambda"
+echo "------------------------------------------------------------------------------"
+do_cmd cd $temp_work_dir/source/solution_deploy/source
+do_cmd zip ${build_dist_dir}/lambda/updatableRunbookProvider.py.zip updatableRunbookProvider.py
+
+echo "------------------------------------------------------------------------------"
 echo "[Pack] Orchestrator Lambdas"
 echo "------------------------------------------------------------------------------"
 # cd $template_dir
 cd $temp_work_dir/source/Orchestrator
-ls | while read file; do 
+ls | while read file; do
     if [ ! -d $file ]; then
         zip ${build_dist_dir}/lambda/${file}.zip ${file}
     fi
@@ -247,7 +262,7 @@ echo "--------------------------------------------------------------------------
 echo "[Create] Playbooks"
 echo "------------------------------------------------------------------------------"
 for playbook in `ls ${template_dir}/${source_dir}/playbooks`; do
-    if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ]; then
+    if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ] || [ $playbook == 'common' ]; then
         continue
     fi
     echo Create $playbook playbook

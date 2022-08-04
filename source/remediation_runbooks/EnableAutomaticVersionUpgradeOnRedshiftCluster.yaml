@@ -1,0 +1,79 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - SHARR-EnableAutomaticVersionUpgradeOnRedshiftCluster
+
+  ## What does this document do?
+  The runbook enables automatic version upgrade on a Redshift cluster.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * ClusterIdentifier: (Required) The unique identifier of the cluster.
+  * AllowVersionUpgrade: (Optional) Whether to allow version upgrade on the cluster.
+
+  ## Output Parameters
+  * EnableAutomaticVersionUpgrade.Response: The response of the API call to enable automatic version upgrade on the cluster.
+assumeRole: '{{AutomationAssumeRole}}'
+parameters:
+  AutomationAssumeRole:
+    type: 'String'
+    description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    allowedPattern:  '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  ClusterIdentifier:
+    type: 'String'
+    description: '(Required) The unique identifier of the cluster.'
+    allowedPattern: '^(?!.*--)[a-z][a-z0-9-]{0,62}(?<!-)$'
+  AllowVersionUpgrade:
+    type: 'Boolean'
+    description: (Optional) Whether to allow version upgrade on the cluster.
+    default: true
+outputs:
+- 'EnableAutomaticVersionUpgrade.Response'
+mainSteps:
+- name: 'EnableAutomaticVersionUpgrade'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'redshift'
+    Api: 'ModifyCluster'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    AllowVersionUpgrade: '{{AllowVersionUpgrade}}'
+  outputs:
+  - Name: 'Response'
+    Selector: '$'
+    Type: 'StringMap'
+- name: 'WaitForClusterAvailability'
+  action: 'aws:waitForAwsResourceProperty'
+  timeoutSeconds: 600
+  inputs:
+    Service: 'redshift'
+    Api: 'DescribeClusters'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    PropertySelector: '$.Clusters[0].ClusterStatus'
+    DesiredValues:
+    - 'available'
+- name: 'CastAllowVersionUpgradeToString'
+  action: 'aws:executeScript'
+  inputs:
+    Runtime: 'python3.8'
+    Handler: 'event_handler'
+    InputPayload:
+      AllowVersionUpgrade: '{{AllowVersionUpgrade}}'
+    Script: >
+      def event_handler(event, context):
+          return str(event['AllowVersionUpgrade'])
+  outputs:
+  - Name: 'AllowVersionUpgradeString'
+    Selector: '$.Payload'
+    Type: 'String'
+- name: 'VerifyAutomaticVersionUpgrade'
+  action: 'aws:assertAwsResourceProperty'
+  inputs:
+    Service: 'redshift'
+    Api: 'DescribeClusters'
+    ClusterIdentifier: '{{ClusterIdentifier}}'
+    PropertySelector: '$.Clusters[0].AllowVersionUpgrade'
+    DesiredValues:
+    - '{{CastAllowVersionUpgradeToString.AllowVersionUpgradeString}}'
+  isEnd: true

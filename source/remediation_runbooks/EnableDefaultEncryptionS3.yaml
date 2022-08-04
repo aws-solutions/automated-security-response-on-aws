@@ -1,0 +1,80 @@
+description: |
+  ### Document name - SHARR-EnableDefaultEncryptionS3
+
+  ## What does this document do?
+  This document configures default encryption for an Amazon S3 Bucket.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * BucketName: (Required) Name of the bucket to modify.
+  * AccountId: (Required) Account to which the bucket belongs
+
+  ## Output Parameters
+
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0: S3.4
+  * CIS v1.2.0:   n/a
+  * PCI:          S3.4
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AccountId:
+    type: String
+    description: Account ID of the account for the finding
+    allowedPattern: ^[0-9]{12}$
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  BucketName:
+    type: String
+    description: Name of the bucket to have a policy added
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+  KmsKeyAlias:
+    type: String
+    description: (Required) KMS Customer-Managed Key (CMK) alias or the default value which is created in the SSM parameter at solution deployment (default-s3-encryption) is used to identify that the s3 bucket encryption value should be set to AES-256.
+    default: 'default-s3-encryption'
+    allowedPattern: '^$|^[a-zA-Z0-9/_-]{1,256}$'
+
+mainSteps:
+  - name: ChooseEncryptionMethod
+    action: aws:branch
+    inputs:
+      Choices:
+      - NextStep: EncryptWithAES
+        Variable: '{{KmsKeyAlias}}'
+        StringEquals: 'default-s3-encryption'
+      Default:
+        EncryptWithCMK
+
+  - name: EncryptWithAES
+    action: aws:executeAwsApi
+    inputs:
+      Service: s3
+      Api: PutBucketEncryption
+      Bucket: '{{BucketName}}'
+      ExpectedBucketOwner: '{{AccountId}}'
+      ServerSideEncryptionConfiguration:
+        Rules:
+        - ApplyServerSideEncryptionByDefault:
+            SSEAlgorithm: 'AES256'
+          BucketKeyEnabled: true
+    isEnd: true
+
+  - name: EncryptWithCMK
+    action: aws:executeAwsApi
+    inputs:
+      Service: s3
+      Api: PutBucketEncryption
+      Bucket: '{{BucketName}}'
+      ExpectedBucketOwner: '{{AccountId}}'
+      ServerSideEncryptionConfiguration:
+        Rules:
+        - ApplyServerSideEncryptionByDefault:
+            SSEAlgorithm: 'aws:kms'
+            KMSMasterKeyID: '{{KmsKeyAlias}}'
+          BucketKeyEnabled: true
+    isEnd: true

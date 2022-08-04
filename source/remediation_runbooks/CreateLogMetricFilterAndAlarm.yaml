@@ -15,32 +15,39 @@ assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
     type: String
-    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@/-]+$
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   LogGroupName:
     type: String
     description: Name of the log group to be used to create metric filter
+    allowedPattern: '.*'
   FilterName:
     type: String
     description: Name for the metric filter
+    allowedPattern: '.*'
   FilterPattern:
     type: String
     description: Filter pattern to create metric filter
+    allowedPattern: '.*'
   MetricName:
     type: String
     description: Name of the metric for metric filter
+    allowedPattern: '.*'
   MetricValue:
     type: Integer
     description: Value of the metric for metric filter
   MetricNamespace:
     type: String
     description: Namespace where the metrics will be sent
+    allowedPattern: '.*'
   AlarmName:
     type: String
     description: Name of the Alarm to be created for the metric filter
+    allowedPattern: '.*'
   AlarmDesc:
     type: String
     description: Description of the Alarm to be created for the metric filter
+    allowedPattern: '.*'
   AlarmThreshold:
     type: Integer
     description: Threshold value for the alarm
@@ -53,7 +60,7 @@ parameters:
     allowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$
 
 mainSteps:
-  - 
+  -
     name: CreateTopic
     action: 'aws:executeScript'
     outputs:
@@ -61,15 +68,15 @@ mainSteps:
         Selector: $.Payload.topic_arn
         Type: String
     inputs:
-      InputPayload: 
+      InputPayload:
         kms_key_arn: '{{KMSKeyArn}}'
         topic_name: '{{SNSTopicName}}'
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: create_encrypted_topic
       Script: |-
         %%SCRIPT=CreateLogMetricFilterAndAlarm_createtopic.py%%
-        
-  - 
+
+  -
     name: CreateMetricFilerAndAlarm
     action: 'aws:executeScript'
     outputs:
@@ -82,13 +89,13 @@ mainSteps:
         FilterName: '{{FilterName}}'
         FilterPattern: '{{FilterPattern}}'
         MetricName: '{{MetricName}}'
-        MetricNamespace: '{{MetricNamespace}}' 
+        MetricNamespace: '{{MetricNamespace}}'
         MetricValue: '{{MetricValue}}'
         AlarmName: '{{AlarmName}}'
         AlarmDesc: '{{AlarmDesc}}'
         AlarmThreshold: '{{AlarmThreshold}}'
-        TopicArn: '{{CreateTopic.TopicArn}}'    
-      Runtime: python3.7
+        TopicArn: '{{CreateTopic.TopicArn}}'
+      Runtime: python3.8
       Handler: verify
       Script: |-
         %%SCRIPT=CreateLogMetricFilterAndAlarm.py%%

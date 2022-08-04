@@ -5,4 +5,10 @@ The NEWPLAYBOOK (NEWPB) playbook is part of the AWS Security Hub Automated Respo
 * Example.1
 * Example.2
   
+Note that in the example remediation, ssmdocs/AFSBP_RDS.6.yaml, the line:
+```
+%%SCRIPT=common/parse_input.py%%
+```
+...loads parse_input.py from playbooks/common. This same parse code is used in all the the current playbooks.
+
 See the README.md in the root of this archive and the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information.

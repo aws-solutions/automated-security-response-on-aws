@@ -7,17 +7,22 @@ The Payment Card Industry Data Security Standard (PCI-DSS) playbook is part of t
 * CloudTrail.2
 * CloudTrail.3
 * CloudTrail.4
+* CodeBuild.2
 * Config.1
 * CW.1
 * EC2.1
 * EC2.2
+* EC2.5
 * EC2.6
 * IAM.7
 * IAM.8
+* KMS.1
 * Lambda.1
 * RDS.1
 * S3.1
 * S3.2
+* S3.4
+* S3.5
 * S3.6
   
 See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information on this Playbook.
