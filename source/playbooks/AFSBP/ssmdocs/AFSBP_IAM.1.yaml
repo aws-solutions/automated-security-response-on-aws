@@ -56,7 +56,7 @@ mainSteps:
         Finding: "{{Finding}}"
         parse_id_pattern: ""
         expected_control_id: ["IAM.1"]
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: parse_event
       Script: |-
         %%SCRIPT=afsbp_parse_input.py%%

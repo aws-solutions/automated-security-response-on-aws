@@ -35,7 +35,7 @@ mainSteps:
       ## Outputs
       * Output: Success message or failure Exception.
     inputs:
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: create_iam_group_to_attach_user_policy
       InputPayload:
         Details: "{{ Details }}"

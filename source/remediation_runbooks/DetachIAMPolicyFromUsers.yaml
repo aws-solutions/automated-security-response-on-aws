@@ -35,7 +35,7 @@ mainSteps:
       ## Outputs
       * Output: Success message or failure Exception.
     inputs:
-      Runtime: python3.7
+      Runtime: python3.8
       Handler: deattach_iam_policy_from_users
       InputPayload:
         IAMPolicy: "{{ IAMPolicy }}"

@@ -35,7 +35,6 @@ const remediations: IControl[] = [
   { "control": "PCI.CW.1" },
   { "control": "PCI.EC2.1" },
   { "control": "PCI.EC2.2" },
-  { "control": "PCI.EC2.5" },
   { "control": "PCI.IAM.8" },
   { "control": "PCI.KMS.1" },
   { "control": "PCI.Lambda.1" },
