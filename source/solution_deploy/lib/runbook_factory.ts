@@ -81,7 +81,7 @@ export class RunbookFactory extends cdk.Construct {
     };
 
     cdk_nag.NagSuppressions.addResourceSuppressions(policy, [
-      {id: 'AwsSolutions-IAM5', reason: 'Resource * is required in order to manage arbitrary SSM documents'}
+      { id: 'AwsSolutions-IAM5', reason: 'Resource * is required in order to manage arbitrary SSM documents' }
     ]);
 
     const role = new iam.Role(this, 'Role', {
@@ -100,8 +100,8 @@ export class RunbookFactory extends cdk.Construct {
       description: 'SO0111 SHARR Common functions used by the solution member stack',
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
       code: lambda.Code.fromBucket(
-          SolutionsBucket,
-          props.solutionTMN + '/' + props.solutionVersion + '/lambda/memberLayer.zip'
+        SolutionsBucket,
+        props.solutionTMN + '/' + props.solutionVersion + '/lambda/memberLayer.zip'
       )
     });
 
@@ -111,8 +111,8 @@ export class RunbookFactory extends cdk.Construct {
       runtime: props.runtimePython,
       description: 'Custom resource to manage versioned SSM documents',
       code: lambda.Code.fromBucket(
-          SolutionsBucket,
-          props.solutionTMN + '/' + props.solutionVersion + '/lambda/updatableRunbookProvider.py.zip'
+        SolutionsBucket,
+        props.solutionTMN + '/' + props.solutionVersion + '/lambda/updatableRunbookProvider.py.zip'
       ),
       environment: {
         LOG_LEVEL: 'info',
@@ -121,8 +121,7 @@ export class RunbookFactory extends cdk.Construct {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: role,
-      layers: [memberLambdaLayer],
-      reservedConcurrentExecutions: 1
+      layers: [memberLambdaLayer]
     });
 
     const cfnLambdaFunction = lambdaFunction.node.defaultChild as lambda.CfnFunction;
@@ -156,16 +155,16 @@ export class RunbookFactory extends cdk.Construct {
     return 'Custom::UpdatableRunbook';
   }
 
-  static createControlRunbook(scope: cdk.Construct, id: string, props: IssmPlaybookProps): cdk.CustomResource {
+  static createControlRunbook(scope: cdk.Construct, id: string, props: IssmPlaybookProps, prevBook: cdk.CustomResource | null): cdk.CustomResource {
     let scriptPath = '';
-    if (props.scriptPath == undefined ) {
+    if (props.scriptPath == undefined) {
       scriptPath = `${props.ssmDocPath}/scripts`;
     } else {
       scriptPath = props.scriptPath;
     }
 
     let commonScripts = '';
-    if (props.commonScripts == undefined ) {
+    if (props.commonScripts == undefined) {
       commonScripts = '../common';
     } else {
       commonScripts = props.commonScripts;
@@ -221,6 +220,9 @@ export class RunbookFactory extends cdk.Construct {
         DocumentType: 'Automation'
       }
     });
+    if (prevBook != null) {
+      ssmDoc.node.addDependency(prevBook)
+    }
 
     const ssmDocCfnResource = ssmDoc.node.defaultChild as cdk.CfnCustomResource;
     ssmDocCfnResource.cfnOptions.condition = installSsmDoc;
@@ -228,7 +230,7 @@ export class RunbookFactory extends cdk.Construct {
     return ssmDoc;
   }
 
-  static createRemediationRunbook(scope: cdk.Construct, id: string, props: RemediationRunbookProps) {
+  static createRemediationRunbook(scope: cdk.Construct, id: string, props: RemediationRunbookProps, prevBook: cdk.CustomResource | null) {
     const ssmDocName = `SHARR-${props.ssmDocName}`;
     let scriptPath = '';
     if (props.scriptPath == undefined) {
@@ -267,6 +269,9 @@ export class RunbookFactory extends cdk.Construct {
         DocumentType: 'Automation'
       }
     });
+    if (prevBook != null) {
+      runbook.node.addDependency(prevBook)
+    }
 
     return runbook;
   }

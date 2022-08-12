@@ -91,7 +91,7 @@ export class RemediationRunbookStack extends cdk.Stack {
 
         const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
         const remediationRoleNameBase = `${RESOURCE_PREFIX}-`
-
+        let prevBook: cdk.CustomResource | null = null;
         //-----------------------
         // DetachIAMPolicyFromUsers
         //
@@ -134,7 +134,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -142,7 +142,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -197,7 +197,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -205,7 +205,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -247,7 +247,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -255,7 +255,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -311,7 +311,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -319,7 +319,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -374,7 +374,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -382,7 +382,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
         }
         //-----------------------
         // EnableAutoScalingGroupELBHealthCheck
@@ -406,7 +406,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -414,7 +414,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -508,7 +508,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -516,7 +516,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -612,7 +612,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -620,7 +620,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             {
                 let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
                 childToMod.cfnOptions.metadata = {
@@ -656,7 +656,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -664,7 +664,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -707,7 +707,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -715,7 +715,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -830,7 +830,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -838,7 +838,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -875,7 +875,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -883,7 +883,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -918,7 +918,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -926,7 +926,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
@@ -964,7 +964,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -972,7 +972,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
@@ -1011,7 +1011,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1019,7 +1019,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
@@ -1069,7 +1069,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1077,7 +1077,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1125,7 +1125,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 }
             }
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1133,7 +1133,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
         }
 
         //-----------------------
@@ -1174,7 +1174,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1182,7 +1182,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1217,7 +1217,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1225,7 +1225,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1264,7 +1264,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1272,7 +1272,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1309,7 +1309,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1317,7 +1317,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1358,7 +1358,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1366,7 +1366,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1403,7 +1403,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1411,7 +1411,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1448,7 +1448,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1456,7 +1456,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1578,7 +1578,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1586,7 +1586,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1621,7 +1621,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1629,7 +1629,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -1665,7 +1665,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1673,7 +1673,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
         }
 
         //-----------------------
@@ -1698,7 +1698,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1706,7 +1706,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -1757,7 +1757,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1765,7 +1765,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
@@ -1806,7 +1806,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1814,7 +1814,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
 
@@ -1866,7 +1866,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1874,7 +1874,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
@@ -1927,7 +1927,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1935,7 +1935,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             // CFN-NAG
             // WARN W12: IAM policy should not allow * resource
@@ -1973,7 +1973,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -1981,7 +1981,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -2016,7 +2016,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -2024,7 +2024,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -2071,7 +2071,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -2079,7 +2079,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -2130,7 +2130,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -2138,7 +2138,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
 
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
@@ -2176,7 +2176,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             })
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -2184,7 +2184,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            })
+            }, prevBook)
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
                 cfn_nag: {
@@ -2218,7 +2218,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -2226,7 +2226,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
                 cfn_nag: {
@@ -2262,7 +2262,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 remediationRoleName: `${remediationRoleNameBase}${remediationName}`
             });
 
-            RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+            prevBook = RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
                 ssmDocName: remediationName,
                 ssmDocPath: ssmdocs,
                 ssmDocFileName: `${remediationName}.yaml`,
@@ -2270,7 +2270,7 @@ export class RemediationRunbookStack extends cdk.Stack {
                 solutionVersion: props.solutionVersion,
                 solutionDistBucket: props.solutionDistBucket,
                 solutionId: props.solutionId
-            });
+            }, prevBook);
             let childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
             childToMod.cfnOptions.metadata = {
                 cfn_nag: {

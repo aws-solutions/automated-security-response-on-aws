@@ -26,19 +26,19 @@ import { AdminAccountParm } from './admin_account_parm-construct';
 import { RunbookFactory } from '../solution_deploy/lib/runbook_factory';
 
 export interface IControl {
-    control: string;
-    executes?: string;
+  control: string;
+  executes?: string;
 }
 export interface PlaybookProps {
-    description: string;
-    solutionId: string;
-    solutionVersion: string;
-    solutionDistBucket: string;
-    solutionDistName: string;
-    remediations: IControl[];
-    securityStandard: string;
-    securityStandardLongName: string;
-    securityStandardVersion: string;
+  description: string;
+  solutionId: string;
+  solutionVersion: string;
+  solutionDistBucket: string;
+  solutionDistName: string;
+  remediations: IControl[];
+  securityStandard: string;
+  securityStandardLongName: string;
+  securityStandardVersion: string;
 }
 
 export class PlaybookPrimaryStack extends cdk.Stack {
@@ -47,52 +47,54 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     super(scope, id, props);
 
     const stack = cdk.Stack.of(this)
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/,''); // prefix on every resource name
+    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
     const orchestratorArn = StringParameter.valueForStringParameter(this, `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`)
 
     // Register the playbook. These parameters enable the step function to route matching events
     new StringParameter(this, 'StandardShortName', {
-        description: 'Provides a short (1-12) character abbreviation for the standard.',
-        parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/shortname`,
-        stringValue: props.securityStandard
+      description: 'Provides a short (1-12) character abbreviation for the standard.',
+      parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/shortname`,
+      stringValue: props.securityStandard
     });
     new StringParameter(this, 'StandardVersion', {
-        description: 'This parameter controls whether the SHARR step function will process findings for this version of the standard.',
-        parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/status`,
-        stringValue: 'enabled'
+      description: 'This parameter controls whether the SHARR step function will process findings for this version of the standard.',
+      parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/status`,
+      stringValue: 'enabled'
     });
 
     new cdk.CfnMapping(this, 'SourceCode', {
-        mapping: { "General": {
-            "S3Bucket": props.solutionDistBucket,
-            "KeyPrefix": props.solutionDistName + '/' + props.solutionVersion
-        } }
+      mapping: {
+        "General": {
+          "S3Bucket": props.solutionDistBucket,
+          "KeyPrefix": props.solutionDistName + '/' + props.solutionVersion
+        }
+      }
     })
 
-    const processRemediation = function(controlSpec: IControl): void {
-        if ((controlSpec.executes != undefined) &&
-            (controlSpec.control != controlSpec.executes)) {
-            // This control is remapped to another
-            new StringParameter(stack, `Remap ${props.securityStandard} ${controlSpec.control}`, {
-                description: `Remap the ${props.securityStandard} ${controlSpec.control} finding to ${props.securityStandard} ${controlSpec.executes} remediation`,
-                parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandard}/${props.securityStandardVersion}/${controlSpec.control}/remap`,
-                stringValue: `${controlSpec.executes}`
-            });
-        }
-        let generatorId = ''
-        if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
-            // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
-            generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/rule/${controlSpec.control}`
-        }
-        else {
-            generatorId = `${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`
-        }
-        new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {
-            securityStandard: props.securityStandard,
-            controlId: controlSpec.control,
-            generatorId: generatorId,
-            targetArn: orchestratorArn
-        })
+    const processRemediation = function (controlSpec: IControl): void {
+      if ((controlSpec.executes != undefined) &&
+        (controlSpec.control != controlSpec.executes)) {
+        // This control is remapped to another
+        new StringParameter(stack, `Remap ${props.securityStandard} ${controlSpec.control}`, {
+          description: `Remap the ${props.securityStandard} ${controlSpec.control} finding to ${props.securityStandard} ${controlSpec.executes} remediation`,
+          parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandard}/${props.securityStandardVersion}/${controlSpec.control}/remap`,
+          stringValue: `${controlSpec.executes}`
+        });
+      }
+      let generatorId = ''
+      if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
+        // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
+        generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/rule/${controlSpec.control}`
+      }
+      else {
+        generatorId = `${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`
+      }
+      new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {
+        securityStandard: props.securityStandard,
+        controlId: controlSpec.control,
+        generatorId: generatorId,
+        targetArn: orchestratorArn
+      })
     }
 
     props.remediations.forEach(processRemediation)
@@ -128,11 +130,11 @@ export class PlaybookMemberStack extends cdk.Stack {
     new AdminAccountParm(this, 'AdminAccountParameter', {
       solutionId: props.solutionId
     });
-
-    const processRemediation = function(controlSpec: IControl): void {
+    let prevBook: cdk.CustomResource | null = null;
+    const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control
       if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
-        RunbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
+        prevBook = RunbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
           securityStandard: props.securityStandard,
           securityStandardVersion: props.securityStandardVersion,
           controlId: controlSpec.control,
@@ -142,7 +144,7 @@ export class PlaybookMemberStack extends cdk.Stack {
           solutionDistBucket: props.solutionDistBucket,
           solutionId: props.solutionId,
           commonScripts: props.commonScripts
-        });
+        }, prevBook);
       }
     };
 
