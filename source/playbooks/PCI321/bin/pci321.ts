@@ -35,7 +35,6 @@ const remediations: IControl[] = [
   { "control": "PCI.CW.1" },
   { "control": "PCI.EC2.1" },
   { "control": "PCI.EC2.2" },
-  { "control": "PCI.EC2.5" },
   { "control": "PCI.IAM.8" },
   { "control": "PCI.KMS.1" },
   { "control": "PCI.Lambda.1" },
@@ -54,7 +53,9 @@ const remediations: IControl[] = [
   },
   { "control": "PCI.S3.4" },
   { "control": "PCI.S3.5" },
-  { "control": "PCI.S3.6" }
+  { "control": "PCI.S3.6" },
+  { "control": "PCI.IAM.3" },
+  { "control": "PCI.EC2.5" }
 ];
 
 const adminStack = new PlaybookPrimaryStack(app, 'PCI321Stack', {

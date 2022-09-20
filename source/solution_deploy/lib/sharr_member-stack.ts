@@ -54,7 +54,7 @@ export class MemberStack extends cdk.Stack {
     const createS3BucketForRedshift4 = new cdk.CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
       description: "Create S3 Bucket For Redshift Cluster Audit Logging.",
       type: "String",
-      allowedValues:["yes", "no"],
+      allowedValues: ["yes", "no"],
       default: "no"
     });
 
@@ -73,7 +73,7 @@ export class MemberStack extends cdk.Stack {
     })
 
     cdk_nag.NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
-      {id: 'AwsSolutions-S1', reason: 'This is a logging bucket.'}
+      { id: 'AwsSolutions-S1', reason: 'This is a logging bucket.' }
     ]);
 
     const bucketPolicy = new s3.BucketPolicy(this, 'S3BucketForRedShiftAuditLoggingBucketPolicy', {
@@ -111,11 +111,11 @@ export class MemberStack extends cdk.Stack {
     };
 
     cdk_nag.NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
-      {id: 'AwsSolutions-S1', reason: 'Logs bucket does not require logging configuration'},
-      {id: 'AwsSolutions-S10', reason: 'Secure transport requirement is redundant for this use case'}
+      { id: 'AwsSolutions-S1', reason: 'Logs bucket does not require logging configuration' },
+      { id: 'AwsSolutions-S10', reason: 'Secure transport requirement is redundant for this use case' }
     ]);
     cdk_nag.NagSuppressions.addResourceSuppressions(bucketPolicy, [
-      {id: 'AwsSolutions-S10', reason: 'Secure transport requirement is redundant for this use case'}
+      { id: 'AwsSolutions-S10', reason: 'Secure transport requirement is redundant for this use case' }
     ]);
 
     s3BucketForAuditLogging_cfn_ref.cfnOptions.condition = enableS3BucketForRedShift4;
@@ -126,19 +126,19 @@ export class MemberStack extends cdk.Stack {
     // KMS Customer Managed Key
 
     // Key Policy
-    const kmsKeyPolicy:PolicyDocument = new PolicyDocument();
-    const kmsPerms:PolicyStatement = new PolicyStatement();
+    const kmsKeyPolicy: PolicyDocument = new PolicyDocument();
+    const kmsPerms: PolicyStatement = new PolicyStatement();
     kmsPerms.addActions(
-        'kms:GenerateDataKey',
-        'kms:GenerateDataKeyPair',
-        'kms:GenerateDataKeyPairWithoutPlaintext',
-        'kms:GenerateDataKeyWithoutPlaintext',
-        'kms:Decrypt',
-        'kms:Encrypt',
-        'kms:ReEncryptFrom',
-        'kms:ReEncryptTo',
-        'kms:DescribeKey',
-        'kms:DescribeCustomKeyStores'
+      'kms:GenerateDataKey',
+      'kms:GenerateDataKeyPair',
+      'kms:GenerateDataKeyPairWithoutPlaintext',
+      'kms:GenerateDataKeyWithoutPlaintext',
+      'kms:Decrypt',
+      'kms:Encrypt',
+      'kms:ReEncryptFrom',
+      'kms:ReEncryptTo',
+      'kms:DescribeKey',
+      'kms:DescribeCustomKeyStores'
     );
     kmsPerms.effect = Effect.ALLOW;
     kmsPerms.addResources("*"); // Only the key the policydocument is attached to
@@ -150,7 +150,7 @@ export class MemberStack extends cdk.Stack {
     kmsPerms.addPrincipals(new ServicePrincipal('cloudwatch.amazonaws.com'));
     kmsKeyPolicy.addStatements(kmsPerms);
 
-    const kmsKey:Key = new Key(this, 'SHARR Remediation Key', {
+    const kmsKey: Key = new Key(this, 'SHARR Remediation Key', {
       enableKeyRotation: true,
       alias: `${RESOURCE_PREFIX}-SHARR-Remediation-Key`,
       trustAccountIdentities: true,
@@ -164,9 +164,9 @@ export class MemberStack extends cdk.Stack {
     });
 
     new StringParameter(this, 'SHARR Member Version', {
-        description: 'Version of the AWS Security Hub Automated Response and Remediation solution',
-        parameterName: `/Solutions/${RESOURCE_PREFIX}/member-version`,
-        stringValue: props.solutionVersion
+      description: 'Version of the AWS Security Hub Automated Response and Remediation solution',
+      parameterName: `/Solutions/${RESOURCE_PREFIX}/member-version`,
+      stringValue: props.solutionVersion
     });
 
     /********************
@@ -212,10 +212,12 @@ export class MemberStack extends cdk.Stack {
 
 
     new cdk.CfnMapping(this, 'SourceCode', {
-      mapping: { "General": {
-        "S3Bucket": props.solutionDistBucket,
-        "KeyPrefix": props.solutionTMN + '/' + props.solutionVersion
-      }}
+      mapping: {
+        "General": {
+          "S3Bucket": props.solutionDistBucket,
+          "KeyPrefix": props.solutionTMN + '/' + props.solutionVersion
+        }
+      }
     });
 
     const runbookFactory = new RunbookFactory(this, 'RunbookProvider', {
@@ -233,8 +235,8 @@ export class MemberStack extends cdk.Stack {
     //
     const runbookStack = new cdk.CfnStack(this, `RunbookStackNoRoles`, {
       templateUrl: "https://" + cdk.Fn.findInMap("SourceCode", "General", "S3Bucket") +
-      "-reference.s3.amazonaws.com/" + cdk.Fn.findInMap("SourceCode", "General", "KeyPrefix") +
-      "/aws-sharr-remediations.template"
+        "-reference.s3.amazonaws.com/" + cdk.Fn.findInMap("SourceCode", "General", "KeyPrefix") +
+        "/aws-sharr-remediations.template"
     });
 
     runbookStack.node.addDependency(runbookFactory);
@@ -268,11 +270,12 @@ export class MemberStack extends cdk.Stack {
               'SecHubAdminAccount': adminAccount.adminAccountNumber.valueAsString
             },
             templateUrl: "https://" + cdk.Fn.findInMap("SourceCode", "General", "S3Bucket") +
-            "-reference.s3.amazonaws.com/" + cdk.Fn.findInMap("SourceCode", "General", "KeyPrefix") +
-            "/playbooks/" + templateFile
+              "-reference.s3.amazonaws.com/" + cdk.Fn.findInMap("SourceCode", "General", "KeyPrefix") +
+              "/playbooks/" + templateFile
           })
 
           memberStack.node.addDependency(runbookFactory);
+          memberStack.node.addDependency(runbookStack);
 
           memberStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
             expression: cdk.Fn.conditionEquals(memberStackOption, "yes")
@@ -287,11 +290,11 @@ export class MemberStack extends cdk.Stack {
       "AWS::CloudFormation::Interface": {
         ParameterGroups: [
           {
-            Label: {default: "LogGroup Configuration"},
+            Label: { default: "LogGroup Configuration" },
             Parameters: [logGroupName.logicalId]
           },
           {
-            Label: {default: "Playbooks"},
+            Label: { default: "Playbooks" },
             Parameters: listOfPlaybooks
           }
         ],

@@ -122,7 +122,10 @@ let remediations: IControl[] = [
     "control": "4.2",
     "executes": "4.1"
   },
-  { "control": "4.3" }
+  { "control": "4.3" },
+  { "control": "1.16" },
+  { "control": "1.20" },
+  { "control": "1.22" }
 ];
 
 const adminStack = new PlaybookPrimaryStack(app, 'CIS120Stack', {

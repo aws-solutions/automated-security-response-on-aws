@@ -1,0 +1,10 @@
+deployment/temp/*
+source/test/*
+source/node_modules/
+deployment/global-s3-assets
+deployment/regional-s3-assets
+**/*.js
+**/*.d.ts
+**/cdk.out
+setenv.sh
+.venv

@@ -14,10 +14,10 @@ const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'unknown';
 const SOLUTION_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
 const SOLUTION_TMN = process.env['SOLUTION_TRADEMARKEDNAME'] || 'unknown';
 const SOLUTION_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || 'unknown';
-const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_8;
+const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_9;
 
 const app = new cdk.App();
-cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks({verbose: true}));
+cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks({ verbose: true }));
 
 let LOG_GROUP = `${SOLUTION_ID}-SHARR-Orchestrator`;
 LOG_GROUP = LOG_GROUP.replace(/^DEV-/, ''); // prefix on every resource name
@@ -52,7 +52,7 @@ const roleStack = new MemberRoleStack(app, 'MemberRoleStack', {
 });
 roleStack.templateOptions.templateFormatVersion = '2010-09-09';
 cdk_nag.NagSuppressions.addStackSuppressions(roleStack, [
-  {id: 'AwsSolutions-IAM5', reason: 'Resource and action wildcards are needed to remediate findings on arbitrary resources'}
+  { id: 'AwsSolutions-IAM5', reason: 'Resource and action wildcards are needed to remediate findings on arbitrary resources' }
 ]);
 
 const runbookStack = new RemediationRunbookStack(app, 'RunbookStack', {
