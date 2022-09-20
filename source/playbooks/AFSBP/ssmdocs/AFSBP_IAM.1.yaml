@@ -22,12 +22,11 @@ outputs:
 parameters:
   Finding:
     type: StringMap
-    description: The input from Step function for finding
+    description: The input from the Orchestrator Step function for the IAM.1 finding
   AutomationAssumeRole:
     type: String
-    description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
-    default: ""
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+'
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -59,7 +58,7 @@ mainSteps:
       Runtime: python3.8
       Handler: parse_event
       Script: |-
-        %%SCRIPT=afsbp_parse_input.py%%
+        %%SCRIPT=common/parse_input.py%%
     isEnd: false
   - name: Remediation
     action: "aws:executeAutomation"

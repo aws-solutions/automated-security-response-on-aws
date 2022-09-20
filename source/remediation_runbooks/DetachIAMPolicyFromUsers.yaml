@@ -17,10 +17,11 @@ parameters:
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[\w+=,.@-]+$
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   IAMPolicy:
     type: String
     description: (Required) Finding IAMPolicy.
+    allowedPattern: '.*'
 outputs:
   - DetachIAMPolicyFromUsers.Output
 mainSteps:
@@ -41,7 +42,6 @@ mainSteps:
         IAMPolicy: "{{ IAMPolicy }}"
       Script: |-
         %%SCRIPT=DetachIAMPolicyFromUsers.py%%
-
     outputs:
       - Name: Output
         Selector: $.Payload
