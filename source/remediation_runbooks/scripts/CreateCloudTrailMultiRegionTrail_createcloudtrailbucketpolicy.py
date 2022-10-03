@@ -62,6 +62,18 @@ def create_bucket_policy(event, context):
                     "Condition": { 
                         "StringEquals": { 
                             "s3:x-amz-acl": "bucket-owner-full-control"
+                        },
+                    }
+                },
+                {
+                    "Sid": "AllowSSLRequestsOnly",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "s3:*",
+                    "Resource": ["arn:" + aws_partition + ":s3:::" + cloudtrail_bucket ,"arn:" + aws_partition + ":s3:::" + cloudtrail_bucket + "/*"],
+                    "Condition": {
+                        "Bool": {
+                            "aws:SecureTransport": "false"
                         }
                     }
                 }
