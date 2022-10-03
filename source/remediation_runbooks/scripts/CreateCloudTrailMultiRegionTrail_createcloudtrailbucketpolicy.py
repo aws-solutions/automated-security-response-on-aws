@@ -70,7 +70,7 @@ def create_bucket_policy(event, context):
                     "Effect": "Deny",
                     "Principal": "*",
                     "Action": "s3:*",
-                    "Resource": "arn:" + aws_partition + ":s3:::" + cloudtrail_bucket + "/AWSLogs/" + aws_account + "/*",
+                    "Resource": ["arn:" + aws_partition + ":s3:::" + cloudtrail_bucket ,"arn:" + aws_partition + ":s3:::" + cloudtrail_bucket + "/*"],
                     "Condition": {
                         "Bool": {
                             "aws:SecureTransport": "false"
