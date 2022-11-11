@@ -15,6 +15,15 @@
 
 
 CIS_mappings = {
+    "1.1" : {
+        "filter_name": "RootAccountUsage",
+        "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
+        "metric_name": "RootAccountUsage",
+        "metric_value": 1,
+        "alarm_name": "RootAccountUsage",
+        "alarm_desc": "Alarm for RootAccountUsage > 0",
+        "alarm_threshold": 1
+    },
     "3.1": {
         "filter_name": "UnauthorizedAPICalls",
         "filter_pattern": '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}',
