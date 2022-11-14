@@ -66,6 +66,10 @@ let remediations: IControl[] = [
   { "control": "2.9" },
   { "control": "3.1" },
   {
+    "control": "1.1",
+    "executes": "3.1"
+  },
+  {
     "control": "3.2",
     "executes": "3.1"
   },
