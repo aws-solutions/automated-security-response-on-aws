@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_RDS.16
+  ### Document Name - ASR-AFSBP_1.0.0_RDS.16
 
   ## What does this document do?
   This document enables `Copy tags to snapshots` on a given Amazon RDS cluster by calling another SSM document.
@@ -70,7 +70,7 @@ mainSteps:
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-EnableCopyTagsToSnapshotOnRDSCluster
+      DocumentName: ASR-EnableCopyTagsToSnapshotOnRDSCluster
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -91,7 +91,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Copy Tags to Snapshots enabled on RDS DB cluster'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.16'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.16'
       Workflow:
         Status: 'RESOLVED'
     description: Update finding

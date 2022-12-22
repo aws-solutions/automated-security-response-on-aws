@@ -1,5 +1,5 @@
 description: |
-  ### Document name - SHARR-EnableDefaultEncryptionS3
+  ### Document name - ASR-EnableDefaultEncryptionS3
 
   ## What does this document do?
   This document configures default encryption for an Amazon S3 Bucket.

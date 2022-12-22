@@ -218,15 +218,7 @@ export class MemberStack extends cdk.Stack {
       }}
     });
 
-    const runbookFactory = new RunbookFactory(this, 'RunbookProvider', {
-      solutionId: props.solutionId,
-      runtimePython: props.runtimePython,
-      solutionDistBucket: props.solutionDistBucket,
-      solutionTMN: props.solutionTMN,
-      solutionVersion: props.solutionVersion,
-      region: this.region,
-      partition: this.partition
-    });
+    const runbookFactory = new RunbookFactory(this, 'RunbookProvider');
 
     //-------------------------------------------------------------------------
     // Runbooks - shared automations

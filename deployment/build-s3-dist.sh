@@ -20,7 +20,7 @@
 # This controls the CDK and AWS Solutions Constructs version. Solutions
 # Constructs versions map 1:1 to CDK versions. When setting this value,
 # choose the latest AWS Solutions Constructs version.
-required_cdk_version=1.155.0
+required_cdk_version=1.183.0
 
 # Get reference for all important folders
 template_dir="$PWD"

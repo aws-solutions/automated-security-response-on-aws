@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_1.4
+  ### Document Name - ASR-CIS_1.2.0_1.4
 
   ## What does this document do?
   This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**.
@@ -70,7 +70,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-RevokeUnrotatedKeys
+      DocumentName: ASR-RevokeUnrotatedKeys
       RuntimeParameters:
         IAMResourceId: '{{ ParseInput.IAMResourceId }}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
@@ -86,7 +86,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Deactivated unrotated keys for {{ ParseInput.IAMUser }}.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_1.4'
+        UpdatedBy: 'ASR-CIS_1.2.0_1.4'
       Workflow:
         Status: RESOLVED
     description: Update finding

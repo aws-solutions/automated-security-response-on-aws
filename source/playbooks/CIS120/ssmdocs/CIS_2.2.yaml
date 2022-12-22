@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_2.2
+  ### Document Name - ASR-CIS_1.2.0_2.2
 
   ## What does this document do?
   This document enables CloudTrail log file validation.
@@ -71,7 +71,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableCloudTrailLogFileValidation
+      DocumentName: ASR-EnableCloudTrailLogFileValidation
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -90,7 +90,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled CloudTrail log file validation.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_2.2'
+        UpdatedBy: 'ASR-CIS_1.2.0_2.2'
       Workflow:
         Status: RESOLVED
     description: Update finding

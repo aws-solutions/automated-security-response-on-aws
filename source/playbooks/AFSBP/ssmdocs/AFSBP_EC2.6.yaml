@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_EC2.6
+  ### Document Name - ASR-AFSBP_1.0.0_EC2.6
 
   ## What does this document do?
   Enables VPC Flow Logs for a VPC
@@ -70,7 +70,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableVPCFlowLogs
+      DocumentName: ASR-EnableVPCFlowLogs
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -90,7 +90,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled VPC Flow Logs for {{ParseInput.VPC}}'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_EC2.6'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_EC2.6'
       Workflow:
         Status: RESOLVED
     description: Update finding

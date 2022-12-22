@@ -164,11 +164,7 @@ export class SolutionDeployStack extends cdk.Stack {
      * @type {lambda.LayerVersion}
      */
     const sharrLambdaLayer = new lambda.LayerVersion(this, 'SharrLambdaLayer', {
-        compatibleRuntimes: [
-            lambda.Runtime.PYTHON_3_6,
-            lambda.Runtime.PYTHON_3_7,
-            lambda.Runtime.PYTHON_3_8
-        ],
+        compatibleRuntimes: [lambda.Runtime.PYTHON_3_9],
         description: 'SO0111 SHARR Common functions used by the solution',
         license: "https://www.apache.org/licenses/LICENSE-2.0",
         code: lambda.Code.fromBucket(

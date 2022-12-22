@@ -1,0 +1,69 @@
+
+.DS_Store
+inputs.md/*
+source/example*
+**/__pycache__/*
+source/playbooks/**/_description.txt
+deployment/temp/*
+deployment/test/*
+
+**/build
+**/package
+**/global-s3-assets
+**/regional-s3-assets
+**/open-source
+**/.zip
+**/tmp
+**/out-tsc
+
+# dependencies
+**/node_modules
+
+# coverage
+**/coverage
+**/package
+**/.coverage
+
+# misc
+**/npm-debug.log
+**/testem.log
+**/.vscode/settings.json
+**/*.zip
+**/*local-runner*
+**/*create-stack.sh
+
+
+# System Files
+**/.DS_Store
+**/.vscode
+
+# CDK files
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+# Python modules
+*.dist-info
+source/solution_deploy/source/certifi
+source/solution_deploy/source/chardet
+source/solution_deploy/source/idna
+source/solution_deploy/source/requests
+source/solution_deploy/source/urllib3
+
+# Parcel build directories
+.cache
+.build
+
+*.idea
+
+# Build files
+source/playbooks/*/template
+deployment/setenv.sh
+source/solution_deploy/source/bin
+source/playbooks/*/source/lib/*
+deployment/temp

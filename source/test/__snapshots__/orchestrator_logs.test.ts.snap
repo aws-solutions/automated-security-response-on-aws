@@ -1,16 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Global Roles Stack 1`] = `
-Object {
-  "Conditions": Object {
-    "EncryptedLogGroup": Object {
-      "Fn::And": Array [
-        Object {
+{
+  "Conditions": {
+    "EncryptedLogGroup": {
+      "Fn::And": [
+        {
           "Condition": "isNotGovCloud",
         },
-        Object {
-          "Fn::Equals": Array [
-            Object {
+        {
+          "Fn::Equals": [
+            {
               "Ref": "ReuseOrchestratorLogGroup",
             },
             "no",
@@ -18,18 +18,18 @@ Object {
         },
       ],
     },
-    "UnencryptedLogGroup": Object {
-      "Fn::And": Array [
-        Object {
-          "Fn::Not": Array [
-            Object {
+    "UnencryptedLogGroup": {
+      "Fn::And": [
+        {
+          "Fn::Not": [
+            {
               "Condition": "isNotGovCloud",
             },
           ],
         },
-        Object {
-          "Fn::Equals": Array [
-            Object {
+        {
+          "Fn::Equals": [
+            {
               "Ref": "ReuseOrchestratorLogGroup",
             },
             "no",
@@ -37,11 +37,11 @@ Object {
         },
       ],
     },
-    "isNotGovCloud": Object {
-      "Fn::Not": Array [
-        Object {
-          "Fn::Equals": Array [
-            Object {
+    "isNotGovCloud": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
               "Ref": "AWS::Partition",
             },
             "aws-us-gov",
@@ -51,47 +51,47 @@ Object {
     },
   },
   "Description": "test;",
-  "Parameters": Object {
-    "KmsKeyArn": Object {
+  "Parameters": {
+    "KmsKeyArn": {
       "Description": "ARN of the KMS key to use to encrypt log data.",
       "Type": "String",
     },
-    "ReuseOrchestratorLogGroup": Object {
-      "AllowedValues": Array [
+    "ReuseOrchestratorLogGroup": {
+      "AllowedValues": [
         "yes",
         "no",
       ],
       "Default": "no",
-      "Description": "Reuse existing Orchestrator Log Group? Choose \\"yes\\" if the log group already exists, else \\"no\\"",
+      "Description": "Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no"",
       "Type": "String",
     },
   },
-  "Resources": Object {
-    "OrchestratorLogsEFDFFA92": Object {
+  "Resources": {
+    "OrchestratorLogsEFDFFA92": {
       "Condition": "UnencryptedLogGroup",
       "DeletionPolicy": "Retain",
-      "Metadata": Object {
-        "cfn_nag": Object {
-          "rules_to_suppress": Array [
-            Object {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
               "id": "W84",
               "reason": "KmsKeyId is not supported in GovCloud.",
             },
           ],
         },
       },
-      "Properties": Object {
+      "Properties": {
         "LogGroupName": "TestLogGroup",
         "RetentionInDays": 365,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
     },
-    "OrchestratorLogsEncrypted072D6E38": Object {
+    "OrchestratorLogsEncrypted072D6E38": {
       "Condition": "EncryptedLogGroup",
       "DeletionPolicy": "Retain",
-      "Properties": Object {
-        "KmsKeyId": Object {
+      "Properties": {
+        "KmsKeyId": {
           "Ref": "KmsKeyArn",
         },
         "LogGroupName": "TestLogGroup",

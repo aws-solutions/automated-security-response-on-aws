@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_CloudTrail.4
+  ### Document Name - ASR-AFSBP_1.0.0_CloudTrail.4
 
   ## What does this document do?
   This document enables CloudTrail log file validation.
@@ -71,7 +71,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableCloudTrailLogFileValidation
+      DocumentName: ASR-EnableCloudTrailLogFileValidation
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -90,7 +90,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled CloudTrail log file validation.'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_CloudTrail.2.4'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_CloudTrail.2.4'
       Workflow:
         Status: RESOLVED
     description: Update finding

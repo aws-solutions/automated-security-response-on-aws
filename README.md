@@ -130,7 +130,7 @@ Unless noted, all of the following changes are within the folder you just create
 
 #### Configure the Playbook
 
-Edit **bin/\<standard\>.ts**. The following 3 lines are critical to definition of the Playbook. These values enable SHARR to map from the StandardsControlArn in a finding to your remediations.
+Edit **bin/\<standard\>.ts**. The following 3 lines are critical to definition of the Playbook. These values enable ASR to map from the StandardsControlArn in a finding to your remediations.
 
 ```typescript
 const standardShortName = 'NPB'
@@ -154,13 +154,13 @@ const remediations: IControl[] = [
 
 #### Create the Remediations
 
-Remediations are executed using SSM Automation Runbooks. Each control has a specific runbook. SHARR Runbooks must follow the naming convention in the **/ssmdocs** folder:
+Remediations are executed using SSM Automation Runbooks. Each control has a specific runbook. ASR Runbooks must follow the naming convention in the **/ssmdocs** folder:
 
 <standardShortName>-<control>.yaml
 
-Follow examples from other Playbooks. Your SHARR runbook must parse the finding data, extract the fields needed for remediation, and execute a remediation runbook, passing the role name.
+Follow examples from other Playbooks. Your ASR runbook must parse the finding data, extract the fields needed for remediation, and execute a remediation runbook, passing the role name.
 
-Remediation runbooks are defined in the /source/remediation_runbooks and /source/solution_deploy/remediation_runbooks-stack.ts. The remediation examples provided with the solution are fairly robust and self-documenting. Each definition creates an IAM role and an SSM runbook that is called by the SHARR runbook.
+Remediation runbooks are defined in the /source/remediation_runbooks and /source/solution_deploy/remediation_runbooks-stack.ts. The remediation examples provided with the solution are fairly robust and self-documenting. Each definition creates an IAM role and an SSM runbook that is called by the ASR runbook.
 
 ### Build and Deploy
 

@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-CreateLogMetricFilterAndAlarm
+  ### Document Name - ASR-CreateLogMetricFilterAndAlarm
   ## What does this document do?
   Creates a metric filter for a given log group and also creates and alarm for the metric.
 

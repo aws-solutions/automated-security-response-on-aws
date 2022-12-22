@@ -18,15 +18,15 @@ import {
     Stack,
     Construct,
     ArnFormat } from '@aws-cdk/core';
-import { 
-    PolicyStatement, 
-    Effect, 
-    Role, 
-    PolicyDocument, 
+import {
+    PolicyStatement,
+    Effect,
+    Role,
+    PolicyDocument,
     ArnPrincipal,
     ServicePrincipal,
-    CompositePrincipal, 
-    CfnRole 
+    CompositePrincipal,
+    CfnRole
 } from '@aws-cdk/aws-iam';
 
 export interface OrchRoleProps {
@@ -66,7 +66,7 @@ export class OrchestratorMemberRole extends Construct {
             service: 'ssm',
             region: '*',
             resource: 'document',
-            resourceName: 'SHARR-*',
+            resourceName: 'ASR-*',
             arnFormat: ArnFormat.SLASH_RESOURCE_NAME
         }),
         stack.formatArn({

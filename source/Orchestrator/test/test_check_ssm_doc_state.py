@@ -39,49 +39,49 @@ BOTO_CONFIG = Config(
     region_name=my_region
 )
 
-def workflow_doc(): 
+def workflow_doc():
     return {
         "Document": {
-            "Status": "Active", 
-            "Hash": "15b9f136e2cb0b47490dc5b38b439905e3f36fe1a8a411c1d278f2f2eb6fe633", 
-            "Name": "test-workflow", 
+            "Status": "Active",
+            "Hash": "15b9f136e2cb0b47490dc5b38b439905e3f36fe1a8a411c1d278f2f2eb6fe633",
+            "Name": "test-workflow",
             "Parameters": [
                 {
-                    "Type": "String", 
-                    "Name": "AutomationAssumeRole", 
+                    "Type": "String",
+                    "Name": "AutomationAssumeRole",
                     "Description": "The ARN of the role that allows Automation to perform the actions on your behalf."
-                }, 
+                },
                 {
-                    "Type": "StringMap", 
-                    "Name": "Finding", 
+                    "Type": "StringMap",
+                    "Name": "Finding",
                     "Description": "The Finding data from the Orchestrator Step Function"
-                }, 
+                },
                 {
-                    "Type": "StringMap", 
-                    "Name": "SSMExec", 
+                    "Type": "StringMap",
+                    "Name": "SSMExec",
                     "Description": "Data for decision support in this runbook"
-                }, 
+                },
                 {
-                    "Type": "String", 
-                    "Name": "RemediationDoc", 
+                    "Type": "String",
+                    "Name": "RemediationDoc",
                     "Description": "the SHARR Remediation (ingestion) runbook to execute"
                 }
-            ], 
-            "Tags": [], 
-            "DocumentType": "Automation", 
+            ],
+            "Tags": [],
+            "DocumentType": "Automation",
             "PlatformTypes": [
-                "Windows", 
-                "Linux", 
+                "Windows",
+                "Linux",
                 "MacOS"
-            ], 
-            "DocumentVersion": "1", 
-            "HashType": "Sha256", 
-            "CreatedDate": 1633985125.065, 
-            "Owner": "111111111111", 
-            "SchemaVersion": "0.3", 
-            "DefaultVersion": "1", 
-            "DocumentFormat": "YAML", 
-            "LatestVersion": "1", 
+            ],
+            "DocumentVersion": "1",
+            "HashType": "Sha256",
+            "CreatedDate": 1633985125.065,
+            "Owner": "111111111111",
+            "SchemaVersion": "0.3",
+            "DefaultVersion": "1",
+            "DocumentFormat": "YAML",
+            "LatestVersion": "1",
             "Description": "### Document Name - SHARR-Run_Remediation\n\n## What does this document do?\nThis document is executed by the AWS Security Hub Automated Response and Remediation Orchestrator Step Function. It implements controls such as manual approvals based on criteria passed by the Orchestrator.\n\n## Input Parameters\n* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.\n* Finding: (Required) json-formatted finding data\n* RemediationDoc: (Required) remediation runbook to execute after approval\n* SSMExec: (Required) json-formatted data for decision support in determining approval requirement\n"
         }
     }
@@ -118,7 +118,7 @@ def test_sunny_day(mocker):
 
     expected_good_response = {
         'accountid': '111111111111',
-        'automationdocid': 'SHARR-AFSBP_1.0.0_AutoScaling.1',
+        'automationdocid': 'ASR-AFSBP_1.0.0_AutoScaling.1',
         'controlid': 'AutoScaling.1',
         'logdata': [],
         'message': '',
@@ -226,7 +226,7 @@ def test_sunny_day(mocker):
                 "Tags": []
             }
         },{
-            "Name": "SHARR-AFSBP_1.0.0_AutoScaling.1"
+            "Name": "ASR-AFSBP_1.0.0_AutoScaling.1"
         }
     )
 
@@ -277,10 +277,10 @@ def test_doc_not_active(mocker):
 
     expected_good_response = {
         'accountid': '111111111111',
-        'automationdocid': 'SHARR-AFSBP_1.0.0_AutoScaling.17',
+        'automationdocid': 'ASR-AFSBP_1.0.0_AutoScaling.17',
         'controlid': 'AutoScaling.17',
         'logdata': [],
-        'message': 'Document SHARR-AFSBP_1.0.0_AutoScaling.17 does not exist.',
+        'message': 'Document ASR-AFSBP_1.0.0_AutoScaling.17 does not exist.',
         'remediation_status': '',
         'resourceregion': 'us-east-1',
         'remediationrole': 'SO0111-Remediate-AFSBP-1.0.0-AutoScaling.17',
@@ -372,7 +372,7 @@ def test_client_error(mocker):
 
     expected_good_response = {
         'accountid': '111111111111',
-        'automationdocid': 'SHARR-AFSBP_1.0.0_AutoScaling.1',
+        'automationdocid': 'ASR-AFSBP_1.0.0_AutoScaling.1',
         'controlid': 'AutoScaling.1',
         'logdata': [],
         'message': 'An unhandled client error occurred: ADoorIsAjar',
@@ -466,7 +466,7 @@ def test_control_remap(mocker):
 
     expected_good_response = {
         'accountid': '111111111111',
-        'automationdocid': 'SHARR-CIS_1.2.0_1.5',
+        'automationdocid': 'ASR-CIS_1.2.0_1.5',
         'controlid': '1.6',
         'logdata': [],
         'message': '',
@@ -630,7 +630,7 @@ def test_alt_workflow_with_role(mocker):
 
     expected_good_response = {
         'accountid': '111111111111',
-        'automationdocid': 'SHARR-CIS_1.2.0_1.6',
+        'automationdocid': 'ASR-CIS_1.2.0_1.6',
         'controlid': '1.6',
         'logdata': [],
         'message': '',

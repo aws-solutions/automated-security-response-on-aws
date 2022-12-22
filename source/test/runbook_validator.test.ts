@@ -206,16 +206,16 @@ test.each(runbooks)('%s has correct schema version', (runbook: RunbookTestHelper
 
 function getExpectedDocumentName(runbook: RunbookTestHelper): string {
   if (runbook.isRemediationRunbook()) {
-    return `SHARR-${runbook.getDocumentName()}`;
+    return `ASR-${runbook.getDocumentName()}`;
   }
   const standard: string = runbook.getStandardName();
   switch(standard) {
     case 'AFSBP':
-      return `SHARR-AFSBP_1.0.0_${runbook.getControlName()}`;
+      return `ASR-AFSBP_1.0.0_${runbook.getControlName()}`;
     case 'CIS120':
-      return `SHARR-CIS_1.2.0_${runbook.getControlName()}`;
+      return `ASR-CIS_1.2.0_${runbook.getControlName()}`;
     case 'PCI321':
-      return `SHARR-PCI_3.2.1_${runbook.getControlName()}`;
+      return `ASR-PCI_3.2.1_${runbook.getControlName()}`;
     default:
       throw Error(`Unrecognized standard: ${standard}`);
   }

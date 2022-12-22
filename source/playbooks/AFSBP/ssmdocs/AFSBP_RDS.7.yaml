@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_RDS.7
+  ### Document Name - ASR-AFSBP_1.0.0_RDS.7
 
   ## What does this document do?
   This document enables `Deletion Protection` on a given Amazon RDS cluster by calling another SSM document.
@@ -70,7 +70,7 @@ mainSteps:
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-EnableRDSClusterDeletionProtection
+      DocumentName: ASR-EnableRDSClusterDeletionProtection
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -90,7 +90,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Deletion protection enabled on RDS DB cluster'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.7'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.7'
       Workflow:
         Status: 'RESOLVED'
     description: Update finding

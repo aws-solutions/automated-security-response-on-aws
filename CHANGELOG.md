@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2022-12-22
+
+### Changed
+
+- Changed SSM document name prefixes from SHARR to ASR to support stack update
+- Upgraded Lambda Python runtimes to 3.9
+
+### Fixed
+
+- Reverted SSM document custom resource provider to resolve intermittent deployment errors
+- Fixed bug in AFSBP AutoScaling.1 and PCI.AutoScaling.1 remediation regexes
+
 ## [1.5.0] - 2022-05-31
 
 ### Added

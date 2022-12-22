@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_EC2.2
+  ### Document Name - ASR-AFSBP_1.0.0_EC2.2
 
   ## What does this document do?
   This document deletes ingress and egress rules from default security
@@ -69,7 +69,7 @@ mainSteps:
   - name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-RemoveVPCDefaultSecurityGroupRules
+      DocumentName: ASR-RemoveVPCDefaultSecurityGroupRules
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -88,7 +88,7 @@ mainSteps:
           ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: Removed rules on default security group
-        UpdatedBy: SHARR-AFSBP_1.0.0_EC2.2
+        UpdatedBy: ASR-AFSBP_1.0.0_EC2.2
       Workflow:
         Status: RESOLVED
     description: Update finding
