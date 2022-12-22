@@ -1,6 +1,6 @@
 schemaVersion: "0.3"
 description: |
-  ### Document name - SHARR-SetSSLBucketPolicy
+  ### Document name - ASR-SetSSLBucketPolicy
 
   ## What does this document do?
   This document adds a bucket policy to require transmission over HTTPS for the given S3 bucket by adding a policy statement to the bucket policy.

@@ -23,16 +23,16 @@ import { Aspects } from '@aws-cdk/core'
 function getTestStack(): cdk.Stack {
   const envEU = { account: '111111111111', region: 'eu-west-1' };
   const app = new cdk.App();
-  const stack = new SolutionDeploy.SolutionDeployStack(app, 'stack', { 
+  const stack = new SolutionDeploy.SolutionDeployStack(app, 'stack', {
     env: envEU,
     solutionId: 'SO0111',
     solutionVersion: 'v1.0.0',
     solutionDistBucket: 'solutions',
     solutionTMN: 'aws-security-hub-automated-response-and-remediation',
     solutionName: 'AWS Security Hub Automated Response & Remediation',
-    runtimePython: lambda.Runtime.PYTHON_3_8,
+    runtimePython: lambda.Runtime.PYTHON_3_9,
     orchLogGroup: 'ORCH_LOG_GROUP'
-    
+
   })
   Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
   return stack;

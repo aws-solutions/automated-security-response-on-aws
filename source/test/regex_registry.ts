@@ -341,13 +341,11 @@ export function getRegexRegistry(): RegexRegistry {
   ));
 
   const autoScalingGroupNameTestCase: RegexTestCase = new RegexTestCase(
-    String.raw`^[\u0020-\uD7FF\uE000-\uFFFD\uD800\uDC00-\uDBFF\uDFFF]{1,255}$`,
+    String.raw`^.{1,255}$`,
     'AutoScaling Group Name',
-    [],
-    []
+    ['my-group'],
+    ['', 'a'.repeat(256)],
   );
-  // TODO: This regex has an out-of-order group, it's probably a bug copied from the doc
-  autoScalingGroupNameTestCase.disable();
   registry.addCase(autoScalingGroupNameTestCase);
 
   registry.addCase(new RegexTestCase(
@@ -406,7 +404,7 @@ export function getRegexRegistry(): RegexRegistry {
   ));
 
   registry.addCase(new RegexTestCase(
-    String.raw`^[^"'\\ ]{0,512}$`, 
+    String.raw`^[^"'\\ ]{0,512}$`,
      'The prefix applied to the log file names.',
       [],
       []
@@ -456,13 +454,14 @@ function addIamMatchTestCases(registry: RegexRegistry) {
 
 function addAutoScalingMatchTestCases(registry: RegexRegistry) {
   const autoScalingGroupNameTestCase: RegexMatchTestCase = new RegexMatchTestCase(
-    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:autoScalingGroup:(?i:[0-9a-f]{11}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}):autoScalingGroupName/(.*)$`,
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:autoScalingGroup:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):autoScalingGroupName/(.{1,255})$`,
     'EC2 AutoScaling Group ARN, capture name',
-    [],
-    []
+    ['arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:00000000-0000-0000-0000-000000000000:autoScalingGroupName/my-group'],
+    ['arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:00000000-0000-0000-0000-000000000000:autoScalingGroupName/']
   );
-  // TODO: ES regex engine doesn't support case-insensitive non-capturing groups, just include capitals
-  autoScalingGroupNameTestCase.disable();
+  autoScalingGroupNameTestCase.addMatchTestCase(
+    'arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:00000000-0000-0000-0000-000000000000:autoScalingGroupName/my-group',
+    ['my-group']);
   registry.addCase(autoScalingGroupNameTestCase);
 }
 

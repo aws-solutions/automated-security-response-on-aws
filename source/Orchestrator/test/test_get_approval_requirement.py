@@ -101,7 +101,7 @@ def step_input():
             "SecurityStandardVersion": "1.0.0",
             "AccountId": "111111111111",
             "Message": "Document Status is not \"Active\": unknown",
-            "AutomationDocId": "SHARR-AFSBP_1.0.0_AutoScaling.1",
+            "AutomationDocId": "ASR-AFSBP_1.0.0_AutoScaling.1",
             "RemediationRole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
             "ControlId": "AutoScaling.1",
             "SecurityStandard": "AFSBP",
@@ -113,10 +113,10 @@ def test_get_approval_req(mocker):
     """
     Verifies that it returns the fanout runbook name
     """
-    os.environ['WORKFLOW_RUNBOOK'] = 'SHARR-RunWorkflow'
+    os.environ['WORKFLOW_RUNBOOK'] = 'ASR-RunWorkflow'
     os.environ['WORKFLOW_RUNBOOK_ACCOUNT'] = 'member'
     expected_result = {
-        'workflowdoc': "SHARR-RunWorkflow",
+        'workflowdoc': "ASR-RunWorkflow",
         'workflowaccount': '111111111111',
         'workflowrole': '',
         'workflow_data': {
@@ -171,12 +171,12 @@ def test_get_approval_req(mocker):
             "Document": {
                 "Hash": "be480c5a8771035918c439a0c76e1471306a699b7f275fe7e0bea70903dc569a",
                 "HashType": "Sha256",
-                "Name": "SHARR-RunWorkflow",
+                "Name": "ASR-RunWorkflow",
                 "Owner": "111111111111",
                 "CreatedDate": "2021-05-13T09:01:20.399000-04:00",
                 "Status": "Active",
                 "DocumentVersion": "1",
-                "Description": "### Document Name - SHARR-RunWorkflow",
+                "Description": "### Document Name - ASR-RunWorkflow",
                 "Parameters": [
                     {
                         "Name": "AutomationAssumeRole",
@@ -203,7 +203,7 @@ def test_get_approval_req(mocker):
                 "Tags": []
             }
         },{
-            "Name": "SHARR-RunWorkflow"
+            "Name": "ASR-RunWorkflow"
         }
     )
 
@@ -280,12 +280,12 @@ def test_get_approval_req_no_fanout(mocker):
             "Document": {
                 "Hash": "be480c5a8771035918c439a0c76e1471306a699b7f275fe7e0bea70903dc569a",
                 "HashType": "Sha256",
-                "Name": "SHARR-RunWorkflow",
+                "Name": "ASR-RunWorkflow",
                 "Owner": "111111111111",
                 "CreatedDate": "2021-05-13T09:01:20.399000-04:00",
                 "Status": "Active",
                 "DocumentVersion": "1",
-                "Description": "### Document Name - SHARR-RunWorkflow",
+                "Description": "### Document Name - ASR-RunWorkflow",
                 "Parameters": [
                     {
                         "Name": "AutomationAssumeRole",
@@ -312,7 +312,7 @@ def test_get_approval_req_no_fanout(mocker):
                 "Tags": []
             }
         },{
-            "Name": "SHARR-RunWorkflow"
+            "Name": "ASR-RunWorkflow"
         }
     )
 
@@ -334,11 +334,11 @@ def test_workflow_in_admin(mocker):
     """
     Verifies that it returns the fanout runbook name
     """
-    os.environ['WORKFLOW_RUNBOOK'] = 'SHARR-RunWorkflow'
+    os.environ['WORKFLOW_RUNBOOK'] = 'ASR-RunWorkflow'
     os.environ['WORKFLOW_RUNBOOK_ACCOUNT'] = 'admin'
     os.environ['WORKFLOW_RUNBOOK_ROLE'] = 'someotheriamrole'
     expected_result = {
-        'workflowdoc': "SHARR-RunWorkflow",
+        'workflowdoc': "ASR-RunWorkflow",
         'workflowaccount': LOCAL_ACCOUNT,
         'workflowrole': 'someotheriamrole',
         'workflow_data': {
@@ -393,12 +393,12 @@ def test_workflow_in_admin(mocker):
             "Document": {
                 "Hash": "be480c5a8771035918c439a0c76e1471306a699b7f275fe7e0bea70903dc569a",
                 "HashType": "Sha256",
-                "Name": "SHARR-RunWorkflow",
+                "Name": "ASR-RunWorkflow",
                 "Owner": "111111111111",
                 "CreatedDate": "2021-05-13T09:01:20.399000-04:00",
                 "Status": "Active",
                 "DocumentVersion": "1",
-                "Description": "### Document Name - SHARR-RunWorkflow",
+                "Description": "### Document Name - ASR-RunWorkflow",
                 "Parameters": [
                     {
                         "Name": "AutomationAssumeRole",
@@ -425,7 +425,7 @@ def test_workflow_in_admin(mocker):
                 "Tags": []
             }
         },{
-            "Name": "SHARR-RunWorkflow"
+            "Name": "ASR-RunWorkflow"
         }
     )
 

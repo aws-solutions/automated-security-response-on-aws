@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_S3.5
+  ### Document Name - ASR-AFSBP_1.0.0_S3.5
 
   ## What does this document do?
   This document adds a bucket policy to restrict internet access to https only.
@@ -63,7 +63,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-SetSSLBucketPolicy
+      DocumentName: ASR-SetSSLBucketPolicy
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
         AccountId: '{{ParseInput.AccountId}}'
@@ -79,7 +79,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Added SSL-only access policy to S3 bucket.'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_S3.5'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_S3.5'
       Workflow:
         Status: RESOLVED
     description: Update finding

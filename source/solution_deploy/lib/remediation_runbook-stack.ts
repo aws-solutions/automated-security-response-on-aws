@@ -130,7 +130,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -193,7 +193,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -225,7 +225,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -285,7 +285,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             )
             ssmPerms.effect = Effect.ALLOW
             ssmPerms.addResources(
-                `arn:${this.partition}:ssm:*:${this.account}:automation-definition/SHARR-CreateAccessLoggingBucket:*`
+                `arn:${this.partition}:ssm:*:${this.account}:automation-definition/ASR-CreateAccessLoggingBucket:*`
             );
             inlinePolicy.addStatements(ssmPerms)
         }
@@ -327,7 +327,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -431,7 +431,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR ' + remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -475,7 +475,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -526,7 +526,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -649,7 +649,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -694,7 +694,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -737,7 +737,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -783,7 +783,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -830,7 +830,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -888,7 +888,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -944,7 +944,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             }
         }
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -993,7 +993,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1036,7 +1036,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1083,7 +1083,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1128,7 +1128,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1177,7 +1177,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1222,7 +1222,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1267,7 +1267,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1397,7 +1397,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1440,7 +1440,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1484,7 +1484,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1517,7 +1517,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1576,7 +1576,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1625,7 +1625,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1672,7 +1672,8 @@ export class RemediationRunbookStack extends cdk.Stack {
         const rdsPerms = new PolicyStatement();
         rdsPerms.addActions(
             "rds:DescribeDBClusters",
-            "rds:ModifyDBCluster"
+            "rds:ModifyDBCluster",
+            "rds:ModifyDBInstance"
         )
         rdsPerms.effect = Effect.ALLOW
         rdsPerms.addResources("*");
@@ -1685,7 +1686,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1746,7 +1747,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1792,7 +1793,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1835,7 +1836,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         });
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1890,7 +1891,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1949,7 +1950,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -1995,7 +1996,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             remediationRoleName: `${remediationRoleNameBase}${remediationName}`
         })
 
-        RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+        RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
             ssmDocName: remediationName,
             ssmDocPath: ssmdocs,
             ssmDocFileName: `${remediationName}.yaml`,
@@ -2037,7 +2038,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationRoleName: `${remediationRoleNameBase}${remediationName}`
       });
 
-      RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+      RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
         ssmDocName: remediationName,
         ssmDocPath: ssmdocs,
         ssmDocFileName: `${remediationName}.yaml`,
@@ -2081,7 +2082,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         remediationRoleName: `${remediationRoleNameBase}${remediationName}`
       });
 
-      RunbookFactory.createRemediationRunbook(this, 'SHARR '+ remediationName, {
+      RunbookFactory.createRemediationRunbook(this, 'ASR '+ remediationName, {
         ssmDocName: remediationName,
         ssmDocPath: ssmdocs,
         ssmDocFileName: `${remediationName}.yaml`,

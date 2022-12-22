@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document name - SHARR-EnableAutomaticVersionUpgradeOnRedshiftCluster
+  ### Document name - ASR-EnableAutomaticVersionUpgradeOnRedshiftCluster
 
   ## What does this document do?
   The runbook enables automatic version upgrade on a Redshift cluster.

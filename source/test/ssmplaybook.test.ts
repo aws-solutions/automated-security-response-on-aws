@@ -49,7 +49,7 @@ function getSsmPlaybook(): Stack {
 test('Test SsmPlaybook Generation', () => {
   expectCDK(getSsmPlaybook()).to(haveResourceLike("AWS::SSM::Document", {
     "Content": {
-      "description": "### Document Name - SHARR-SECTEST_1.2.3_TEST.1\n",
+      "description": "### Document Name - ASR-SECTEST_1.2.3_TEST.1\n",
       "schemaVersion": "0.3",
       "assumeRole": "{{ AutomationAssumeRole }}",
       "outputs": [
@@ -117,7 +117,7 @@ function getSsmRemediationRunbook(): Stack {
 test('Test Shared Remediation Generation', () => {
   expectCDK(getSsmRemediationRunbook()).to(haveResourceLike("AWS::SSM::Document", {
     "Content": {
-      "description": "### Document Name - SHARR-CIS_1.2.0_2.9\n",
+      "description": "### Document Name - ASR-CIS_1.2.0_2.9\n",
       "schemaVersion": "0.3",
       "assumeRole": "{{ AutomationAssumeRole }}",
       "outputs": [

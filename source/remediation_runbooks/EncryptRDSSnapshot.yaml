@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document Name - SHARR-EncryptRDSSnapshot
+  ### Document Name - ASR-EncryptRDSSnapshot
 
   ## What does this document do?
   This document encrypts an RDS snapshot or cluster snapshot.

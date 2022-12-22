@@ -47,8 +47,8 @@ def _get_ssm_client(account, role, region=''):
 def _add_doc_state_to_answer(doc, account, region, answer):
     # Connect to APIs
     ssm = _get_ssm_client(
-        account, 
-        ORCH_ROLE_NAME, 
+        account,
+        ORCH_ROLE_NAME,
         region
     )
     # Validate input
@@ -122,7 +122,7 @@ def lambda_handler(event, context):
         'standardsupported': finding.standard_version_supported,
         'accountid': finding.account_id,
         'resourceregion': finding.resource_region
-    })  
+    })
 
     if finding.standard_version_supported != 'True':
         answer.update({
@@ -133,10 +133,10 @@ def lambda_handler(event, context):
 
     # Is there alt workflow configuration?
     alt_workflow_doc = event.get('Workflow',{}).get('WorkflowDocument', None)
-    
-    automation_docid = f'SHARR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
+
+    automation_docid = f'ASR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
     remediation_role = f'SO0111-Remediate-{finding.standard_shortname}-{finding.standard_version}-{finding.remediation_control}'
-    
+
     answer.update({
         'automationdocid': automation_docid,
         'remediationrole': remediation_role
@@ -150,9 +150,9 @@ def lambda_handler(event, context):
         })
     else:
         _add_doc_state_to_answer(
-            automation_docid, 
-            finding.account_id, 
-            finding.resource_region, 
+            automation_docid,
+            finding.account_id,
+            finding.resource_region,
             answer
         )
 

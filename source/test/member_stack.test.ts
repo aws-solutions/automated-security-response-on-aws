@@ -28,7 +28,7 @@ function getCatStack(): cdk.Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     solutionTMN: 'aws-security-hub-automated-response-and-remediation',
-    runtimePython: lambda.Runtime.PYTHON_3_8
+    runtimePython: lambda.Runtime.PYTHON_3_9
   });
   Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
   return stack;

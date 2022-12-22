@@ -1,5 +1,5 @@
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_1.5
+  ### Document Name - ASR-CIS_1.2.0_1.5
 
   ## What does this document do?
   This document establishes a default password policy.
@@ -64,7 +64,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-SetIAMPasswordPolicy
+      DocumentName: ASR-SetIAMPasswordPolicy
       RuntimeParameters:
         AllowUsersToChangePassword: True
         HardExpiry: True
@@ -87,7 +87,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Established a baseline password policy using the AWSConfigRemediation-SetIAMPasswordPolicy runbook.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_1.5'
+        UpdatedBy: 'ASR-CIS_1.2.0_1.5'
       Workflow:
         Status: RESOLVED
     description: Update finding

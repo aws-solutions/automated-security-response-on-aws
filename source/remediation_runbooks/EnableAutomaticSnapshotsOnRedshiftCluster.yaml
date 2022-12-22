@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document name - SHARR-EnableAutomaticSnapshotsOnRedshiftCluster
+  ### Document name - ASR-EnableAutomaticSnapshotsOnRedshiftCluster
 
   ## What does this document do?
   The runbook enables automatic snapshots on a Redshift cluster.

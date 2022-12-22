@@ -1,6 +1,6 @@
 schemaVersion: "0.3"
 description: |
-  ### Document Name - SHARR-RevokeUnrotatedKeys
+  ### Document Name - ASR-RevokeUnrotatedKeys
 
   ## What does this document do?
   This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
