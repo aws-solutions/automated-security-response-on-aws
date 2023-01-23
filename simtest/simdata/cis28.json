@@ -1,0 +1,97 @@
+{
+    "version": "0",
+    "id": "e602e173-f7e7-004e-063d-f3f5fdd809ea",
+    "detail-type": "Security Hub Findings - Custom Action",
+    "source": "aws.securityhub",
+    "account": "111111111111",
+    "time": "2020-06-25T12:09:49Z",
+    "region": "us-east-2",
+    "resources": [
+        "arn:aws:securityhub:us-east-2:111111111111:action/custom/CIS28"
+    ],
+    "detail": {
+        "actionName": "CIS 2.8",
+        "actionDescription": "Remediates CIS 2.8 by enabling customer CMK key rotation",
+        "findings": [
+            {
+                "SchemaVersion": "2018-10-08",
+                "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.8/finding/fd17b138-773b-4c08-b9f1-14695bbe6c0d",
+                "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+                "ProductName": "Security Hub",
+                "CompanyName": "AWS",
+                "Region": "us-east-1",
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/2.8",
+                "AwsAccountId": "111111111111",
+                "Types": [
+                  "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "FirstObservedAt": "2020-09-04T15:58:13.809Z",
+                "LastObservedAt": "2021-09-08T09:14:01.236Z",
+                "CreatedAt": "2020-09-04T15:58:13.809Z",
+                "UpdatedAt": "2021-09-08T09:13:57.700Z",
+                "Severity": {
+                  "Product": 40,
+                  "Label": "MEDIUM",
+                  "Normalized": 40,
+                  "Original": "MEDIUM"
+                },
+                "Title": "2.8 Ensure rotation for customer created CMKs is enabled",
+                "Description": "AWS Key Management Service (KMS) allows customers to rotate the backing key which is key material stored within the KMS which is tied to the key ID of the Customer Created customer master key (CMK). It is the backing key that is used to perform cryptographic operations such as encryption and decryption. It is recommended that CMK key rotation be enabled.",
+                "Remediation": {
+                  "Recommendation": {
+                    "Text": "For directions on how to fix this issue, consult the AWS Security Hub CIS documentation.",
+                    "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.8/remediation"
+                  }
+                },
+                "ProductFields": {
+                  "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                  "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                  "RuleId": "2.8",
+                  "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.8/remediation",
+                  "RelatedAWSResources:0/name": "securityhub-cmk-backing-key-rotation-enabled-d8617c87",
+                  "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                  "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/2.8",
+                  "aws/securityhub/ProductName": "Security Hub",
+                  "aws/securityhub/CompanyName": "AWS",
+                  "Resources:0/Id": "arn:aws:kms:us-east-1:111111111111:key/f35e785d-f706-4cfa-b573-50076cc90024",
+                  "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.8/finding/fd17b138-773b-4c08-b9f1-14695bbe6c0d"
+                },
+                "Resources": [
+                  {
+                    "Type": "AwsKmsKey",
+                    "Id": "arn:aws:kms:us-east-1:111111111111:key/f35e785d-f706-4cfa-b573-50076cc90024",
+                    "Partition": "aws",
+                    "Region": "us-east-1",
+                    "Details": {
+                      "AwsKmsKey": {
+                        "AWSAccountId": "111111111111",
+                        "CreationDate": 1599224721280,
+                        "KeyId": "f35e785d-f706-4cfa-b573-50076cc90024",
+                        "KeyManager": "CUSTOMER",
+                        "KeyState": "Enabled",
+                        "Origin": "AWS_KMS"
+                      }
+                    }
+                  }
+                ],
+                "Compliance": {
+                  "Status": "FAILED"
+                },
+                "WorkflowState": "NEW",
+                "Workflow": {
+                  "Status": "NEW"
+                },
+                "RecordState": "ACTIVE",
+                "FindingProviderFields": {
+                  "Severity": {
+                    "Label": "MEDIUM",
+                    "Original": "MEDIUM"
+                  },
+                  "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                  ]
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,75 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-EnableEncryptionForSQSQueue
+
+  ## What does this document do?
+  This document enables encryption on given Amazon Simple Queue Service (Amazon SQS) queue using
+  [SetQueueAttributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SetQueueAttributes.html) API.
+
+  This document must only be used as a baseline to ensure that your Amazon SQS queues are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
+  Based on your data policy, Amazon SQS queues should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * SQSQueueName: (Required)  The name of the Amazon SQS Queue.
+  * KmsKeyArn: (Required) The ARN of AWS KMS Key.
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:   SQS.1
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: 'String'
+    description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  KmsKeyArn:
+    type: 'String'
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    description: 'The ARN of the KMS key created by ASR for this remediation'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  SQSQueueName:
+    type: 'String'
+    description: '(Required) The name of the Amazon SQS Queue.'
+    allowedPattern: '^[a-zA-Z0-9_-]{1,80}(?:\.fifo)?$'
+outputs:
+- 'EncryptSQSQueue.Response'
+mainSteps:
+- name: 'GetQueueUrl'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'sqs'
+    Api: 'GetQueueUrl'
+    QueueName: '{{ SQSQueueName }}'
+  outputs:
+  - Name: 'QueueUrl'
+    Selector: '$.QueueUrl'
+    Type: 'String'
+- name: 'EncryptSQSQueue'
+  action: 'aws:executeAwsApi'
+  inputs:
+    Service: 'sqs'
+    Api: 'SetQueueAttributes'
+    QueueUrl: '{{ GetQueueUrl.QueueUrl }}'
+    Attributes:
+      KmsMasterKeyId: '{{ KmsKeyArn }}'
+  outputs:
+  - Name: 'Response'
+    Selector: '$'
+    Type: 'StringMap'
+- name: 'VerifyQueueEncryption'
+  action: 'aws:waitForAwsResourceProperty'
+  timeoutSeconds: 300
+  inputs:
+    Service: 'sqs'
+    Api: 'GetQueueAttributes'
+    QueueUrl: '{{ GetQueueUrl.QueueUrl }}'
+    AttributeNames:
+    - 'KmsMasterKeyId'
+    PropertySelector: '$.Attributes.KmsMasterKeyId'
+    DesiredValues:
+    - '{{ KmsKeyArn }}'
+  isEnd: true

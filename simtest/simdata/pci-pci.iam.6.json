@@ -1,0 +1,77 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.IAM.6/finding/fec91aaf-5016-4c40-9d24-9966e4be80c4",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.IAM.6",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+  ],
+  "FirstObservedAt": "2021-06-01T18:39:09.192Z",
+  "LastObservedAt": "2021-06-01T18:39:11.050Z",
+  "CreatedAt": "2021-06-01T18:39:09.192Z",
+  "UpdatedAt": "2021-06-01T18:39:09.192Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "PCI.IAM.6 MFA should be enabled for all IAM users",
+  "Description": "This AWS control checks whether the AWS Identity and Access Management users have multi-factor authentication (MFA) enabled.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.IAM.6/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.IAM.6",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.IAM.6/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-user-mfa-enabled-8f8ddc5e",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.IAM.6",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:user/nsr-reporting",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.IAM.6/finding/fec91aaf-5016-4c40-9d24-9966e4be80c4"
+  },
+  "Resources": [
+    {
+      "Type": "AwsIamUser",
+      "Id": "arn:aws:iam::111111111111:user/nsr-reporting",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsIamUser": {
+          "CreateDate": "2016-09-23T12:42:13.000Z",
+          "Path": "/",
+          "UserId": "AIDAIMALBCBBI4ZZHJVTO",
+          "UserName": "nsr-reporting"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 8.3.1"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ]
+  }
+}

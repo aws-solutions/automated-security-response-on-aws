@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
   ### Document Name - ASR-AFSBP_1.0.0_CloudTrail.4
 
@@ -30,7 +33,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableCloudTrailLogFileValidation"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   -

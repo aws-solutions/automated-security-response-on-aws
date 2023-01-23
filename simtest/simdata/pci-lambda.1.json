@@ -1,0 +1,93 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.Lambda.1/finding/783204d8-fecc-433c-892a-eff070c6c1fb",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.Lambda.1",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-06-02T10:22:12.669Z",
+    "LastObservedAt": "2021-07-22T16:11:14.895Z",
+    "CreatedAt": "2021-06-02T10:22:12.669Z",
+    "UpdatedAt": "2021-07-22T16:11:11.484Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "PCI.Lambda.1 Lambda functions should prohibit public access",
+    "Description": "This AWS control checks whether the Lambda function policy attached to the Lambda resource prohibits public access.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.Lambda.1/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.Lambda.1",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.Lambda.1/remediation",
+      "RelatedAWSResources:0/name": "securityhub-lambda-function-public-access-prohibited-1feb796c",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.Lambda.1",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:lambda:us-east-1:111111111111:function:nv22061-OpsAutomator-Medium",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.Lambda.1/finding/783204d8-fecc-433c-892a-eff070c6c1fb"
+    },
+    "Resources": [
+      {
+        "Type": "AwsLambdaFunction",
+        "Id": "arn:aws:lambda:us-east-1:111111111111:function:nv22061-OpsAutomator-Medium",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsLambdaFunction": {
+            "CodeSha256": "Lo9XA4D7AVx+5Yjm54kYi1VUZKjE8q79kB+KF8dd07A=",
+            "FunctionName": "OpsAutomator-Medium",
+            "Handler": "main.lambda_handler",
+            "LastModified": "2019-11-19T12:04:42.247Z",
+            "MemorySize": 256,
+            "RevisionId": "f46570b1-b0ed-4e28-b335-472ffb31d9d5",
+            "Role": "arn:aws:iam::111111111111:role/nv22061-OpsAutomatorLambdaRole-TXZ24QQLXCH5",
+            "Runtime": "python3.7",
+            "Timeout": 900,
+            "TracingConfig": {
+              "Mode": "PassThrough"
+            },
+            "Version": "$LATEST"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "RelatedRequirements": [
+        "PCI DSS 1.2.1",
+        "PCI DSS 1.3.1",
+        "PCI DSS 1.3.2",
+        "PCI DSS 1.3.4",
+        "PCI DSS 7.2.1"
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+      ]
+    }
+  }

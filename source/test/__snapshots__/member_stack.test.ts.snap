@@ -106,10 +106,6 @@ exports[`default stack 1`] = `
               "id": "AwsSolutions-S1",
               "reason": "Logs bucket does not require logging configuration",
             },
-            {
-              "id": "AwsSolutions-S10",
-              "reason": "Secure transport requirement is redundant for this use case",
-            },
           ],
         },
         "cfn_nag": {
@@ -147,16 +143,6 @@ exports[`default stack 1`] = `
       "DependsOn": [
         "S3BucketForRedShiftAuditLogging652E7355",
       ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-S10",
-              "reason": "Secure transport requirement is redundant for this use case",
-            },
-          ],
-        },
-      },
       "Properties": {
         "Bucket": {
           "Ref": "S3BucketForRedShiftAuditLogging652E7355",
@@ -191,6 +177,39 @@ exports[`default stack 1`] = `
                 },
               ],
               "Sid": "Put bucket policy needed for audit logging",
+            },
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": "*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "S3BucketForRedShiftAuditLogging652E7355",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "S3BucketForRedShiftAuditLogging652E7355",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "EnforceSSL",
             },
           ],
           "Version": "2012-10-17",

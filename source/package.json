@@ -1,46 +1,45 @@
 {
-  "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "1.5.1",
-  "description": "Automated remediation for AWS Security Hub (SO0111)",
-  "bin": {
-    "solution_deploy": "bin/solution_deploy.js"
-  },
-  "author": {
-    "name": "Amazon Web Services",
-    "url": "https://aws.amazon.com",
-    "organization": true
-  },
-  "license": "Apache-2.0",
-  "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "test": "jest --coverage",
-    "cdk": "cdk"
-  },
-  "devDependencies": {
-    "@aws-cdk/assert": "^1.183.0",
-    "@aws-cdk/aws-events": "^1.183.0",
-    "@aws-cdk/aws-iam": "^1.183.0",
-    "@aws-cdk/aws-kms": "^1.183.0",
-    "@aws-cdk/aws-lambda": "^1.183.0",
-    "@aws-cdk/aws-logs": "^1.183.0",
-    "@aws-cdk/aws-s3": "^1.183.0",
-    "@aws-cdk/aws-sns": "^1.183.0",
-    "@aws-cdk/aws-ssm": "^1.183.0",
-    "@aws-cdk/aws-stepfunctions": "^1.183.0",
-    "@aws-cdk/aws-stepfunctions-tasks": "^1.183.0",
-    "@aws-cdk/core": "^1.183.0",
-    "@types/jest": "^29.2.4",
-    "@types/js-yaml": "^4.0.5",
-    "@types/node": "^18.11.17",
-    "aws-cdk": "^1.183.0",
-    "cdk": "^1.183.0",
-    "cdk-nag": "^1.14.19",
-    "jest": "^29.3.1",
-    "js-yaml": "^4.1.0",
-    "source-map-support": "^0.5.21",
-    "ts-jest": "^29.0.3",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.9.4"
-  }
+    "name": "aws-security-hub-automated-response-and-remediation",
+    "version": "2.0.0",
+    "description": "Automated remediation for AWS Security Hub (SO0111)",
+    "bin": {
+        "solution_deploy": "bin/solution_deploy.js"
+    },
+    "author": {
+        "name": "Amazon Web Services",
+        "url": "https://aws.amazon.com",
+        "organization": true
+    },
+    "license": "Apache-2.0",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w",
+        "test": "jest --coverage",
+        "cdk": "cdk"
+    },
+    "devDependencies": {
+        "@aws-cdk/assert": "^2.59.0",
+        "@aws-cdk/aws-servicecatalogappregistry-alpha": "~2.53.0-alpha.0",
+        "@cdklabs/cdk-ssm-documents": "^0.0.31",
+        "@types/jest": "^29.2.5",
+        "@types/js-yaml": "^4.0.5",
+        "@types/node": "^18.11.18",
+        "@types/prettier": "^2.7.2",
+        "@typescript-eslint/eslint-plugin": "^5.48.0",
+        "aws-cdk": "^2.59.0",
+        "aws-cdk-lib": "^2.59.0",
+        "cdk-nag": "^2.21.53",
+        "constructs": "^10.1.211",
+        "eslint": "^8.31.0",
+        "eslint-config-prettier": "^8.6.0",
+        "eslint-plugin-header": "^3.1.1",
+        "eslint-plugin-import": "^2.26.0",
+        "eslint-plugin-prettier": "^4.2.1",
+        "jest": "^29.3.1",
+        "js-yaml": "^4.1.0",
+        "source-map-support": "^0.5.21",
+        "ts-jest": "^29.0.3",
+        "ts-node": "^10.9.1",
+        "typescript": "^4.9.4"
+    }
 }

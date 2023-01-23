@@ -1,0 +1,4 @@
+AWS Security Hub Automated Response and Remediation is an add-on solution that
+enables AWS Security Hub customers to remediate security findings with a
+single click using predefined response and remediation actions packaged in
+“Playbooks”. This Playbook, SecurityControls, is

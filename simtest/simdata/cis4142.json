@@ -1,0 +1,105 @@
+{
+    "version": "0",
+    "id": "8895c54b-99f5-22a2-77b2-4a5b3ae1e528",
+    "detail-type": "Security Hub Findings - Custom Action",
+    "source": "aws.securityhub",
+    "account": "111111111111",
+    "time": "2020-06-17T22:04:36Z",
+    "region": "us-east-2",
+    "resources": [
+        "arn:aws:securityhub:us-east-2:111111111111:action/custom/CIS4142"
+    ],
+    "detail": {
+        "actionName": "CIS 4.1 & 4.2",
+        "actionDescription": "Remediates CIS 4.1 and 4.2 by disallowing global ingress on port 22 and 3389",
+        "findings": [
+            {
+                "ProductArn": "arn:aws:securityhub:us-east-2::product/aws/securityhub",
+                "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "Description": "Security groups provide stateful filtering of ingress/egress network traffic to AWS resources. It is recommended that no security group allows unrestricted ingress access to port 22.",
+                "SchemaVersion": "2018-10-08",
+                "Compliance": {
+                    "Status": "FAILED"
+                },
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/4.1",
+                "FirstObservedAt": "2020-05-19T23:57:00.690Z",
+                "CreatedAt": "2020-05-19T23:57:00.690Z",
+                "RecordState": "ACTIVE",
+                "Title": "4.1 Ensure no security groups allow ingress from 0.0.0.0/0 to port 22",
+                "Workflow": {
+                    "Status": "NEW"
+                },
+                "LastObservedAt": "2020-06-17T11:57:00.872Z",
+                "Severity": {
+                    "Normalized": 70,
+                    "Label": "HIGH",
+                    "Product": 70,
+                    "Original": "HIGH"
+                },
+                "UpdatedAt": "2020-06-17T11:56:59.073Z",
+                "WorkflowState": "NEW",
+                "ProductFields": {
+                    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                    "RuleId": "4.1",
+                    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-4.1/remediation",
+                    "RelatedAWSResources:0/name": "securityhub-restricted-ssh-3ca2d6f4",
+                    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                    "StandardsControlArn": "arn:aws:securityhub:us-east-2:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/4.1",
+                    "aws/securityhub/SeverityLabel": "HIGH",
+                    "aws/securityhub/ProductName": "Security Hub",
+                    "aws/securityhub/CompanyName": "AWS",
+                    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-2::product/aws/securityhub/arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/4.1/finding/85668a02-4155-475b-bd1b-1a60e16b687c"
+                },
+                "AwsAccountId": "111111111111",
+                "Id": "arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/4.1/finding/85668a02-4155-475b-bd1b-1a60e16b687c",
+                "Remediation": {
+                    "Recommendation": {
+                        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+                        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-4.1/remediation"
+                    }
+                },
+                "Resources": [
+                    {
+                        "Partition": "aws",
+                        "Type": "AwsEc2SecurityGroup",
+                        "Details": {
+                            "AwsEc2SecurityGroup": {
+                                "GroupName": "launch-wizard-1",
+                                "OwnerId": "111111111111",
+                                "VpcId": "vpc-9826f1f3",
+                                "IpPermissions": [
+                                    {
+                                        "FromPort": 22,
+                                        "ToPort": 22,
+                                        "IpProtocol": "tcp",
+                                        "IpRanges": [
+                                            {
+                                                "CidrIp": "0.0.0.0/0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "IpPermissionsEgress": [
+                                    {
+                                        "IpProtocol": "-1",
+                                        "IpRanges": [
+                                            {
+                                                "CidrIp": "0.0.0.0/0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "GroupId": "sg-02cfbecbc814a3c24"
+                            }
+                        },
+                        "Region": "us-east-2",
+                        "Id": "arn:aws:ec2:us-east-2:111111111111:security-group/sg-02cfbecbc814a3c24"
+                    }
+                ]
+            }
+        ]
+    }
+}

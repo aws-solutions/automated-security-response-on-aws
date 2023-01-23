@@ -1,4 +1,3 @@
-
 .DS_Store
 inputs.md/*
 source/example*
@@ -32,7 +31,6 @@ deployment/test/*
 **/*local-runner*
 **/*create-stack.sh
 
-
 # System Files
 **/.DS_Store
 **/.vscode
@@ -48,6 +46,7 @@ node_modules
 cdk.out
 
 # Python modules
+.venv/
 *.dist-info
 source/solution_deploy/source/certifi
 source/solution_deploy/source/chardet

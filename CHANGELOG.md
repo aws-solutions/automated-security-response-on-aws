@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2023-01-17
+
+### Added
+- New remediations contributed by 6Pillars: AFSBP IAM.1/CIS v1.2.0 1.22/PCI.IAM.3, CIS v1.2.0 1.16, CIS v1.2.0 1.20
+
+### Changed
+- Added support for Security Controls, finding deduplication
+
 ## [1.5.1] - 2022-12-22
 
 ### Changed

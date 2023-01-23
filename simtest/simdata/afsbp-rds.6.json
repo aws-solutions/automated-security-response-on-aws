@@ -1,0 +1,70 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111122223333:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.6/finding/7b6c6401-2983-44d9-b4b0-6c5f44b7045a",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.6",
+  "AwsAccountId": "111122223333",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-10-25T12:25:16.183Z",
+  "LastObservedAt": "2021-10-28T15:49:22.424Z",
+  "CreatedAt": "2021-10-25T12:25:16.183Z",
+  "UpdatedAt": "2021-10-28T15:49:14.340Z",
+  "Severity": {
+    "Product": 10,
+    "Label": "LOW",
+    "Normalized": 10,
+    "Original": "LOW"
+  },
+  "Title": "RDS.6 Enhanced monitoring should be configured for RDS DB instances",
+  "Description": "This control checks whether enhanced monitoring is enabled for your RDS DB instances.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.6/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111122223333:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "RDS.6",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.6/remediation",
+    "RelatedAWSResources:0/name": "securityhub-rds-enhanced-monitoring-enabled-919d325a",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111122223333:control/aws-foundational-security-best-practices/v/1.0.0/RDS.6",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/annotation": "Enhanced Monitoring interval for this Amazon RDS instance is not configured.",
+    "Resources:0/Id": "arn:aws:rds:us-east-1:111122223333:dbinstance:db-OX46LTRYPXEQTAX3IQPQ4PNEWQ",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111122223333:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.6/finding/7b6c6401-2983-44d9-b4b0-6c5f44b7045a"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRdsDbInstance",
+      "Id": "arn:aws:rds:us-east-1:111122223333:dbinstance:db-OX46LTRYPXEQTAX3IQPQ4PNEWQ",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "LOW",
+      "Original": "LOW"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

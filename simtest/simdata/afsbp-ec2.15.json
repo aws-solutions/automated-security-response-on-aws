@@ -1,0 +1,85 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.15/finding/faba14b1-621d-4cbf-a143-48f7ef6333c6",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/EC2.15",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2022-12-18T13:45:27.776Z",
+    "LastObservedAt": "2023-01-11T16:42:03.794Z",
+    "CreatedAt": "2022-12-18T13:45:27.776Z",
+    "UpdatedAt": "2023-01-11T16:41:55.248Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "EC2.15 EC2 subnets should not automatically assign public IP addresses",
+    "Description": "This control checks if the assignment of public IPs in Amazon Virtual Private Cloud (VPC) subnets have the MapPublicIpOnLaunch set to FALSE. The control will pass if the flag is set to FALSE.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/EC2.15/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "EC2.15",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/EC2.15/remediation",
+      "RelatedAWSResources:0/name": "securityhub-subnet-auto-assign-public-ip-disabled-54ec67b9",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/EC2.15",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:ec2:us-east-1:111111111111:subnet/subnet-017e22c0195eb5ded",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.15/finding/faba14b1-621d-4cbf-a143-48f7ef6333c6"
+    },
+    "Resources": [
+      {
+        "Type": "AwsEc2Subnet",
+        "Id": "arn:aws:ec2:us-east-1:111111111111:subnet/subnet-017e22c0195eb5ded",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsEc2Subnet": {
+            "AssignIpv6AddressOnCreation": false,
+            "AvailabilityZone": "us-east-1a",
+            "AvailabilityZoneId": "use1-az6",
+            "AvailableIpAddressCount": 4090,
+            "CidrBlock": "172.31.32.0/20",
+            "DefaultForAz": true,
+            "MapPublicIpOnLaunch": true,
+            "OwnerId": "111111111111",
+            "State": "available",
+            "SubnetArn": "arn:aws:ec2:us-east-1:111111111111:subnet/subnet-017e22c0195eb5ded",
+            "SubnetId": "subnet-017e22c0195eb5ded",
+            "VpcId": "vpc-0771fca5bdb3f07f5"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

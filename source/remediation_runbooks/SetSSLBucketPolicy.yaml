@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
   ### Document name - ASR-SetSSLBucketPolicy
@@ -47,6 +50,7 @@ mainSteps:
       InputPayload:
         accountid: '{{AccountId}}'
         bucket: '{{BucketName}}'
+        partition: '{{global:AWS_PARTITION}}' 
       Runtime: python3.8
       Handler: add_ssl_bucket_policy
       Script: |-

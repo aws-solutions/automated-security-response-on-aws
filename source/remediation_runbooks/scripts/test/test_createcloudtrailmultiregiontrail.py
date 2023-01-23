@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import json
 import botocore.session
@@ -168,36 +155,53 @@ def test_create_bucket_policy(mocker):
         'cloudtrail_bucket': 'mahbukkit'
     }
     bucket_policy = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AWSCloudTrailAclCheck20150319",
-            "Effect": "Allow",
-            "Principal": {
-                "Service": [
-                    "cloudtrail.amazonaws.com"
-                ]
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AWSCloudTrailAclCheck20150319",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": [
+                        "cloudtrail.amazonaws.com"
+                    ]
+                },
+                "Action": "s3:GetBucketAcl",
+                "Resource": "arn:aws:s3:::mahbukkit"
             },
-            "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::mahbukkit"
-        },
-        {
-            "Sid": "AWSCloudTrailWrite20150319",
-            "Effect": "Allow",
-            "Principal": {
-                "Service": [
-                    "cloudtrail.amazonaws.com"
-                ]
+            {
+                "Sid": "AWSCloudTrailWrite20150319",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": [
+                        "cloudtrail.amazonaws.com"
+                    ]
+                },
+                "Action": "s3:PutObject",
+                "Resource": "arn:aws:s3:::mahbukkit/AWSLogs/111111111111/*",
+                "Condition": {
+                    "StringEquals": {
+                        "s3:x-amz-acl": "bucket-owner-full-control"
+                    }
+                }
             },
-            "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::mahbukkit/AWSLogs/111111111111/*",
-            "Condition": { 
-                "StringEquals": { 
-                    "s3:x-amz-acl": "bucket-owner-full-control"
+            {
+                "Sid": "AllowSSLRequestsOnly",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": [
+                    "arn:aws:s3:::mahbukkit",
+                    "arn:aws:s3:::mahbukkit/*"
+                ],
+                "Condition": {
+                    "Bool":
+                        {
+                            "aws:SecureTransport": "false"
+                        }
                 }
             }
-        }
-    ]}
+        ]
+    }
     BOTO_CONFIG = Config(
         retries ={
           'mode': 'standard'
@@ -266,8 +270,8 @@ def test_create_logging_bucket(mocker):
             },
             "Action": "s3:PutObject",
             "Resource": "arn:aws:s3:::mahbukkit/AWSLogs/111111111111/*",
-            "Condition": { 
-                "StringEquals": { 
+            "Condition": {
+                "StringEquals": {
                     "s3:x-amz-acl": "bucket-owner-full-control"
                 }
             }
@@ -346,7 +350,7 @@ def test_create_logging_bucket(mocker):
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()
 
-#=====================================================================================    
+#=====================================================================================
 # CreateCloudTrailMultiRegionTrail_enablecloudtrail
 #=====================================================================================
 def test_enable_cloudtrail(mocker):
@@ -393,7 +397,7 @@ def test_enable_cloudtrail(mocker):
     ct_stubber.assert_no_pending_responses()
     ct_stubber.deactivate()
 
-#=====================================================================================    
+#=====================================================================================
 # CreateCloudTrailMultiRegionTrail_process_results
 #=====================================================================================
 def test_process_results():
@@ -470,4 +474,3 @@ def test_encrypt_bucket_fails():
     assert pytest_wrapped_e.value.code == 'Error encrypting bucket mahbukkit: An error occurred (ADoorIsAjar) when calling the PutBucketEncryption operation: '
 
     s3_stubber.deactivate()
-

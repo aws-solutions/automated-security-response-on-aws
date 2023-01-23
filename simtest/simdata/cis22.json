@@ -1,0 +1,84 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.2/finding/ef70f57e-f7ce-4195-a14e-616f73499bfa",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/2.2",
+    "AwsAccountId": "111122223333",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ],
+    "FirstObservedAt": "2021-07-26T21:05:50.288Z",
+    "LastObservedAt": "2021-11-01T09:48:50.324Z",
+    "CreatedAt": "2021-07-26T21:05:50.288Z",
+    "UpdatedAt": "2021-11-01T09:48:48.358Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "2.2 Ensure CloudTrail log file validation is enabled",
+    "Description": "CloudTrail log file validation creates a digitally signed digest file containing a hash of each log that CloudTrail writes to S3. These digest files can be used to determine whether a log file was changed, deleted, or unchanged after CloudTrail delivered the log. It is recommended that file validation be enabled on all CloudTrails.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub CIS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.2/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+      "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+      "RuleId": "2.2",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.2/remediation",
+      "RelatedAWSResources:0/name": "securityhub-cloud-trail-log-file-validation-enabled-03d9c314",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111122223333:control/cis-aws-foundations-benchmark/v/1.2.0/2.2",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:cloudtrail:us-east-1:111122223333:trail/sharr-test",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.2/finding/ef70f57e-f7ce-4195-a14e-616f73499bfa"
+    },
+    "Resources": [
+      {
+        "Type": "AwsCloudTrailTrail",
+        "Id": "arn:aws:cloudtrail:us-east-1:111122223333:trail/sharr-test",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsCloudTrailTrail": {
+            "CloudWatchLogsLogGroupArn": "arn:aws:logs:us-east-1:111122223333:log-group:CloudTrail/sharr-test:*",
+            "CloudWatchLogsRoleArn": "arn:aws:iam::111122223333:role/SO0111-CloudTrailToCloudWatchLogs_us-east-1",
+            "HasCustomEventSelectors": false,
+            "HomeRegion": "us-east-1",
+            "IncludeGlobalServiceEvents": true,
+            "IsMultiRegionTrail": true,
+            "IsOrganizationTrail": false,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/3e104a78-ed8d-4a5f-973b-da5cce2da3f9",
+            "LogFileValidationEnabled": true,
+            "Name": "sharr-test",
+            "S3BucketName": "mybucket-east"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+      ]
+    }
+  }

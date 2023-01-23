@@ -1,0 +1,46 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-DisablePublicIPAutoAssign
+ 
+  ## What does this document do?
+    This document disables public IP auto assignment on given subnet using
+    [ModifySubnetAttribute](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifySubnetAttribute.html) API.
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * SubnetARN: (Required)  The ARN of the Amazon EC2 Subnet.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  EC2.15
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  SubnetARN:
+    type: String
+    description: (Required) The ARN of the Amazon EC2 Subnet.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:subnet\/(subnet-[0-9a-f]*)$'
+ 
+outputs:
+  - DisablePublicIPAutoAssign.Output
+mainSteps:
+- name: 'DisablePublicIPAutoAssign'
+  action: 'aws:executeScript'
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      subnet_arn: '{{ SubnetARN }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=disable_publicip_auto_assign.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

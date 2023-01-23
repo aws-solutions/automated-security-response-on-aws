@@ -1,0 +1,83 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudFormation.1/finding/93ee6b53-2097-49db-bcb6-c8aca31204e8",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudFormation.1",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2022-11-16T20:59:07.150Z",
+  "LastObservedAt": "2022-11-29T20:06:55.732Z",
+  "CreatedAt": "2022-11-16T20:59:07.150Z",
+  "UpdatedAt": "2022-11-29T20:06:43.913Z",
+  "Severity": {
+    "Product": 1,
+    "Label": "LOW",
+    "Normalized": 1,
+    "Original": "LOW"
+  },
+  "Title": "CloudFormation.1 CloudFormation stacks should be integrated with Simple Notification Service (SNS)",
+  "Description": "This control checks whether your CloudFormation stacks are sending event notifications to SNS topic. This control fails if CloudFormation stacks are not sending event notifications to an SNS topic.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/CloudFormation.1/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "CloudFormation.1",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CloudFormation.1/remediation",
+    "RelatedAWSResources:0/name": "securityhub-cloudformation-stack-notification-check-33d88d7b",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CloudFormation.1",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:cloudformation:us-east-1:111111111111:stack/sharr-member/ec228320-65ee-11ed-8783-0ea9c730e65d",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudFormation.1/finding/93ee6b53-2097-49db-bcb6-c8aca31204e8"
+  },
+  "Resources": [
+    {
+      "Type": "AwsCloudFormationStack",
+      "Id": "arn:aws:cloudformation:us-east-1:111111111111:stack/sharr-member/ec228320-65ee-11ed-8783-0ea9c730e65d",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsCloudFormationStack": {
+          "CreationTime": "2022-11-16T20:40:35.000Z",
+          "Description": "(DEV-SO0111M) AWS Security Hub Automated Response & Remediation Member Account Stack, v2.0.0",
+          "DisableRollback": false,
+          "DriftInformation": {
+            "StackDriftStatus": "NOT_CHECKED"
+          },
+          "EnableTerminationProtection": false,
+          "StackId": "arn:aws:cloudformation:us-east-1:111111111111:stack/sharr-member/ec228320-65ee-11ed-8783-0ea9c730e65d",
+          "StackName": "sharr-member",
+          "StackStatus": "UPDATE_COMPLETE"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "LOW",
+      "Original": "LOW"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

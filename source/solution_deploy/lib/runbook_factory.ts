@@ -1,27 +1,54 @@
-#!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { IssmPlaybookProps, RemediationRunbookProps } from '../../lib/ssmplaybook';
-import { CfnDocument } from '@aws-cdk/aws-ssm';
-import * as cdk from '@aws-cdk/core';
 import * as fs from 'fs';
+import * as cdk from 'aws-cdk-lib';
+import { Policy } from 'aws-cdk-lib/aws-iam';
+import { CfnDocument } from 'aws-cdk-lib/aws-ssm';
+import { Construct } from 'constructs';
 import * as yaml from 'js-yaml';
 
-export class RunbookFactory extends cdk.Construct {
-  constructor(scope: cdk.Construct, id: string) {
+export interface IssmPlaybookProps {
+  securityStandard: string; // ex. AFSBP
+  securityStandardVersion: string;
+  controlId: string;
+  ssmDocPath: string;
+  ssmDocFileName: string;
+  solutionVersion: string;
+  solutionDistBucket: string;
+  adminRoleName?: string;
+  remediationPolicy?: Policy;
+  adminAccountNumber?: string;
+  solutionId: string;
+  scriptPath?: string;
+  commonScripts?: string;
+}
+
+export interface RemediationRunbookProps {
+  ssmDocName: string;
+  ssmDocPath: string;
+  ssmDocFileName: string;
+  solutionVersion: string;
+  solutionDistBucket: string;
+  remediationPolicy?: Policy;
+  solutionId: string;
+  scriptPath?: string;
+}
+
+export class RunbookFactory extends Construct {
+  constructor(scope: Construct, id: string) {
     super(scope, id);
   }
 
-  static createControlRunbook(scope: cdk.Construct, id: string, props: IssmPlaybookProps): CfnDocument {
+  static createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
     let scriptPath = '';
-    if (props.scriptPath == undefined ) {
+    if (props.scriptPath == undefined) {
       scriptPath = `${props.ssmDocPath}/scripts`;
     } else {
       scriptPath = props.scriptPath;
     }
 
     let commonScripts = '';
-    if (props.commonScripts == undefined ) {
+    if (props.commonScripts == undefined) {
       commonScripts = '../common';
     } else {
       commonScripts = props.commonScripts;
@@ -31,11 +58,11 @@ export class RunbookFactory extends cdk.Construct {
       type: 'String',
       description: `Enable/disable availability of remediation for ${props.securityStandard} version ${props.securityStandardVersion} Control ${props.controlId} in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.`,
       default: 'Available',
-      allowedValues: ['Available', 'NOT Available']
+      allowedValues: ['Available', 'NOT Available'],
     });
 
     const installSsmDoc = new cdk.CfnCondition(scope, 'Enable ' + props.controlId + ' Condition', {
-      expression: cdk.Fn.conditionEquals(enableParam, 'Available')
+      expression: cdk.Fn.conditionEquals(enableParam, 'Available'),
     });
 
     const ssmDocName = `ASR-${props.securityStandard}_${props.securityStandardVersion}_${props.controlId}`;
@@ -44,7 +71,7 @@ export class RunbookFactory extends cdk.Construct {
 
     const ssmDocIn = fs.readFileSync(ssmDocFQFileName, 'utf8');
 
-    let ssmDocOut: string = '';
+    let ssmDocOut = '';
     const re = /^(?<padding>\s+)%%SCRIPT=(?<script>.*)%%/;
 
     for (const line of ssmDocIn.split('\n')) {
@@ -79,7 +106,7 @@ export class RunbookFactory extends cdk.Construct {
     return ssmDoc;
   }
 
-  static createRemediationRunbook(scope: cdk.Construct, id: string, props: RemediationRunbookProps) {
+  static createRemediationRunbook(scope: Construct, id: string, props: RemediationRunbookProps) {
     const ssmDocName = `ASR-${props.ssmDocName}`;
     let scriptPath = '';
     if (props.scriptPath == undefined) {
@@ -93,7 +120,7 @@ export class RunbookFactory extends cdk.Construct {
 
     const ssmDocIn = fs.readFileSync(ssmDocFQFileName, 'utf8');
 
-    let ssmDocOut: string = '';
+    let ssmDocOut = '';
     const re = /^(?<padding>\s+)%%SCRIPT=(?<script>.*)%%/;
 
     for (const line of ssmDocIn.split('\n')) {
@@ -118,4 +145,4 @@ export class RunbookFactory extends cdk.Construct {
 
     return runbook;
   }
-};
+}

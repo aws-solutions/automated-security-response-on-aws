@@ -1,5 +1,7 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 import { SynthUtils } from '@aws-cdk/assert';
-import * as cdk from '@aws-cdk/core';
+import * as cdk from 'aws-cdk-lib';
 import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
 
 function getTestStack(): cdk.Stack {
@@ -10,11 +12,11 @@ function getTestStack(): cdk.Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     solutionDistName: 'aws-security-hub-automated-response-and-remediation',
-    remediations: [ {"control":'PCI.AutoScaling.1'}, {"control":'PCI.EC2.6'}, {"control":'PCI.IAM.8'} ],
+    remediations: [{ control: 'PCI.AutoScaling.1' }, { control: 'PCI.EC2.6' }, { control: 'PCI.IAM.8' }],
     securityStandard: 'PCI',
     securityStandardLongName: 'pci-dss',
-    securityStandardVersion: '3.2.1'
-  })
+    securityStandardVersion: '3.2.1',
+  });
   return stack;
 }
 
@@ -34,8 +36,8 @@ function getMemberStack(): cdk.Stack {
     securityStandardLongName: 'pci-dss',
     ssmdocs: 'playbooks/PCI321/ssmdocs',
     commonScripts: 'playbooks/common',
-    remediations: [ {"control":'PCI.AutoScaling.1'}, {"control":'PCI.EC2.6'}, {"control":'PCI.IAM.8'} ]
-  })
+    remediations: [{ control: 'PCI.AutoScaling.1' }, { control: 'PCI.EC2.6' }, { control: 'PCI.IAM.8' }],
+  });
   return stack;
 }
 

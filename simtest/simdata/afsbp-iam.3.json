@@ -1,0 +1,83 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.3/finding/882c084c-8772-446e-9c3b-e926c4a1a8ef",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/IAM.3",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2020-10-23T12:22:41.296Z",
+    "LastObservedAt": "2022-01-24T14:16:38.468Z",
+    "CreatedAt": "2020-10-23T12:22:41.296Z",
+    "UpdatedAt": "2022-01-24T14:16:33.642Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "IAM.3 IAM users' access keys should be rotated every 90 days or less",
+    "Description": "This AWS control checks whether the active access keys are rotated within 90 days.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/IAM.3/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "IAM.3",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/IAM.3/remediation",
+      "RelatedAWSResources:0/name": "securityhub-access-keys-rotated-3dd4f050",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/IAM.3",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:iam::111111111111:user/test-admin2",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.3/finding/882c084c-8772-446e-9c3b-e926c4a1a8ef"
+    },
+    "Resources": [
+      {
+        "Type": "AwsIamUser",
+        "Id": "arn:aws:iam::111111111111:user/test-admin2",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsIamUser": {
+            "AttachedManagedPolicies": [
+              {
+                "PolicyName": "AdministratorAccess",
+                "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"
+              }
+            ],
+            "CreateDate": "2020-07-23T16:38:51.000Z",
+            "Path": "/",
+            "UserId": "AIDACKCEVSQ6C2EXAMPLE",
+            "UserName": "test-admin2"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

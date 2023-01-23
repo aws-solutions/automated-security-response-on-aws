@@ -1,7 +1,5 @@
-#!/usr/bin/python
-## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-## SPDX-License-Identifier: Apache-2.0
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import re
 import json
 import boto3
@@ -82,7 +80,7 @@ class FindingEvent:
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
-                exit(f'ERROR: Invalid resource Id {identifier_raw}')   
+                exit(f'ERROR: Invalid resource Id {identifier_raw}')
             return
 
     def _get_standard_info(self):
@@ -93,7 +91,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname(match_finding_id.group(1))
             self.standard_version = match_finding_id.group(2)
-            self.control_id = match_finding_id.group(3)      
+            self.control_id = match_finding_id.group(3)
         else:
             self.valid_finding = False
             self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
@@ -104,10 +102,10 @@ class FindingEvent:
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
         return
-    
+
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
-            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:((?:[a-z]{2}(?:-gov)?-[a-z]+-\d)):.*:.*$',
+            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\d):.*:.*$',
             self.finding_json['Resources'][0]['Id']
         )
         if check_for_region:
@@ -134,12 +132,12 @@ class FindingEvent:
                 self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
-        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::product/aws/securityhub$', self.product_arn):
+        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d::product/aws/securityhub$', self.product_arn):
             if self.valid_finding:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'ProductArn is invalid: {self.product_arn}'
         self.details = self.finding_json['Resources'][0].get('Details', {})
-        # Test mode is used with fabricated finding data to tell the 
+        # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
         # Currently not widely-used and perhaps should be deprecated.
         self.testmode = bool('testmode' in self.finding_json)
@@ -148,7 +146,7 @@ class FindingEvent:
         self._get_aws_config_rule()
         self.affected_object = {'Type': self.resource['Type'], 'Id': self.resource_id, 'OutputKey': 'Remediation.Output'}
 
-        # Validate control_id   
+        # Validate control_id
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -176,13 +174,13 @@ MAIN
 '''
 def parse_event(event, context):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
-  
+
     if not finding_event.valid_finding:
         exit('ERROR: Finding is not valid')
 
     return {
         "account_id": finding_event.account_id,
-        "resource_id": finding_event.resource_id, 
+        "resource_id": finding_event.resource_id,
         "finding_id": finding_event.finding_id,         # Deprecate v1.5.0+
         "control_id": finding_event.control_id,
         "product_arn": finding_event.product_arn,       # Deprecate v1.5.0+

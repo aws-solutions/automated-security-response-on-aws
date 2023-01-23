@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -56,17 +42,17 @@ def list_public_snapshots(account_id):
                 control_token = ''
 
             kwargs = {
-                'MaxResults': 100, 
+                'MaxResults': 100,
                 'OwnerIds': [ account_id ],
                 'RestorableByUserIds': [ 'all' ]
             }
             if control_token:
                 kwargs['NextToken'] = control_token
-                
+
             response = ec2.describe_snapshots(
                         **kwargs
                 )
-        
+
             for snapshot in response['Snapshots']:
                 public_snapshot_ids.append(snapshot['SnapshotId'])
 
@@ -76,7 +62,7 @@ def list_public_snapshots(account_id):
                 control_token = ''
 
         return public_snapshot_ids
-        
+
     except Exception as e:
         print(e)
         exit('Failed to describe_snapshots')
