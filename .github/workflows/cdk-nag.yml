@@ -21,5 +21,15 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: |
-          cd source/constructs && npm i --only=dev
+          cd source
+          npm ci
+          cd solution_deploy
+          npx cdk synth
+          cd ../playbooks/AFSBP
+          npx cdk synth
+          cd ../CIS120
+          npx cdk synth
+          cd ../NEWPLAYBOOK
+          npx cdk synth
+          cd ../PCI321
           npx cdk synth
