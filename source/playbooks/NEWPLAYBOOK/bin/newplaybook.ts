@@ -15,7 +15,7 @@ const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
 const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
 
 const standardShortName = 'NPB';
-const standardLongName = 'New Playbook';
+const standardLongName = 'NewPlaybook';
 const standardVersion = '1.1.1'; // DO NOT INCLUDE 'V'
 
 const app = new cdk.App();
