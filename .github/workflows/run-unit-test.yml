@@ -22,5 +22,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: |
-          cd deployment
-          chmod +x ./run-unit-tests.sh && DEBUG=true ./run-unit-tests.sh
+          cd source
+          npm ci
+          cd ../deployment
+          DEBUG=true ./run-unit-tests.sh
