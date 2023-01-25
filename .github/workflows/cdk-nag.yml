@@ -27,7 +27,11 @@ jobs:
           npx cdk synth
           cd ../CIS120
           npx cdk synth
+          cd ../CIS140
+          npx cdk synth
           cd ../NEWPLAYBOOK
           npx cdk synth
           cd ../PCI321
+          npx cdk synth
+          cd ../SC
           npx cdk synth
