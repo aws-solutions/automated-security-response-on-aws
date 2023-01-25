@@ -1,0 +1,78 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.1/finding/461951a2-5131-4db2-933f-d32e545a767f",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.1",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Effects/Data Exposure/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-02-18T13:13:16.808Z",
+  "LastObservedAt": "2021-02-18T13:13:17.252Z",
+  "CreatedAt": "2021-02-18T13:13:16.808Z",
+  "UpdatedAt": "2021-02-18T13:13:16.808Z",
+  "Severity": {
+    "Product": 90,
+    "Label": "CRITICAL",
+    "Normalized": 90,
+    "Original": "CRITICAL"
+  },
+  "Title": "RDS.1 RDS snapshot should be private",
+  "Description": "This AWS control checks if Amazon Relational Database Service (Amazon RDS) snapshots are public.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.1/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "RDS.1",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.1/remediation",
+    "RelatedAWSResources:0/name": "securityhub-rds-snapshots-public-prohibited-0fdafa5f",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.1",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.1/finding/461951a2-5131-4db2-933f-d32e545a767f"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRdsDbClusterSnapshot",
+      "Id": "arn:aws:rds:us-east-1:111111111111:cluster-snapshot:rds-snapshot-for-sharr-testing",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRdsDbClusterSnapshot": {
+          "AvailabilityZones": [
+            "us-east-1b",
+            "us-east-1c",
+            "us-east-1d"
+          ],
+          "SnapshotCreateTime": "2021-01-19T17:31:37.070Z",
+          "Engine": "aurora-mysql",
+          "AllocatedStorage": 0,
+          "Status": "available",
+          "Port": 0,
+          "VpcId": "vpc-5f53633a",
+          "ClusterCreateTime": "2021-01-19T17:09:39.599Z",
+          "MasterUsername": "admin",
+          "EngineVersion": "5.7.mysql_aurora.2.07.2",
+          "LicenseModel": "aurora-mysql",
+          "SnapshotType": "manual",
+          "PercentProgress": 100,
+          "StorageEncrypted": false
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE"
+}

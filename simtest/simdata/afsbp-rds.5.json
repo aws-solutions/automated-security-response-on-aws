@@ -1,0 +1,177 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.5/finding/d7a40bb6-8a0b-4417-9e4e-c89e210720e1",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.5",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2022-04-18T14:47:36.935Z",
+  "LastObservedAt": "2022-04-19T15:58:30.891Z",
+  "CreatedAt": "2022-04-18T14:47:36.935Z",
+  "UpdatedAt": "2022-04-19T15:57:55.546Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "RDS.5 RDS DB instances should be configured with multiple Availability Zones",
+  "Description": "This control checks whether high availability is enabled for your RDS DB instances.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.5/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "RDS.5",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.5/remediation",
+    "RelatedAWSResources:0/name": "securityhub-rds-multi-az-support-b2f15fbf",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.5",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:rds:us-east-1:111111111111:db:database-1",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.5/finding/d7a40bb6-8a0b-4417-9e4e-c89e210720e1"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRdsDbInstance",
+      "Id": "arn:aws:rds:us-east-1:111111111111:db:database-1",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRdsDbInstance": {
+          "CACertificateIdentifier": "rds-ca-2019",
+          "DBInstanceIdentifier": "database-1",
+          "DBInstanceClass": "db.t3.micro",
+          "DbInstancePort": 0,
+          "DbiResourceId": "db-F7B78E5F77EAC690772D4BDD53",
+          "DeletionProtection": false,
+          "Endpoint": {
+            "Address": "database-1.ef00fbdcaac6.us-east-1.rds.amazonaws.com",
+            "Port": 3306,
+            "HostedZoneId": "8C8D7D0F591651"
+          },
+          "Engine": "mariadb",
+          "EngineVersion": "10.6.7",
+          "IAMDatabaseAuthenticationEnabled": false,
+          "InstanceCreateTime": "2022-04-18T14:48:48.321Z",
+          "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/5623e4b3-ac9b-4f05-b61a-af77ed135e4d",
+          "PubliclyAccessible": false,
+          "StorageEncrypted": true,
+          "VpcSecurityGroups": [
+            {
+              "VpcSecurityGroupId": "sg-8bf7e9d6cba7ddb2b",
+              "Status": "active"
+            }
+          ],
+          "MultiAz": false,
+          "EnhancedMonitoringResourceArn": "arn:aws:logs:us-east-1:111111111111:log-group:RDSOSMetrics:log-stream:db-F7B78E5F77EAC690772D4BDD53",
+          "DbInstanceStatus": "available",
+          "MasterUsername": "admin",
+          "AllocatedStorage": 20,
+          "PreferredBackupWindow": "07:50-08:20",
+          "BackupRetentionPeriod": 7,
+          "DbParameterGroups": [
+            {
+              "DbParameterGroupName": "default.mariadb10.6",
+              "ParameterApplyStatus": "in-sync"
+            }
+          ],
+          "AvailabilityZone": "us-east-1d",
+          "DbSubnetGroup": {
+            "DbSubnetGroupName": "default-vpc-c3a9399ab75b61026",
+            "DbSubnetGroupDescription": "Created from the RDS Management Console",
+            "VpcId": "vpc-c3a9399ab75b61026",
+            "SubnetGroupStatus": "Complete",
+            "Subnets": [
+              {
+                "SubnetIdentifier": "subnet-73763fa4e8fa7d938",
+                "SubnetAvailabilityZone": {
+                  "Name": "us-east-1b"
+                },
+                "SubnetStatus": "Active"
+              },
+              {
+                "SubnetIdentifier": "subnet-d0b621a52be2341e7",
+                "SubnetAvailabilityZone": {
+                  "Name": "us-east-1f"
+                },
+                "SubnetStatus": "Active"
+              },
+              {
+                "SubnetIdentifier": "subnet-e029d764f6e29fa4c",
+                "SubnetAvailabilityZone": {
+                  "Name": "us-east-1d"
+                },
+                "SubnetStatus": "Active"
+              },
+              {
+                "SubnetIdentifier": "subnet-a9c491e10f86d35dd",
+                "SubnetAvailabilityZone": {
+                  "Name": "us-east-1a"
+                },
+                "SubnetStatus": "Active"
+              },
+              {
+                "SubnetIdentifier": "subnet-9665745c0b3b0da6d",
+                "SubnetAvailabilityZone": {
+                  "Name": "us-east-1e"
+                },
+                "SubnetStatus": "Active"
+              },
+              {
+                "SubnetIdentifier": "subnet-ad707733bc9113c53",
+                "SubnetAvailabilityZone": {
+                  "Name": "us-east-1c"
+                },
+                "SubnetStatus": "Active"
+              }
+            ]
+          },
+          "PreferredMaintenanceWindow": "fri:05:55-fri:06:25",
+          "LatestRestorableTime": "2022-04-19T15:50:00.000Z",
+          "AutoMinorVersionUpgrade": true,
+          "LicenseModel": "general-public-license",
+          "OptionGroupMemberships": [
+            {
+              "OptionGroupName": "default:mariadb-10-6",
+              "Status": "in-sync"
+            }
+          ],
+          "StorageType": "gp2",
+          "CopyTagsToSnapshot": true,
+          "MonitoringInterval": 60,
+          "MonitoringRoleArn": "arn:aws:iam::111111111111:role/rds-monitoring-role",
+          "PerformanceInsightsEnabled": false,
+          "MaxAllocatedStorage": 1000
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

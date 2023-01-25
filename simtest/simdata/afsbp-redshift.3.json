@@ -1,0 +1,131 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Redshift.3/finding/f9b81158-083b-4c21-8a5a-f8237d5607b8",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/Redshift.3",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2022-04-12T20:03:04.637Z",
+  "LastObservedAt": "2022-04-12T20:03:10.375Z",
+  "CreatedAt": "2022-04-12T20:03:04.637Z",
+  "UpdatedAt": "2022-04-12T20:03:04.637Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "Redshift.3 Amazon Redshift clusters should have automatic snapshots enabled",
+  "Description": "This control checks whether Amazon Redshift clusters have automated snapshots enabled. It also checks whether the snapshot retention period is greater than or equal to 7.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/Redshift.3/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "Redshift.3",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/Redshift.3/remediation",
+    "RelatedAWSResources:0/name": "securityhub-redshift-backup-enabled-ebd64a05",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/Redshift.3",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/annotation": "Amazon Redshift automatedSnapshotRetentionPeriod is less than MinRetentionPeriod rule parameter value.",
+    "Resources:0/Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Redshift.3/finding/f9b81158-083b-4c21-8a5a-f8237d5607b8"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRedshiftCluster",
+      "Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRedshiftCluster": {
+          "AllowVersionUpgrade": true,
+          "AutomatedSnapshotRetentionPeriod": 1,
+          "AvailabilityZone": "us-east-1e",
+          "ClusterAvailabilityStatus": "Available",
+          "ClusterCreateTime": "2022-04-12T20:01:43.205Z",
+          "ClusterIdentifier": "redshift-cluster-1",
+          "ClusterNodes": [
+            {
+              "NodeRole": "LEADER",
+              "PrivateIpAddress": "172.31.52.147",
+              "PublicIpAddress": "232.102.50.101"
+            },
+            {
+              "NodeRole": "COMPUTE-0",
+              "PrivateIpAddress": "172.31.60.80",
+              "PublicIpAddress": "96.153.39.135"
+            },
+            {
+              "NodeRole": "COMPUTE-1",
+              "PrivateIpAddress": "172.31.51.191",
+              "PublicIpAddress": "137.180.45.122"
+            }
+          ],
+          "ClusterParameterGroups": [
+            {
+              "ParameterApplyStatus": "in-sync",
+              "ParameterGroupName": "default.redshift-1.0"
+            }
+          ],
+          "ClusterPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC+W0FN169o1zrZeUId6xZuYaT0ks8kQW4TzDPrhkKf7YkAmurmrop+Y/dRdGy9FMChPasS222Bj9b7JINJ8p0kjnemEHsU6aUiQW2nzDEZCVMHwTdLFIhJIzCYHofEcjyMHHcvsK2ZD2L9wbRLozLH101WL3riTrFDcj0v59IMQk9aJr0YHQ6WBIXvYwx9NnCJSC8aGcuyct+YgBtpiohn3IOSBRTpD8YYTCNpJ6umdVmYDGLoyGdC+pJZOV5eZ6b5P68l0CbwYbAJ3VJO1tZx0GyVVlO0GKZwzW9jbXADZGcrieiM3KcDUzJRBZdYdiWg//TW2auJ7fQ77I/JQxoR Amazon-Redshift\n",
+          "ClusterRevisionNumber": "37176",
+          "ClusterStatus": "available",
+          "ClusterSubnetGroupName": "cluster-subnet-group-1",
+          "ClusterVersion": "1.0",
+          "DBName": "dev",
+          "ElasticResizeNumberOfNodeOptions": "[4]",
+          "Encrypted": false,
+          "Endpoint": {
+            "Address": "redshift-cluster-1.e414e5f7d099.us-east-1.redshift.amazonaws.com",
+            "Port": 5439
+          },
+          "EnhancedVpcRouting": false,
+          "MaintenanceTrackName": "current",
+          "ManualSnapshotRetentionPeriod": -1,
+          "MasterUsername": "awsuser",
+          "NextMaintenanceWindowStartTime": "2022-04-17T03:00:00.000Z",
+          "NodeType": "dc2.large",
+          "NumberOfNodes": 2,
+          "PreferredMaintenanceWindow": "sun:03:00-sun:03:30",
+          "PubliclyAccessible": false,
+          "VpcId": "vpc-13cbf531dbac05fd6",
+          "VpcSecurityGroups": [
+            {
+              "Status": "active",
+              "VpcSecurityGroupId": "sg-6f6d244377343f21f"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

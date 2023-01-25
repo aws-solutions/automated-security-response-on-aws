@@ -1,0 +1,82 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.4/finding/7233b56b-a73e-4e2c-8c03-842b216b1bf6",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudTrail.4",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2021-10-25T21:14:13.787Z",
+    "LastObservedAt": "2022-01-24T15:48:50.720Z",
+    "CreatedAt": "2021-10-25T21:14:13.787Z",
+    "UpdatedAt": "2022-01-24T15:48:47.416Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "CloudTrail.4 CloudTrail log file validation should be enabled",
+    "Description": "This AWS control checks whether CloudTrail log file validation is enabled.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.4/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "CloudTrail.4",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.4/remediation",
+      "RelatedAWSResources:0/name": "securityhub-cloud-trail-log-file-validation-enabled-03d9c314",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.4",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:cloudtrail:us-east-1:111111111111:trail/s3events",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.4/finding/7233b56b-a73e-4e2c-8c03-842b216b1bf6"
+    },
+    "Resources": [
+      {
+        "Type": "AwsCloudTrailTrail",
+        "Id": "arn:aws:cloudtrail:us-east-1:111111111111:trail/s3events",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsCloudTrailTrail": {
+            "HasCustomEventSelectors": true,
+            "HomeRegion": "us-east-1",
+            "IncludeGlobalServiceEvents": true,
+            "IsMultiRegionTrail": true,
+            "IsOrganizationTrail": false,
+            "LogFileValidationEnabled": true,
+            "Name": "s3events",
+            "S3BucketName": "miobukkit",
+            "S3KeyPrefix": "s3"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+        "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+    "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

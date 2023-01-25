@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import re
 import os
@@ -94,7 +80,7 @@ class StepFunctionLambdaAnswer:
     def update_standardsupported(self, value):
         """Set standardsupported (string)"""
         self.standardsupported = value
-        
+
     def update_controlid(self, value):
         """Set controlid (string)"""
         self.controlid = value
@@ -130,7 +116,7 @@ class StepFunctionLambdaAnswer:
     def update_workflowrole(self, value):
         """Set eventtype (string)"""
         self.workflowrole = value
-    
+
     def update_resourceregion(self, value):
         """Set eventtype (string)"""
         self.resourceregion = value
@@ -192,7 +178,7 @@ def resource_from_arn(arn):
     Strip off the leading parts of the ARN: arn:*:*:*:*:
     Return what's left. If no match, return the original predicate.
     """
-    arn_pattern = re.compile(r'arn\:[\w,-]+:[\w,-]+:.*:[0-9]*:(.*)')
+    arn_pattern = re.compile(r'arn\:[\w,-]+:[\w,-]+:.*:\d*:(.*)')
     arn_match = arn_pattern.match(arn)
     answer = arn
     if arn_match:
@@ -208,7 +194,7 @@ def partition_from_region(region_name):
     """
 
     parts = region_name.split('-')
- 
+
     try:
         if parts[0] == 'us' and parts[1] == 'gov':
             return 'aws-us-gov'

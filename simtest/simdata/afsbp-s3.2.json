@@ -1,0 +1,69 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.2/finding/ef33c951-94b7-4d92-acd2-99c2a3e3a78a",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/S3.2",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Effects/Data Exposure/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2021-07-22T15:22:40.888Z",
+    "LastObservedAt": "2021-07-22T15:22:44.463Z",
+    "CreatedAt": "2021-07-22T15:22:40.888Z",
+    "UpdatedAt": "2021-07-22T15:22:40.888Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "S3.2 S3 buckets should prohibit public read access",
+    "Description": "This AWS control checks whether your S3 buckets allow public read access by evaluating the Block Public Access settings, the bucket policy, and the bucket access control list (ACL).",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/S3.2/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "S3.2",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/S3.2/remediation",
+      "RelatedAWSResources:0/name": "securityhub-s3-bucket-public-read-prohibited-86a20c57",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/S3.2",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:s3:::so0111-aws-cloudtrail-111111111111",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.2/finding/ef33c951-94b7-4d92-acd2-99c2a3e3a78a"
+    },
+    "Resources": [
+      {
+        "Type": "AwsS3Bucket",
+        "Id": "arn:aws:s3:::so0111-aws-cloudtrail-111111111111",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "PASSED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "RESOLVED"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Effects/Data Exposure/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

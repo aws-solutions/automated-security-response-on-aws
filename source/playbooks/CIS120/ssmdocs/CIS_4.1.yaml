@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
   ### Document Name - ASR-CIS_1.2.0_4.1
 
@@ -31,7 +34,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-DisablePublicAccessForSecurityGroup"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput

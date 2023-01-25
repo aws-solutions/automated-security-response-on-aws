@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import re
 from json.decoder import JSONDecodeError
@@ -70,10 +56,10 @@ class AutomationExecution(object):
         if not re.match('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', exec_id):
             raise ParameterError(f'Invalid Automation Execution Id: {exec_id}')
         self.exec_id = exec_id
-        if not re.match('^[0-9]{12}$', account):
+        if not re.match(r'^\d{12}$', account):
             raise ParameterError(f'Invalid Value for Account: {account}')
         self.account = account
-        if not re.match('^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$', region):
+        if not re.match(r'^[a-z]{2}(?:-gov)?-[a-z]+-\d$', region):
             raise ParameterError(f'Invalid Value for Region: {region}')
         self.region = region
         if not re.match('^[a-zA-Z0-9_+=,.@-]{1,64}$', role_base_name):
@@ -97,17 +83,17 @@ class AutomationExecution(object):
         self.status = automation_exec_info.get(
             "AutomationExecutionMetadataList"
         )[0].get(
-            "AutomationExecutionStatus", 
+            "AutomationExecutionStatus",
             "ERROR"
         )
 
         self.outputs = automation_exec_info.get(
             "AutomationExecutionMetadataList"
         )[0].get(
-            "Outputs", 
+            "Outputs",
             {}
         )
-        
+
         if 'Remediation.Output' in self.outputs and \
             isinstance(self.outputs['Remediation.Output'], list) and \
             len(self.outputs['Remediation.Output']) == 1 and \
@@ -117,7 +103,7 @@ class AutomationExecution(object):
         self.failure_message = automation_exec_info.get(
             "AutomationExecutionMetadataList"
         )[0].get(
-            "FailureMessage", 
+            "FailureMessage",
             ""
         )
 
@@ -145,8 +131,6 @@ def lambda_handler(event, context):
     if not SSM_ACCOUNT or not SSM_REGION:
         exit('ERROR: missing remediation account information. SSMExecution missing region or account.')
 
-    finding = Finding(event['Finding'])
-
     metrics_obj = Metrics(
         event['EventType']
     )
@@ -161,7 +145,7 @@ def lambda_handler(event, context):
     # Terminal states - get log data from AutomationExecutionMetadataList
     #
     # AutomationExecutionStatus - was the ssm doc successful? (did it not blow up)
-    # Outputs - 
+    # Outputs -
     #   ParseInput.AffectedObject - what was the finding asserted on? Can be a string value or a dict
     #       Ex. 111111111111 - AWS AccountId
     #       Ex { 'Type': string, 'Id': string }
@@ -169,9 +153,9 @@ def lambda_handler(event, context):
     #       ExecutionLog: stdout from the script, added automatically when there is a return statement
     #       response: returned by the script itself.
     #           status: [SUCCESS|FAILED] - did the REMEDIATION succeed?
-    #   VerifyRemediation.Output or Remediation.Output may be a string, when using a child runbook for 
+    #   VerifyRemediation.Output or Remediation.Output may be a string, when using a child runbook for
     #       remediation.
-    
+
     def get_execution_log(response_data):
         logdata = []
         if 'ExecutionLog' in response_data:
@@ -192,7 +176,7 @@ def lambda_handler(event, context):
             except JSONDecodeError:
                 print('Expected serialized json, got ' + str(affected_object))
                 affected_object_out = str(affected_object)
-                
+
         return affected_object_out
 
     def get_remediation_status(response_data, exec_status):
@@ -224,7 +208,7 @@ def lambda_handler(event, context):
         else:
             remediation_response_raw = json.dumps(ssm_outputs)
 
-        # Remediation.Response is a list, if present. Only the first item should exist. 
+        # Remediation.Response is a list, if present. Only the first item should exist.
         if isinstance(remediation_response_raw, list):
             try:
                 remediation_response = json.loads(remediation_response_raw[0])
@@ -246,7 +230,7 @@ def lambda_handler(event, context):
 
         remediation_logdata = get_execution_log(remediation_response)
 
-        # FailureMessage is only set when the remediation was another SSM doc, not 
+        # FailureMessage is only set when the remediation was another SSM doc, not
         if automation_exec_info.failure_message:
             remediation_logdata.append(automation_exec_info.failure_message)
 

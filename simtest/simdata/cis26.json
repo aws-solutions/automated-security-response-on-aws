@@ -1,0 +1,69 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.6/finding/d9aa19f4-53ee-4bae-8f63-ee8b10768b4b",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/2.6",
+    "AwsAccountId": "111122223333",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ],
+    "FirstObservedAt": "2021-06-09T00:25:32.085Z",
+    "LastObservedAt": "2021-10-29T12:26:02.266Z",
+    "CreatedAt": "2021-06-09T00:25:32.085Z",
+    "UpdatedAt": "2021-10-29T12:25:57.831Z",
+    "Severity": {
+      "Product": 1,
+      "Label": "LOW",
+      "Normalized": 1,
+      "Original": "LOW"
+    },
+    "Title": "2.6 Ensure S3 bucket access logging is enabled on the CloudTrail S3 bucket",
+    "Description": "S3 Bucket Access Logging generates a log that contains access records for each request made to your S3 bucket. An access log record contains details about the request, such as the request type, the resources specified in the request worked, and the time and date the request was processed. It is recommended that bucket access logging be enabled on the CloudTrail S3 bucket.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub CIS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.6/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+      "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+      "RuleId": "2.6",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.6/remediation",
+      "RelatedAWSResources:0/name": "securityhub-s3-bucket-logging-enabled-dd475a05",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111122223333:control/cis-aws-foundations-benchmark/v/1.2.0/2.6",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:s3:::miobukkit-east",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.6/finding/d9aa19f4-53ee-4bae-8f63-ee8b10768b4b"
+    },
+    "Resources": [
+      {
+        "Type": "AwsS3Bucket",
+        "Id": "arn:aws:s3:::foobarbaz",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "LOW",
+        "Original": "LOW"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+      ]
+    }
+  }

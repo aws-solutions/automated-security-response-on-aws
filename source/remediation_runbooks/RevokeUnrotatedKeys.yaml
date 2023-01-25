@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
   ### Document Name - ASR-RevokeUnrotatedKeys
@@ -26,7 +29,7 @@ parameters:
   MaxCredentialUsageAge:
     type: String
     description: (Required) Maximum number of days within which a credential must be used. The default value is 90 days.
-    allowedPattern: ^[1-9][0-9]{0,3}|10000$
+    allowedPattern: ^(?:[1-9]\d{0,3}|10000)$
     default: "90"
 outputs:
   - RevokeUnrotatedKeys.Output

@@ -1,0 +1,69 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.4/finding/ec80d4a4-067c-4df4-a88c-c78867c54adf",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.4",
+  "AwsAccountId": "111122223333",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+  ],
+  "FirstObservedAt": "2021-02-16T21:55:57.825Z",
+  "LastObservedAt": "2021-10-28T21:48:57.101Z",
+  "CreatedAt": "2021-02-16T21:55:57.825Z",
+  "UpdatedAt": "2021-10-28T21:48:52.046Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "1.4 Ensure access keys are rotated every 90 days or less",
+  "Description": "Access keys consist of an access key ID and secret access key, which are used to sign programmatic requests that you make to AWS. It is recommended that all access keys be regularly rotated.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub CIS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.4/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+    "RuleId": "1.4",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.4/remediation",
+    "RelatedAWSResources:0/name": "securityhub-access-keys-rotated-993fa106",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111122223333:control/cis-aws-foundations-benchmark/v/1.2.0/1.4",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111122223333:user/AIDACKCEVSQ6C2EXAMPLE",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111122223333:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.4/finding/ec80d4a4-067c-4df4-a88c-c78867c54adf"
+  },
+  "Resources": [
+    {
+      "Type": "AwsIamUser",
+      "Id": "arn:aws:iam::111122223333:user/AIDACKCEVSQ6C2EXAMPLE",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ]
+  }
+}

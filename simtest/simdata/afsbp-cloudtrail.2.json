@@ -1,0 +1,68 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.2/finding/c6008a01-115e-490f-a1c7-36f1c2448485",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudTrail.2",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-02-16T23:55:23.943Z",
+  "LastObservedAt": "2021-02-17T14:56:08.997Z",
+  "CreatedAt": "2021-02-16T23:55:23.943Z",
+  "UpdatedAt": "2021-02-17T14:56:07.769Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "CloudTrail.2 CloudTrail should have encryption at-rest enabled",
+  "Description": "This AWS control checks whether AWS CloudTrail is configured to use the server side encryption (SSE) AWS Key Management Service (AWS KMS) customer master key (CMK) encryption. The check will pass if the KmsKeyId is defined.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.2/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "CloudTrail.2",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.2/remediation",
+    "RelatedAWSResources:0/name": "securityhub-cloud-trail-encryption-enabled-00c088a2",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.2",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.2/finding/c6008a01-115e-490f-a1c7-36f1c2448485"
+  },
+  "Resources": [
+    {
+      "Type": "AwsCloudTrailTrail",
+      "Id": "arn:aws:cloudtrail:us-east-1:111111111111:trail/sharr-test-unencrypted",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsCloudTrailTrail": {
+          "HasCustomEventSelectors": false,
+          "HomeRegion": "us-east-1",
+          "IncludeGlobalServiceEvents": true,
+          "IsMultiRegionTrail": true,
+          "IsOrganizationTrail": false,
+          "LogFileValidationEnabled": false,
+          "Name": "sharr-test-unencrypted",
+          "S3BucketName": "aws-cloudtrail-logs-111111111111-1239ff6b"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE"
+}

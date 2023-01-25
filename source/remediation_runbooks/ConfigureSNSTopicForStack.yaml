@@ -1,0 +1,50 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-ConfigureSNSTopicForStack
+
+  ## What does this document do?
+  This document creates an SNS topic if it does not already exist, then updates the stack to notify the topic on changes
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * StackArn: (Required)  The ARN of the stack.
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:   CloudFormation.1
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: 'String'
+    description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  StackArn:
+    type: 'String'
+    description: '(Required) The ARN of the CloudFormation stack.'
+    allowedPattern: '^(arn:(?:aws|aws-us-gov|aws-cn):cloudformation:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:stack/[a-zA-Z][a-zA-Z0-9-]{0,127}/[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12})$'
+  TopicName:
+    type: 'String'
+    description: '(Optional) The name of the SNS topic to create and configure for notifications.'
+    allowedPattern: '^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$'
+    default: 'SO0111-ASR-CloudFormationNotifications'
+outputs:
+- 'ConfigureSNSTopic.Output'
+mainSteps:
+- name: 'ConfigureSNSTopic'
+  action: 'aws:executeScript'
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      stack_arn: '{{ StackArn }}'
+      topic_name: 'SO0111-ASR-CloudFormationNotifications'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=configure_stack_notifications.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload.output'
+    Type: 'StringMap'
+  isEnd: true

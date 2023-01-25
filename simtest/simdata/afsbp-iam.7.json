@@ -1,0 +1,69 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.7/finding/481d8dd9-3149-4177-9a79-dee774e6660b",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/IAM.7",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2020-07-02T01:24:18.386Z",
+  "LastObservedAt": "2021-07-21T16:22:09.184Z",
+  "CreatedAt": "2020-07-02T01:24:18.386Z",
+  "UpdatedAt": "2021-07-21T16:22:06.735Z",
+  "Severity": {
+    "Product": 0,
+    "Label": "INFORMATIONAL",
+    "Normalized": 0,
+    "Original": "INFORMATIONAL"
+  },
+  "Title": "IAM.7 Password policies for IAM users should have strong configurations",
+  "Description": "This AWS control checks whether the account password policy for IAM users uses the following recommended configurations: RequireUppercaseCharacters: true, RequireLowercaseCharacters: true, RequireSymbols: true, RequireNumbers: true, MinimumPasswordLength: 8.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/IAM.7/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "IAM.7",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/IAM.7/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-password-policy-recommended-defaults-ca104555",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/IAM.7",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:root",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.7/finding/481d8dd9-3149-4177-9a79-dee774e6660b"
+  },
+  "Resources": [
+    {
+      "Type": "AwsAccount",
+      "Id": "AWS::::Account:111111111111",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "INFORMATIONAL",
+      "Original": "INFORMATIONAL"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

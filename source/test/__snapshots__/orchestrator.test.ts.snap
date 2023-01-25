@@ -22,6 +22,9 @@ exports[`test App Orchestrator Construct 1`] = `
       "ap-south-1": {
         "states": "states.ap-south-1.amazonaws.com",
       },
+      "ap-south-2": {
+        "states": "states.ap-south-2.amazonaws.com",
+      },
       "ap-southeast-1": {
         "states": "states.ap-southeast-1.amazonaws.com",
       },
@@ -60,6 +63,9 @@ exports[`test App Orchestrator Construct 1`] = `
       },
       "eu-west-3": {
         "states": "states.eu-west-3.amazonaws.com",
+      },
+      "me-central-1": {
+        "states": "states.me-central-1.amazonaws.com",
       },
       "me-south-1": {
         "states": "states.me-south-1.amazonaws.com",
@@ -210,28 +216,26 @@ exports[`test App Orchestrator Construct 1`] = `
                 {
                   "Action": "lambda:InvokeFunction",
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":lambda:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":function:undefined",
-                        ],
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":lambda:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":function:undefined",
                       ],
-                    },
-                  ],
+                    ],
+                  },
                 },
                 {
                   "Action": [
@@ -435,45 +439,6 @@ exports[`test App Orchestrator Construct 1`] = `
             },
             {
               "Action": "kms:*",
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":root",
-                    ],
-                  ],
-                },
-              },
-              "Resource": "*",
-            },
-            {
-              "Action": [
-                "kms:Create*",
-                "kms:Describe*",
-                "kms:Enable*",
-                "kms:List*",
-                "kms:Put*",
-                "kms:Update*",
-                "kms:Revoke*",
-                "kms:Disable*",
-                "kms:Get*",
-                "kms:Delete*",
-                "kms:ScheduleKeyDeletion",
-                "kms:CancelKeyDeletion",
-                "kms:GenerateDataKey",
-                "kms:TagResource",
-                "kms:UntagResource",
-              ],
               "Effect": "Allow",
               "Principal": {
                 "AWS": {

@@ -1,0 +1,56 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1/finding/8f400859-26b0-4cd4-a935-1f96c82343e9",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-02-16T21:55:26.373Z",
+  "LastObservedAt": "2021-02-16T21:55:28.129Z",
+  "CreatedAt": "2021-02-16T21:55:26.373Z",
+  "UpdatedAt": "2021-02-16T21:55:26.373Z",
+  "Severity": {
+    "Product": 0,
+    "Label": "INFORMATIONAL",
+    "Normalized": 0,
+    "Original": "INFORMATIONAL"
+  },
+  "Title": "CloudTrail.1 CloudTrail should be enabled and configured with at least one multi-region trail",
+  "Description": "This AWS control checks that there is at least one multi-region AWS CloudTrail trail.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.1/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "CloudTrail.1",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.1/remediation",
+    "RelatedAWSResources:0/name": "securityhub-multi-region-cloud-trail-enabled-31a73aad",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.1/finding/8f400859-26b0-4cd4-a935-1f96c82343e9"
+  },
+  "Resources": [
+    {
+      "Type": "AwsAccount",
+      "Id": "AWS::::Account:111111111111",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE"
+}

@@ -1,0 +1,45 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document Name - ASR-CreateIAMSupportRole
+
+  ## What does this document do?
+  This document creates a role to allow AWS Support access.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * CreateIAMRole.Output
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - CreateIAMSupportRole.Output
+mainSteps:
+  - name: CreateIAMSupportRole
+    action: aws:executeScript
+    timeoutSeconds: 300
+    isEnd: true
+    description: |
+      ## CreateIAMSupportRole
+
+      This step deactivates IAM user access keys that have not been rotated in more than MaxCredentialUsageAge days
+      ## Outputs
+      * Output: Success message or failure Exception.
+    inputs:
+      Runtime: python3.8
+      Handler: create_iam_role
+      Script: |-
+        %%SCRIPT=CreateIAMSupportRole.py%%
+
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

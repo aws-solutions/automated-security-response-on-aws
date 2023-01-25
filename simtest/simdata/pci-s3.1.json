@@ -1,0 +1,83 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.S3.1/finding/3f74c9bf-bbb3-40d8-8781-796096b35571",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.S3.1",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Effects/Data Exposure/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-07-22T15:22:34.224Z",
+    "LastObservedAt": "2021-07-22T15:22:38.109Z",
+    "CreatedAt": "2021-07-22T15:22:34.224Z",
+    "UpdatedAt": "2021-07-22T15:22:34.224Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "PCI.S3.1 S3 buckets should prohibit public write access",
+    "Description": "This AWS control checks whether your S3 buckets allow public write access by evaluating the Block Public Access settings, the bucket policy, and the bucket access control list (ACL).",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.S3.1/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.S3.1",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.S3.1/remediation",
+      "RelatedAWSResources:0/name": "securityhub-s3-bucket-public-write-prohibited-17e6aef4",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.S3.1",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:s3:::so0111-access-logs-us-east-1-111111111111",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.S3.1/finding/3f74c9bf-bbb3-40d8-8781-796096b35571"
+    },
+    "Resources": [
+      {
+        "Type": "AwsS3Bucket",
+        "Id": "arn:aws:s3:::so0111-access-logs-us-east-1-111111111111",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsS3Bucket": {
+            "OwnerId": "03d32dc0915b7f36d274d1a92ecb8620952a94f5f084f3e5a682812a2184a4a2",
+            "CreatedAt": "2021-07-22T15:21:37.000Z"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "PASSED",
+      "RelatedRequirements": [
+        "PCI DSS 1.2.1",
+        "PCI DSS 1.3.1",
+        "PCI DSS 1.3.2",
+        "PCI DSS 1.3.4",
+        "PCI DSS 1.3.6",
+        "PCI DSS 7.2.1"
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "RESOLVED"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Effects/Data Exposure/PCI-DSS"
+      ]
+    }
+  }

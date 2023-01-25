@@ -64,7 +64,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/createCustomAction.py.zip",
+          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/action_target_provider.zip",
         },
         "Description": "Custom resource to create an action target in Security Hub",
         "Environment": {
@@ -85,7 +85,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           },
         },
         "FunctionName": "SO0111-SHARR-CustomAction",
-        "Handler": "createCustomAction.lambda_handler",
+        "Handler": "action_target_provider.lambda_handler",
         "Layers": [
           {
             "Ref": "SharrLambdaLayer5BF8F147",
@@ -344,41 +344,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
               },
               "Resource": "*",
             },
-            {
-              "Action": [
-                "kms:Create*",
-                "kms:Describe*",
-                "kms:Enable*",
-                "kms:List*",
-                "kms:Put*",
-                "kms:Update*",
-                "kms:Revoke*",
-                "kms:Disable*",
-                "kms:Get*",
-                "kms:Delete*",
-                "kms:ScheduleKeyDeletion",
-                "kms:CancelKeyDeletion",
-                "kms:GenerateDataKey",
-                "kms:TagResource",
-                "kms:UntagResource",
-              ],
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::111111111111:root",
-                    ],
-                  ],
-                },
-              },
-              "Resource": "*",
-            },
           ],
           "Version": "2012-10-17",
         },
@@ -408,6 +373,42 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
       },
       "Type": "AWS::Lambda::LayerVersion",
+    },
+    "StandardsAFSBPShortName8A26C49A": {
+      "Properties": {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+        "Type": "String",
+        "Value": "AFSBP",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "StandardsCISShortNameC4E1A268": {
+      "Properties": {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+        "Type": "String",
+        "Value": "CIS",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "StandardsPCIShortNameD1D86610": {
+      "Properties": {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/pci-dss/shortname",
+        "Type": "String",
+        "Value": "PCI",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "StandardsSCShortNameEA016066": {
+      "Properties": {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/security-control/shortname",
+        "Type": "String",
+        "Value": "SC",
+      },
+      "Type": "AWS::SSM::Parameter",
     },
     "checkSSMDocState06AC440F": {
       "DependsOn": [

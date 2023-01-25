@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 import botocore.session
@@ -57,7 +44,7 @@ def existing_policy():
             }
         ]
     }
-    
+
 def policy_to_add():
     return {
         "Sid": "AllowSSLRequestsOnly",
@@ -87,24 +74,25 @@ def new_policy_json():
 def response_metadata():
     return {
         'ResponseMetadata': {
-            'RequestId': 'A6NCY16443JH271V', 
-            'HostId': 'vmM0qqMatvgqF2uRvfI79NWUbKaEZHHk49er2WIptAvH420Euq3Ac+cg+CXUEl9kFe3x49Cl/+I=', 
-            'HTTPStatusCode': 204, 
+            'RequestId': 'A6NCY16443JH271V',
+            'HostId': 'vmM0qqMatvgqF2uRvfI79NWUbKaEZHHk49er2WIptAvH420Euq3Ac+cg+CXUEl9kFe3x49Cl/+I=',
+            'HTTPStatusCode': 204,
             'HTTPHeaders': {
-                'x-amz-id-2': 'vmM0qqMatvgqF2uRvfI79NWUbKaEZHHk49er2WIptAvH420Euq3Ac+cg+CXUEl9kFe3x49Cl/+I=', 
-                'x-amz-request-id': 'A6NCY16443JH271V', 
-                'date': 'Wed, 20 Oct 2021 17:40:32 GMT', 
+                'x-amz-id-2': 'vmM0qqMatvgqF2uRvfI79NWUbKaEZHHk49er2WIptAvH420Euq3Ac+cg+CXUEl9kFe3x49Cl/+I=',
+                'x-amz-request-id': 'A6NCY16443JH271V',
+                'date': 'Wed, 20 Oct 2021 17:40:32 GMT',
                 'server': 'AmazonS3'
-            }, 
-            'RetryAttempts': 
+            },
+            'RetryAttempts':
             0
         }
     }
 
-def event(): 
+def event():
     return {
         'bucket': 'abucket',
-        'accountid': '111111111111'
+        'accountid': '111111111111',
+        'partition': 'aws'
     }
 
 def test_new_policy(mocker):

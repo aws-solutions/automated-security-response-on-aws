@@ -12,31 +12,31 @@ exports[`default stack 1`] = `
     },
   },
   "Parameters": {
-    "CIS11AutoTrigger": {
+    "CIS12011AutoTrigger": {
       "AllowedValues": [
         "ENABLED",
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 1.1",
+      "Description": "This will fully enable automated remediation for CIS 1.2.0 1.1",
       "Type": "String",
     },
-    "CIS12AutoTrigger": {
+    "CIS12012AutoTrigger": {
       "AllowedValues": [
         "ENABLED",
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 1.2",
+      "Description": "This will fully enable automated remediation for CIS 1.2.0 1.2",
       "Type": "String",
     },
-    "CIS13AutoTrigger": {
+    "CIS12013AutoTrigger": {
       "AllowedValues": [
         "ENABLED",
         "DISABLED",
       ],
       "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 1.3",
+      "Description": "This will fully enable automated remediation for CIS 1.2.0 1.3",
       "Type": "String",
     },
     "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -47,7 +47,7 @@ exports[`default stack 1`] = `
   "Resources": {
     "CIS11AutoEventRule5178D649": {
       "Properties": {
-        "Description": "Remediate CIS 1.1 automatic remediation trigger event rule.",
+        "Description": "Remediate CIS 1.2.0 1.1 automatic remediation trigger event rule.",
         "EventPattern": {
           "detail": {
             "findings": {
@@ -88,9 +88,9 @@ exports[`default stack 1`] = `
             "aws.securityhub",
           ],
         },
-        "Name": "CIS_1.1_AutoTrigger",
+        "Name": "CIS_1.2.0_1.1_AutoTrigger",
         "State": {
-          "Ref": "CIS11AutoTrigger",
+          "Ref": "CIS12011AutoTrigger",
         },
         "Targets": [
           {
@@ -151,7 +151,7 @@ exports[`default stack 1`] = `
     },
     "CIS12AutoEventRuleD40B64BC": {
       "Properties": {
-        "Description": "Remediate CIS 1.2 automatic remediation trigger event rule.",
+        "Description": "Remediate CIS 1.2.0 1.2 automatic remediation trigger event rule.",
         "EventPattern": {
           "detail": {
             "findings": {
@@ -192,9 +192,9 @@ exports[`default stack 1`] = `
             "aws.securityhub",
           ],
         },
-        "Name": "CIS_1.2_AutoTrigger",
+        "Name": "CIS_1.2.0_1.2_AutoTrigger",
         "State": {
-          "Ref": "CIS12AutoTrigger",
+          "Ref": "CIS12012AutoTrigger",
         },
         "Targets": [
           {
@@ -255,7 +255,7 @@ exports[`default stack 1`] = `
     },
     "CIS13AutoEventRuleC6C84C81": {
       "Properties": {
-        "Description": "Remediate CIS 1.3 automatic remediation trigger event rule.",
+        "Description": "Remediate CIS 1.2.0 1.3 automatic remediation trigger event rule.",
         "EventPattern": {
           "detail": {
             "findings": {
@@ -296,9 +296,9 @@ exports[`default stack 1`] = `
             "aws.securityhub",
           ],
         },
-        "Name": "CIS_1.3_AutoTrigger",
+        "Name": "CIS_1.2.0_1.3_AutoTrigger",
         "State": {
-          "Ref": "CIS13AutoTrigger",
+          "Ref": "CIS12013AutoTrigger",
         },
         "Targets": [
           {
@@ -356,15 +356,6 @@ exports[`default stack 1`] = `
         },
       },
       "Type": "AWS::IAM::Role",
-    },
-    "StandardShortName7DDF6BE6": {
-      "Properties": {
-        "Description": "Provides a short (1-12) character abbreviation for the standard.",
-        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
-        "Type": "String",
-        "Value": "CIS",
-      },
-      "Type": "AWS::SSM::Parameter",
     },
     "StandardVersionCB2C6951": {
       "Properties": {
@@ -476,10 +467,8 @@ This document ensures that credentials unused for 90 days or greater are disable
                   "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):iam::\\d{12}:user(?:(?:\\u002F)|(?:\\u002F[\\u0021-\\u007F]{1,510}\\u002F))([\\w+=,.@-]{1,64})$",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-## SPDX-License-Identifier: Apache-2.0
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import re
 import json
 import boto3
@@ -560,7 +549,7 @@ class FindingEvent:
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
-                exit(f'ERROR: Invalid resource Id {identifier_raw}')   
+                exit(f'ERROR: Invalid resource Id {identifier_raw}')
             return
 
     def _get_standard_info(self):
@@ -571,7 +560,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname(match_finding_id.group(1))
             self.standard_version = match_finding_id.group(2)
-            self.control_id = match_finding_id.group(3)      
+            self.control_id = match_finding_id.group(3)
         else:
             self.valid_finding = False
             self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
@@ -582,10 +571,10 @@ class FindingEvent:
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
         return
-    
+
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
-            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:((?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)):.*:.*$',
+            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$',
             self.finding_json['Resources'][0]['Id']
         )
         if check_for_region:
@@ -612,12 +601,12 @@ class FindingEvent:
                 self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
-        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::product/aws/securityhub$', self.product_arn):
+        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
             if self.valid_finding:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'ProductArn is invalid: {self.product_arn}'
         self.details = self.finding_json['Resources'][0].get('Details', {})
-        # Test mode is used with fabricated finding data to tell the 
+        # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
         # Currently not widely-used and perhaps should be deprecated.
         self.testmode = bool('testmode' in self.finding_json)
@@ -626,7 +615,7 @@ class FindingEvent:
         self._get_aws_config_rule()
         self.affected_object = {'Type': self.resource['Type'], 'Id': self.resource_id, 'OutputKey': 'Remediation.Output'}
 
-        # Validate control_id   
+        # Validate control_id
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -654,13 +643,13 @@ MAIN
 '''
 def parse_event(event, context):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
-  
+
     if not finding_event.valid_finding:
         exit('ERROR: Finding is not valid')
 
     return {
         "account_id": finding_event.account_id,
-        "resource_id": finding_event.resource_id, 
+        "resource_id": finding_event.resource_id,
         "finding_id": finding_event.finding_id,         # Deprecate v1.5.0+
         "control_id": finding_event.control_id,
         "product_arn": finding_event.product_arn,       # Deprecate v1.5.0+
@@ -811,10 +800,8 @@ This document establishes a default password policy.
                   "parse_id_pattern": "",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-## SPDX-License-Identifier: Apache-2.0
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import re
 import json
 import boto3
@@ -895,7 +882,7 @@ class FindingEvent:
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
-                exit(f'ERROR: Invalid resource Id {identifier_raw}')   
+                exit(f'ERROR: Invalid resource Id {identifier_raw}')
             return
 
     def _get_standard_info(self):
@@ -906,7 +893,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname(match_finding_id.group(1))
             self.standard_version = match_finding_id.group(2)
-            self.control_id = match_finding_id.group(3)      
+            self.control_id = match_finding_id.group(3)
         else:
             self.valid_finding = False
             self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
@@ -917,10 +904,10 @@ class FindingEvent:
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
         return
-    
+
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
-            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:((?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)):.*:.*$',
+            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$',
             self.finding_json['Resources'][0]['Id']
         )
         if check_for_region:
@@ -947,12 +934,12 @@ class FindingEvent:
                 self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
-        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::product/aws/securityhub$', self.product_arn):
+        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
             if self.valid_finding:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'ProductArn is invalid: {self.product_arn}'
         self.details = self.finding_json['Resources'][0].get('Details', {})
-        # Test mode is used with fabricated finding data to tell the 
+        # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
         # Currently not widely-used and perhaps should be deprecated.
         self.testmode = bool('testmode' in self.finding_json)
@@ -961,7 +948,7 @@ class FindingEvent:
         self._get_aws_config_rule()
         self.affected_object = {'Type': self.resource['Type'], 'Id': self.resource_id, 'OutputKey': 'Remediation.Output'}
 
-        # Validate control_id   
+        # Validate control_id
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -989,13 +976,13 @@ MAIN
 '''
 def parse_event(event, context):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
-  
+
     if not finding_event.valid_finding:
         exit('ERROR: Finding is not valid')
 
     return {
         "account_id": finding_event.account_id,
-        "resource_id": finding_event.resource_id, 
+        "resource_id": finding_event.resource_id,
         "finding_id": finding_event.finding_id,         # Deprecate v1.5.0+
         "control_id": finding_event.control_id,
         "product_arn": finding_event.product_arn,       # Deprecate v1.5.0+
@@ -1128,10 +1115,8 @@ Note: this remediation will create a NEW trail.
                   "parse_id_pattern": "",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-## SPDX-License-Identifier: Apache-2.0
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import re
 import json
 import boto3
@@ -1212,7 +1197,7 @@ class FindingEvent:
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
-                exit(f'ERROR: Invalid resource Id {identifier_raw}')   
+                exit(f'ERROR: Invalid resource Id {identifier_raw}')
             return
 
     def _get_standard_info(self):
@@ -1223,7 +1208,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname(match_finding_id.group(1))
             self.standard_version = match_finding_id.group(2)
-            self.control_id = match_finding_id.group(3)      
+            self.control_id = match_finding_id.group(3)
         else:
             self.valid_finding = False
             self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
@@ -1234,10 +1219,10 @@ class FindingEvent:
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
         return
-    
+
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
-            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:((?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)):.*:.*$',
+            r'^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$',
             self.finding_json['Resources'][0]['Id']
         )
         if check_for_region:
@@ -1264,12 +1249,12 @@ class FindingEvent:
                 self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
-        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::product/aws/securityhub$', self.product_arn):
+        if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
             if self.valid_finding:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'ProductArn is invalid: {self.product_arn}'
         self.details = self.finding_json['Resources'][0].get('Details', {})
-        # Test mode is used with fabricated finding data to tell the 
+        # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
         # Currently not widely-used and perhaps should be deprecated.
         self.testmode = bool('testmode' in self.finding_json)
@@ -1278,7 +1263,7 @@ class FindingEvent:
         self._get_aws_config_rule()
         self.affected_object = {'Type': self.resource['Type'], 'Id': self.resource_id, 'OutputKey': 'Remediation.Output'}
 
-        # Validate control_id   
+        # Validate control_id
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -1306,13 +1291,13 @@ MAIN
 '''
 def parse_event(event, context):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
-  
+
     if not finding_event.valid_finding:
         exit('ERROR: Finding is not valid')
 
     return {
         "account_id": finding_event.account_id,
-        "resource_id": finding_event.resource_id, 
+        "resource_id": finding_event.resource_id,
         "finding_id": finding_event.finding_id,         # Deprecate v1.5.0+
         "control_id": finding_event.control_id,
         "product_arn": finding_event.product_arn,       # Deprecate v1.5.0+

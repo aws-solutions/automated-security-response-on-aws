@@ -1,0 +1,67 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.5/finding/fb4d955b-35f4-4111-a2a0-684c16ddcfa8",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/2.5",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ],
+    "FirstObservedAt": "2021-02-19T00:14:40.596Z",
+    "LastObservedAt": "2021-07-22T12:38:27.395Z",
+    "CreatedAt": "2021-02-19T00:14:40.596Z",
+    "UpdatedAt": "2021-07-22T12:38:24.211Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "2.5 Ensure AWS Config is enabled",
+    "Description": "AWS Config is a web service that performs configuration management of supported AWS resources within your account and delivers log files to you. The recorded information includes the configuration item (AWS resource), relationships between configuration items (AWS resources), and any configuration changes between resources. It is recommended to enable AWS Config in all regions.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.5/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+      "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+      "RuleId": "2.5",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-2.5/remediation",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/2.5",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:iam::111111111111:root",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/2.5/finding/fb4d955b-35f4-4111-a2a0-684c16ddcfa8"
+    },
+    "Resources": [
+      {
+        "Type": "AwsAccount",
+        "Id": "AWS::::Account:111111111111",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+      ]
+    }
+  }

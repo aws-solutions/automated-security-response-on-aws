@@ -1,0 +1,85 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.CloudTrail.2/finding/47a760d7-97c5-47a4-871e-dae03584c147",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.CloudTrail.2",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+  ],
+  "FirstObservedAt": "2021-06-01T18:39:17.446Z",
+  "LastObservedAt": "2021-07-21T10:21:58.849Z",
+  "CreatedAt": "2021-06-01T18:39:17.446Z",
+  "UpdatedAt": "2021-07-21T10:21:57.297Z",
+  "Severity": {
+    "Product": 0,
+    "Label": "INFORMATIONAL",
+    "Normalized": 0,
+    "Original": "INFORMATIONAL"
+  },
+  "Title": "PCI.CloudTrail.2 CloudTrail should be enabled",
+  "Description": "This AWS control checks whether AWS CloudTrail is enabled in your AWS account.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.CloudTrail.2/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.CloudTrail.2",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.CloudTrail.2/remediation",
+    "RelatedAWSResources:0/name": "securityhub-cloudtrail-enabled-0a5f1940",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.CloudTrail.2",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:root",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.CloudTrail.2/finding/47a760d7-97c5-47a4-871e-dae03584c147"
+  },
+  "Resources": [
+    {
+      "Type": "AwsAccount",
+      "Id": "AWS::::Account:111111111111",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 10.1",
+      "PCI DSS 10.2.1",
+      "PCI DSS 10.2.2",
+      "PCI DSS 10.2.3",
+      "PCI DSS 10.2.4",
+      "PCI DSS 10.2.5",
+      "PCI DSS 10.2.6",
+      "PCI DSS 10.2.7",
+      "PCI DSS 10.3.1",
+      "PCI DSS 10.3.2",
+      "PCI DSS 10.3.3",
+      "PCI DSS 10.3.4",
+      "PCI DSS 10.3.5",
+      "PCI DSS 10.3.6"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "INFORMATIONAL",
+      "Original": "INFORMATIONAL"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ]
+  }
+}

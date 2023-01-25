@@ -1,0 +1,101 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.8/finding/7a04a6d5-07ec-4430-ab8f-67c0119b5acd",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/IAM.8",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-02-16T21:55:58.862Z",
+  "LastObservedAt": "2021-07-21T10:22:17.088Z",
+  "CreatedAt": "2021-02-16T21:55:58.862Z",
+  "UpdatedAt": "2021-07-21T10:22:13.254Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "IAM.8 Unused IAM user credentials should be removed",
+  "Description": "This control checks whether your IAM users have passwords or active access keys that were not used within the previous 90 days.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/IAM.8/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "IAM.8",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/IAM.8/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-user-unused-credentials-check-8ee5d61b",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/IAM.8",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:user/sharrtest",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.8/finding/7a04a6d5-07ec-4430-ab8f-67c0119b5acd"
+  },
+  "Resources": [
+    {
+      "Type": "AwsIamUser",
+      "Id": "arn:aws:iam::111111111111:user/sharrtest",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsIamUser": {
+          "AttachedManagedPolicies": [
+            {
+              "PolicyName": "AmazonEC2FullAccess",
+              "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+            },
+            {
+              "PolicyName": "AWSCodeCommitFullAccess",
+              "PolicyArn": "arn:aws:iam::aws:policy/AWSCodeCommitFullAccess"
+            },
+            {
+              "PolicyName": "AdministratorAccess",
+              "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"
+            }
+          ],
+          "CreateDate": "2015-05-22T14:43:16.000Z",
+          "GroupList": [
+            "Customers",
+            "SC-BAR-Admin",
+            "SC-SuperAdmin"
+          ],
+          "Path": "/",
+          "UserId": "AIDACKCEVSQ6C2EXAMPLE",
+          "UserName": "sharrtest",
+          "UserPolicyList": [
+            {
+              "PolicyName": "AssumeRole"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

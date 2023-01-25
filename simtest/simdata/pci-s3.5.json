@@ -1,0 +1,78 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1/PCI.S3.5/finding/fba9b958-553f-483f-8c75-5cb1a42aeb7c",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.S3.5",
+  "AwsAccountId": "111122223333",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+  ],
+  "FirstObservedAt": "2021-07-22T15:22:41.125Z",
+  "LastObservedAt": "2021-10-20T15:49:07.590Z",
+  "CreatedAt": "2021-07-22T15:22:41.125Z",
+  "UpdatedAt": "2021-10-20T15:48:59.964Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "PCI.S3.5 S3 buckets should require requests to use Secure Socket Layer",
+  "Description": "This AWS control checks whether S3 buckets have policies that require requests to use Secure Socket Layer (SSL).",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.S3.5/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.S3.5",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.S3.5/remediation",
+    "RelatedAWSResources:0/name": "securityhub-s3-bucket-ssl-requests-only-4055cf0a",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111122223333:control/pci-dss/v/3.2.1/PCI.S3.5",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:s3:::so0111-aws-cloudtrail-111122223333",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1/PCI.S3.5/finding/fba9b958-553f-483f-8c75-5cb1a42aeb7c"
+  },
+  "Resources": [
+    {
+      "Type": "AwsS3Bucket",
+      "Id": "arn:aws:s3:::so0111-aws-cloudtrail-111122223333",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsS3Bucket": {
+          "OwnerId": "03d32dc0915b7f36d274d1a92ecb8620952a94f5f084f3e5a682812a2184a4a2",
+          "CreatedAt": "2021-07-26T12:33:47.000Z"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 4.1"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ]
+  }
+}

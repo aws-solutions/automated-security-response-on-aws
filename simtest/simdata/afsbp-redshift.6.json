@@ -1,0 +1,137 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Redshift.6/finding/8be5ad05-c76b-4cc5-9e56-c58ba7643f1d",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/Redshift.6",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2022-04-13T22:28:02.566Z",
+  "LastObservedAt": "2022-04-13T22:28:16.614Z",
+  "CreatedAt": "2022-04-13T22:28:02.566Z",
+  "UpdatedAt": "2022-04-13T22:28:02.566Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "Redshift.6 Amazon Redshift should have automatic upgrades to major versions enabled",
+  "Description": "This control checks whether an Amazon Redshift cluster is configured with automatic upgrades to major versions.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/Redshift.6/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "Redshift.6",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/Redshift.6/remediation",
+    "RelatedAWSResources:0/name": "securityhub-redshift-cluster-maintenancesettings-check-2f45106f",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/Redshift.6",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Redshift.6/finding/8be5ad05-c76b-4cc5-9e56-c58ba7643f1d"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRedshiftCluster",
+      "Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRedshiftCluster": {
+          "AllowVersionUpgrade": false,
+          "AutomatedSnapshotRetentionPeriod": 7,
+          "AvailabilityZone": "us-east-1e",
+          "ClusterAvailabilityStatus": "Available",
+          "ClusterCreateTime": "2022-04-12T20:01:43.205Z",
+          "ClusterIdentifier": "redshift-cluster-1",
+          "ClusterNodes": [
+            {
+              "NodeRole": "LEADER",
+              "PrivateIpAddress": "90.31.73.178",
+              "PublicIpAddress": "34.197.118.21"
+            },
+            {
+              "NodeRole": "COMPUTE-0",
+              "PrivateIpAddress": "172.31.60.80",
+              "PublicIpAddress": "46.232.23.47"
+            },
+            {
+              "NodeRole": "COMPUTE-1",
+              "PrivateIpAddress": "172.31.51.191",
+              "PublicIpAddress": "33.101.209.70"
+            }
+          ],
+          "ClusterParameterGroups": [
+            {
+              "ParameterApplyStatus": "in-sync",
+              "ParameterGroupName": "default.redshift-1.0"
+            }
+          ],
+          "ClusterPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC+W0FN169o1zrZeUId6xZuYaT0ks8kQW4TzDPrhkKf7YkAmurmrop+Y/dRdGy9FMChPasS222Bj9b7JINJ8p0kjnemEHsU6aUiQW2nzDEZCVMHwTdLFIhJIzCYHofEcjyMHHcvsK2ZD2L9wbRLozLH101WL3riTrFDcj0v59IMQk9aJr0YHQ6WBIXvYwx9NnCJSC8aGcuyct+YgBtpiohn3IOSBRTpD8YYTCNpJ6umdVmYDGLoyGdC+pJZOV5eZ6b5P68l0CbwYbAJ3VJO1tZx0GyVVlO0GKZwzW9jbXADZGcrieiM3KcDUzJRBZdYdiWg//TW2auJ7fQ77I/JQxoR Amazon-Redshift\n",
+          "ClusterRevisionNumber": "37176",
+          "ClusterStatus": "available",
+          "ClusterSubnetGroupName": "cluster-subnet-group-1",
+          "ClusterVersion": "1.0",
+          "DBName": "dev",
+          "DeferredMaintenanceWindows": [
+            {
+              "DeferMaintenanceEndTime": "2022-04-28T03:59:00.000Z",
+              "DeferMaintenanceIdentifier": "dfm-a9T2si1w2vZPpT9wvMsS",
+              "DeferMaintenanceStartTime": "2022-04-13T21:01:00.000Z"
+            }
+          ],
+          "ElasticResizeNumberOfNodeOptions": "[4]",
+          "Encrypted": false,
+          "Endpoint": {
+            "Address": "redshift-cluster-1.b272823c8f3e.us-east-1.redshift.amazonaws.com",
+            "Port": 5439
+          },
+          "EnhancedVpcRouting": false,
+          "MaintenanceTrackName": "current",
+          "ManualSnapshotRetentionPeriod": -1,
+          "MasterUsername": "awsuser",
+          "NextMaintenanceWindowStartTime": "2022-05-01T03:00:00.000Z",
+          "NodeType": "dc2.large",
+          "NumberOfNodes": 2,
+          "PreferredMaintenanceWindow": "sun:03:00-sun:03:30",
+          "PubliclyAccessible": false,
+          "VpcId": "vpc-0067b509dcf50a6dd",
+          "VpcSecurityGroups": [
+            {
+              "Status": "active",
+              "VpcSecurityGroupId": "sg-1af2056a270c0fa8a"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

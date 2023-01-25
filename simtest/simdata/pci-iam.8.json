@@ -1,0 +1,75 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.IAM.8/finding/47af9ef7-b84a-49ee-afc3-ebab1cd4ebe8",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.IAM.8",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+  ],
+  "FirstObservedAt": "2021-06-01T18:38:37.292Z",
+  "LastObservedAt": "2021-07-21T10:22:14.576Z",
+  "CreatedAt": "2021-06-01T18:38:37.292Z",
+  "UpdatedAt": "2021-07-21T10:22:11.140Z",
+  "Severity": {
+    "Product": 0,
+    "Label": "INFORMATIONAL",
+    "Normalized": 0,
+    "Original": "INFORMATIONAL"
+  },
+  "Title": "PCI.IAM.8 Password policies for IAM users should have strong configurations",
+  "Description": "This AWS control checks whether the account password policy for IAM users uses the following minimum PCI DSS configurations:\n\nRequireUppercaseCharacters: Require at least one uppercase character in password. (Default = true)\nRequireLowercaseCharacters: Require at least one lowercase character in password. (Default = true)\nRequireNumbers: Require at least one number in password. (Default = true)\nMinimumPasswordLength: Password minimum length. (Default = 7 or longer)\nPasswordReusePrevention: Number of passwords before allowing reuse. (Default = 4)\nMaxPasswordAge: Number of days before password expiration. (Default = 90)",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.IAM.8/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.IAM.8",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.IAM.8/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-password-policy-recommended-defaults-no-symbols-required-7a79532a",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.IAM.8",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:root",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.IAM.8/finding/47af9ef7-b84a-49ee-afc3-ebab1cd4ebe8"
+  },
+  "Resources": [
+    {
+      "Type": "AwsAccount",
+      "Id": "AWS::::Account:111111111111",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 8.1.4",
+      "PCI DSS 8.2.3",
+      "PCI DSS 8.2.4",
+      "PCI DSS 8.2.5"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "INFORMATIONAL",
+      "Original": "INFORMATIONAL"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ]
+  }
+}

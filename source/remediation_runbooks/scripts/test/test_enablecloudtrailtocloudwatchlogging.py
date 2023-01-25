@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import json
 import botocore.session
@@ -25,6 +12,10 @@ import EnableCloudTrailToCloudWatchLogging_waitforloggroup as validation
 
 my_session = boto3.session.Session()
 my_region = my_session.region_name
+
+@pytest.fixture(autouse=True)
+def patch_sleep_between_attempts(mocker):
+    mocker.patch('EnableCloudTrailToCloudWatchLogging_waitforloggroup.sleep_between_attempts')
 
 #=====================================================================================
 # EnableCloudTrailToCloudWatchLogging_waitforloggroup
@@ -76,8 +67,9 @@ def test_validation_success(mocker):
 
     cwl_stubber.activate()
     mocker.patch('EnableCloudTrailToCloudWatchLogging_waitforloggroup.connect_to_logs', return_value=cwl_client)
+
     assert validation.wait_for_loggroup(event, {}) == "arn:aws:logs:us-east-1:111111111111:log-group:my_loggroup:*"
-    
+
     cwl_stubber.deactivate()
 
 def test_validation_failed(mocker):
@@ -127,6 +119,7 @@ def test_validation_failed(mocker):
 
     cwl_stubber.activate()
     mocker.patch('EnableCloudTrailToCloudWatchLogging_waitforloggroup.connect_to_logs', return_value=cwl_client)
+
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         parsed_event = validation.wait_for_loggroup(event, {})
     assert pytest_wrapped_e.type == SystemExit

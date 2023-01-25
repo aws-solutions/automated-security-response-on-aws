@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
   ### Document Name - ASR-PCI_3.2.1_Lambda.1
 
@@ -29,7 +32,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-RemoveLambdaPublicAccess"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput

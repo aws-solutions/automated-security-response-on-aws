@@ -1,0 +1,129 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Redshift.4/finding/0feb445d-2382-4fb2-9d53-c137b695565f",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/Redshift.4",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2022-04-14T15:55:28.090Z",
+    "LastObservedAt": "2022-04-14T15:55:37.123Z",
+    "CreatedAt": "2022-04-14T15:55:28.090Z",
+    "UpdatedAt": "2022-04-14T15:55:28.090Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "Redshift.4 Amazon Redshift clusters should have audit logging enabled",
+    "Description": "This control checks whether an Amazon Redshift cluster has audit logging enabled.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/Redshift.4/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "Redshift.4",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/Redshift.4/remediation",
+      "RelatedAWSResources:0/name": "securityhub-redshift-cluster-audit-logging-enabled-10097975",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/Redshift.4",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "aws/securityhub/annotation": "Audit logging is not enabled for this cluster.",
+      "Resources:0/Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Redshift.4/finding/0feb445d-2382-4fb2-9d53-c137b695565f"
+    },
+    "Resources": [
+      {
+        "Type": "AwsRedshiftCluster",
+        "Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsRedshiftCluster": {
+            "AllowVersionUpgrade": true,
+            "AutomatedSnapshotRetentionPeriod": 1,
+            "AvailabilityZone": "us-east-1a",
+            "ClusterAvailabilityStatus": "Modifying",
+            "ClusterIdentifier": "redshift-cluster-1",
+            "ClusterNodes": [
+              {
+                "NodeRole": "LEADER",
+                "PrivateIpAddress": "172.31.40.181",
+                "PublicIpAddress": "3.210.139.134"
+              },
+              {
+                "NodeRole": "COMPUTE-0",
+                "PrivateIpAddress": "172.31.32.179",
+                "PublicIpAddress": "54.81.27.230"
+              },
+              {
+                "NodeRole": "COMPUTE-1",
+                "PrivateIpAddress": "172.31.46.162",
+                "PublicIpAddress": "3.231.196.115"
+              }
+            ],
+            "ClusterParameterGroups": [
+              {
+                "ParameterApplyStatus": "in-sync",
+                "ParameterGroupName": "default.redshift-1.0"
+              }
+            ],
+            "ClusterPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCCvIsfTSAx2aLUza5Z1QnC0u7+7I8DEYOXuVW/BgVNoE4gZwkqpE3JyLbjRbgCiEHuyPYGFa4U0FojagJCvkkYrfOVUEb9GFlOWJRuYaeoSc4ETaU2r23eO3LNM01hONzmQC+SD7qmyOUJAc/CTvtqaMuWb+nts65ns+3IFM77zHpEpcZGMGV+hzD5NJLd8v+td8YtN6kAYyFM8mVfATJX52RjrhY/XELNAqKv/imEKqa0eLwTvw0uybiR0WNjbC2XB/vZwu7nT8JKKgRqRngL/6Q5/DfGvdQKVLwdWVnV8GAZQZsiTw5vy8B3tpfcL0/KCgvIpvh5yckHmw9+IjwT Amazon-Redshift\n",
+            "ClusterRevisionNumber": "37509",
+            "ClusterStatus": "creating",
+            "ClusterSubnetGroupName": "default",
+            "ClusterVersion": "1.0",
+            "DBName": "dev",
+            "ElasticResizeNumberOfNodeOptions": "[3,4,5,6,7,8]",
+            "Encrypted": false,
+            "EnhancedVpcRouting": false,
+            "MaintenanceTrackName": "current",
+            "ManualSnapshotRetentionPeriod": -1,
+            "MasterUsername": "awsuser",
+            "NextMaintenanceWindowStartTime": "2022-04-21T04:00:00.000Z",
+            "NodeType": "ra3.4xlarge",
+            "NumberOfNodes": 2,
+            "PendingModifiedValues": {
+              "MasterUserPassword": "****"
+            },
+            "PreferredMaintenanceWindow": "thu:04:00-thu:04:30",
+            "PubliclyAccessible": false,
+            "VpcId": "vpc-5163a72c",
+            "VpcSecurityGroups": [
+              {
+                "Status": "active",
+                "VpcSecurityGroupId": "sg-8149b9bf"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }
