@@ -16,7 +16,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
             'max_attempts': 10
         }
     )
-    rds = boto3.client('ec2', config=BOTO_CONFIG)
+    rds = boto3.client('rds', config=BOTO_CONFIG)
     stub_rds = Stubber(rds)
     clients = { 'rds': rds }
 
@@ -74,7 +74,7 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
             'max_attempts': 10
         }
     )
-    rds = boto3.client('ec2', config=BOTO_CONFIG)
+    rds = boto3.client('rds', config=BOTO_CONFIG)
     stub_rds = Stubber(rds)
     clients = { 'rds': rds }
 
