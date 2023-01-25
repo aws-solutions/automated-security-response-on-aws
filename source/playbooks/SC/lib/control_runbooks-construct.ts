@@ -137,10 +137,12 @@ export class ControlRunbooks extends Construct {
 
   protected getEnableParamDescription(controlId: string) {
     // eslint-disable-next-line prettier/prettier
-    return `Enable/disable availability of remediation for ${this.standardLongName} version ` +
+    return (
+      `Enable/disable availability of remediation for ${this.standardLongName} version ` +
       `${this.standardVersion} Control ${controlId} in Security Hub Console Custom Actions. If ` +
       'NOT Available the remediation cannot be triggered from the Security Hub console in the ' +
-      'Security Hub Admin account.'; // eslint-disable-line prettier/prettier
+      'Security Hub Admin account.'
+    );
   }
 
   public has(controlId: string): boolean {

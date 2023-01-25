@@ -2228,13 +2228,13 @@ export class RemediationRunbookStack extends cdk.Stack {
         parameterName: `/Solutions/${RESOURCE_PREFIX}/DeliveryStatusLoggingRole`,
         stringValue: sns2Role.roleArn,
       });
-      
+
       const iamPerms = new PolicyStatement();
       iamPerms.addActions('iam:GetRole', 'iam:PassRole');
       iamPerms.effect = Effect.ALLOW;
       iamPerms.addResources(sns2Role.roleArn);
       inlinePolicy.addStatements(iamPerms);
-      
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
