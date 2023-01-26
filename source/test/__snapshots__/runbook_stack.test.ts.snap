@@ -1843,6 +1843,10 @@ the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference
 
 ## Output Parameters
 * DisablePubliclyAccessibleOnRDS.Response: The standard HTTP response from the ModifyDBInstance API.
+
+## Troubleshooting
+* ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
+ - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API.
 ",
           "mainSteps": [
             {

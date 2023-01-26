@@ -8,3 +8,7 @@ This document disables public access to RDS instances by calling another SSM doc
 
 ## Documentation Links
 * [AFSBP RDS.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-2)
+
+## Troubleshooting
+* ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
+ - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API. 
