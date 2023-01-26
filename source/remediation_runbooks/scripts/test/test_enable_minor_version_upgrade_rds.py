@@ -82,7 +82,7 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
  
     stub_rds.add_response(
        'describe_db_instances',
-       describedInstanceCluster,
+       describedInstance,
        { 
          "DBInstanceIdentifier": instanceId
        }
@@ -115,53 +115,6 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
             "AutoMinorVersionUpgrade": True
 }
 
-
-describedInstance = {
-    'DBInstances': 
-    [{
-        'DBInstanceIdentifier': 'database-instance', 
-        'DBInstanceClass': 'db.r6g.2xlarge', 
-        'Engine': 'aurora-mysql', 
-        'DBInstanceStatus': 'available', 
-        'MasterUsername': 'admin', 
-        'Endpoint': 
-        {
-            'Address': 'test.amazonaws.com', 
-            'Port': 321, 
-            'HostedZoneId': 'test'
-        }, 
-        'AllocatedStorage': 1, 
-        'PreferredBackupWindow': '09:05-09:35', 
-        'BackupRetentionPeriod': 1, 'DBSecurityGroups': [], 
-        'VpcSecurityGroups': [{'VpcSecurityGroupId': 'sg-', 'Status': 'active'}], 
-        'DBParameterGroups': [{'DBParameterGroupName': 'default.aurora-mysql5.7', 'ParameterApplyStatus': 'in-sync'}], 
-        'AvailabilityZone': 'us-east-1a', 'DBSubnetGroup': {'DBSubnetGroupName': 'default-vpc-', 
-        'DBSubnetGroupDescription': 'Created from the RDS Management Console', 'VpcId': 'vpc-', 
-        'SubnetGroupStatus': 'Complete', 'Subnets': [{'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}]}, 'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
-        'PendingModifiedValues': {}, 'MultiAZ': False, 'EngineVersion': '5.7.mysql_aurora.2.10.2', 
-        'AutoMinorVersionUpgrade': False, 'ReadReplicaDBInstanceIdentifiers': [], 'LicenseModel': 'general-public-license',
-        'OptionGroupMemberships': [{'OptionGroupName': 'default:aurora-mysql-5-7', 'Status': 'in-sync'}], 
-        'PubliclyAccessible': False, 'StorageType': 'aurora', 'DbInstancePort': 0, 
-        'StorageEncrypted': False, 'DbiResourceId': 'db-',
-        'CACertificateIdentifier': 'rds-ca-2019', 'DomainMemberships': [], 'CopyTagsToSnapshot': False, 
-        'MonitoringInterval': 60, 
-        'EnhancedMonitoringResourceArn': '', 
-        'MonitoringRoleArn': '', 
-        'PromotionTier': 1, 
-        'DBInstanceArn': '', 
-        'IAMDatabaseAuthenticationEnabled': False, 'PerformanceInsightsEnabled': False, 
-        'DeletionProtection': False, 'AssociatedRoles': [], 'TagList': [], 'CustomerOwnedIpEnabled': False, 'BackupTarget': 'region', 'NetworkType': 'IPV4', 'StorageThroughput': 0}], 'ResponseMetadata': {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'HTTPStatusCode': 200, 'HTTPHeaders': {'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'strict-transport-security': 'max-age=31536000', 
-        'content-type': 'text/xml', 'content-length': '6206', 'date': 'Wed, 25 Jan 2023 22:48:55 GMT'}, 'RetryAttempts': 0}}
-
 describedInstanceCluster = {
     'DBInstances': 
     [{
@@ -179,40 +132,118 @@ describedInstanceCluster = {
         }, 
         'AllocatedStorage': 1, 
         'PreferredBackupWindow': '09:05-09:35', 
-        'BackupRetentionPeriod': 1, 'DBSecurityGroups': [], 
-        'VpcSecurityGroups': [{'VpcSecurityGroupId': 'sg-', 'Status': 'active'}], 
-        'DBParameterGroups': [{'DBParameterGroupName': 'default.aurora-mysql5.7', 'ParameterApplyStatus': 'in-sync'}], 
-        'AvailabilityZone': 'us-east-1a', 'DBSubnetGroup': {'DBSubnetGroupName': 'default-vpc-', 
-        'DBSubnetGroupDescription': 'Created from the RDS Management Console', 'VpcId': 'vpc-', 
-        'SubnetGroupStatus': 'Complete', 'Subnets': [{'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}]}, 'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
-        'PendingModifiedValues': {}, 'MultiAZ': False, 'EngineVersion': '5.7.mysql_aurora.2.10.2', 
-        'AutoMinorVersionUpgrade': False, 'ReadReplicaDBInstanceIdentifiers': [], 'LicenseModel': 'general-public-license',
-        'OptionGroupMemberships': [{'OptionGroupName': 'default:aurora-mysql-5-7', 'Status': 'in-sync'}], 
-        'PubliclyAccessible': False, 'StorageType': 'aurora', 'DbInstancePort': 0, 
-        'StorageEncrypted': False, 'DbiResourceId': 'db-',
-        'CACertificateIdentifier': 'rds-ca-2019', 'DomainMemberships': [], 'CopyTagsToSnapshot': False, 
+        'BackupRetentionPeriod': 1, 
+        'DBSecurityGroups': [], 
+        'VpcSecurityGroups': 
+        [{
+            'VpcSecurityGroupId': 
+            'sg-', 
+            'Status': 'active'
+        }], 
+        'DBParameterGroups': 
+        [{
+            'DBParameterGroupName': 'default.aurora-mysql5.7', 
+            'ParameterApplyStatus': 'in-sync'
+        }], 
+        'AvailabilityZone': 'us-east-1a', 
+        'DBSubnetGroup': 
+        {
+            'DBSubnetGroupName': 'default-vpc-', 
+            'DBSubnetGroupDescription': 'Created from the RDS Management Console', 
+            'VpcId': 'vpc-', 
+            'SubnetGroupStatus': 'Complete', 
+            'Subnets': 
+            [{
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 
+                'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
+                'SubnetOutpost': {}, 'SubnetStatus': 'Active'
+            }
+            ]
+        }, 
+        'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
+        'PendingModifiedValues': {}, 
+        'MultiAZ': False, 
+        'EngineVersion': '5.7.mysql_aurora.2.10.2', 
+        'AutoMinorVersionUpgrade': False, 
+        'ReadReplicaDBInstanceIdentifiers': [], 
+        'LicenseModel': 'general-public-license',
+        'OptionGroupMemberships': 
+        [{
+            'OptionGroupName': 'default:aurora-mysql-5-7', 
+            'Status': 'in-sync'
+        }], 
+        'PubliclyAccessible': False, 
+        'StorageType': 'aurora', 
+        'DbInstancePort': 0, 
+        'StorageEncrypted': False, 
+        'DbiResourceId': 'db-',
+        'CACertificateIdentifier': 'rds-ca-2019', 
+        'DomainMemberships': [],
+        'CopyTagsToSnapshot': False, 
         'MonitoringInterval': 60, 
         'EnhancedMonitoringResourceArn': '', 
         'MonitoringRoleArn': '', 
         'PromotionTier': 1, 
         'DBInstanceArn': '', 
-        'IAMDatabaseAuthenticationEnabled': False, 'PerformanceInsightsEnabled': False, 
-        'DeletionProtection': False, 'AssociatedRoles': [], 'TagList': [], 'CustomerOwnedIpEnabled': False, 'BackupTarget': 'region', 'NetworkType': 'IPV4', 'StorageThroughput': 0}], 'ResponseMetadata': {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'HTTPStatusCode': 200, 'HTTPHeaders': {'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'strict-transport-security': 'max-age=31536000', 
-        'content-type': 'text/xml', 'content-length': '6206', 'date': 'Wed, 25 Jan 2023 22:48:55 GMT'}, 'RetryAttempts': 0}}
+        'IAMDatabaseAuthenticationEnabled': False, 
+        'PerformanceInsightsEnabled': False, 
+        'DeletionProtection': False, 
+        'AssociatedRoles': [], 
+        'TagList': [], 
+        'CustomerOwnedIpEnabled': False,
+        'BackupTarget': 'region', 
+        'NetworkType': 'IPV4', 
+        'StorageThroughput': 0
+        }], 
+        'ResponseMetadata': 
+        {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
+        'HTTPStatusCode': 200, 
+        'HTTPHeaders': 
+        {
+            'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
+            'strict-transport-security': 'max-age=31536000', 
+            'content-type': 'text/xml', 
+            'content-length': '6206', 
+            'date': 'Wed, 25 Jan 2023 22:48:55 GMT'
+        }, 
+        'RetryAttempts': 0
+        }}
 
 describedInstanceMinorVersionUpgrade = {
     'DBInstances': 
     [{
-        'DBInstanceIdentifier': 'database-instance', 
+        'DBInstanceIdentifier': 'database-instance',
         'DBInstanceClass': 'db.r6g.2xlarge', 
         'Engine': 'aurora-mysql', 
         'DBInstanceStatus': 'available', 
@@ -225,42 +256,120 @@ describedInstanceMinorVersionUpgrade = {
         }, 
         'AllocatedStorage': 1, 
         'PreferredBackupWindow': '09:05-09:35', 
-        'BackupRetentionPeriod': 1, 'DBSecurityGroups': [], 
-        'VpcSecurityGroups': [{'VpcSecurityGroupId': 'sg-', 'Status': 'active'}], 
-        'DBParameterGroups': [{'DBParameterGroupName': 'default.aurora-mysql5.7', 'ParameterApplyStatus': 'in-sync'}], 
-        'AvailabilityZone': 'us-east-1a', 'DBSubnetGroup': {'DBSubnetGroupName': 'default-vpc-', 
-        'DBSubnetGroupDescription': 'Created from the RDS Management Console', 'VpcId': 'vpc-', 
-        'SubnetGroupStatus': 'Complete', 'Subnets': [{'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}]}, 'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
-        'PendingModifiedValues': {}, 'MultiAZ': False, 'EngineVersion': '5.7.mysql_aurora.2.10.2', 
-        'AutoMinorVersionUpgrade': True, 'ReadReplicaDBInstanceIdentifiers': [], 'LicenseModel': 'general-public-license',
-        'OptionGroupMemberships': [{'OptionGroupName': 'default:aurora-mysql-5-7', 'Status': 'in-sync'}], 
-        'PubliclyAccessible': False, 'StorageType': 'aurora', 'DbInstancePort': 0, 
-        'StorageEncrypted': False, 'DbiResourceId': 'db-',
-        'CACertificateIdentifier': 'rds-ca-2019', 'DomainMemberships': [], 'CopyTagsToSnapshot': False, 
+        'BackupRetentionPeriod': 1, 
+        'DBSecurityGroups': [], 
+        'VpcSecurityGroups': 
+        [{
+            'VpcSecurityGroupId': 
+            'sg-', 
+            'Status': 'active'
+        }], 
+        'DBParameterGroups': 
+        [{
+            'DBParameterGroupName': 'default.aurora-mysql5.7', 
+            'ParameterApplyStatus': 'in-sync'
+        }], 
+        'AvailabilityZone': 'us-east-1a', 
+        'DBSubnetGroup': 
+        {
+            'DBSubnetGroupName': 'default-vpc-', 
+            'DBSubnetGroupDescription': 'Created from the RDS Management Console', 
+            'VpcId': 'vpc-', 
+            'SubnetGroupStatus': 'Complete', 
+            'Subnets': 
+            [{
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 
+                'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
+                'SubnetOutpost': {}, 'SubnetStatus': 'Active'
+            }
+            ]
+        }, 
+        'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
+        'PendingModifiedValues': {}, 
+        'MultiAZ': False, 
+        'EngineVersion': '5.7.mysql_aurora.2.10.2', 
+        'AutoMinorVersionUpgrade': True, 
+        'ReadReplicaDBInstanceIdentifiers': [], 
+        'LicenseModel': 'general-public-license',
+        'OptionGroupMemberships': 
+        [{
+            'OptionGroupName': 'default:aurora-mysql-5-7', 
+            'Status': 'in-sync'
+        }], 
+        'PubliclyAccessible': False, 
+        'StorageType': 'aurora', 
+        'DbInstancePort': 0, 
+        'StorageEncrypted': False, 
+        'DbiResourceId': 'db-',
+        'CACertificateIdentifier': 'rds-ca-2019', 
+        'DomainMemberships': [],
+        'CopyTagsToSnapshot': False, 
         'MonitoringInterval': 60, 
         'EnhancedMonitoringResourceArn': '', 
         'MonitoringRoleArn': '', 
         'PromotionTier': 1, 
         'DBInstanceArn': '', 
-        'IAMDatabaseAuthenticationEnabled': False, 'PerformanceInsightsEnabled': False, 
-        'DeletionProtection': False, 'AssociatedRoles': [], 'TagList': [], 'CustomerOwnedIpEnabled': False, 'BackupTarget': 'region', 'NetworkType': 'IPV4', 'StorageThroughput': 0}], 'ResponseMetadata': {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'HTTPStatusCode': 200, 'HTTPHeaders': {'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'strict-transport-security': 'max-age=31536000', 
-        'content-type': 'text/xml', 'content-length': '6206', 'date': 'Wed, 25 Jan 2023 22:48:55 GMT'}, 'RetryAttempts': 0}}
+        'IAMDatabaseAuthenticationEnabled': False, 
+        'PerformanceInsightsEnabled': False, 
+        'DeletionProtection': False, 
+        'AssociatedRoles': [], 
+        'TagList': [], 
+        'CustomerOwnedIpEnabled': False,
+        'BackupTarget': 'region', 
+        'NetworkType': 'IPV4', 
+        'StorageThroughput': 0
+        }], 
+        'ResponseMetadata': 
+        {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
+        'HTTPStatusCode': 200, 
+        'HTTPHeaders': 
+        {
+            'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
+            'strict-transport-security': 'max-age=31536000', 
+            'content-type': 'text/xml', 
+            'content-length': '6206', 
+            'date': 'Wed, 25 Jan 2023 22:48:55 GMT'
+        }, 
+        'RetryAttempts': 0
+        }}
 
-describedInstanceMultiAZ = {
+describedInstance = {
     'DBInstances': 
     [{
-        'DBInstanceIdentifier': 'database-instance', 
+        'DBInstanceIdentifier': 'database-instance',
         'DBInstanceClass': 'db.r6g.2xlarge', 
-        'Engine': 'mysql', 
+        'Engine': 'aurora-mysql', 
         'DBInstanceStatus': 'available', 
         'MasterUsername': 'admin', 
         'Endpoint': 
@@ -271,35 +380,113 @@ describedInstanceMultiAZ = {
         }, 
         'AllocatedStorage': 1, 
         'PreferredBackupWindow': '09:05-09:35', 
-        'BackupRetentionPeriod': 1, 'DBSecurityGroups': [], 
-        'VpcSecurityGroups': [{'VpcSecurityGroupId': 'sg-', 'Status': 'active'}], 
-        'DBParameterGroups': [{'DBParameterGroupName': 'default.aurora-mysql5.7', 'ParameterApplyStatus': 'in-sync'}], 
-        'AvailabilityZone': 'us-east-1a', 'DBSubnetGroup': {'DBSubnetGroupName': 'default-vpc-', 
-        'DBSubnetGroupDescription': 'Created from the RDS Management Console', 'VpcId': 'vpc-', 
-        'SubnetGroupStatus': 'Complete', 'Subnets': [{'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, {'SubnetIdentifier': 'subnet-', 
-        'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 'SubnetOutpost': {}, 'SubnetStatus': 'Active'}, 
-        {'SubnetIdentifier': 'subnet-', 'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
-        'SubnetOutpost': {}, 'SubnetStatus': 'Active'}]}, 'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
-        'PendingModifiedValues': {}, 'MultiAZ': False, 'EngineVersion': '5.7.mysql_aurora.2.10.2', 
-        'AutoMinorVersionUpgrade': False, 'ReadReplicaDBInstanceIdentifiers': [], 'LicenseModel': 'general-public-license',
-        'OptionGroupMemberships': [{'OptionGroupName': 'default:aurora-mysql-5-7', 'Status': 'in-sync'}], 
-        'PubliclyAccessible': False, 'StorageType': 'aurora', 'DbInstancePort': 0, 
-        'DBClusterIdentifier': 'database-cluster', 'StorageEncrypted': False, 'DbiResourceId': 'db-',
-        'CACertificateIdentifier': 'rds-ca-2019', 'DomainMemberships': [], 'CopyTagsToSnapshot': False, 
+        'BackupRetentionPeriod': 1, 
+        'DBSecurityGroups': [], 
+        'VpcSecurityGroups': 
+        [{
+            'VpcSecurityGroupId': 
+            'sg-', 
+            'Status': 'active'
+        }], 
+        'DBParameterGroups': 
+        [{
+            'DBParameterGroupName': 'default.aurora-mysql5.7', 
+            'ParameterApplyStatus': 'in-sync'
+        }], 
+        'AvailabilityZone': 'us-east-1a', 
+        'DBSubnetGroup': 
+        {
+            'DBSubnetGroupName': 'default-vpc-', 
+            'DBSubnetGroupDescription': 'Created from the RDS Management Console', 
+            'VpcId': 'vpc-', 
+            'SubnetGroupStatus': 'Complete', 
+            'Subnets': 
+            [{
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1c'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 
+                'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1f'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1b'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1a'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1e'}, 
+                'SubnetOutpost': {}, 
+                'SubnetStatus': 'Active'
+            }, 
+            {
+                'SubnetIdentifier': 'subnet-', 
+                'SubnetAvailabilityZone': {'Name': 'us-east-1d'}, 
+                'SubnetOutpost': {}, 'SubnetStatus': 'Active'
+            }
+            ]
+        }, 
+        'PreferredMaintenanceWindow': 'sun:07:48-sun:08:18', 
+        'PendingModifiedValues': {}, 
+        'MultiAZ': False, 
+        'EngineVersion': '5.7.mysql_aurora.2.10.2', 
+        'AutoMinorVersionUpgrade': False, 
+        'ReadReplicaDBInstanceIdentifiers': [], 
+        'LicenseModel': 'general-public-license',
+        'OptionGroupMemberships': 
+        [{
+            'OptionGroupName': 'default:aurora-mysql-5-7', 
+            'Status': 'in-sync'
+        }], 
+        'PubliclyAccessible': False, 
+        'StorageType': 'aurora', 
+        'DbInstancePort': 0, 
+        'StorageEncrypted': False, 
+        'DbiResourceId': 'db-',
+        'CACertificateIdentifier': 'rds-ca-2019', 
+        'DomainMemberships': [],
+        'CopyTagsToSnapshot': False, 
         'MonitoringInterval': 60, 
         'EnhancedMonitoringResourceArn': '', 
         'MonitoringRoleArn': '', 
         'PromotionTier': 1, 
         'DBInstanceArn': '', 
-        'IAMDatabaseAuthenticationEnabled': False, 'PerformanceInsightsEnabled': False, 
-        'DeletionProtection': False, 'AssociatedRoles': [], 'TagList': [], 'CustomerOwnedIpEnabled': False, 'BackupTarget': 'region', 'NetworkType': 'IPV4', 'StorageThroughput': 0}], 'ResponseMetadata': {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'HTTPStatusCode': 200, 'HTTPHeaders': {'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 'strict-transport-security': 'max-age=31536000', 
-        'content-type': 'text/xml', 'content-length': '6206', 'date': 'Wed, 25 Jan 2023 22:48:55 GMT'}, 'RetryAttempts': 0}}
+        'IAMDatabaseAuthenticationEnabled': False, 
+        'PerformanceInsightsEnabled': False, 
+        'DeletionProtection': False, 
+        'AssociatedRoles': [], 
+        'TagList': [], 
+        'CustomerOwnedIpEnabled': False,
+        'BackupTarget': 'region', 
+        'NetworkType': 'IPV4', 
+        'StorageThroughput': 0
+        }], 
+        'ResponseMetadata': 
+        {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
+        'HTTPStatusCode': 200, 
+        'HTTPHeaders': 
+        {
+            'x-amzn-requestid': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
+            'strict-transport-security': 'max-age=31536000', 
+            'content-type': 'text/xml', 
+            'content-length': '6206', 
+            'date': 'Wed, 25 Jan 2023 22:48:55 GMT'
+        }, 
+        'RetryAttempts': 0
+        }}
 
 describedClusterMultiAZ = {
     'DBClusters': 
