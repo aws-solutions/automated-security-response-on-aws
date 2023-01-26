@@ -1,8 +1,7 @@
-pytest==7.2.0
+pytest==7.2.1
 pytest-cov==4.0.0
 pytest-env==0.8.1
 pytest-mock==3.10.0
-requests==2.28.1
 ## boto3 and botocore should match Lambda runtime: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
 boto3==1.20.32
 botocore==1.23.32
@@ -14,12 +13,9 @@ six==1.16.0
 urllib3==1.26.9
 ## The following requirements were added by pip freeze:
 attrs==22.2.0
-certifi==2022.12.7
-charset-normalizer==2.1.1
-coverage==7.0.3
+coverage==7.1.0
 exceptiongroup==1.1.0
-idna==3.4
-iniconfig==1.1.1
-packaging==22.0
+iniconfig==2.0.0
+packaging==23.0
 pluggy==1.0.0
 tomli==2.0.1
