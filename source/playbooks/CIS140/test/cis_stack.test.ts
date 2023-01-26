@@ -1,15 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { SynthUtils } from '@aws-cdk/assert';
-import * as cdk from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { Template } from 'aws-cdk-lib/assertions';
 import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
 
 const RESOURCE_PREFIX = 'SO0111';
 
-function getPrimaryStack(): cdk.Stack {
-  const app = new cdk.App();
+function getPrimaryStack(): Stack {
+  const app = new App();
   const stack = new PlaybookPrimaryStack(app, 'primaryStack', {
+    synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description: 'test;',
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
@@ -24,12 +25,13 @@ function getPrimaryStack(): cdk.Stack {
 }
 
 test('default stack', () => {
-  expect(SynthUtils.toCloudFormation(getPrimaryStack())).toMatchSnapshot();
+  expect(Template.fromStack(getPrimaryStack())).toMatchSnapshot();
 });
 
-function getMemberStack(): cdk.Stack {
-  const app = new cdk.App();
+function getMemberStack(): Stack {
+  const app = new App();
   const stack = new PlaybookMemberStack(app, 'memberStack', {
+    synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description: 'test;',
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
@@ -51,5 +53,5 @@ function getMemberStack(): cdk.Stack {
 }
 
 test('default stack', () => {
-  expect(SynthUtils.toCloudFormation(getMemberStack())).toMatchSnapshot();
+  expect(Template.fromStack(getMemberStack())).toMatchSnapshot();
 });
