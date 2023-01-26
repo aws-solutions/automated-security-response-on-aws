@@ -35,7 +35,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
        'describe_db_clusters',
        getDescribedMultiAZCluster(),
        { 
-         "DBInstanceIdentifier": clusterId
+         "DBClusterIdentifier": clusterId
        }
     )
 
@@ -43,7 +43,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
        'modify_db_cluster',
        {},
        { 
-         "DBInstanceIdentifier": clusterId,
+         "DBClusterIdentifier": clusterId,
          "AutoMinorVersionUpgrade": True
        }
      )
@@ -52,7 +52,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
        'describe_db_clusters',
        getDescribedMultiAZClusterMinorVersionUpgrade(),
        { 
-         "DBInstanceIdentifier": clusterId,
+         "DBClusterIdentifier": clusterId,
          "MaxRecords":100
        }
      )
@@ -558,7 +558,7 @@ def getDescribedMultiAZCluster():
             'MonitoringInterval': 0, 
             'PerformanceInsightsEnabled': False
             }
-            ], 
+        ], 
             'ResponseMetadata': 
             {
                 'RequestId': '', 
