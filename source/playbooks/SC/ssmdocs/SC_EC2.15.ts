@@ -3,7 +3,7 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { HardCodedString, StringVariable } from '@cdklabs/cdk-ssm-documents';
+import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new EC2_15_ControlRunbookDocument(scope, id, { ...props, controlId: 'EC2.15' });
