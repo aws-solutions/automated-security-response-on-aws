@@ -23,7 +23,7 @@ parameters:
   DBInstanceIdentifier:
     type: String
     description: (Required) Identifier of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.
-    allowedPattern: "^db-[A-Z0-9]{26}$"
+    allowedPattern: "^(?!.*--)[a-zA-Z][a-zA-Z0-9.,$;-]{0,58}[^-]$"
 outputs:
   - ModifyDBInstance.Output
 mainSteps:
