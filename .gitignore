@@ -66,3 +66,6 @@ deployment/setenv.sh
 source/solution_deploy/source/bin
 source/playbooks/*/source/lib/*
 deployment/temp
+
+# Don't ignore eslint config
+!.eslintrc.js
