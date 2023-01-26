@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { SecurityControlsPlaybookMemberStack, SecurityControlsPlaybookPrimaryStack } from '../lib/security_controls_playbook-construct';
+import {
+  SecurityControlsPlaybookMemberStack,
+  SecurityControlsPlaybookPrimaryStack,
+} from '../lib/security_controls_playbook-construct';
 
 function getTestStack(): Stack {
   const app = new App();

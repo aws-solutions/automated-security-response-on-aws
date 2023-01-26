@@ -18,5 +18,5 @@ function getTestStack(): cdk.Stack {
   return stack;
 }
 test('Global Roles Stack', () => {
-  expect(Template.fromStack(getTestStack())).toMatchSnapshot()
+  expect(Template.fromStack(getTestStack())).toMatchSnapshot();
 });

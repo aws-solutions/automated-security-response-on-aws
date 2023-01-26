@@ -29,33 +29,29 @@ function getSsmPlaybook(): Stack {
 }
 
 test('Test SsmPlaybook Generation', () => {
-  Template.fromStack(getSsmPlaybook()).hasResourceProperties(
-    'AWS::SSM::Document',
-    {
-      Content: {
-        description: '### Document Name - ASR-SECTEST_1.2.3_TEST.1\n',
-        schemaVersion: '0.3',
-        assumeRole: '{{ AutomationAssumeRole }}',
-        outputs: ['VerifySGRules.Response'],
-        parameters: {
-          Finding: {
-            type: 'StringMap',
-            description: 'The input from Step function for TEST1 finding',
-          },
-          AutomationAssumeRole: {
-            type: 'String',
-            description:
-              '(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.',
-            default: '',
-          },
+  Template.fromStack(getSsmPlaybook()).hasResourceProperties('AWS::SSM::Document', {
+    Content: {
+      description: '### Document Name - ASR-SECTEST_1.2.3_TEST.1\n',
+      schemaVersion: '0.3',
+      assumeRole: '{{ AutomationAssumeRole }}',
+      outputs: ['VerifySGRules.Response'],
+      parameters: {
+        Finding: {
+          type: 'StringMap',
+          description: 'The input from Step function for TEST1 finding',
+        },
+        AutomationAssumeRole: {
+          type: 'String',
+          description: '(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.',
+          default: '',
         },
       },
-      DocumentType: 'Automation',
-      Name: 'ASR-SECTEST_1.2.3_TEST.1',
-      DocumentFormat: 'YAML',
-      UpdateMethod: 'NewVersion',
-    }
-  );
+    },
+    DocumentType: 'Automation',
+    Name: 'ASR-SECTEST_1.2.3_TEST.1',
+    DocumentFormat: 'YAML',
+    UpdateMethod: 'NewVersion',
+  });
 });
 
 // ---------------------
@@ -85,33 +81,29 @@ function getSsmRemediationRunbook(): Stack {
 }
 
 test('Test Shared Remediation Generation', () => {
-  Template.fromStack(getSsmRemediationRunbook()).hasResourceProperties(
-    'AWS::SSM::Document',
-    {
-      Content: {
-        description: '### Document Name - ASR-CIS_1.2.0_2.9\n',
-        schemaVersion: '0.3',
-        assumeRole: '{{ AutomationAssumeRole }}',
-        outputs: ['VerifySGRules.Response'],
-        parameters: {
-          Finding: {
-            type: 'StringMap',
-            description: 'The input from Step function for 2.9 finding',
-          },
-          AutomationAssumeRole: {
-            type: 'String',
-            description:
-              '(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.',
-            default: '',
-          },
+  Template.fromStack(getSsmRemediationRunbook()).hasResourceProperties('AWS::SSM::Document', {
+    Content: {
+      description: '### Document Name - ASR-CIS_1.2.0_2.9\n',
+      schemaVersion: '0.3',
+      assumeRole: '{{ AutomationAssumeRole }}',
+      outputs: ['VerifySGRules.Response'],
+      parameters: {
+        Finding: {
+          type: 'StringMap',
+          description: 'The input from Step function for 2.9 finding',
+        },
+        AutomationAssumeRole: {
+          type: 'String',
+          description: '(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.',
+          default: '',
         },
       },
-      DocumentType: 'Automation',
-      Name: 'ASR-blahblahblah',
-      DocumentFormat: 'YAML',
-      UpdateMethod: 'NewVersion',
-    }
-  );
+    },
+    DocumentType: 'Automation',
+    Name: 'ASR-blahblahblah',
+    DocumentFormat: 'YAML',
+    UpdateMethod: 'NewVersion',
+  });
 });
 
 // ------------------
@@ -141,66 +133,63 @@ function getSsmRemediationRoleCis(): Stack {
 }
 
 test('Test SsmRole Generation', () => {
-  Template.fromStack(getSsmRemediationRoleCis()).hasResourceProperties(
-    'AWS::IAM::Role',
-    {
-      AssumeRolePolicyDocument: {
-        Statement: [
-          {
-            Action: 'sts:AssumeRole',
-            Effect: 'Allow',
-            Principal: {
-              AWS: {
-                'Fn::Join': [
-                  '',
-                  [
-                    'arn:',
-                    {
-                      Ref: 'AWS::Partition',
-                    },
-                    ':iam::',
-                    {
-                      Ref: 'AWS::AccountId',
-                    },
-                    ':role/SO0111-SHARR-Orchestrator-Member',
-                  ],
+  Template.fromStack(getSsmRemediationRoleCis()).hasResourceProperties('AWS::IAM::Role', {
+    AssumeRolePolicyDocument: {
+      Statement: [
+        {
+          Action: 'sts:AssumeRole',
+          Effect: 'Allow',
+          Principal: {
+            AWS: {
+              'Fn::Join': [
+                '',
+                [
+                  'arn:',
+                  {
+                    Ref: 'AWS::Partition',
+                  },
+                  ':iam::',
+                  {
+                    Ref: 'AWS::AccountId',
+                  },
+                  ':role/SO0111-SHARR-Orchestrator-Member',
                 ],
-              },
+              ],
             },
           },
-          {
-            Action: 'sts:AssumeRole',
-            Effect: 'Allow',
-            Principal: {
-              Service: "ssm.amazonaws.com",
-            },
+        },
+        {
+          Action: 'sts:AssumeRole',
+          Effect: 'Allow',
+          Principal: {
+            Service: 'ssm.amazonaws.com',
           },
-          {
-            Action: 'sts:AssumeRole',
-            Effect: 'Allow',
-            Principal: {
-              AWS: {
-                'Fn::Join': [
-                  '',
-                  [
-                    'arn:',
-                    {
-                      Ref: 'AWS::Partition',
-                    },
-                    ':iam::',
-                    {
-                      Ref: 'AWS::AccountId',
-                    },
-                    ':root',
-                  ],
+        },
+        {
+          Action: 'sts:AssumeRole',
+          Effect: 'Allow',
+          Principal: {
+            AWS: {
+              'Fn::Join': [
+                '',
+                [
+                  'arn:',
+                  {
+                    Ref: 'AWS::Partition',
+                  },
+                  ':iam::',
+                  {
+                    Ref: 'AWS::AccountId',
+                  },
+                  ':root',
                 ],
-              },
+              ],
             },
           },
-        ],
-        Version: '2012-10-17',
-      },
-      RoleName: 'SHARR-RemediationRoleName',
-    }
-  );
+        },
+      ],
+      Version: '2012-10-17',
+    },
+    RoleName: 'SHARR-RemediationRoleName',
+  });
 });
