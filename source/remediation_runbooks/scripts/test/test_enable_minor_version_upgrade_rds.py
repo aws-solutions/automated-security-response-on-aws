@@ -25,7 +25,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
  
     stub_rds.add_response(
        'describe_db_instances',
-       describedInstanceCluster,
+       getDescribedClusterInstance(),
        { 
          "DBInstanceIdentifier": instanceId
        }
@@ -33,7 +33,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
 
     stub_rds.add_response(
        'describe_db_clusters',
-       describedClusterMultiAZ,
+       getDescribedMultiAZCluster(),
        { 
          "DBInstanceIdentifier": clusterId
        }
@@ -50,7 +50,7 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
 
     stub_rds.add_response(
        'describe_db_clusters',
-       describedClusterMultiAZMinorVersionUpgrade,
+       getDescribedMultiAZClusterMinorVersionUpgrade(),
        { 
          "DBInstanceIdentifier": clusterId,
          "MaxRecords":100
@@ -82,7 +82,7 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
  
     stub_rds.add_response(
        'describe_db_instances',
-       describedInstance,
+       getDescribedInstance(),
        { 
          "DBInstanceIdentifier": instanceId
        }
@@ -99,7 +99,7 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
 
     stub_rds.add_response(
        'describe_db_instances',
-       describedInstanceMinorVersionUpgrade,
+       getDescribedInstanceMinorVersionUpgrade(),
        { 
          "DBInstanceIdentifier": instanceId,
          "MaxRecords":100
@@ -115,7 +115,8 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
             "AutoMinorVersionUpgrade": True
 }
 
-describedInstanceCluster = {
+def getDescribedClusterInstance():
+ return {
     'DBInstances': 
     [{
         'DBInstanceIdentifier': 'database-instance',
@@ -240,7 +241,8 @@ describedInstanceCluster = {
         'RetryAttempts': 0
         }}
 
-describedInstanceMinorVersionUpgrade = {
+def getDescribedInstanceMinorVersionUpgrade():
+    return {
     'DBInstances': 
     [{
         'DBInstanceIdentifier': 'database-instance',
@@ -364,9 +366,11 @@ describedInstanceMinorVersionUpgrade = {
         'RetryAttempts': 0
         }}
 
-describedInstance = {
+def getDescribedInstance(): 
+    return {
     'DBInstances': 
-    [{
+    [
+        {
         'DBInstanceIdentifier': 'database-instance',
         'DBInstanceClass': 'db.r6g.2xlarge', 
         'Engine': 'aurora-mysql', 
@@ -470,9 +474,7 @@ describedInstance = {
         'AssociatedRoles': [], 
         'TagList': [], 
         'CustomerOwnedIpEnabled': False,
-        'BackupTarget': 'region', 
-        'NetworkType': 'IPV4', 
-        'StorageThroughput': 0
+        'BackupTarget': 'region'
         }], 
         'ResponseMetadata': 
         {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
@@ -488,7 +490,8 @@ describedInstance = {
         'RetryAttempts': 0
         }}
 
-describedClusterMultiAZ = {
+def getDescribedMultiAZCluster():
+    return {
     'DBClusters': 
     [
         {
@@ -574,7 +577,8 @@ describedClusterMultiAZ = {
             }
         }
 
-describedClusterMultiAZMinorVersionUpgrade = {
+def getDescribedMultiAZClusterMinorVersionUpgrade(): 
+    return {
     'DBClusters': 
     [
         {
