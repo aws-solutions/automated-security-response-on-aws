@@ -4584,7 +4584,7 @@ def multi_az_check(clusterID):
     rds = connect_to_rds()
     try:
         foundCluster = rds.describe_db_clusters(DBClusterIdentifier=clusterID)
-        clusterInfo = foundCluster['DBCluster']
+        clusterInfo = foundCluster['DBClusters'][0]
     except Exception as e:
         exit(f'Failed to get information about the cluster: {clusterID} ')
 
@@ -4620,7 +4620,7 @@ def verify_cluster_changes(clusterID):
     rds = connect_to_rds()
     try:
         foundCluster = rds.describe_db_clusters(DBClusterIdentifier=clusterID, MaxRecords=100)
-        clusterInfo = foundCluster['DBCluster']
+        clusterInfo = foundCluster['DBClusters'][0]
 
     except Exception as e:
         exit(f'Failed to verify cluster changes: {clusterID}. Error: {e}')

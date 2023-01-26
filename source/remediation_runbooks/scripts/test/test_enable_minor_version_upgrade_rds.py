@@ -223,9 +223,7 @@ def getDescribedClusterInstance():
         'AssociatedRoles': [], 
         'TagList': [], 
         'CustomerOwnedIpEnabled': False,
-        'BackupTarget': 'region', 
-        'NetworkType': 'IPV4', 
-        'StorageThroughput': 0
+        'BackupTarget': 'region'
         }], 
         'ResponseMetadata': 
         {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
@@ -348,9 +346,7 @@ def getDescribedInstanceMinorVersionUpgrade():
         'AssociatedRoles': [], 
         'TagList': [], 
         'CustomerOwnedIpEnabled': False,
-        'BackupTarget': 'region', 
-        'NetworkType': 'IPV4', 
-        'StorageThroughput': 0
+        'BackupTarget': 'region'
         }], 
         'ResponseMetadata': 
         {'RequestId': '319d76ec-75e9-4030-9c4c-a5b648c0186e', 
@@ -560,8 +556,9 @@ def getDescribedMultiAZCluster():
             'PubliclyAccessible': False, 
             'AutoMinorVersionUpgrade': False, 
             'MonitoringInterval': 0, 
-            'PerformanceInsightsEnabled': False, 
-            'NetworkType': 'IPV4'}], 
+            'PerformanceInsightsEnabled': False
+            }
+            ], 
             'ResponseMetadata': 
             {
                 'RequestId': '', 
@@ -647,8 +644,8 @@ def getDescribedMultiAZClusterMinorVersionUpgrade():
             'PubliclyAccessible': False, 
             'AutoMinorVersionUpgrade': True, 
             'MonitoringInterval': 0, 
-            'PerformanceInsightsEnabled': False, 
-            'NetworkType': 'IPV4'}], 
+            'PerformanceInsightsEnabled': False
+            }], 
             'ResponseMetadata': 
             {
                 'RequestId': '', 
