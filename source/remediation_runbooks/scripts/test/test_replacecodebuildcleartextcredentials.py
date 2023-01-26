@@ -9,22 +9,24 @@ import pytest
 
 import ReplaceCodeBuildClearTextCredentials as remediation
 
-my_session = boto3.session.Session()
-my_region = my_session.region_name
+def get_region() -> str:
+    my_session = boto3.session.Session()
+    return my_session.region_name
 
-BOTO_CONFIG = Config(
-    retries = {
-        'mode': 'standard'
-    },
-    region_name = my_region
-)
+def get_config() -> Config:
+    return Config(
+        retries = {
+            'mode': 'standard'
+        },
+        region_name = get_region()
+    )
 
 class Case:
     def __init__(self, env_vars):
         self._env_vars = env_vars
         self._project_name = 'invoke-codebuild-2'
         self._service_role = f'codebuild-{ self._project_name }-service-role'
-        self._policy_name = f'CodeBuildSSMParameterPolicy-{ self._project_name }-{ my_region }'
+        self._policy_name = f'CodeBuildSSMParameterPolicy-{ self._project_name }-{ get_region() }'
         self._policy_arn = f'arn:aws:iam::111111111111:policy/{ self._policy_name }'
         self._policy_modtime = datetime.now()
 
@@ -32,7 +34,7 @@ class Case:
         return {
             'ProjectInfo': {
                 'name': self._project_name,
-                'arn': f'arn:aws:codebuild:{my_region}:111111111111:project/{ self._project_name }',
+                'arn': f'arn:aws:codebuild:{get_region()}:111111111111:project/{ self._project_name }',
                 'source': {
                     'type': 'NO_SOURCE',
                     'gitCloneDepth': 1,
@@ -59,7 +61,7 @@ class Case:
                 'serviceRole': f'arn:aws:iam::111111111111:role/service-role/{ self._service_role }',
                 'timeoutInMinutes': 60,
                 'queuedTimeoutInMinutes': 480,
-                'encryptionKey': f'arn:aws:kms:{my_region}:111111111111:alias/aws/s3',
+                'encryptionKey': f'arn:aws:kms:{get_region()}:111111111111:alias/aws/s3',
                 'tags': [],
                 'created': '2022-01-28T21:59:12.932000+00:00',
                 'lastModified': '2022-02-02T19:16:05.722000+00:00',
@@ -138,7 +140,7 @@ def test_success(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_response(
@@ -156,7 +158,7 @@ def test_success(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_response(
@@ -228,7 +230,7 @@ def test_multiple_params(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     for env_var in env_vars[0:2]:
@@ -247,7 +249,7 @@ def test_multiple_params(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_response(
@@ -299,7 +301,7 @@ def test_param_exists(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_client_error(
@@ -317,7 +319,7 @@ def test_param_exists(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_response(
@@ -369,7 +371,7 @@ def test_policy_exists(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_response(
@@ -387,7 +389,7 @@ def test_policy_exists(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_client_error(
@@ -453,7 +455,7 @@ def test_new_param(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_response(
@@ -471,7 +473,7 @@ def test_new_param(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_response(
@@ -515,7 +517,7 @@ def test_put_parameter_fails(mocker):
 
     test_case = Case(env_vars)
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_client_error(
@@ -562,7 +564,7 @@ def test_create_policy_fails(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_response(
@@ -580,7 +582,7 @@ def test_create_policy_fails(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_client_error(
@@ -620,7 +622,7 @@ def test_attach_policy_fails(mocker):
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client('ssm', config = BOTO_CONFIG)
+    ssm_client = botocore.session.get_session().create_client('ssm', config = get_config())
     ssm_stubber = Stubber(ssm_client)
 
     ssm_stubber.add_response(
@@ -638,7 +640,7 @@ def test_attach_policy_fails(mocker):
 
     ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client('iam', config=BOTO_CONFIG)
+    iam_client = botocore.session.get_session().create_client('iam', config=get_config())
     iam_stubber = Stubber(iam_client)
 
     iam_stubber.add_response(
