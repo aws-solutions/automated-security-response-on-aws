@@ -11,4 +11,4 @@ This document disables public access to RDS instances by calling another SSM doc
 
 ## Troubleshooting
 * ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
- - This remediation will not work on an instance within a MySQL and PostgreSQL Multi-AZ Cluster due to limitations with the RDS API. 
+ - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API. 
