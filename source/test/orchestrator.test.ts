@@ -1,18 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { SynthUtils } from '@aws-cdk/assert';
-import '@aws-cdk/assert/jest';
-import { App, Stack } from 'aws-cdk-lib';
-import { OrchestratorConstruct } from '../Orchestrator/lib/common-orchestrator-construct';
-import * as kms from 'aws-cdk-lib/aws-kms';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { PolicyStatement, PolicyDocument, ServicePrincipal, AccountRootPrincipal } from 'aws-cdk-lib/aws-iam';
+import { Key } from 'aws-cdk-lib/aws-kms';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { Aspects } from 'aws-cdk-lib';
+import { OrchestratorConstruct } from '../Orchestrator/lib/common-orchestrator-construct';
 
 test('test App Orchestrator Construct', () => {
   const app = new App();
   const stack = new Stack(app, 'testStack', {
+    synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     stackName: 'testStack',
   });
 
@@ -32,7 +31,7 @@ test('test App Orchestrator Construct', () => {
   });
   kmsKeyPolicy.addStatements(kmsRootPolicy);
 
-  const kmsKey = new kms.Key(stack, 'SHARR-key', {
+  const kmsKey = new Key(stack, 'SHARR-key', {
     enableKeyRotation: true,
     alias: 'TO0111-SHARR-Key',
     policy: kmsKeyPolicy,
@@ -58,5 +57,5 @@ test('test App Orchestrator Construct', () => {
     kmsKeyParm: kmsKeyParm,
   });
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
-  expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
+  expect(Template.fromStack(stack)).toMatchSnapshot();
 });
