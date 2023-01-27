@@ -260,13 +260,9 @@ export function getRegexRegistry(): RegexRegistry {
       String.raw`^(?!.*--)[a-zA-Z][a-zA-Z0-9.,$;-]{0,58}[^-]$`,
       'RDS DB Instance Identifier',
       ['database-1'],
-      [
-        'not--valid', 
-        'notvalid--', 
-        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-      ]
+      ['not--valid', 'notvalid--', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']
     )
-  )
+  );
 
   registry.addCase(new RegexTestCase(String.raw`^[A-Za-z0-9._-]{3,128}$`, 'CloudTrail Name', [], []));
 
