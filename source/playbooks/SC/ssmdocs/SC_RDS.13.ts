@@ -16,7 +16,7 @@ class RDS_13_ControlRunbookDocument extends ControlRunbookDocument {
       securityControlId: 'RDS.13',
       remediationName: 'EnableMinorVersionUpgradeOnRDSDBInstance',
       scope: RemediationScope.REGIONAL,
-      updateDescription: HardCodedString.of('Minor Version enabled on the RDS Instance.'),
+      updateDescription: HardCodedString.of('Minor Version enabled on the RDS Instance or Multi-AZ RDS Cluster.'),
     });
   }
 
@@ -25,9 +25,9 @@ class RDS_13_ControlRunbookDocument extends ControlRunbookDocument {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
-      name: 'DbiResourceId',
+      name: 'DBInstanceIdentifier',
       outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.resource.Details.AwsRdsDbInstance.DbiResourceId',
+      selector: '$.Payload.resource.Details.AwsRdsDbInstance.DBInstanceIdentifier',
     });
 
     return outputs;
@@ -38,7 +38,7 @@ class RDS_13_ControlRunbookDocument extends ControlRunbookDocument {
   protected getRemediationParams(): { [_: string]: any } {
     const params = super.getRemediationParams();
 
-    params.DbiResourceId = StringVariable.of('ParseInput.DbiResourceId');
+    params.DBInstanceIdentifier = StringVariable.of('ParseInput.DBInstanceIdentifier');
 
     return params;
   }
