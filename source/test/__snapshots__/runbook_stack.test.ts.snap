@@ -6077,6 +6077,12 @@ def print_policy_before(policy):
     print('Resource Policy to be deleted:')
     print(json.dumps(policy, indent=2, default=str))
 
+def public_s3_statement_check(statement, principal):
+    try:
+        return principal.get("Service", "") == "s3.amazonaws.com" and ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
+    except KeyError:
+        pass
+
 def remove_resource_policy(functionname, sid, client):
     try:
         client.remove_permission(
@@ -6089,7 +6095,7 @@ def remove_resource_policy(functionname, sid, client):
 
 def remove_public_statement(client, functionname, statement, principal_source):
     for principal in list(principal_source):
-        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*"):
+        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*") or public_s3_statement_check(statement, principal):
             print_policy_before(statement)
             remove_resource_policy(functionname, statement['Sid'], client)
             break # there will only be one that matches
