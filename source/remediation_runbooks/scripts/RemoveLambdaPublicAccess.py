@@ -37,7 +37,7 @@ def remove_resource_policy(functionname, sid, client):
 
 def remove_public_statement(client, functionname, statement, principal_source):
     for principal in list(principal_source):
-        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*") or public_s3_statement_check(statement, principal):
+        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*") or (isinstance(principal, dict) and public_s3_statement_check(statement, principal)):
             print_policy_before(statement)
             remove_resource_policy(functionname, statement['Sid'], client)
             break # there will only be one that matches
