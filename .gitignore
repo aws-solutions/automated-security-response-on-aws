@@ -1,71 +1,39 @@
-.DS_Store
-inputs.md/*
-source/example*
-**/__pycache__/*
-source/playbooks/**/_description.txt
-deployment/temp/*
-deployment/test/*
+# build
+/deployment/global-s3-assets/
+/deployment/open-source/
+/deployment/regional-s3-assets/
+/deployment/setenv.sh
+/deployment/temp/
 
-**/build
-**/package
-**/global-s3-assets
-**/regional-s3-assets
-**/open-source
-**/.zip
-**/tmp
-**/out-tsc
+# test
+/deployment/test/coverage-reports/
 
-# dependencies
-**/node_modules
-
-# coverage
-**/coverage
-**/package
-**/.coverage
-
-# misc
-**/npm-debug.log
-**/testem.log
-**/.vscode/settings.json
-**/*.zip
-**/*local-runner*
-**/*create-stack.sh
-
-# System Files
-**/.DS_Store
-**/.vscode
-
-# CDK files
-*.js
-!jest.config.js
+# Typescript
 *.d.ts
-node_modules
+*.js
 
-# CDK asset staging directory
-.cdk.staging
-cdk.out
-
-# Python modules
-.venv/
-*.dist-info
-source/solution_deploy/source/certifi
-source/solution_deploy/source/chardet
-source/solution_deploy/source/idna
-source/solution_deploy/source/requests
-source/solution_deploy/source/urllib3
-
-# Parcel build directories
-.cache
-.build
-
-*.idea
-
-# Build files
-source/playbooks/*/template
-deployment/setenv.sh
-source/solution_deploy/source/bin
-source/playbooks/*/source/lib/*
-deployment/temp
-
-# Don't ignore eslint config
+# config
+!jest.config.js
 !.eslintrc.js
+
+# Node
+node_modules/
+
+# CDK
+cdk.out/
+
+# Jest
+coverage/
+
+# Python
+.venv/
+__pycache__/
+
+# pytest
+.coverage
+
+# IDE
+.vscode/
+
+# system
+.DS_Store
