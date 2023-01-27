@@ -4,7 +4,7 @@
 import { SolutionDeployStack } from '../lib/solution_deploy-stack';
 import { OrchLogStack } from '../lib/orchestrator-log-stack';
 import { RemediationRunbookStack, MemberRoleStack } from '../lib/remediation_runbook-stack';
-import { MemberStack } from '../lib/sharr_member-stack';
+import { MemberStack } from '../lib/member-stack';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';

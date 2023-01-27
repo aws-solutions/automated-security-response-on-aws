@@ -4,7 +4,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { MemberStack } from '../solution_deploy/lib/sharr_member-stack';
+import { MemberStack } from '../solution_deploy/lib/member-stack';
 
 function getCatStack(): Stack {
   const app = new App();
