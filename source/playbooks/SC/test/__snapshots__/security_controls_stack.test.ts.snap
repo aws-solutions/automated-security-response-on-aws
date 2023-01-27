@@ -8964,8 +8964,8 @@ def parse_event(event, context):
                   "Type": "String",
                 },
                 {
-                  "Name": "DbiResourceId",
-                  "Selector": "$.Payload.resource.Details.AwsRdsDbInstance.DbiResourceId",
+                  "Name": "DBInstanceIdentifier",
+                  "Selector": "$.Payload.resource.Details.AwsRdsDbInstance.DBInstanceIdentifier",
                   "Type": "String",
                 },
               ],
@@ -8976,7 +8976,7 @@ def parse_event(event, context):
                 "DocumentName": "ASR-EnableMinorVersionUpgradeOnRDSDBInstance",
                 "RuntimeParameters": {
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
-                  "DbiResourceId": "{{ ParseInput.DbiResourceId }}",
+                  "DBInstanceIdentifier": "{{ ParseInput.DBInstanceIdentifier }}",
                 },
                 "TargetLocations": [
                   {
@@ -9003,7 +9003,7 @@ def parse_event(event, context):
                   },
                 ],
                 "Note": {
-                  "Text": "Minor Version enabled on the RDS Instance.",
+                  "Text": "Minor Version enabled on the RDS Instance or Multi-AZ RDS Cluster.",
                   "UpdatedBy": "ASR-PCI_3.2.1_RDS.13",
                 },
                 "Service": "securityhub",
