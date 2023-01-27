@@ -105,7 +105,7 @@ def test_success(mocker):
 
 def test_success_s3_statement(mocker):
     event = {
-        'FunctionName': 'myPublicTestFunction'
+        'FunctionName': 'myPublicS3TestFunction'
     }
 
     get_policy_initial_response = {
@@ -121,7 +121,7 @@ def test_success_s3_statement(mocker):
             },
             "RetryAttempts": 0
         },
-        "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"sdfsdf\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicTestFunction\"},{\"Sid\": \"lambda-allow-s3-my-function-test\",\"Effect\": \"Allow\",\"Principal\": {\"Service\": \"s3.amazonaws.com\"},\"Action\": \"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-2:123456789012:function:my-function\", \"Condition\": {\"ArnLike\": {\"AWS:SourceArn\": \"arn:aws:s3:::my-bucket\"}},\"RevisionId\":\"43f41078-ecd3-406d-b862-d770019c262c\"}]}"
+        "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"sdfsdf\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicS3TestFunction\"},{\"Sid\": \"lambda-allow-s3-my-function-test\",\"Effect\": \"Allow\",\"Principal\": {\"Service\": \"s3.amazonaws.com\"},\"Action\": \"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicS3TestFunction\", \"Condition\": {\"ArnLike\": {\"AWS:SourceArn\": \"arn:aws:s3:::my-bucket\"}},\"RevisionId\":\"43f41078-ecd3-406d-b862-d770019c262c\"}]}"
     }
     
     get_policy_after_response = {
@@ -137,7 +137,7 @@ def test_success_s3_statement(mocker):
             },
             "RetryAttempts": 0
         },
-        "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"sdfsdf\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicTestFunction\"}]}",
+        "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"sdfsdf\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicS3TestFunction\"}]}",
         "RevisionId": "43f41078-ecd3-406d-b862-d770019c262c"
     }
 
@@ -156,7 +156,7 @@ def test_success_s3_statement(mocker):
         'get_policy',
         get_policy_initial_response,
         {
-            'FunctionName': 'myPublicTestFunction'
+            'FunctionName': 'myPublicS3TestFunction'
         }
     )
 
@@ -164,7 +164,7 @@ def test_success_s3_statement(mocker):
         'remove_permission',
         {},
         {
-            'FunctionName': 'myPublicTestFunction',
+            'FunctionName': 'myPublicS3TestFunction',
             'StatementId': 'lambda-allow-s3-my-function-test'
         }
     )
@@ -173,7 +173,7 @@ def test_success_s3_statement(mocker):
         'get_policy',
         get_policy_after_response,
         {
-            'FunctionName': 'myPublicTestFunction'
+            'FunctionName': 'myPublicS3TestFunction'
         }
     )
 
@@ -181,7 +181,7 @@ def test_success_s3_statement(mocker):
         'get_policy',
         get_policy_after_response,
         {
-            'FunctionName': 'myPublicTestFunction'
+            'FunctionName': 'myPublicS3TestFunction'
         }
     )
 
