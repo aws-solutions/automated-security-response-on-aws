@@ -121,7 +121,7 @@ def test_success_s3_statement(mocker):
             },
             "RetryAttempts": 0
         },
-        "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"sdfsdf\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicTestFunction\"},{\"Sid\": \"lambda-allow-s3-my-function\",\"Effect\": \"Allow\",\"Principal\": {\"Service\": \"s3.amazonaws.com\"},\"Action\": \"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-2:123456789012:function:my-function\", \"Condition\": {\"ArnLike\": {\"AWS:SourceArn\": \"arn:aws:s3:::my-bucket\"}},\"RevisionId\":\"43f41078-ecd3-406d-b862-d770019c262c\"}]}"
+        "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"sdfsdf\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:111111111111:function:myPublicTestFunction\"},{\"Sid\": \"lambda-allow-s3-my-function-test\",\"Effect\": \"Allow\",\"Principal\": {\"Service\": \"s3.amazonaws.com\"},\"Action\": \"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-2:123456789012:function:my-function\", \"Condition\": {\"ArnLike\": {\"AWS:SourceArn\": \"arn:aws:s3:::my-bucket\"}},\"RevisionId\":\"43f41078-ecd3-406d-b862-d770019c262c\"}]}"
     }
     
     get_policy_after_response = {
@@ -165,7 +165,7 @@ def test_success_s3_statement(mocker):
         {},
         {
             'FunctionName': 'myPublicTestFunction',
-            'StatementId': 'SHARRTest'
+            'StatementId': 'lambda-allow-s3-my-function-test'
         }
     )
 
