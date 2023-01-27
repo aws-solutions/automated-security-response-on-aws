@@ -1,14 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { SynthUtils } from '@aws-cdk/assert';
-import * as cdk from 'aws-cdk-lib';
-import { MemberRoleStack, RemediationRunbookStack } from '../solution_deploy/lib/remediation_runbook-stack';
+import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { Aspects } from 'aws-cdk-lib';
+import { MemberRoleStack, RemediationRunbookStack } from '../solution_deploy/lib/remediation_runbook-stack';
 
 function getRoleTestStack(): MemberRoleStack {
-  const app = new cdk.App();
+  const app = new App();
   const stack = new MemberRoleStack(app, 'roles', {
+    synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description: 'test;',
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
@@ -17,12 +17,13 @@ function getRoleTestStack(): MemberRoleStack {
   return stack;
 }
 test('Global Roles Stack', () => {
-  expect(SynthUtils.toCloudFormation(getRoleTestStack())).toMatchSnapshot();
+  expect(Template.fromStack(getRoleTestStack())).toMatchSnapshot();
 });
 
-function getSsmTestStack(): cdk.Stack {
-  const app = new cdk.App();
+function getSsmTestStack(): Stack {
+  const app = new App();
   const stack = new RemediationRunbookStack(app, 'stack', {
+    synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description: 'test;',
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
@@ -35,5 +36,5 @@ function getSsmTestStack(): cdk.Stack {
 }
 
 test('Regional Documents', () => {
-  expect(SynthUtils.toCloudFormation(getSsmTestStack())).toMatchSnapshot();
+  expect(Template.fromStack(getSsmTestStack())).toMatchSnapshot();
 });
