@@ -1,10 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { MemberStack } from '../solution_deploy/lib/member-stack';
+import { MemberStack } from './member-stack';
 
 function getCatStack(): Stack {
   const app = new App();
