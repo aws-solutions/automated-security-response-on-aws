@@ -2130,7 +2130,12 @@ export class RemediationRunbookStack extends cdk.Stack {
       const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
 
       const remediationPolicy = new PolicyStatement();
-      remediationPolicy.addActions('rds:DescribeDBInstances', 'rds:ModifyDBInstance', 'rds:DescribeDBClusters', 'rds:ModifyDBCluster');
+      remediationPolicy.addActions(
+        'rds:DescribeDBInstances', 
+        'rds:ModifyDBInstance', 
+        'rds:DescribeDBClusters', 
+        'rds:ModifyDBCluster'
+      );
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources('*');
       inlinePolicy.addStatements(remediationPolicy);
