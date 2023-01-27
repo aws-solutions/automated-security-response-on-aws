@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`default stack 1`] = `
+exports[`Member stack matches snapshot 1`] = `
 {
   "Conditions": {
     "EnableS3BucketForRedShift4": {
@@ -12,7 +12,7 @@ exports[`default stack 1`] = `
       ],
     },
   },
-  "Description": "test;",
+  "Description": "ASR Member Stack",
   "Mappings": {
     "SourceCode": {
       "General": {
