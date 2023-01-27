@@ -395,7 +395,7 @@ exports[`default stack 2`] = `
       "Type": "String",
     },
     "SecHubAdminAccount": {
-      "AllowedPattern": "\\d{12}",
+      "AllowedPattern": "^\\d{12}$",
       "Description": "Admin account number",
       "Type": "String",
     },

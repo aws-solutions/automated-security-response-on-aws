@@ -9,7 +9,7 @@ export class AdminAccountParm extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    const validAwsAccount = '\\d{12}';
+    const validAwsAccount = '^\\d{12}$';
 
     this.adminAccountNumber = new cdk.CfnParameter(this, 'Admin Account Number', {
       description: 'Admin account number',

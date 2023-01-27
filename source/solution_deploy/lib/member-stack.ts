@@ -239,44 +239,44 @@ export class MemberStack extends cdk.Stack {
     const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     const illegalChars = /[\\._]/g;
     const listOfPlaybooks: string[] = [];
-    fs.readdir(PB_DIR, (err, items) => {
-      items.forEach((file) => {
-        if (!ignore.includes(file)) {
-          const templateFile = `${file}MemberStack.template`;
-          //---------------------------------------------------------------------
-          // Playbook Member Template Nested Stack
-          //
-          const parmname = file.replace(illegalChars, '');
-          const memberStackOption = new cdk.CfnParameter(this, `LoadMemberStack${parmname}`, {
-            type: 'String',
-            description: `Load Playbook member stack for ${file}?`,
-            default: 'yes',
-            allowedValues: ['yes', 'no'],
-          });
-          memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
-          listOfPlaybooks.push(memberStackOption.logicalId);
+    const items = fs.readdirSync(PB_DIR);
+    items.forEach((file) => {
+      if (!ignore.includes(file)) {
+        const templateFile = `${file}MemberStack.template`;
+        //---------------------------------------------------------------------
+        // Playbook Member Template Nested Stack
+        //
+        const parmname = file.replace(illegalChars, '');
+        const memberStackOption = new cdk.CfnParameter(this, `LoadMemberStack${parmname}`, {
+          type: 'String',
+          description: `Load Playbook member stack for ${file}?`,
+          default: 'yes',
+          allowedValues: ['yes', 'no'],
+        });
+        memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
+        listOfPlaybooks.push(memberStackOption.logicalId);
 
-          const memberStack = new cdk.CfnStack(this, `PlaybookMemberStack${file}`, {
-            parameters: {
-              SecHubAdminAccount: adminAccount.adminAccountNumber.valueAsString,
-            },
-            templateUrl:
-              'https://' +
-              cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
-              '-reference.s3.amazonaws.com/' +
-              cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-              '/playbooks/' +
-              templateFile,
-          });
+        const memberStack = new cdk.CfnStack(this, `PlaybookMemberStack${file}`, {
+          parameters: {
+            SecHubAdminAccount: adminAccount.adminAccountNumber.valueAsString,
+          },
+          templateUrl:
+            'https://' +
+            cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
+            '-reference.s3.amazonaws.com/' +
+            cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
+            '/playbooks/' +
+            templateFile,
+        });
 
-          memberStack.node.addDependency(runbookFactory);
+        memberStack.node.addDependency(runbookFactory);
 
-          memberStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
-            expression: cdk.Fn.conditionEquals(memberStackOption, 'yes'),
-          });
-        }
-      });
+        memberStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
+          expression: cdk.Fn.conditionEquals(memberStackOption, 'yes'),
+        });
+      }
     });
+
     /********************
      ** Metadata
      ********************/

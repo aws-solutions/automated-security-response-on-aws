@@ -5,7 +5,7 @@ exports[`Global Roles Stack 1`] = `
   "Description": "test;",
   "Parameters": {
     "SecHubAdminAccount": {
-      "AllowedPattern": "\\d{12}",
+      "AllowedPattern": "^\\d{12}$",
       "Description": "Admin account number",
       "Type": "String",
     },
