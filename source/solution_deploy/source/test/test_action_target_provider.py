@@ -21,7 +21,6 @@ from botocore.config import Config
 
 os.environ["AWS_REGION"] = "us-east-1"
 os.environ["AWS_PARTITION"] = "aws"
-sechub = boto3.client("securityhub")
 
 
 @pytest.fixture(autouse=True)
@@ -85,6 +84,7 @@ def test_create(mocker):
     """
     Test that the correct API call is executed
     """
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -108,6 +108,7 @@ def test_create_already_exists(mocker):
     """
     Test that there is no error when it already exists
     """
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -129,6 +130,7 @@ def test_create_already_exists(mocker):
 
 
 def test_create_no_sechub(mocker):
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -150,6 +152,7 @@ def test_create_no_sechub(mocker):
 
 
 def test_create_other_client_error(mocker):
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -171,6 +174,7 @@ def test_create_other_client_error(mocker):
 
 
 def test_delete(mocker):
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -196,6 +200,7 @@ def test_delete(mocker):
 
 
 def test_delete_already_exists(mocker):
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -216,6 +221,7 @@ def test_delete_already_exists(mocker):
 
 
 def test_delete_no_sechub(mocker):
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
@@ -236,6 +242,7 @@ def test_delete_no_sechub(mocker):
 
 
 def test_delete_other_client_error(mocker):
+    sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
