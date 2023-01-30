@@ -6,12 +6,12 @@ import { Alias, CfnAlias, CfnKey, Key } from 'aws-cdk-lib/aws-kms';
 import { CfnParameter as CfnSsmParameter, StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
-export interface MemberKeyProps {
+export interface MemberRemediationKeyProps {
   readonly solutionId: string;
 }
 
-export class MemberKey extends Construct {
-  constructor(scope: Construct, id: string, props: MemberKeyProps) {
+export class MemberRemediationKey extends Construct {
+  constructor(scope: Construct, id: string, props: MemberRemediationKeyProps) {
     super(scope, id);
 
     const stack = Stack.of(this);

@@ -6,10 +6,9 @@ import { BlockPublicAccess, Bucket, BucketEncryption, BucketPolicy, CfnBucket } 
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
-import setCondition from './cdk-helper/set-condition';
-import { addCfnNagSuppression } from './cdk-helper/add-cfn-nag-suppression';
-import overrideLogicalId from './override-logical-id';
-import ChoiceParam from './cdk-helper/choice-param';
+import setCondition from '../cdk-helper/set-condition';
+import { addCfnNagSuppression } from '../cdk-helper/add-cfn-nag-suppression';
+import ChoiceParam from '../cdk-helper/choice-param';
 
 export interface RedshiftAuditLoggingProps {
   readonly solutionId: string;
@@ -19,23 +18,23 @@ export class RedshiftAuditLogging extends Construct {
   constructor(scope: Construct, id: string, props: RedshiftAuditLoggingProps) {
     super(scope, id);
 
-    const templateParam = new CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
+    // Create all resource at `scope` scope rather than `this` to maintain logical IDs
+
+    const templateParam = new CfnParameter(scope, 'CreateS3BucketForRedshiftAuditLogging', {
       default: ChoiceParam.No,
       allowedValues: [ChoiceParam.Yes, ChoiceParam.No],
       description: 'Create S3 Bucket For Redshift Cluster Audit Logging.',
     });
-    templateParam.overrideLogicalId('CreateS3BucketForRedshiftAuditLogging');
 
-    const condition = new CfnCondition(this, 'Condition', {
+    const condition = new CfnCondition(scope, 'EnableS3BucketForRedShift4', {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
     });
 
-    const bucket = new Bucket(this, 'Bucket', {
+    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
-    overrideLogicalId(bucket, 'S3BucketForRedShiftAuditLogging652E7355');
     setCondition(bucket, condition);
 
     NagSuppressions.addResourceSuppressions(bucket, [{ id: 'AwsSolutions-S1', reason: 'This is a logging bucket.' }]);
@@ -44,7 +43,7 @@ export class RedshiftAuditLogging extends Construct {
       reason: 'Logs bucket does not require logging configuration',
     });
 
-    const bucketPolicy = new BucketPolicy(this, 'Policy', {
+    const bucketPolicy = new BucketPolicy(scope, 'S3BucketForRedShiftAuditLoggingBucketPolicy', {
       bucket: bucket,
       removalPolicy: RemovalPolicy.RETAIN,
     });
@@ -77,13 +76,12 @@ export class RedshiftAuditLogging extends Construct {
       { id: 'AwsSolutions-S1', reason: 'Logs bucket does not require logging configuration' },
     ]);
 
-    const ssmParam = new StringParameter(this, 'SSMParameter', {
+    const ssmParam = new StringParameter(scope, 'SSMParameterForS3BucketNameForREDSHIFT4', {
       description:
         'Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
       parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging`,
       stringValue: bucket.bucketName,
     });
-    overrideLogicalId(ssmParam, 'SSMParameterForS3BucketNameForREDSHIFT441DD36B1');
     setCondition(ssmParam, condition);
     ssmParam.node.addDependency(bucket.node.defaultChild as CfnBucket);
   }

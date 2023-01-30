@@ -6,8 +6,8 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import AdminAccountParam from '../../lib/admin-account-param';
 import { RunbookFactory } from './runbook_factory';
-import { RedshiftAuditLogging } from './redshift-audit-logging';
-import { MemberKey } from './member-key';
+import { RedshiftAuditLogging } from './member/redshift-audit-logging';
+import { MemberRemediationKey } from './member/remediation-key';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -25,7 +25,7 @@ export class MemberStack extends Stack {
 
     new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
-    new MemberKey(this, 'MemberKey', { solutionId: props.solutionId });
+    new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
 
     new StringParameter(this, 'SHARR Member Version', {
       description: 'Version of the AWS Security Hub Automated Response and Remediation solution',
