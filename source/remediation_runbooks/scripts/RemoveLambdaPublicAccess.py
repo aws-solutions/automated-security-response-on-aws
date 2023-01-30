@@ -19,6 +19,20 @@ def print_policy_before(policy):
     print('Resource Policy to be deleted:')
     print(json.dumps(policy, indent=2, default=str))
 
+def public_s3_statement_check(statement, principal):
+    """
+    This function checks if the user has given access to an S3 bucket without providing an AWS account.
+    """
+    try:
+        emptySourceAccountCheck = False
+        if ("StringEquals" in statement["Condition"]):
+            emptySourceAccountCheck = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
+        else:
+            emptySourceAccountCheck = True
+        return principal.get("Service", "") == "s3.amazonaws.com" and emptySourceAccountCheck
+    except KeyError:
+        return principal.get("Service", "") == "s3.amazonaws.com"
+
 def remove_resource_policy(functionname, sid, client):
     try:
         client.remove_permission(
@@ -29,12 +43,10 @@ def remove_resource_policy(functionname, sid, client):
     except Exception as e:
         exit(f'FAILED: SID {sid} was NOT removed from Lambda function {functionname} - {str(e)}')
 
-def remove_public_statement(client, functionname, statement, principal_source):
-    for principal in list(principal_source):
-        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*"):
-            print_policy_before(statement)
-            remove_resource_policy(functionname, statement['Sid'], client)
-            break # there will only be one that matches
+def remove_public_statement(client, functionname, statement, principal):
+    if principal == "*" or (isinstance(principal, dict) and (principal.get("AWS","") == "*" or public_s3_statement_check(statement, principal))):
+        print_policy_before(statement)
+        remove_resource_policy(functionname, statement['Sid'], client)
 
 def remove_lambda_public_access(event, context):
 
@@ -50,7 +62,7 @@ def remove_lambda_public_access(event, context):
         print('Scanning for public resource policies in ' + functionname)
 
         for statement in statements:
-            remove_public_statement(client, functionname, statement, list(statement['Principal']))
+            remove_public_statement(client, functionname, statement, statement['Principal'])
 
         client.get_policy(FunctionName=functionname)
 
