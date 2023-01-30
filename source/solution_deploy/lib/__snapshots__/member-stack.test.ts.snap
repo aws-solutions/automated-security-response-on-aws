@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`default stack 1`] = `
+exports[`member stack snapshot matches 1`] = `
 {
   "Conditions": {
     "EnableS3BucketForRedShift4": {
@@ -11,12 +11,52 @@ exports[`default stack 1`] = `
         "yes",
       ],
     },
+    "loadAFSBPCond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadAFSBPMemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadCIS120Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadCIS120MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadCIS140Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadCIS140MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadPCI321Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadPCI321MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadSCCond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadSCMemberStack",
+        },
+        "yes",
+      ],
+    },
   },
-  "Description": "test;",
+  "Description": "ASR Member Stack",
   "Mappings": {
     "SourceCode": {
       "General": {
-        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.1.1",
+        "KeyPrefix": "my-solution-tmn/v9.9.9",
         "S3Bucket": "sharrbukkit",
       },
     },
@@ -36,7 +76,13 @@ exports[`default stack 1`] = `
           "Label": {
             "default": "Playbooks",
           },
-          "Parameters": [],
+          "Parameters": [
+            "LoadAFSBPMemberStack",
+            "LoadCIS120MemberStack",
+            "LoadCIS140MemberStack",
+            "LoadPCI321MemberStack",
+            "LoadSCMemberStack",
+          ],
         },
       ],
       "ParameterLabels": {
@@ -56,17 +102,237 @@ exports[`default stack 1`] = `
       "Description": "Create S3 Bucket For Redshift Cluster Audit Logging.",
       "Type": "String",
     },
+    "LoadAFSBPMemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load Playbook member stack for AFSBP?",
+      "Type": "String",
+    },
+    "LoadCIS120MemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load Playbook member stack for CIS120?",
+      "Type": "String",
+    },
+    "LoadCIS140MemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load Playbook member stack for CIS140?",
+      "Type": "String",
+    },
+    "LoadPCI321MemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load Playbook member stack for PCI321?",
+      "Type": "String",
+    },
+    "LoadSCMemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load Playbook member stack for SC?",
+      "Type": "String",
+    },
     "LogGroupName": {
       "Description": "Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail",
       "Type": "String",
     },
     "SecHubAdminAccount": {
-      "AllowedPattern": "\\d{12}",
+      "AllowedPattern": "^\\d{12}$",
       "Description": "Admin account number",
       "Type": "String",
     },
   },
   "Resources": {
+    "PlaybookMemberStackAFSBP": {
+      "Condition": "loadAFSBPCond",
+      "Properties": {
+        "Parameters": {
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/AFSBPMemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "PlaybookMemberStackCIS120": {
+      "Condition": "loadCIS120Cond",
+      "Properties": {
+        "Parameters": {
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/CIS120MemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "PlaybookMemberStackCIS140": {
+      "Condition": "loadCIS140Cond",
+      "Properties": {
+        "Parameters": {
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/CIS140MemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "PlaybookMemberStackPCI321": {
+      "Condition": "loadPCI321Cond",
+      "Properties": {
+        "Parameters": {
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/PCI321MemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "PlaybookMemberStackSC": {
+      "Condition": "loadSCCond",
+      "Properties": {
+        "Parameters": {
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/SCMemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
     "RunbookStackNoRoles": {
       "Properties": {
         "TemplateURL": {
@@ -221,7 +487,7 @@ exports[`default stack 1`] = `
     "SHARRKeyAliasEBF509D8": {
       "Properties": {
         "Description": "KMS Customer Managed Key that will encrypt data for remediations",
-        "Name": "/Solutions/SO0111/CMK_REMEDIATION_ARN",
+        "Name": "/Solutions/SO9999/CMK_REMEDIATION_ARN",
         "Type": "String",
         "Value": {
           "Fn::GetAtt": [
@@ -235,15 +501,15 @@ exports[`default stack 1`] = `
     "SHARRMemberVersionEDAB5C42": {
       "Properties": {
         "Description": "Version of the AWS Security Hub Automated Response and Remediation solution",
-        "Name": "/Solutions/SO0111/member-version",
+        "Name": "/Solutions/SO9999/member-version",
         "Type": "String",
-        "Value": "v1.1.1",
+        "Value": "v9.9.9",
       },
       "Type": "AWS::SSM::Parameter",
     },
     "SHARRRemediationKeyAlias5531874D": {
       "Properties": {
-        "AliasName": "alias/SO0111-SHARR-Remediation-Key",
+        "AliasName": "alias/SO9999-SHARR-Remediation-Key",
         "TargetKeyId": {
           "Fn::GetAtt": [
             "SHARRRemediationKeyE744743D",
@@ -352,7 +618,7 @@ exports[`default stack 1`] = `
     "SSMParameterForS34EncryptionKeyAlias73DD8A98": {
       "Properties": {
         "Description": "Parameter to store encryption key alias for the PCI.S3.4/AFSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.",
-        "Name": "/Solutions/SO0111/afsbp/1.0.0/S3.4/KmsKeyAlias",
+        "Name": "/Solutions/SO9999/afsbp/1.0.0/S3.4/KmsKeyAlias",
         "Type": "String",
         "Value": "default-s3-encryption",
       },
@@ -365,7 +631,7 @@ exports[`default stack 1`] = `
       ],
       "Properties": {
         "Description": "Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.",
-        "Name": "/Solutions/SO0111/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging",
+        "Name": "/Solutions/SO9999/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging",
         "Type": "String",
         "Value": {
           "Ref": "S3BucketForRedShiftAuditLogging652E7355",
@@ -376,7 +642,7 @@ exports[`default stack 1`] = `
     "SSMParameterLogGroupName47918519": {
       "Properties": {
         "Description": "Parameter to store log group name",
-        "Name": "/Solutions/SO0111/Metrics_LogGroupName",
+        "Name": "/Solutions/SO9999/Metrics_LogGroupName",
         "Type": "String",
         "Value": {
           "Ref": "LogGroupName",
