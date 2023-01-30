@@ -17,7 +17,7 @@ import {
   CfnRole,
 } from 'aws-cdk-lib/aws-iam';
 import { OrchestratorMemberRole } from '../../lib/orchestrator_roles-construct';
-import { AdminAccountParm } from '../../lib/admin_account_parm-construct';
+import AdminAccountParam from '../../lib/admin-account-param';
 import { Rds6EnhancedMonitoringRole } from '../../remediation_runbooks/rds6-remediation-resources';
 import { RunbookFactory } from './runbook_factory';
 import { SNS2DeliveryStatusLoggingRole } from '../../remediation_runbooks/sns2-remediation-resources';
@@ -41,10 +41,10 @@ export class MemberRoleStack extends cdk.Stack {
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
     const adminRoleName = `${RESOURCE_PREFIX}-SHARR-Orchestrator-Admin`;
 
-    const adminAccount = new AdminAccountParm(this, 'AdminAccountParameter');
+    const adminAccount = new AdminAccountParam(this, 'AdminAccountParameter');
     this._orchestratorMemberRole = new OrchestratorMemberRole(this, 'OrchestratorMemberRole', {
       solutionId: props.solutionId,
-      adminAccountId: adminAccount.adminAccountNumber.valueAsString,
+      adminAccountId: adminAccount.value,
       adminRoleName: adminRoleName,
     });
   }
@@ -2227,8 +2227,8 @@ export class RemediationRunbookStack extends cdk.Stack {
       const sns2Role = new SNS2DeliveryStatusLoggingRole(props.roleStack, 'SNS2DeliveryStatusLoggingRole');
 
       new StringParameter(props.roleStack, 'DeliveryStatusLoggingRoleParameter', {
-        description: `Parameter to store the IAM role required to run the SNS delivery status logging remediation. 
-        This value is stored due to it being an IAM role that is retained after deletion. 
+        description: `Parameter to store the IAM role required to run the SNS delivery status logging remediation.
+        This value is stored due to it being an IAM role that is retained after deletion.
         Only delete if you have not run any related remediation to prevent logging outages.`,
         parameterName: `/Solutions/${RESOURCE_PREFIX}/DeliveryStatusLoggingRole`,
         stringValue: sns2Role.roleArn,

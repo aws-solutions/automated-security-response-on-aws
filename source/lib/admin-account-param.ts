@@ -3,19 +3,20 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
-export class AdminAccountParm extends Construct {
-  public readonly adminAccountNumber: cdk.CfnParameter;
+export default class AdminAccountParam extends Construct {
+  public readonly value: string;
 
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
     const validAwsAccount = '^\\d{12}$';
 
-    this.adminAccountNumber = new cdk.CfnParameter(this, 'Admin Account Number', {
+    const param = new cdk.CfnParameter(this, 'Admin Account Number', {
       description: 'Admin account number',
       type: 'String',
       allowedPattern: validAwsAccount,
     });
-    this.adminAccountNumber.overrideLogicalId(`SecHubAdminAccount`);
+    param.overrideLogicalId(`SecHubAdminAccount`);
+    this.value = param.valueAsString;
   }
 }

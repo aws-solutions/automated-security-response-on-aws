@@ -3,27 +3,27 @@
 import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { AdminAccountParm } from './admin_account_parm-construct';
+import AdminAccountParam from './admin-account-param';
 
-function createAdminAccountParameterStack(): Stack {
+function createAdminAccountParamStack(): Stack {
   const app = new App();
-  const stack = new Stack(app, 'AdminAccountParameterStack', {
+  const stack = new Stack(app, 'AdminAccountParamStack', {
     analyticsReporting: false,
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   });
   Aspects.of(stack).add(new AwsSolutionsChecks({ verbose: true }));
-  new AdminAccountParm(stack, 'AdminAccountParameter');
+  new AdminAccountParam(stack, 'AdminAccountParam');
   return stack;
 }
 
-describe('admin account parameter stack', function () {
-  const template = Template.fromStack(createAdminAccountParameterStack());
+describe('admin account param stack', function () {
+  const template = Template.fromStack(createAdminAccountParamStack());
 
   it('matches snapshot', function () {
     expect(template).toMatchSnapshot();
   });
 
-  describe('template parameter', function () {
+  describe('template param', function () {
     const allowedPattern = /^\d{12}$/;
 
     it('is present', function () {

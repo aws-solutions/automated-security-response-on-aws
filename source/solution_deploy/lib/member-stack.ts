@@ -3,7 +3,7 @@
 import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';
 import * as fs from 'fs';
-import { AdminAccountParm } from '../../lib/admin_account_parm-construct';
+import AdminAccountParam from '../../lib/admin-account-param';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -33,7 +33,7 @@ export class MemberStack extends cdk.Stack {
     super(scope, id, props);
     const stack = cdk.Stack.of(this);
 
-    const adminAccount = new AdminAccountParm(this, 'AdminAccountParameter');
+    const adminAccount = new AdminAccountParam(this, 'AdminAccountParameter');
 
     //Create a new parameter to track Redshift.4 S3 bucket
     const createS3BucketForRedshift4 = new cdk.CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
@@ -257,7 +257,7 @@ export class MemberStack extends cdk.Stack {
 
         const memberStack = new cdk.CfnStack(this, `PlaybookMemberStack${file}`, {
           parameters: {
-            SecHubAdminAccount: adminAccount.adminAccountNumber.valueAsString,
+            SecHubAdminAccount: adminAccount.value,
           },
           templateUrl:
             'https://' +

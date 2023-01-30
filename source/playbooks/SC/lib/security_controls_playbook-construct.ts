@@ -5,7 +5,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from '../../../lib/ssmplaybook';
 import { Construct } from 'constructs';
 import { ControlRunbooks } from './control_runbooks-construct';
-import { AdminAccountParm } from '../../../lib/admin_account_parm-construct';
+import AdminAccountParam from '../../../lib/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { IControl } from '../../../lib/sharrplaybook-construct';
 
@@ -89,7 +89,7 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
     super(scope, id, props);
 
     // Not used, but required by top-level member stack
-    new AdminAccountParm(this, 'AdminAccountParameter');
+    new AdminAccountParam(this, 'AdminAccountParameter');
 
     const controlRunbooks = new ControlRunbooks(this, 'ControlRunbooks', {
       standardShortName: props.securityStandard,
