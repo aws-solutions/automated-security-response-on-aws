@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Stack } from 'aws-cdk-lib';
 import { AccountRootPrincipal, Effect, PolicyDocument, PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { Alias, CfnAlias, CfnKey, Key } from 'aws-cdk-lib/aws-kms';
-import { CfnParameter as CfnSsmParameter, StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { Alias, Key } from 'aws-cdk-lib/aws-kms';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export interface MemberRemediationKeyProps {

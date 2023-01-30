@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCondition, Stack } from 'aws-cdk-lib';
+import { CfnCondition, CfnStack, Stack } from 'aws-cdk-lib';
 import { Bucket, CfnBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import setCondition from './set-condition';
@@ -12,6 +12,16 @@ describe('set condition', function () {
     const bucket = new Bucket(stack, 'Bucket');
     setCondition(bucket, condition);
     expect((bucket.node.defaultChild as CfnBucket).cfnOptions.condition).toBe(condition);
+  });
+
+  it('sets condition on a cfn resource', function () {
+    const stack = new Stack();
+    const condition = new CfnCondition(stack, 'Condition');
+    const nestedStack = new CfnStack(stack, 'NestedStack', {
+      templateUrl: 'https://example.com',
+    });
+    setCondition(nestedStack, condition);
+    expect(nestedStack.cfnOptions.condition).toBe(condition);
   });
 
   it('fails if condition already set', function () {

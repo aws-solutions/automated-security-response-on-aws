@@ -295,7 +295,7 @@ describe('member stack', function () {
   });
 
   describe('nested stack', function () {
-    const mappingName = 'SourceCode';
+    const mappingName = 'NestedStackFactorySourceCodeA11A36A7';
     const mappingKeyName = 'General';
     const keyPrefixKeyName = 'KeyPrefix';
     const bucketKeyName = 'S3Bucket';
