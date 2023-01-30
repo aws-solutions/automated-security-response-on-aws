@@ -1,13 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import * as cdk_nag from 'cdk-nag';
-import * as cdk from 'aws-cdk-lib';
-import * as fs from 'fs';
-import AdminAccountParam from '../../lib/admin-account-param';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import { Key } from 'aws-cdk-lib/aws-kms';
+import { readdirSync } from 'fs';
+import {
+  StackProps,
+  Stack,
+  App,
+  CfnParameter,
+  CfnCondition,
+  Fn,
+  CfnMapping,
+  CfnStack,
+  RemovalPolicy,
+} from 'aws-cdk-lib';
 import {
   PolicyStatement,
   Effect,
@@ -16,50 +20,61 @@ import {
   AccountRootPrincipal,
   StarPrincipal,
 } from 'aws-cdk-lib/aws-iam';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import {
+  Bucket,
+  BucketEncryption,
+  BlockPublicAccess,
+  BucketPolicy,
+  CfnBucketPolicy,
+  CfnBucket,
+} from 'aws-cdk-lib/aws-s3';
+import { Key } from 'aws-cdk-lib/aws-kms';
+import { CfnParameter as CfnSsmParameter, StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { NagSuppressions } from 'cdk-nag';
+import AdminAccountParam from '../../lib/admin-account-param';
 import { RunbookFactory } from './runbook_factory';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { RemovalPolicy } from 'aws-cdk-lib';
 
-export interface SolutionProps extends cdk.StackProps {
+export interface SolutionProps extends StackProps {
   solutionId: string;
   solutionDistBucket: string;
   solutionTMN: string;
   solutionVersion: string;
-  runtimePython: lambda.Runtime;
+  runtimePython: Runtime;
 }
 
-export class MemberStack extends cdk.Stack {
-  constructor(scope: cdk.App, id: string, props: SolutionProps) {
+export class MemberStack extends Stack {
+  constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
-    const stack = cdk.Stack.of(this);
+    const stack = Stack.of(this);
 
     const adminAccount = new AdminAccountParam(this, 'AdminAccountParameter');
 
     //Create a new parameter to track Redshift.4 S3 bucket
-    const createS3BucketForRedshift4 = new cdk.CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
+    const createS3BucketForRedshift4 = new CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
       description: 'Create S3 Bucket For Redshift Cluster Audit Logging.',
       type: 'String',
       allowedValues: ['yes', 'no'],
       default: 'no',
     });
 
-    const enableS3BucketForRedShift4 = new cdk.CfnCondition(this, 'EnableS3BucketForRedShift4', {
-      expression: cdk.Fn.conditionEquals(createS3BucketForRedshift4.valueAsString, 'yes'),
+    const enableS3BucketForRedShift4 = new CfnCondition(this, 'EnableS3BucketForRedShift4', {
+      expression: Fn.conditionEquals(createS3BucketForRedshift4.valueAsString, 'yes'),
     });
 
     //Create the S3 Bucket for Redshift.4
 
-    const s3BucketForAuditLogging = new s3.Bucket(this, 'S3BucketForRedShiftAuditLogging', {
-      encryption: s3.BucketEncryption.S3_MANAGED,
+    const s3BucketForAuditLogging = new Bucket(this, 'S3BucketForRedShiftAuditLogging', {
+      encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
+    NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
       { id: 'AwsSolutions-S1', reason: 'This is a logging bucket.' },
     ]);
 
-    const bucketPolicy = new s3.BucketPolicy(this, 'S3BucketForRedShiftAuditLoggingBucketPolicy', {
+    const bucketPolicy = new BucketPolicy(this, 'S3BucketForRedShiftAuditLoggingBucketPolicy', {
       bucket: s3BucketForAuditLogging,
       removalPolicy: RemovalPolicy.RETAIN,
     });
@@ -71,7 +86,7 @@ export class MemberStack extends cdk.Stack {
         principals: [new ServicePrincipal('redshift.amazonaws.com')],
         resources: [
           s3BucketForAuditLogging.bucketArn,
-          cdk.Fn.sub('arn:${AWS::Partition}:s3:::${BucketName}/*', {
+          Fn.sub('arn:${AWS::Partition}:s3:::${BucketName}/*', {
             BucketName: `${s3BucketForAuditLogging.bucketName}`,
           }),
         ],
@@ -85,10 +100,10 @@ export class MemberStack extends cdk.Stack {
         conditions: { Bool: { ['aws:SecureTransport']: 'false' } },
       })
     );
-    const bucketPolicy_cfn_ref = bucketPolicy.node.defaultChild as s3.CfnBucketPolicy;
+    const bucketPolicy_cfn_ref = bucketPolicy.node.defaultChild as CfnBucketPolicy;
     bucketPolicy_cfn_ref.cfnOptions.condition = enableS3BucketForRedShift4;
 
-    const s3BucketForAuditLogging_cfn_ref = s3BucketForAuditLogging.node.defaultChild as s3.CfnBucket;
+    const s3BucketForAuditLogging_cfn_ref = s3BucketForAuditLogging.node.defaultChild as CfnBucket;
     s3BucketForAuditLogging_cfn_ref.cfnOptions.metadata = {
       cfn_nag: {
         rules_to_suppress: [
@@ -100,7 +115,7 @@ export class MemberStack extends cdk.Stack {
       },
     };
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
+    NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
       { id: 'AwsSolutions-S1', reason: 'Logs bucket does not require logging configuration' },
     ]);
 
@@ -165,7 +180,7 @@ export class MemberStack extends cdk.Stack {
      ** Parameters
      ********************/
 
-    const logGroupName = new cdk.CfnParameter(this, 'LogGroupName', {
+    const logGroupName = new CfnParameter(this, 'LogGroupName', {
       type: 'String',
       description:
         'Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail',
@@ -201,12 +216,12 @@ export class MemberStack extends cdk.Stack {
     });
 
     const ssmParameterForRedshift4BucketName_cfn_ref = ssmParameterForRedshift4BucketName.node
-      .defaultChild as ssm.CfnParameter;
+      .defaultChild as CfnSsmParameter;
     ssmParameterForRedshift4BucketName_cfn_ref.cfnOptions.condition = enableS3BucketForRedShift4;
 
     ssmParameterForRedshift4BucketName_cfn_ref.addDependency(s3BucketForAuditLogging_cfn_ref);
 
-    new cdk.CfnMapping(this, 'SourceCode', {
+    new CfnMapping(this, 'SourceCode', {
       mapping: {
         General: {
           S3Bucket: props.solutionDistBucket,
@@ -220,12 +235,12 @@ export class MemberStack extends cdk.Stack {
     //-------------------------------------------------------------------------
     // Runbooks - shared automations
     //
-    const runbookStack = new cdk.CfnStack(this, `RunbookStackNoRoles`, {
+    const runbookStack = new CfnStack(this, `RunbookStackNoRoles`, {
       templateUrl:
         'https://' +
-        cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
+        Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
         '-reference.s3.amazonaws.com/' +
-        cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
+        Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
         '/aws-sharr-remediations.template',
     });
 
@@ -238,7 +253,7 @@ export class MemberStack extends cdk.Stack {
     const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     const illegalChars = /[\\._]/g;
     const listOfPlaybooks: string[] = [];
-    const items = fs.readdirSync(PB_DIR);
+    const items = readdirSync(PB_DIR);
     items.forEach((file) => {
       if (!ignore.includes(file)) {
         const templateFile = `${file}MemberStack.template`;
@@ -246,7 +261,7 @@ export class MemberStack extends cdk.Stack {
         // Playbook Member Template Nested Stack
         //
         const parmname = file.replace(illegalChars, '');
-        const memberStackOption = new cdk.CfnParameter(this, `LoadMemberStack${parmname}`, {
+        const memberStackOption = new CfnParameter(this, `LoadMemberStack${parmname}`, {
           type: 'String',
           description: `Load Playbook member stack for ${file}?`,
           default: 'yes',
@@ -255,23 +270,23 @@ export class MemberStack extends cdk.Stack {
         memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
         listOfPlaybooks.push(memberStackOption.logicalId);
 
-        const memberStack = new cdk.CfnStack(this, `PlaybookMemberStack${file}`, {
+        const memberStack = new CfnStack(this, `PlaybookMemberStack${file}`, {
           parameters: {
             SecHubAdminAccount: adminAccount.value,
           },
           templateUrl:
             'https://' +
-            cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
+            Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
             '-reference.s3.amazonaws.com/' +
-            cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
+            Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
             '/playbooks/' +
             templateFile,
         });
 
         memberStack.node.addDependency(runbookFactory);
 
-        memberStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
-          expression: cdk.Fn.conditionEquals(memberStackOption, 'yes'),
+        memberStack.cfnOptions.condition = new CfnCondition(this, `load${file}Cond`, {
+          expression: Fn.conditionEquals(memberStackOption, 'yes'),
         });
       }
     });
