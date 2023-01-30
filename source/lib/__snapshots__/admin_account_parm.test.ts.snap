@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`AdminParm Test Stack 1`] = `
+exports[`admin account parameter stack matches snapshot 1`] = `
 {
   "Parameters": {
     "SecHubAdminAccount": {

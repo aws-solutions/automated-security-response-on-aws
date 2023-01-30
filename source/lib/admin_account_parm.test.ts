@@ -16,6 +16,10 @@ function createAdminAccountParameterStack(): Stack {
   return stack;
 }
 
-test('AdminParm Test Stack', () => {
-  expect(Template.fromStack(createAdminAccountParameterStack())).toMatchSnapshot();
+describe('admin account parameter stack', function () {
+  const template = Template.fromStack(createAdminAccountParameterStack());
+
+  it('matches snapshot', function () {
+    expect(template).toMatchSnapshot();
+  });
 });
