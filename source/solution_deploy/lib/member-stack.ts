@@ -46,20 +46,15 @@ export class MemberStack extends Stack {
       templateRelativePath: 'aws-sharr-remediations.template',
     });
 
-    //-------------------------------------------------------------------------
-    // Loop through all of the Playbooks to create reference
-    //
-    const PB_DIR = `${__dirname}/../../playbooks`;
+    const playbookDirectory = `${__dirname}/../../playbooks`;
     const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     const illegalChars = /[\\._]/g;
     const listOfPlaybooks: string[] = [];
-    const items = readdirSync(PB_DIR);
+    const items = readdirSync(playbookDirectory);
     items.forEach((file) => {
       if (!ignore.includes(file)) {
         const templateFile = `${file}MemberStack.template`;
-        //---------------------------------------------------------------------
-        // Playbook Member Template Nested Stack
-        //
+
         const parmname = file.replace(illegalChars, '');
         const memberStackOption = new CfnParameter(this, `LoadMemberStack${parmname}`, {
           type: 'String',
