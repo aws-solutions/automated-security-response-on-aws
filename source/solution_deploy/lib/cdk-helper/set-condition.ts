@@ -10,7 +10,7 @@ export default function setCondition(resource: IConstruct, condition: CfnConditi
     throw new Error(`Resource ${cfnResource?.logicalId} already has a condition: ${oldCondition.logicalId}`);
   }
   if (!cfnResource?.cfnOptions) {
-    throw new Error(`Resource ${cfnResource?.logicalId} has no cfnOptions, unable to add condition`);
+    throw new Error(`Resource ${cfnResource?.logicalId} is not a CfnResource, unable to add condition`);
   }
   cfnResource.cfnOptions.condition = condition;
 }

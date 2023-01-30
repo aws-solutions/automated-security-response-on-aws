@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { readdirSync } from 'fs';
 import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnMapping, CfnStack } from 'aws-cdk-lib';
-import { PolicyStatement, Effect, PolicyDocument, ServicePrincipal, AccountRootPrincipal } from 'aws-cdk-lib/aws-iam';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { Key } from 'aws-cdk-lib/aws-kms';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import AdminAccountParam from '../../lib/admin-account-param';
 import { RunbookFactory } from './runbook_factory';
 import { RedshiftAuditLogging } from './redshift-audit-logging';
+import { MemberKey } from './member-key';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -26,63 +25,13 @@ export class MemberStack extends Stack {
 
     new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
-    //--------------------------
-    // KMS Customer Managed Key
-
-    const stack = Stack.of(this);
-    // Key Policy
-    const kmsKeyPolicy: PolicyDocument = new PolicyDocument();
-    const kmsPerms: PolicyStatement = new PolicyStatement();
-    kmsPerms.addActions(
-      'kms:GenerateDataKey',
-      'kms:GenerateDataKeyPair',
-      'kms:GenerateDataKeyPairWithoutPlaintext',
-      'kms:GenerateDataKeyWithoutPlaintext',
-      'kms:Decrypt',
-      'kms:Encrypt',
-      'kms:ReEncryptFrom',
-      'kms:ReEncryptTo',
-      'kms:DescribeKey',
-      'kms:DescribeCustomKeyStores'
-    );
-    kmsPerms.effect = Effect.ALLOW;
-    kmsPerms.addResources('*'); // Only the key the policydocument is attached to
-    kmsPerms.addPrincipals(new ServicePrincipal('sns.amazonaws.com'));
-    kmsPerms.addPrincipals(new ServicePrincipal('s3.amazonaws.com'));
-    kmsPerms.addPrincipals(new ServicePrincipal(`logs.${stack.urlSuffix}`));
-    kmsPerms.addPrincipals(new ServicePrincipal(`logs.${stack.region}.${stack.urlSuffix}`));
-    kmsPerms.addPrincipals(new ServicePrincipal(`cloudtrail.${stack.urlSuffix}`));
-    kmsPerms.addPrincipals(new ServicePrincipal('cloudwatch.amazonaws.com'));
-    kmsKeyPolicy.addStatements(kmsPerms);
-
-    const kmsRootPolicy = new PolicyStatement({
-      principals: [new AccountRootPrincipal()],
-      actions: ['kms:*'],
-      resources: ['*'],
-    });
-    kmsKeyPolicy.addStatements(kmsRootPolicy);
-
-    const kmsKey: Key = new Key(this, 'SHARR Remediation Key', {
-      enableKeyRotation: true,
-      alias: `${props.solutionId}-SHARR-Remediation-Key`,
-      policy: kmsKeyPolicy,
-    });
-
-    new StringParameter(this, 'SHARR Key Alias', {
-      description: 'KMS Customer Managed Key that will encrypt data for remediations',
-      parameterName: `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`,
-      stringValue: kmsKey.keyArn,
-    });
+    new MemberKey(this, 'MemberKey', { solutionId: props.solutionId });
 
     new StringParameter(this, 'SHARR Member Version', {
       description: 'Version of the AWS Security Hub Automated Response and Remediation solution',
       parameterName: `/Solutions/${props.solutionId}/member-version`,
       stringValue: props.solutionVersion,
     });
-
-    /********************
-     ** Parameters
-     ********************/
 
     const logGroupName = new CfnParameter(this, 'LogGroupName', {
       type: 'String',
@@ -93,6 +42,7 @@ export class MemberStack extends Stack {
     /*********************************************
      ** Create SSM Parameter to store log group name
      *********************************************/
+    const stack = Stack.of(this);
     new StringParameter(stack, 'SSMParameterLogGroupName', {
       description: 'Parameter to store log group name',
       parameterName: `/Solutions/${props.solutionId}/Metrics_LogGroupName`,
