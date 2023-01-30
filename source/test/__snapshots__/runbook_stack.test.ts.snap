@@ -6082,14 +6082,14 @@ def public_s3_statement_check(statement, principal):
     This function checks if the user has given access to an S3 bucket without providing an AWS account.
     """
     try:
-        sourceAccountCheck = False
+        emptySourceAccountCheck = False
         if ("StringEquals" in statement["Condition"]):
-            sourceAccountCheck = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
+            emptySourceAccountCheck = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
         else:
-            sourceAccountCheck = True
-        return principal.get("Service", "") == "s3.amazonaws.com" and sourceAccountCheck
+            emptySourceAccountCheck = True
+        return principal.get("Service", "") == "s3.amazonaws.com" and emptySourceAccountCheck
     except KeyError:
-        pass
+        return principal.get("Service", "") == "s3.amazonaws.com"
 
 def remove_resource_policy(functionname, sid, client):
     try:
@@ -6102,8 +6102,7 @@ def remove_resource_policy(functionname, sid, client):
         exit(f'FAILED: SID {sid} was NOT removed from Lambda function {functionname} - {str(e)}')
 
 def remove_public_statement(client, functionname, statement, principal):
-    if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*") or (isinstance(principal, dict) and public_s3_statement_check(statement, principal)):
-        print('here')
+    if principal == "*" or (isinstance(principal, dict) and (principal.get("AWS","") == "*" or public_s3_statement_check(statement, principal))):
         print_policy_before(statement)
         remove_resource_policy(functionname, statement['Sid'], client)
 
