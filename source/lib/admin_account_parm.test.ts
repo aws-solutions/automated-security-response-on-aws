@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AdminAccountParm } from '../lib/admin_account_parm-construct';
+import { AdminAccountParm } from './admin_account_parm-construct';
 
 function createAdminAccountParm(): Stack {
   const app = new App();
