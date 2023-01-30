@@ -22,4 +22,29 @@ describe('admin account parameter stack', function () {
   it('matches snapshot', function () {
     expect(template).toMatchSnapshot();
   });
+
+  describe('template parameter', function () {
+    const allowedPattern = /^\d{12}$/;
+
+    it('is present', function () {
+      template.hasParameter('SecHubAdminAccount', {
+        AllowedPattern: allowedPattern.source,
+        Type: 'String',
+      });
+    });
+
+    describe('allowed pattern', function () {
+      it('matches account number', function () {
+        expect('1'.repeat(12)).toMatch(allowedPattern);
+      });
+
+      it('does not match too long account number', function () {
+        expect('1'.repeat(13)).not.toMatch(allowedPattern);
+      });
+
+      it('does not match words', function () {
+        expect('MyAdminAccnt').not.toMatch(allowedPattern);
+      });
+    });
+  });
 });
