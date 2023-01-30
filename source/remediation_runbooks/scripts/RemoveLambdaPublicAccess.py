@@ -62,7 +62,6 @@ def remove_lambda_public_access(event, context):
         print('Scanning for public resource policies in ' + functionname)
 
         for statement in statements:
-            print(statement)
             remove_public_statement(client, functionname, statement, statement['Principal'])
 
         client.get_policy(FunctionName=functionname)
