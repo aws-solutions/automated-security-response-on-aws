@@ -32,7 +32,6 @@ export class MemberStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: SolutionProps) {
     super(scope, id, props);
     const stack = cdk.Stack.of(this);
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
 
     const adminAccount = new AdminAccountParm(this, 'AdminAccountParameter');
 
@@ -146,19 +145,19 @@ export class MemberStack extends cdk.Stack {
 
     const kmsKey: Key = new Key(this, 'SHARR Remediation Key', {
       enableKeyRotation: true,
-      alias: `${RESOURCE_PREFIX}-SHARR-Remediation-Key`,
+      alias: `${props.solutionId}-SHARR-Remediation-Key`,
       policy: kmsKeyPolicy,
     });
 
     new StringParameter(this, 'SHARR Key Alias', {
       description: 'KMS Customer Managed Key that will encrypt data for remediations',
-      parameterName: `/Solutions/${RESOURCE_PREFIX}/CMK_REMEDIATION_ARN`,
+      parameterName: `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`,
       stringValue: kmsKey.keyArn,
     });
 
     new StringParameter(this, 'SHARR Member Version', {
       description: 'Version of the AWS Security Hub Automated Response and Remediation solution',
-      parameterName: `/Solutions/${RESOURCE_PREFIX}/member-version`,
+      parameterName: `/Solutions/${props.solutionId}/member-version`,
       stringValue: props.solutionVersion,
     });
 
@@ -177,7 +176,7 @@ export class MemberStack extends cdk.Stack {
      *********************************************/
     new StringParameter(stack, 'SSMParameterLogGroupName', {
       description: 'Parameter to store log group name',
-      parameterName: `/Solutions/${RESOURCE_PREFIX}/Metrics_LogGroupName`,
+      parameterName: `/Solutions/${props.solutionId}/Metrics_LogGroupName`,
       stringValue: logGroupName.valueAsString,
     });
 
@@ -187,7 +186,7 @@ export class MemberStack extends cdk.Stack {
     new StringParameter(stack, 'SSMParameterForS3.4EncryptionKeyAlias', {
       description:
         'Parameter to store encryption key alias for the PCI.S3.4/AFSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.',
-      parameterName: `/Solutions/${RESOURCE_PREFIX}/afsbp/1.0.0/S3.4/KmsKeyAlias`,
+      parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/S3.4/KmsKeyAlias`,
       stringValue: 'default-s3-encryption',
     });
 
