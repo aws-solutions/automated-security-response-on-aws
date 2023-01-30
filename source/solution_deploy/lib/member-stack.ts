@@ -1,39 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { readdirSync } from 'fs';
-import {
-  StackProps,
-  Stack,
-  App,
-  CfnParameter,
-  CfnCondition,
-  Fn,
-  CfnMapping,
-  CfnStack,
-  RemovalPolicy,
-} from 'aws-cdk-lib';
-import {
-  PolicyStatement,
-  Effect,
-  PolicyDocument,
-  ServicePrincipal,
-  AccountRootPrincipal,
-  StarPrincipal,
-} from 'aws-cdk-lib/aws-iam';
+import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnMapping, CfnStack } from 'aws-cdk-lib';
+import { PolicyStatement, Effect, PolicyDocument, ServicePrincipal, AccountRootPrincipal } from 'aws-cdk-lib/aws-iam';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import {
-  Bucket,
-  BucketEncryption,
-  BlockPublicAccess,
-  BucketPolicy,
-  CfnBucketPolicy,
-  CfnBucket,
-} from 'aws-cdk-lib/aws-s3';
 import { Key } from 'aws-cdk-lib/aws-kms';
-import { CfnParameter as CfnSsmParameter, StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { NagSuppressions } from 'cdk-nag';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import AdminAccountParam from '../../lib/admin-account-param';
 import { RunbookFactory } from './runbook_factory';
+import { RedshiftAuditLogging } from './redshift-audit-logging';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -49,78 +24,7 @@ export class MemberStack extends Stack {
 
     const adminAccountParam = new AdminAccountParam(this, 'AdminAccountParameter');
 
-    //Create a new parameter to track Redshift.4 S3 bucket
-    const createS3BucketForRedshift4 = new CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
-      description: 'Create S3 Bucket For Redshift Cluster Audit Logging.',
-      type: 'String',
-      allowedValues: ['yes', 'no'],
-      default: 'no',
-    });
-
-    const enableS3BucketForRedShift4 = new CfnCondition(this, 'EnableS3BucketForRedShift4', {
-      expression: Fn.conditionEquals(createS3BucketForRedshift4.valueAsString, 'yes'),
-    });
-
-    //Create the S3 Bucket for Redshift.4
-
-    const s3BucketForAuditLogging = new Bucket(this, 'S3BucketForRedShiftAuditLogging', {
-      encryption: BucketEncryption.S3_MANAGED,
-      publicReadAccess: false,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-    });
-
-    NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
-      { id: 'AwsSolutions-S1', reason: 'This is a logging bucket.' },
-    ]);
-
-    const bucketPolicy = new BucketPolicy(this, 'S3BucketForRedShiftAuditLoggingBucketPolicy', {
-      bucket: s3BucketForAuditLogging,
-      removalPolicy: RemovalPolicy.RETAIN,
-    });
-    bucketPolicy.document.addStatements(
-      new PolicyStatement({
-        sid: 'Put bucket policy needed for audit logging',
-        effect: Effect.ALLOW,
-        actions: ['s3:GetBucketAcl', 's3:PutObject'],
-        principals: [new ServicePrincipal('redshift.amazonaws.com')],
-        resources: [
-          s3BucketForAuditLogging.bucketArn,
-          Fn.sub('arn:${AWS::Partition}:s3:::${BucketName}/*', {
-            BucketName: `${s3BucketForAuditLogging.bucketName}`,
-          }),
-        ],
-      }),
-      new PolicyStatement({
-        sid: 'EnforceSSL',
-        effect: Effect.DENY,
-        actions: ['s3:*'],
-        principals: [new StarPrincipal()],
-        resources: [s3BucketForAuditLogging.bucketArn, s3BucketForAuditLogging.arnForObjects('*')],
-        conditions: { Bool: { ['aws:SecureTransport']: 'false' } },
-      })
-    );
-    const bucketPolicy_cfn_ref = bucketPolicy.node.defaultChild as CfnBucketPolicy;
-    bucketPolicy_cfn_ref.cfnOptions.condition = enableS3BucketForRedShift4;
-
-    const s3BucketForAuditLogging_cfn_ref = s3BucketForAuditLogging.node.defaultChild as CfnBucket;
-    s3BucketForAuditLogging_cfn_ref.cfnOptions.metadata = {
-      cfn_nag: {
-        rules_to_suppress: [
-          {
-            id: 'W35',
-            reason: 'Logs bucket does not require logging configuration',
-          },
-        ],
-      },
-    };
-
-    NagSuppressions.addResourceSuppressions(s3BucketForAuditLogging, [
-      { id: 'AwsSolutions-S1', reason: 'Logs bucket does not require logging configuration' },
-    ]);
-
-    s3BucketForAuditLogging_cfn_ref.cfnOptions.condition = enableS3BucketForRedShift4;
-
-    bucketPolicy_cfn_ref.addDependency(s3BucketForAuditLogging_cfn_ref);
+    new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
     //--------------------------
     // KMS Customer Managed Key
@@ -204,22 +108,6 @@ export class MemberStack extends Stack {
       parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/S3.4/KmsKeyAlias`,
       stringValue: 'default-s3-encryption',
     });
-
-    /*********************************************
-     ** Create SSM Parameter to store the S3 bucket name for AFSBP.REDSHIFT.4
-     *********************************************/
-    const ssmParameterForRedshift4BucketName = new StringParameter(stack, 'SSMParameterForS3BucketNameForREDSHIFT4', {
-      description:
-        'Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
-      parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging`,
-      stringValue: s3BucketForAuditLogging.bucketName,
-    });
-
-    const ssmParameterForRedshift4BucketName_cfn_ref = ssmParameterForRedshift4BucketName.node
-      .defaultChild as CfnSsmParameter;
-    ssmParameterForRedshift4BucketName_cfn_ref.cfnOptions.condition = enableS3BucketForRedShift4;
-
-    ssmParameterForRedshift4BucketName_cfn_ref.addDependency(s3BucketForAuditLogging_cfn_ref);
 
     new CfnMapping(this, 'SourceCode', {
       mapping: {

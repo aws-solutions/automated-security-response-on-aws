@@ -63,7 +63,7 @@ describe('member stack', function () {
 
   describe('Redshift audit logging bucket', function () {
     const templateParameterName = 'CreateS3BucketForRedshiftAuditLogging';
-    const conditionName = 'EnableS3BucketForRedShift4';
+    const conditionName = 'RedshiftAuditLoggingCondition25B79DD8';
     const bucketLogicalId = 'S3BucketForRedShiftAuditLogging652E7355';
 
     it('template parameter is present', function () {

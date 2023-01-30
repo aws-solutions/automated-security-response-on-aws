@@ -3,7 +3,7 @@
 exports[`member stack snapshot matches 1`] = `
 {
   "Conditions": {
-    "EnableS3BucketForRedShift4": {
+    "RedshiftAuditLoggingCondition25B79DD8": {
       "Fn::Equals": [
         {
           "Ref": "CreateS3BucketForRedshiftAuditLogging",
@@ -333,78 +333,8 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::CloudFormation::Stack",
     },
-    "RunbookStackNoRoles": {
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Join": [
-            "",
-            [
-              "https://",
-              {
-                "Fn::FindInMap": [
-                  "SourceCode",
-                  "General",
-                  "S3Bucket",
-                ],
-              },
-              "-reference.s3.amazonaws.com/",
-              {
-                "Fn::FindInMap": [
-                  "SourceCode",
-                  "General",
-                  "KeyPrefix",
-                ],
-              },
-              "/aws-sharr-remediations.template",
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::CloudFormation::Stack",
-    },
-    "S3BucketForRedShiftAuditLogging652E7355": {
-      "Condition": "EnableS3BucketForRedShift4",
-      "DeletionPolicy": "Retain",
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-S1",
-              "reason": "Logs bucket does not require logging configuration",
-            },
-          ],
-        },
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W35",
-              "reason": "Logs bucket does not require logging configuration",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "BucketEncryption": {
-          "ServerSideEncryptionConfiguration": [
-            {
-              "ServerSideEncryptionByDefault": {
-                "SSEAlgorithm": "AES256",
-              },
-            },
-          ],
-        },
-        "PublicAccessBlockConfiguration": {
-          "BlockPublicAcls": true,
-          "BlockPublicPolicy": true,
-          "IgnorePublicAcls": true,
-          "RestrictPublicBuckets": true,
-        },
-      },
-      "Type": "AWS::S3::Bucket",
-      "UpdateReplacePolicy": "Retain",
-    },
-    "S3BucketForRedShiftAuditLoggingBucketPolicyAB8BAA40": {
-      "Condition": "EnableS3BucketForRedShift4",
+    "RedshiftAuditLoggingPolicyC946ADA0": {
+      "Condition": "RedshiftAuditLoggingCondition25B79DD8",
       "DeletionPolicy": "Retain",
       "DependsOn": [
         "S3BucketForRedShiftAuditLogging652E7355",
@@ -482,6 +412,76 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::S3::BucketPolicy",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RunbookStackNoRoles": {
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/aws-sharr-remediations.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+    },
+    "S3BucketForRedShiftAuditLogging652E7355": {
+      "Condition": "RedshiftAuditLoggingCondition25B79DD8",
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-S1",
+              "reason": "Logs bucket does not require logging configuration",
+            },
+          ],
+        },
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W35",
+              "reason": "Logs bucket does not require logging configuration",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256",
+              },
+            },
+          ],
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+      },
+      "Type": "AWS::S3::Bucket",
       "UpdateReplacePolicy": "Retain",
     },
     "SHARRKeyAliasEBF509D8": {
@@ -625,7 +625,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SSMParameterForS3BucketNameForREDSHIFT441DD36B1": {
-      "Condition": "EnableS3BucketForRedShift4",
+      "Condition": "RedshiftAuditLoggingCondition25B79DD8",
       "DependsOn": [
         "S3BucketForRedShiftAuditLogging652E7355",
       ],
