@@ -46,9 +46,8 @@ export interface SolutionProps extends StackProps {
 export class MemberStack extends Stack {
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
-    const stack = Stack.of(this);
 
-    const adminAccount = new AdminAccountParam(this, 'AdminAccountParameter');
+    const adminAccountParam = new AdminAccountParam(this, 'AdminAccountParameter');
 
     //Create a new parameter to track Redshift.4 S3 bucket
     const createS3BucketForRedshift4 = new CfnParameter(this, 'CreateS3BucketForRedshiftAuditLogging', {
@@ -126,6 +125,7 @@ export class MemberStack extends Stack {
     //--------------------------
     // KMS Customer Managed Key
 
+    const stack = Stack.of(this);
     // Key Policy
     const kmsKeyPolicy: PolicyDocument = new PolicyDocument();
     const kmsPerms: PolicyStatement = new PolicyStatement();
@@ -272,7 +272,7 @@ export class MemberStack extends Stack {
 
         const memberStack = new CfnStack(this, `PlaybookMemberStack${file}`, {
           parameters: {
-            SecHubAdminAccount: adminAccount.value,
+            SecHubAdminAccount: adminAccountParam.value,
           },
           templateUrl:
             'https://' +
