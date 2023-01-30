@@ -507,7 +507,7 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::SSM::Parameter",
     },
-    "SHARRRemediationKeyAlias5531874D": {
+    "SHARRRemediationKeyAliasF7D1FD7E": {
       "Properties": {
         "AliasName": "alias/SO9999-SHARR-Remediation-Key",
         "TargetKeyId": {

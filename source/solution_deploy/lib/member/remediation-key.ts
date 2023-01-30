@@ -14,6 +14,8 @@ export class MemberRemediationKey extends Construct {
   constructor(scope: Construct, id: string, props: MemberRemediationKeyProps) {
     super(scope, id);
 
+    // Create all resource at `scope` scope rather than `this` to maintain logical IDs
+
     const stack = Stack.of(this);
 
     const kmsKeyPolicy = new PolicyDocument();
@@ -47,23 +49,20 @@ export class MemberRemediationKey extends Construct {
     });
     kmsKeyPolicy.addStatements(kmsRootPolicy);
 
-    const kmsKey: Key = new Key(this, 'SHARR Remediation Key', {
+    const kmsKey: Key = new Key(scope, 'SHARR Remediation Key', {
       enableKeyRotation: true,
       policy: kmsKeyPolicy,
     });
-    (kmsKey.node.defaultChild as CfnKey).overrideLogicalId('SHARRRemediationKeyE744743D');
 
-    const alias = new Alias(this, 'SHARR Remediation Key Alias', {
+    new Alias(scope, 'SHARR Remediation Key Alias', {
       aliasName: `${props.solutionId}-SHARR-Remediation-Key`,
       targetKey: kmsKey,
     });
-    (alias.node.defaultChild as CfnAlias).overrideLogicalId('SHARRRemediationKeyAlias5531874D');
 
-    const ssmParam = new StringParameter(this, 'SHARR Key Alias', {
+    new StringParameter(scope, 'SHARR Key Alias', {
       description: 'KMS Customer Managed Key that will encrypt data for remediations',
       parameterName: `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`,
       stringValue: kmsKey.keyArn,
     });
-    (ssmParam.node.defaultChild as CfnSsmParameter).overrideLogicalId('SHARRKeyAliasEBF509D8');
   }
 }
