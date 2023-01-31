@@ -43,7 +43,7 @@ export class StandardParams extends Construct {
     ];
 
     const CIS14Standard: Standard = {
-      shortname: 'CIS1.4',
+      shortname: 'CIS',
       longname: 'cis-aws-foundations-benchmark',
       version: '1.4.0',
     };

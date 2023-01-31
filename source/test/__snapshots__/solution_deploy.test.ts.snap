@@ -383,12 +383,12 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::SSM::Parameter",
     },
-    "StandardsCIS14140ShortName0C2270EC": {
+    "StandardsCIS140ShortNameEEECF5F9": {
       "Properties": {
         "Description": "Provides a short (1-12) character abbreviation for the standard.",
         "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.4.0/shortname",
         "Type": "String",
-        "Value": "CIS1.4",
+        "Value": "CIS",
       },
       "Type": "AWS::SSM::Parameter",
     },
