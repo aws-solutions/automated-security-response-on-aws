@@ -532,7 +532,7 @@ The Markdown in the Description for each SSM Document is displayed in the consol
 SHARR-<standard>_<version>_<control>
 ```
 
-* **standard**: abbreviation for the Security Standard. The abbreviation is set in an SSM Parameter, /**/Solutions/SO0111/<name>/shortname**. For example, **/Solutions/SO0111/aws-foundational-security-best-practices/shortname** = **AFSBP**
+* **standard**: abbreviation for the Security Standard. The abbreviation is set in an SSM Parameter, /**/Solutions/SO0111/<name>/<version/shortname**. For example, **/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname** = **AFSBP**
 * **version**: *v*.*r*.*m* - semver format version of the *Security Standard*. Some standards have multiple versions and may not be compatible with other versions.
 * **control**: control Id within the standard. Ex. **2.1** (CIS), **CloudTrail.1** (AFSBP)
 

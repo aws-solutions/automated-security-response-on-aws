@@ -37,12 +37,12 @@ def test_parse_cis_v120(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "Type": "String",
                 "Value": "CIS",
                 "Version": 1,
                 "LastModifiedDate": "2021-04-23T08:11:30.658000-04:00",
-                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/shortname',
+                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname',
                 "DataType": "text"
             }
         })
@@ -104,12 +104,12 @@ def test_parse_unsupported_version(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.7.0/shortname",
                 "Type": "String",
                 "Value": "CIS",
                 "Version": 1,
                 "LastModifiedDate": "2021-04-23T08:11:30.658000-04:00",
-                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/shortname',
+                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/1.7.0/shortname',
                 "DataType": "text"
             }
         })
@@ -150,12 +150,12 @@ def test_parse_afsbp_v100(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-04-23T08:11:30.658000-04:00",
-                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname',
+                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname',
                 "DataType": "text"
             }
         })
@@ -248,12 +248,12 @@ def test_security_control(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/security-controls/shortname",
+                "Name": "/Solutions/SO0111/security-controls/2.0.0/shortname",
                 "Type": "String",
                 "Value": "SC",
                 "Version": 1,
                 "LastModifiedDate": "2021-04-23T08:11:30.658000-04:00",
-                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/security-controls/shortname',
+                "ARN": f'arn:aws:ssm:{my_region}:111111111111:parameter/Solutions/SO0111/security-controls/2.0.0/shortname',
                 "DataType": "text"
             }
         })

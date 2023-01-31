@@ -125,16 +125,16 @@ def test_sunny_day(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -283,16 +283,16 @@ def test_doc_not_active(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -377,16 +377,16 @@ def test_client_error(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -469,16 +469,16 @@ def test_control_remap(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "Type": "String",
                 "Value": "CIS",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname"
+            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname"
         }
     )
     ssmc_stub.add_response(
@@ -631,16 +631,16 @@ def test_alt_workflow_with_role(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "Type": "String",
                 "Value": "CIS",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.2.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname"
+            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname"
         }
     )
 
