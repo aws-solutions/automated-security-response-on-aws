@@ -5,6 +5,7 @@ import { AccountRootPrincipal, Effect, PolicyDocument, PolicyStatement, ServiceP
 import { Alias, Key } from 'aws-cdk-lib/aws-kms';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
+import overrideLogicalId from '../cdk-helper/override-logical-id';
 
 export interface MemberRemediationKeyProps {
   readonly solutionId: string;
@@ -54,10 +55,11 @@ export class MemberRemediationKey extends Construct {
       policy: kmsKeyPolicy,
     });
 
-    new Alias(scope, 'SHARR Remediation Key Alias', {
+    const alias = new Alias(scope, 'SHARR Remediation Key Alias', {
       aliasName: `${props.solutionId}-SHARR-Remediation-Key`,
       targetKey: kmsKey,
     });
+    overrideLogicalId(alias, 'SHARRRemediationKeyAlias5531874D');
 
     new StringParameter(scope, 'SHARR Key Alias', {
       description: 'KMS Customer Managed Key that will encrypt data for remediations',
