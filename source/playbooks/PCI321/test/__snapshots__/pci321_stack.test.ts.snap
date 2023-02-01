@@ -324,6 +324,15 @@ exports[`default stack 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
+    "PCIShortName090DB238": {
+      "Properties": {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/pci-dss/3.2.1/shortname",
+        "Type": "String",
+        "Value": "PCI",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
     "StandardVersionCB2C6951": {
       "Properties": {
         "Description": "This parameter controls whether the SHARR step function will process findings for this version of the standard.",

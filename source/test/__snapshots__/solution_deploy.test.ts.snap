@@ -374,51 +374,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::Lambda::LayerVersion",
     },
-    "StandardsAFSBPShortName8A26C49A": {
-      "Properties": {
-        "Description": "Provides a short (1-12) character abbreviation for the standard.",
-        "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
-        "Type": "String",
-        "Value": "AFSBP",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "StandardsCIS140ShortNameEEECF5F9": {
-      "Properties": {
-        "Description": "Provides a short (1-12) character abbreviation for the standard.",
-        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.4.0/shortname",
-        "Type": "String",
-        "Value": "CIS",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "StandardsCISShortNameC4E1A268": {
-      "Properties": {
-        "Description": "Provides a short (1-12) character abbreviation for the standard.",
-        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
-        "Type": "String",
-        "Value": "CIS",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "StandardsPCIShortNameD1D86610": {
-      "Properties": {
-        "Description": "Provides a short (1-12) character abbreviation for the standard.",
-        "Name": "/Solutions/SO0111/pci-dss/3.2.1/shortname",
-        "Type": "String",
-        "Value": "PCI",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "StandardsSCShortNameEA016066": {
-      "Properties": {
-        "Description": "Provides a short (1-12) character abbreviation for the standard.",
-        "Name": "/Solutions/SO0111/security-control/2.0.0/shortname",
-        "Type": "String",
-        "Value": "SC",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
     "checkSSMDocState06AC440F": {
       "DependsOn": [
         "orchestratorRole46A9F242",

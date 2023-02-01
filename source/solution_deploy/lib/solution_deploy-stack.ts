@@ -21,7 +21,6 @@ import {
 import { OrchestratorConstruct } from '../../Orchestrator/lib/common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { OneTrigger } from '../../lib/ssmplaybook';
-import { StandardParams } from './standard_params-construct';
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
   solutionVersion: string;
@@ -751,7 +750,5 @@ export class SolutionDeployStack extends cdk.Stack {
         ],
       },
     };
-
-    new StandardParams(this, 'Standards', { solutionId: props.solutionId });
   }
 }
