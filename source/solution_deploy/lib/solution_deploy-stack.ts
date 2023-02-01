@@ -33,6 +33,7 @@ export interface SHARRStackProps extends cdk.StackProps {
 
 export class SolutionDeployStack extends cdk.Stack {
   SEND_ANONYMOUS_DATA = 'Yes';
+  nestedStacks: cdk.Stack[] = [];
 
   constructor(scope: cdk.App, id: string, props: SHARRStackProps) {
     super(scope, id, props);
@@ -737,6 +738,7 @@ export class SolutionDeployStack extends cdk.Stack {
           adminStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
             expression: cdk.Fn.conditionEquals(adminStackOption, 'yes'),
           });
+          this.nestedStacks.push(cdk.Stack.of(adminStack));
         }
       });
     });

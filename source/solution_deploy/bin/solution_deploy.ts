@@ -96,4 +96,4 @@ const appregistry = new AppRegister({
 
 // Do not associate spoke stacks, we must allow other regions
 // Do not associate any nested stacks, this is a non-trivial change
-appregistry.applyAppRegistryToStacks(solStack, []);
+appregistry.applyAppRegistryToStacks(solStack, solStack.nestedStacks);
