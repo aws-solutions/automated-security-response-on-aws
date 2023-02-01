@@ -390,7 +390,6 @@ describe('member stack', function () {
 
     interface GraphNode {
       readonly logicalId: string;
-      readonly stack: Resource;
       dependencies: string[]; // _outgoing_ dependencies, _incoming_ edges
     }
 
@@ -398,7 +397,7 @@ describe('member stack', function () {
     const startingNodes: { [_: string]: Resource } = {};
     const remainingNodes: { [_: string]: GraphNode } = {};
     for (const [logicalId, stack] of Object.entries(stacks)) {
-      const node: GraphNode = { logicalId, stack, dependencies: [] };
+      const node: GraphNode = { logicalId, dependencies: [] };
       remainingNodes[logicalId] = node;
       stack.DependsOn?.forEach(function (dependencyLogicalId: string) {
         // add the dependency if it's a stack
@@ -424,6 +423,9 @@ describe('member stack', function () {
         startingNodes[logicalId] = node;
       }
     }
+
+    // create a deep copy to check edges later
+    const allNodes: { [_: string]: GraphNode } = JSON.parse(JSON.stringify(remainingNodes));
 
     // if stacks are serial, there should be only one starting node
     expect(Object.getOwnPropertyNames(startingNodes)).toHaveLength(1);
@@ -455,6 +457,19 @@ describe('member stack', function () {
     // no remaining edges
     sortedNodes.forEach(function (node) {
       expect(node.dependencies).toHaveLength(0);
+    });
+
+    // in a serial dependency structure, a node must depend on all nodes before itself
+    sortedNodes.forEach(function (node: GraphNode, i: number) {
+      // use the deep copy from before, since we removed edges from the graph
+      const dependencies = allNodes[node.logicalId].dependencies;
+      if (i === 0) {
+        expect(dependencies).toHaveLength(0);
+      } else {
+        for (let j = 0; j < i; ++j) {
+          expect(dependencies).toContain(sortedNodes[j].logicalId);
+        }
+      }
     });
   });
 });
