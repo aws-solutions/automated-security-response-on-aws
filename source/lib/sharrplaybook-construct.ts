@@ -41,6 +41,11 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     );
 
     // Register the playbook. These parameters enable the step function to route matching events
+    new StringParameter(this, `${props.securityStandard}ShortName`, {
+      description: 'Provides a short (1-12) character abbreviation for the standard.',
+      parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/shortname`,
+      stringValue: props.securityStandard,
+    });
     new StringParameter(this, 'StandardVersion', {
       description:
         'This parameter controls whether the SHARR step function will process findings for this version of the standard.',

@@ -173,7 +173,7 @@ class Finding(object):
         try:
             local_ssm = get_ssm_connection(self.aws_api_client)
             abbreviation = local_ssm.get_parameter(
-                Name=f'/Solutions/SO0111/{self.standard_name}/shortname'
+                Name=f'/Solutions/SO0111/{self.standard_name}/{self.standard_version}/shortname'
             ).get('Parameter').get('Value')
             self.standard_shortname = abbreviation
 

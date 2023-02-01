@@ -125,16 +125,16 @@ def test_get_approval_req(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -234,16 +234,16 @@ def test_get_approval_req_no_fanout(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -347,16 +347,16 @@ def test_workflow_in_admin(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
