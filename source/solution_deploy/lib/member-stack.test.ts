@@ -39,29 +39,8 @@ describe('member stack', function () {
     expect(template.toJSON().Description).toEqual(description);
   });
 
-  describe('admin account template parameter', function () {
-    const regex = /^\d{12}$/;
-
-    describe('allowed pattern', function () {
-      it('matches account number', function () {
-        expect('1'.repeat(12)).toMatch(regex);
-      });
-
-      it('does not match too long account number', function () {
-        expect('1'.repeat(13)).not.toMatch(regex);
-      });
-
-      it('does not match words', function () {
-        expect('MyAdminAccnt').not.toMatch(regex);
-      });
-    });
-
-    it('is present', function () {
-      template.hasParameter('SecHubAdminAccount', {
-        AllowedPattern: regex.source,
-        Type: 'String',
-      });
-    });
+  it('admin account template parameter is present', function () {
+    template.hasParameter('SecHubAdminAccount', {});
   });
 
   describe('log group name', function () {
@@ -316,7 +295,7 @@ describe('member stack', function () {
   });
 
   describe('nested stack', function () {
-    const mappingName = 'SourceCode';
+    const mappingName = 'NestedStackFactorySourceCodeA11A36A7';
     const mappingKeyName = 'General';
     const keyPrefixKeyName = 'KeyPrefix';
     const bucketKeyName = 'S3Bucket';

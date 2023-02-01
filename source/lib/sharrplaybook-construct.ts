@@ -9,7 +9,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from './ssmplaybook';
-import { AdminAccountParm } from './admin_account_parm-construct';
+import AdminAccountParam from './admin-account-param';
 import { RunbookFactory } from '../solution_deploy/lib/runbook_factory';
 import { Construct } from 'constructs';
 import { StackProps } from 'aws-cdk-lib';
@@ -113,7 +113,7 @@ export class PlaybookMemberStack extends cdk.Stack {
       ssmdocs = props.ssmdocs;
     }
 
-    new AdminAccountParm(this, 'AdminAccountParameter');
+    new AdminAccountParam(this, 'AdminAccountParameter');
 
     const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control

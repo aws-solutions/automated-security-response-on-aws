@@ -54,7 +54,7 @@ exports[`member stack snapshot matches 1`] = `
   },
   "Description": "ASR Member Stack",
   "Mappings": {
-    "SourceCode": {
+    "NestedStackFactorySourceCodeA11A36A7": {
       "General": {
         "KeyPrefix": "my-solution-tmn/v9.9.9",
         "S3Bucket": "sharrbukkit",
@@ -173,7 +173,7 @@ exports[`member stack snapshot matches 1`] = `
               "https://",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "S3Bucket",
                 ],
@@ -181,7 +181,7 @@ exports[`member stack snapshot matches 1`] = `
               "-reference.s3.amazonaws.com/",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "KeyPrefix",
                 ],
@@ -208,7 +208,7 @@ exports[`member stack snapshot matches 1`] = `
               "https://",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "S3Bucket",
                 ],
@@ -216,7 +216,7 @@ exports[`member stack snapshot matches 1`] = `
               "-reference.s3.amazonaws.com/",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "KeyPrefix",
                 ],
@@ -243,7 +243,7 @@ exports[`member stack snapshot matches 1`] = `
               "https://",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "S3Bucket",
                 ],
@@ -251,7 +251,7 @@ exports[`member stack snapshot matches 1`] = `
               "-reference.s3.amazonaws.com/",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "KeyPrefix",
                 ],
@@ -278,7 +278,7 @@ exports[`member stack snapshot matches 1`] = `
               "https://",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "S3Bucket",
                 ],
@@ -286,7 +286,7 @@ exports[`member stack snapshot matches 1`] = `
               "-reference.s3.amazonaws.com/",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "KeyPrefix",
                 ],
@@ -313,7 +313,7 @@ exports[`member stack snapshot matches 1`] = `
               "https://",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "S3Bucket",
                 ],
@@ -321,7 +321,7 @@ exports[`member stack snapshot matches 1`] = `
               "-reference.s3.amazonaws.com/",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "KeyPrefix",
                 ],
@@ -342,7 +342,7 @@ exports[`member stack snapshot matches 1`] = `
               "https://",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "S3Bucket",
                 ],
@@ -350,7 +350,7 @@ exports[`member stack snapshot matches 1`] = `
               "-reference.s3.amazonaws.com/",
               {
                 "Fn::FindInMap": [
-                  "SourceCode",
+                  "NestedStackFactorySourceCodeA11A36A7",
                   "General",
                   "KeyPrefix",
                 ],
