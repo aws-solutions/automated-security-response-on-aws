@@ -408,6 +408,7 @@ describe('member stack', function () {
         // also add all conditional dependencies created through a gate
         if (dependencyLogicalId in gates) {
           const gate = gates[dependencyLogicalId];
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           for (const [_, value] of Object.entries(gate.Metadata)) {
             const metadata = value as any; // eslint-disable-line @typescript-eslint/no-explicit-any
             const conditionalDependencyLogicalId: string = metadata['Fn::If'][1].Ref;
