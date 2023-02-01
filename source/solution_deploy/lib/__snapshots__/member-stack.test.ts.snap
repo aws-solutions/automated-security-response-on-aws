@@ -158,8 +158,121 @@ exports[`member stack snapshot matches 1`] = `
     },
   },
   "Resources": {
+    "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS140Ready": {
+          "Fn::If": [
+            "loadCIS140Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "NestedStackFactoryGatePlaybookMemberStackSC0515DB36": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS140Ready": {
+          "Fn::If": [
+            "loadCIS140Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackPCI321Ready": {
+          "Fn::If": [
+            "loadPCI321Cond",
+            {
+              "Ref": "PlaybookMemberStackPCI321",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
     "PlaybookMemberStackAFSBP": {
       "Condition": "loadAFSBPCond",
+      "DependsOn": [
+        "RunbookStackNoRoles",
+      ],
       "Properties": {
         "Parameters": {
           "SecHubAdminAccount": {
@@ -195,6 +308,10 @@ exports[`member stack snapshot matches 1`] = `
     },
     "PlaybookMemberStackCIS120": {
       "Condition": "loadCIS120Cond",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B",
+        "RunbookStackNoRoles",
+      ],
       "Properties": {
         "Parameters": {
           "SecHubAdminAccount": {
@@ -230,6 +347,10 @@ exports[`member stack snapshot matches 1`] = `
     },
     "PlaybookMemberStackCIS140": {
       "Condition": "loadCIS140Cond",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6",
+        "RunbookStackNoRoles",
+      ],
       "Properties": {
         "Parameters": {
           "SecHubAdminAccount": {
@@ -265,6 +386,10 @@ exports[`member stack snapshot matches 1`] = `
     },
     "PlaybookMemberStackPCI321": {
       "Condition": "loadPCI321Cond",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906",
+        "RunbookStackNoRoles",
+      ],
       "Properties": {
         "Parameters": {
           "SecHubAdminAccount": {
@@ -300,6 +425,10 @@ exports[`member stack snapshot matches 1`] = `
     },
     "PlaybookMemberStackSC": {
       "Condition": "loadSCCond",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackSC0515DB36",
+        "RunbookStackNoRoles",
+      ],
       "Properties": {
         "Parameters": {
           "SecHubAdminAccount": {

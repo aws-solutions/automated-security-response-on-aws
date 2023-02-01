@@ -381,90 +381,77 @@ describe('member stack', function () {
   });
 
   it('creates stacks serially', function () {
-    // typedefs
-    interface StackResource {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [key: string]: any;
-    }
-    interface WaitConditionHandleResource {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [key: string]: any;
+    interface Resource {
+      [_: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stacks: { [key: string]: StackResource } = template.findResources('AWS::CloudFormation::Stack');
-    const gates: { [key: string]: WaitConditionHandleResource } = template.findResources(
-      'AWS::CloudFormation::WaitConditionHandle'
-    );
+    const stacks = template.findResources('AWS::CloudFormation::Stack');
+    const gates = template.findResources('AWS::CloudFormation::WaitConditionHandle');
 
     interface GraphNode {
       readonly logicalId: string;
-      readonly stack: StackResource;
-      dependencies: string[];
+      readonly stack: Resource;
+      dependencies: string[]; // _outgoing_ dependencies, _incoming_ edges
     }
 
-    // Make a list of all nodes with no incoming edges
-    const startingNodes: { [key: string]: StackResource } = {};
-    const nodes: { [key: string]: GraphNode } = {};
+    // make a list of all nodes with no incoming edges
+    const startingNodes: { [_: string]: Resource } = {};
+    const remainingNodes: { [_: string]: GraphNode } = {};
     for (const [logicalId, stack] of Object.entries(stacks)) {
       const node: GraphNode = { logicalId, stack, dependencies: [] };
-      nodes[logicalId] = node;
+      remainingNodes[logicalId] = node;
       stack.DependsOn?.forEach(function (dependencyLogicalId: string) {
-        // Add the dependency if it's a stack
+        // add the dependency if it's a stack
         if (dependencyLogicalId in stacks) {
           node.dependencies.push(dependencyLogicalId);
         }
-        // // Remove the dependency node from our starting nodes
-        // if (dependencyLogicalId in startingNodes) {
-        //   delete startingNodes[dependencyLogicalId];
-        // }
-        // Also remove all conditional dependencies created through a gate
+        // also add all conditional dependencies created through a gate
         if (dependencyLogicalId in gates) {
-          const gate: WaitConditionHandleResource = gates[dependencyLogicalId];
+          const gate = gates[dependencyLogicalId];
           for (const [_, value] of Object.entries(gate.Metadata)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const metadata = value as any;
+            const metadata = value as any; // eslint-disable-line @typescript-eslint/no-explicit-any
             const conditionalDependencyLogicalId: string = metadata['Fn::If'][1].Ref;
             if (conditionalDependencyLogicalId in stacks) {
               node.dependencies.push(conditionalDependencyLogicalId);
             }
-            // if (conditionalDependencyLogicalId in startingNodes) {
-            //   delete startingNodes[conditionalDependencyLogicalId];
-            // }
           }
         }
       });
 
+      // if this node has no incoming edges (outgoing dependencies), it's a candidate starter node
       if (node.dependencies.length === 0) {
         startingNodes[logicalId] = node;
       }
     }
 
-    // If stacks are serial, there should be only one starting stack
+    // if stacks are serial, there should be only one starting node
     expect(Object.getOwnPropertyNames(startingNodes)).toHaveLength(1);
 
     const sortedNodes: GraphNode[] = [];
 
+    // topological sort - Kahn's algorithm
     while (Object.getOwnPropertyNames(startingNodes).length > 0) {
       const logicalId = Object.getOwnPropertyNames(startingNodes)[0];
       delete startingNodes[logicalId];
-      const node = nodes[logicalId];
+      const node = remainingNodes[logicalId];
       sortedNodes.push(node);
-      delete nodes[logicalId];
-      for (const [key, value] of Object.entries(nodes)) {
-        const index = value.dependencies.indexOf(logicalId);
+      delete remainingNodes[logicalId];
+      for (const [otherLogicalId, otherNode] of Object.entries(remainingNodes)) {
+        // remove this node from other nodes' dependencies
+        const index = otherNode.dependencies.indexOf(logicalId);
         if (index > -1) {
-          value.dependencies.splice(index, 1);
+          otherNode.dependencies.splice(index, 1);
         }
-        if (value.dependencies.length === 0) {
-          startingNodes[key] = value;
+        // if this node has no incoming edges, add it as a candidate next node
+        if (otherNode.dependencies.length === 0) {
+          startingNodes[otherLogicalId] = otherNode;
         }
       }
     }
 
-    // No remaining stacks
-    expect(Object.getOwnPropertyNames(nodes)).toHaveLength(0);
-    // No remaining edges
+    // no remaining stacks
+    expect(Object.getOwnPropertyNames(remainingNodes)).toHaveLength(0);
+    // no remaining edges
     sortedNodes.forEach(function (node) {
       expect(node.dependencies).toHaveLength(0);
     });
