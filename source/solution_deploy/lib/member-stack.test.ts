@@ -379,4 +379,94 @@ describe('member stack', function () {
       Value: solutionVersion,
     });
   });
+
+  it('creates stacks serially', function () {
+    // typedefs
+    interface StackResource {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      [key: string]: any;
+    }
+    interface WaitConditionHandleResource {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      [key: string]: any;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stacks: { [key: string]: StackResource } = template.findResources('AWS::CloudFormation::Stack');
+    const gates: { [key: string]: WaitConditionHandleResource } = template.findResources(
+      'AWS::CloudFormation::WaitConditionHandle'
+    );
+
+    interface GraphNode {
+      readonly logicalId: string;
+      readonly stack: StackResource;
+      dependencies: string[];
+    }
+
+    // Make a list of all nodes with no incoming edges
+    const startingNodes: { [key: string]: StackResource } = {};
+    const nodes: { [key: string]: GraphNode } = {};
+    for (const [logicalId, stack] of Object.entries(stacks)) {
+      const node: GraphNode = { logicalId, stack, dependencies: [] };
+      nodes[logicalId] = node;
+      stack.DependsOn?.forEach(function (dependencyLogicalId: string) {
+        // Add the dependency if it's a stack
+        if (dependencyLogicalId in stacks) {
+          node.dependencies.push(dependencyLogicalId);
+        }
+        // // Remove the dependency node from our starting nodes
+        // if (dependencyLogicalId in startingNodes) {
+        //   delete startingNodes[dependencyLogicalId];
+        // }
+        // Also remove all conditional dependencies created through a gate
+        if (dependencyLogicalId in gates) {
+          const gate: WaitConditionHandleResource = gates[dependencyLogicalId];
+          for (const [_, value] of Object.entries(gate.Metadata)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const metadata = value as any;
+            const conditionalDependencyLogicalId: string = metadata['Fn::If'][1].Ref;
+            if (conditionalDependencyLogicalId in stacks) {
+              node.dependencies.push(conditionalDependencyLogicalId);
+            }
+            // if (conditionalDependencyLogicalId in startingNodes) {
+            //   delete startingNodes[conditionalDependencyLogicalId];
+            // }
+          }
+        }
+      });
+
+      if (node.dependencies.length === 0) {
+        startingNodes[logicalId] = node;
+      }
+    }
+
+    // If stacks are serial, there should be only one starting stack
+    expect(Object.getOwnPropertyNames(startingNodes)).toHaveLength(1);
+
+    const sortedNodes: GraphNode[] = [];
+
+    while (Object.getOwnPropertyNames(startingNodes).length > 0) {
+      const logicalId = Object.getOwnPropertyNames(startingNodes)[0];
+      delete startingNodes[logicalId];
+      const node = nodes[logicalId];
+      sortedNodes.push(node);
+      delete nodes[logicalId];
+      for (const [key, value] of Object.entries(nodes)) {
+        const index = value.dependencies.indexOf(logicalId);
+        if (index > -1) {
+          value.dependencies.splice(index, 1);
+        }
+        if (value.dependencies.length === 0) {
+          startingNodes[key] = value;
+        }
+      }
+    }
+
+    // No remaining stacks
+    expect(Object.getOwnPropertyNames(nodes)).toHaveLength(0);
+    // No remaining edges
+    sortedNodes.forEach(function (node) {
+      expect(node.dependencies).toHaveLength(0);
+    });
+  });
 });
