@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Aws, CfnMapping, Fn, Stack, NestedStack } from 'aws-cdk-lib';
+import { Aws, CfnMapping, CfnResource, Fn, Stack, NestedStack } from 'aws-cdk-lib';
 import { Application, AttributeGroup } from '@aws-cdk/aws-servicecatalogappregistry-alpha';
 import { applyTag } from '../tags/applyTag';
 import { CfnResourceAssociation } from 'aws-cdk-lib/aws-servicecatalogappregistry';
@@ -47,6 +47,7 @@ export class AppRegister {
         resource: nestedStack.stackId,
         resourceType: 'CFN_STACK',
       });
+      association.addDependency(application.node.defaultChild as CfnResource);
 
       // If the nested stack is conditional, the resource association must also be so on the same condition
       association.cfnOptions.condition = nestedStack.nestedStackResource?.cfnOptions.condition;
