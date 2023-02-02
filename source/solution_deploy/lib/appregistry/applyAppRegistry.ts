@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Aws, CfnMapping, Fn, Stack } from 'aws-cdk-lib';
+import { Aws, CfnMapping, Fn, Stack, NestedStack } from 'aws-cdk-lib';
 import { Application, AttributeGroup } from '@aws-cdk/aws-servicecatalogappregistry-alpha';
 import { applyTag } from '../tags/applyTag';
 import { CfnResourceAssociation } from 'aws-cdk-lib/aws-servicecatalogappregistry';
@@ -35,7 +35,7 @@ export class AppRegister {
    * Do not create resource share, it is not needed if spoke accounts are not associated.
    * Do not create ApplicationInsights. This may sometimes fail.
    */
-  public applyAppRegistryToStacks(hubStack: Stack, nestedStacks: Stack[]) {
+  public applyAppRegistryToStacks(hubStack: Stack, nestedStacks: NestedStack[]) {
     const application = this.createAppRegistry(hubStack);
     // Do not create resource share
     // Do not associated spoke stacks, we must allow different regions

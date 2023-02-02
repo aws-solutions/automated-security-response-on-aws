@@ -21,6 +21,8 @@ import {
 import { OrchestratorConstruct } from '../../Orchestrator/lib/common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { OneTrigger } from '../../lib/ssmplaybook';
+import { printDiffOrStringify } from 'jest-matcher-utils';
+import { CfnResource, CfnStack } from 'aws-cdk-lib';
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
   solutionVersion: string;
@@ -33,7 +35,7 @@ export interface SHARRStackProps extends cdk.StackProps {
 
 export class SolutionDeployStack extends cdk.Stack {
   SEND_ANONYMOUS_DATA = 'Yes';
-  nestedStacks: cdk.Stack[] = [];
+  nestedStacks: cdk.NestedStack[] = [];
 
   constructor(scope: cdk.App, id: string, props: SHARRStackProps) {
     super(scope, id, props);
@@ -723,22 +725,24 @@ export class SolutionDeployStack extends cdk.Stack {
           adminStackOption.overrideLogicalId(`Load${parmname}AdminStack`);
           standardLogicalNames.push(`Load${parmname}AdminStack`);
 
-          const adminStack = new cdk.CfnStack(this, `PlaybookAdminStack${file}`, {
-            templateUrl:
-              'https://' +
+          const adminStack = new cdk.NestedStack(this, `PlaybookAdminStack${file}`);
+          const cfnStack = adminStack.nestedStackResource as CfnResource;
+          cfnStack.addPropertyOverride(
+            'TemplateURL',
+            'https://' +
               cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
               '-reference.s3.amazonaws.com/' +
               cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
               '/playbooks/' +
-              template_file,
-          });
-          adminStack.addDependency(stateMachineConstruct);
-          adminStack.addDependency(orchestratorArn);
-
-          adminStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
+              template_file
+          );
+          cfnStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
             expression: cdk.Fn.conditionEquals(adminStackOption, 'yes'),
           });
-          this.nestedStacks.push(cdk.Stack.of(adminStack));
+          adminStack.node.addDependency(stateMachineConstruct);
+          adminStack.node.addDependency(orchestratorArn);
+
+          this.nestedStacks.push(adminStack);
         }
       });
     });
