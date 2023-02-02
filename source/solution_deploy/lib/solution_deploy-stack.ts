@@ -739,8 +739,8 @@ export class SolutionDeployStack extends cdk.Stack {
           cfnStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
             expression: cdk.Fn.conditionEquals(adminStackOption, 'yes'),
           });
-          adminStack.node.addDependency(stateMachineConstruct);
-          adminStack.node.addDependency(orchestratorArn);
+          cfnStack.node.addDependency(stateMachineConstruct);
+          cfnStack.node.addDependency(orchestratorArn);
 
           this.nestedStacks.push(adminStack);
         }
