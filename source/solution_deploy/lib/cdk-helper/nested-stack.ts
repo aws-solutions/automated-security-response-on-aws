@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCondition, CfnMapping, CfnStack } from 'aws-cdk-lib';
+import { CfnCondition, CfnMapping, CfnStack, CfnWaitConditionHandle, Fn } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import setCondition from './set-condition';
 
@@ -16,6 +16,11 @@ export interface NestedStackProps {
   readonly condition?: CfnCondition;
 }
 
+interface ConditionalNestedStack {
+  readonly stack: CfnStack;
+  readonly condition: CfnCondition;
+}
+
 export class SerializedNestedStackFactory extends Construct {
   private readonly scope: Construct;
   private readonly mapping: CfnMapping;
@@ -23,7 +28,7 @@ export class SerializedNestedStackFactory extends Construct {
   private readonly bucketKey = 'S3Bucket';
   private readonly keyPrefixKey = 'KeyPrefix';
   private unconditionalNestedStacks: CfnStack[] = [];
-  private conditionalNestedStacks: CfnStack[] = [];
+  private conditionalNestedStacks: ConditionalNestedStack[] = [];
 
   constructor(scope: Construct, id: string, props: NestedStackFactoryProps) {
     super(scope, id);
@@ -52,11 +57,24 @@ export class SerializedNestedStackFactory extends Construct {
 
     const stack = new CfnStack(this.scope, id, { templateUrl, parameters: props.parameters });
 
-    // TODO set up serial dependency structure
+    this.unconditionalNestedStacks.forEach(function (previousStack: CfnStack) {
+      stack.addDependency(previousStack);
+    });
+
+    if (this.conditionalNestedStacks.length > 0) {
+      const dummyResource = new CfnWaitConditionHandle(this, `Gate${id}`);
+      this.conditionalNestedStacks.forEach(function (previousStack: ConditionalNestedStack) {
+        dummyResource.addMetadata(
+          `${previousStack.stack.logicalId}Ready`,
+          Fn.conditionIf(previousStack.condition.logicalId, Fn.ref(previousStack.stack.logicalId), '')
+        );
+      });
+      stack.addDependency(dummyResource);
+    }
 
     if (props.condition) {
       setCondition(stack, props.condition);
-      this.conditionalNestedStacks.push(stack);
+      this.conditionalNestedStacks.push({ stack, condition: props.condition });
     } else {
       this.unconditionalNestedStacks.push(stack);
     }
