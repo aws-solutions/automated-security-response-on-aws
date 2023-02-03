@@ -2,6 +2,48 @@
 
 exports[`Test if the Stack has all the resources. 1`] = `
 {
+  "Conditions": {
+    "loadAFSBPCond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadAFSBPAdminStack",
+        },
+        "yes",
+      ],
+    },
+    "loadCIS120Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadCIS120AdminStack",
+        },
+        "yes",
+      ],
+    },
+    "loadCIS140Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadCIS140AdminStack",
+        },
+        "yes",
+      ],
+    },
+    "loadPCI321Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadPCI321AdminStack",
+        },
+        "yes",
+      ],
+    },
+    "loadSCCond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadSCAdminStack",
+        },
+        "yes",
+      ],
+    },
+  },
   "Mappings": {
     "SourceCode": {
       "General": {
@@ -22,12 +64,63 @@ exports[`Test if the Stack has all the resources. 1`] = `
           "Label": {
             "default": "Security Standard Playbooks",
           },
-          "Parameters": [],
+          "Parameters": [
+            "LoadAFSBPAdminStack",
+            "LoadCIS120AdminStack",
+            "LoadCIS140AdminStack",
+            "LoadPCI321AdminStack",
+            "LoadSCAdminStack",
+          ],
         },
       ],
     },
   },
   "Parameters": {
+    "LoadAFSBPAdminStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load CloudWatch Event Rules for AFSBP?",
+      "Type": "String",
+    },
+    "LoadCIS120AdminStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load CloudWatch Event Rules for CIS120?",
+      "Type": "String",
+    },
+    "LoadCIS140AdminStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load CloudWatch Event Rules for CIS140?",
+      "Type": "String",
+    },
+    "LoadPCI321AdminStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load CloudWatch Event Rules for PCI321?",
+      "Type": "String",
+    },
+    "LoadSCAdminStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load CloudWatch Event Rules for SC?",
+      "Type": "String",
+    },
     "ReuseOrchestratorLogGroup": {
       "AllowedValues": [
         "yes",
@@ -102,6 +195,186 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317": {
+      "Condition": "loadAFSBPCond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "orchestratorSHARROrchestratorArn0ACC7B05",
+        "orchestratorStateMachine77C3F8FB",
+      ],
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/AFSBPStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookAdminStackCIS120NestedStackPlaybookAdminStackCIS120NestedStackResource21DCA876": {
+      "Condition": "loadCIS120Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "orchestratorSHARROrchestratorArn0ACC7B05",
+        "orchestratorStateMachine77C3F8FB",
+      ],
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/CIS120Stack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookAdminStackCIS140NestedStackPlaybookAdminStackCIS140NestedStackResource54008C57": {
+      "Condition": "loadCIS140Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "orchestratorSHARROrchestratorArn0ACC7B05",
+        "orchestratorStateMachine77C3F8FB",
+      ],
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/CIS140Stack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookAdminStackPCI321NestedStackPlaybookAdminStackPCI321NestedStackResourceB6A45DB0": {
+      "Condition": "loadPCI321Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "orchestratorSHARROrchestratorArn0ACC7B05",
+        "orchestratorStateMachine77C3F8FB",
+      ],
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/PCI321Stack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookAdminStackSCNestedStackPlaybookAdminStackSCNestedStackResource269A112D": {
+      "Condition": "loadSCCond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "orchestratorSHARROrchestratorArn0ACC7B05",
+        "orchestratorStateMachine77C3F8FB",
+      ],
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/SCStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "RemediateWithSharrCustomActionABE4122A": {
       "DeletionPolicy": "Delete",

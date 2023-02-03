@@ -35,7 +35,7 @@ export class AppRegister {
    * Do not create resource share, it is not needed if spoke accounts are not associated.
    * Do not create ApplicationInsights. This may sometimes fail.
    */
-  public applyAppRegistryToStacks(hubStack: Stack, nestedStacks: NestedStack[]) {
+  public applyAppRegistryToStacks(hubStack: Stack, nestedStacks: Stack[]) {
     const application = this.createAppRegistry(hubStack);
     // Do not create resource share
     // Do not associated spoke stacks, we must allow different regions
@@ -47,7 +47,6 @@ export class AppRegister {
         resource: nestedStack.stackId,
         resourceType: 'CFN_STACK',
       });
-      association.addDependency(application.node.defaultChild as CfnResource);
 
       // If the nested stack is conditional, the resource association must also be so on the same condition
       association.cfnOptions.condition = nestedStack.nestedStackResource?.cfnOptions.condition;

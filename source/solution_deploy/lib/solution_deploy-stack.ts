@@ -35,10 +35,11 @@ export interface SHARRStackProps extends cdk.StackProps {
 
 export class SolutionDeployStack extends cdk.Stack {
   SEND_ANONYMOUS_DATA = 'Yes';
-  nestedStacks: cdk.NestedStack[] = [];
+  nestedStacks: cdk.Stack[];
 
   constructor(scope: cdk.App, id: string, props: SHARRStackProps) {
     super(scope, id, props);
+    this.nestedStacks = [];
     const stack = cdk.Stack.of(this);
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
 
@@ -706,45 +707,43 @@ export class SolutionDeployStack extends cdk.Stack {
     const illegalChars = /[\\._]/g;
 
     const standardLogicalNames: string[] = [];
+    const items = fs.readdirSync(PB_DIR);
+    items.forEach((file) => {
+      if (!ignore.includes(file)) {
+        const template_file = `${file}Stack.template`;
 
-    fs.readdir(PB_DIR, (err, items) => {
-      items.forEach((file) => {
-        if (!ignore.includes(file)) {
-          const template_file = `${file}Stack.template`;
+        //---------------------------------------------------------------------
+        // Playbook Admin Template Nested Stack
+        //
+        const parmname = file.replace(illegalChars, '');
+        const adminStackOption = new cdk.CfnParameter(this, `LoadAdminStack${parmname}`, {
+          type: 'String',
+          description: `Load CloudWatch Event Rules for ${file}?`,
+          default: 'yes',
+          allowedValues: ['yes', 'no'],
+        });
+        adminStackOption.overrideLogicalId(`Load${parmname}AdminStack`);
+        standardLogicalNames.push(`Load${parmname}AdminStack`);
 
-          //---------------------------------------------------------------------
-          // Playbook Admin Template Nested Stack
-          //
-          const parmname = file.replace(illegalChars, '');
-          const adminStackOption = new cdk.CfnParameter(this, `LoadAdminStack${parmname}`, {
-            type: 'String',
-            description: `Load CloudWatch Event Rules for ${file}?`,
-            default: 'yes',
-            allowedValues: ['yes', 'no'],
-          });
-          adminStackOption.overrideLogicalId(`Load${parmname}AdminStack`);
-          standardLogicalNames.push(`Load${parmname}AdminStack`);
+        const adminStack = new cdk.NestedStack(this, `PlaybookAdminStack${file}`);
+        const cfnStack = adminStack.nestedStackResource as CfnResource;
+        cfnStack.addPropertyOverride(
+          'TemplateURL',
+          'https://' +
+            cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
+            '-reference.s3.amazonaws.com/' +
+            cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
+            '/playbooks/' +
+            template_file
+        );
+        cfnStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
+          expression: cdk.Fn.conditionEquals(adminStackOption, 'yes'),
+        });
+        cfnStack.node.addDependency(stateMachineConstruct);
+        cfnStack.node.addDependency(orchestratorArn);
 
-          const adminStack = new cdk.NestedStack(this, `PlaybookAdminStack${file}`);
-          const cfnStack = adminStack.nestedStackResource as CfnResource;
-          cfnStack.addPropertyOverride(
-            'TemplateURL',
-            'https://' +
-              cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
-              '-reference.s3.amazonaws.com/' +
-              cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-              '/playbooks/' +
-              template_file
-          );
-          cfnStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
-            expression: cdk.Fn.conditionEquals(adminStackOption, 'yes'),
-          });
-          cfnStack.node.addDependency(stateMachineConstruct);
-          cfnStack.node.addDependency(orchestratorArn);
-
-          this.nestedStacks.push(adminStack);
-        }
-      });
+        this.nestedStacks.push(adminStack as cdk.Stack);
+      }
     });
     stack.templateOptions.metadata = {
       'AWS::CloudFormation::Interface': {
