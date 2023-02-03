@@ -63,7 +63,12 @@ export class AppRegister {
     const map = this.createMap(stack);
 
     const application = new Application(stack, 'AppRegistry', {
-      applicationName: Fn.join('-', [map.findInMap('Data', 'AppRegistryApplicationName'), Aws.REGION, Aws.ACCOUNT_ID]),
+      applicationName: Fn.join('-', [
+        map.findInMap('Data', 'AppRegistryApplicationName'),
+        Aws.STACK_NAME,
+        Aws.REGION,
+        Aws.ACCOUNT_ID,
+      ]),
       description: `Service Catalog application to track and manage all your resources for the solution ${this.solutionName}`,
     });
     application.associateApplicationWithStack(stack);
