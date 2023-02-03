@@ -21,8 +21,6 @@ import {
 import { OrchestratorConstruct } from '../../Orchestrator/lib/common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { OneTrigger } from '../../lib/ssmplaybook';
-import { printDiffOrStringify } from 'jest-matcher-utils';
-import { CfnResource, CfnStack } from 'aws-cdk-lib';
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
   solutionVersion: string;
@@ -726,7 +724,7 @@ export class SolutionDeployStack extends cdk.Stack {
         standardLogicalNames.push(`Load${parmname}AdminStack`);
 
         const adminStack = new cdk.NestedStack(this, `PlaybookAdminStack${file}`);
-        const cfnStack = adminStack.nestedStackResource as CfnResource;
+        const cfnStack = adminStack.nestedStackResource as cdk.CfnResource;
         cfnStack.addPropertyOverride(
           'TemplateURL',
           'https://' +
