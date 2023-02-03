@@ -114,7 +114,8 @@ exports[`test App Orchestrator Construct 1`] = `
     },
   },
   "Resources": {
-    "OrchestratorNestedLogStack5F778DA0": {
+    "OrchestratorNestedLogStackNestedStackNestedLogStackNestedStackResource91223B3E": {
+      "DeletionPolicy": "Delete",
       "Properties": {
         "Parameters": {
           "KmsKeyArn": {
@@ -153,6 +154,7 @@ exports[`test App Orchestrator Construct 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "OrchestratorRole9CF251DB": {
       "DeletionPolicy": "Retain",
@@ -288,7 +290,7 @@ exports[`test App Orchestrator Construct 1`] = `
     },
     "OrchestratorStateMachine1E795392": {
       "DependsOn": [
-        "OrchestratorNestedLogStack5F778DA0",
+        "OrchestratorNestedLogStackNestedStackNestedLogStackNestedStackResource91223B3E",
         "OrchestratorRole9CF251DB",
       ],
       "Metadata": {

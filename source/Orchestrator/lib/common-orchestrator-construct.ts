@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Stack, Duration, RemovalPolicy, CfnParameter, CfnStack, Fn } from 'aws-cdk-lib';
+import { Stack, Duration, RemovalPolicy, CfnParameter, CfnResource, Fn, NestedStack } from 'aws-cdk-lib';
 import { PolicyDocument, PolicyStatement, Role, Effect, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
@@ -24,6 +24,7 @@ export interface ConstructProps {
 }
 
 export class OrchestratorConstruct extends Construct {
+  nestedStack: NestedStack;
   constructor(scope: Construct, id: string, props: ConstructProps) {
     super(scope, id);
 
@@ -39,6 +40,7 @@ export class OrchestratorConstruct extends Construct {
     });
 
     const nestedLogStack = this.createLogStack(props.kmsKeyParm);
+    this.nestedStack = nestedLogStack;
 
     const getDocStateFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'getDocStateFunc', {
       functionArn: props.ssmDocStateLambda,
@@ -490,7 +492,7 @@ export class OrchestratorConstruct extends Construct {
       IncludeExecutionData: true,
       Level: 'ALL',
     });
-    stateMachineConstruct.addDependency(nestedLogStack);
+    stateMachineConstruct.addDependency(nestedLogStack.nestedStackResource as CfnResource);
 
     // Remove the unnecessary Policy created by the L2 StateMachine construct
     const roleToModify = this.node.findChild('Role') as CfnRole;
@@ -504,7 +506,7 @@ export class OrchestratorConstruct extends Construct {
     ]);
   }
 
-  private createLogStack(kmsKeyParm: StringParameter): CfnStack {
+  private createLogStack(kmsKeyParm: StringParameter): NestedStack {
     const reuseOrchLogGroup = new CfnParameter(this, 'Reuse Log Group', {
       type: 'String',
       description: `Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no"`,
@@ -514,17 +516,22 @@ export class OrchestratorConstruct extends Construct {
 
     reuseOrchLogGroup.overrideLogicalId(`ReuseOrchestratorLogGroup`);
 
-    return new CfnStack(this, 'NestedLogStack', {
+    const logStack = new NestedStack(this, 'NestedLogStack', {
       parameters: {
         KmsKeyArn: kmsKeyParm.stringValue,
         ReuseOrchestratorLogGroup: reuseOrchLogGroup.valueAsString,
       },
-      templateUrl:
-        'https://' +
+    });
+    const cfnStack = logStack.nestedStackResource as CfnResource;
+
+    cfnStack.addPropertyOverride(
+      'TemplateURL',
+      'https://' +
         Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
         '-reference.s3.amazonaws.com/' +
         Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-        '/aws-sharr-orchestrator-log.template',
-    });
+        '/aws-sharr-orchestrator-log.template'
+    );
+    return logStack;
   }
 }
