@@ -683,6 +683,8 @@ export class SolutionDeployStack extends cdk.Stack {
       kmsKeyParm: kmsKeyParm,
     });
 
+    this.nestedStacks.push(orchestrator.nestedStack as cdk.Stack);
+
     const orchStateMachine = orchestrator.node.findChild('StateMachine') as StateMachine;
     const stateMachineConstruct = orchStateMachine.node.defaultChild as CfnStateMachine;
     const orchArnParm = orchestrator.node.findChild('SHARR_Orchestrator_Arn') as StringParameter;

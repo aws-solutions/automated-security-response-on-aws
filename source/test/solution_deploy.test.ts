@@ -5,10 +5,19 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { SolutionDeployStack } from '../solution_deploy/lib/solution_deploy-stack';
+import { AppRegister } from '../solution_deploy/lib/appregistry/applyAppRegistry';
 
 function getTestStack(): Stack {
   const envEU = { account: '111111111111', region: 'eu-west-1' };
   const app = new App();
+  const appName = 'automated-security-response-on-aws';
+  const appregistry = new AppRegister({
+    solutionId: 'SO0111',
+    solutionName: appName,
+    solutionVersion: 'v1.0.0',
+    appRegistryApplicationName: appName,
+    applicationType: 'AWS-Solutions',
+  });
   const stack = new SolutionDeployStack(app, 'stack', {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     env: envEU,
@@ -20,6 +29,7 @@ function getTestStack(): Stack {
     runtimePython: Runtime.PYTHON_3_9,
     orchLogGroup: 'ORCH_LOG_GROUP',
   });
+  appregistry.applyAppRegistryToStacks(stack, stack.nestedStacks);
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }

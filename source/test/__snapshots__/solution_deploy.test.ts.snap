@@ -45,6 +45,15 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
   },
   "Mappings": {
+    "Solution": {
+      "Data": {
+        "AppRegistryApplicationName": "automated-security-response-on-aws",
+        "ApplicationType": "AWS-Solutions",
+        "ID": "SO0111",
+        "SolutionName": "automated-security-response-on-aws",
+        "Version": "v1.0.0",
+      },
+    },
     "SourceCode": {
       "General": {
         "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.0.0",
@@ -73,6 +82,39 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
         },
       ],
+    },
+  },
+  "Outputs": {
+    "AppRegistryApplicationManagerUrl775D5C3D": {
+      "Description": "Application manager url for the application created.",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://eu-west-1.console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
+            {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Fn::FindInMap": [
+                      "Solution",
+                      "Data",
+                      "AppRegistryApplicationName",
+                    ],
+                  },
+                  {
+                    "Ref": "AWS::Region",
+                  },
+                  {
+                    "Ref": "AWS::AccountId",
+                  },
+                ],
+              ],
+            },
+          ],
+        ],
+      },
     },
   },
   "Parameters": {
@@ -132,6 +174,207 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
   },
   "Resources": {
+    "AppRegistry968496A3": {
+      "Properties": {
+        "Description": "Service Catalog application to track and manage all your resources for the solution automated-security-response-on-aws",
+        "Name": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Fn::FindInMap": [
+                  "Solution",
+                  "Data",
+                  "AppRegistryApplicationName",
+                ],
+              },
+              {
+                "Ref": "AWS::Region",
+              },
+              {
+                "Ref": "AWS::AccountId",
+              },
+            ],
+          ],
+        },
+        "Tags": {
+          "Solutions:ApplicationType": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ApplicationType",
+            ],
+          },
+          "Solutions:SolutionID": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ID",
+            ],
+          },
+          "Solutions:SolutionName": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "SolutionName",
+            ],
+          },
+          "Solutions:SolutionVersion": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "Version",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::Application",
+    },
+    "AppRegistryAssociation": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "AWS::StackId",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryAttributeGroupAssociation58e755b9eb72544DB135": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "AttributeGroup": {
+          "Fn::GetAtt": [
+            "DefaultApplicationAttributesFC1CC26B",
+            "Id",
+          ],
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
+    },
+    "AppRegistryResourceAssociation142839FB0": {
+      "DependsOn": [
+        "orchestratorNestedLogStackNestedStackNestedLogStackNestedStackResourceE4E042A6",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "orchestratorNestedLogStackNestedStackNestedLogStackNestedStackResourceE4E042A6",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation2BB1A3300": {
+      "Condition": "loadAFSBPCond",
+      "DependsOn": [
+        "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation3BEAC7BB7": {
+      "Condition": "loadCIS120Cond",
+      "DependsOn": [
+        "PlaybookAdminStackCIS120NestedStackPlaybookAdminStackCIS120NestedStackResource21DCA876",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookAdminStackCIS120NestedStackPlaybookAdminStackCIS120NestedStackResource21DCA876",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation46F7B9873": {
+      "Condition": "loadCIS140Cond",
+      "DependsOn": [
+        "PlaybookAdminStackCIS140NestedStackPlaybookAdminStackCIS140NestedStackResource54008C57",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookAdminStackCIS140NestedStackPlaybookAdminStackCIS140NestedStackResource54008C57",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation5FAA30631": {
+      "Condition": "loadPCI321Cond",
+      "DependsOn": [
+        "PlaybookAdminStackPCI321NestedStackPlaybookAdminStackPCI321NestedStackResourceB6A45DB0",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookAdminStackPCI321NestedStackPlaybookAdminStackPCI321NestedStackResourceB6A45DB0",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation62B582FF5": {
+      "Condition": "loadSCCond",
+      "DependsOn": [
+        "PlaybookAdminStackSCNestedStackPlaybookAdminStackSCNestedStackResource269A112D",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookAdminStackSCNestedStackPlaybookAdminStackSCNestedStackResource269A112D",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
     "CreateCustomActionE7A973F5": {
       "DependsOn": [
         "createCustomActionRoleF0047414",
@@ -195,6 +438,45 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "DefaultApplicationAttributesFC1CC26B": {
+      "Properties": {
+        "Attributes": {
+          "applicationType": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ApplicationType",
+            ],
+          },
+          "solutionID": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ID",
+            ],
+          },
+          "solutionName": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "SolutionName",
+            ],
+          },
+          "version": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "Version",
+            ],
+          },
+        },
+        "Description": "Attribute group for solution information",
+        "Name": {
+          "Ref": "AWS::StackName",
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
     "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317": {
       "Condition": "loadAFSBPCond",
@@ -1112,7 +1394,8 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "orchestratorNestedLogStack4DD66790": {
+    "orchestratorNestedLogStackNestedStackNestedLogStackNestedStackResourceE4E042A6": {
+      "DeletionPolicy": "Delete",
       "Properties": {
         "Parameters": {
           "KmsKeyArn": {
@@ -1145,12 +1428,13 @@ exports[`Test if the Stack has all the resources. 1`] = `
                   "KeyPrefix",
                 ],
               },
-              "/aws-sharr-orchestrator-log.template",
+              "/playbooks//aws-sharr-orchestrator-log.template",
             ],
           ],
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "orchestratorPolicy8045810D": {
       "Metadata": {
@@ -1505,7 +1789,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "orchestratorStateMachine77C3F8FB": {
       "DependsOn": [
-        "orchestratorNestedLogStack4DD66790",
+        "orchestratorNestedLogStackNestedStackNestedLogStackNestedStackResourceE4E042A6",
         "orchestratorRole12B410FD",
       ],
       "Metadata": {
