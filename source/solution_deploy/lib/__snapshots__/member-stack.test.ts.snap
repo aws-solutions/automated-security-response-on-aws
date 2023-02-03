@@ -60,6 +60,15 @@ exports[`member stack snapshot matches 1`] = `
         "S3Bucket": "sharrbukkit",
       },
     },
+    "Solution": {
+      "Data": {
+        "AppRegistryApplicationName": "automated-security-response-on-aws",
+        "ApplicationType": "AWS-Solutions",
+        "ID": "SO0111",
+        "SolutionName": "automated-security-response-on-aws",
+        "Version": "v1.0.0",
+      },
+    },
   },
   "Metadata": {
     "AWS::CloudFormation::Interface": {
@@ -89,6 +98,43 @@ exports[`member stack snapshot matches 1`] = `
         "LogGroupName": {
           "default": "Provide the name of the LogGroup to be used to create Metric Filters and Alarms",
         },
+      },
+    },
+  },
+  "Outputs": {
+    "AppRegistryApplicationManagerUrl775D5C3D": {
+      "Description": "Application manager url for the application created.",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "AWS::Region",
+            },
+            ".console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
+            {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Fn::FindInMap": [
+                      "Solution",
+                      "Data",
+                      "AppRegistryApplicationName",
+                    ],
+                  },
+                  {
+                    "Ref": "AWS::Region",
+                  },
+                  {
+                    "Ref": "AWS::AccountId",
+                  },
+                ],
+              ],
+            },
+          ],
+        ],
       },
     },
   },
@@ -158,6 +204,133 @@ exports[`member stack snapshot matches 1`] = `
     },
   },
   "Resources": {
+    "AppRegistry968496A3": {
+      "Properties": {
+        "Description": "Service Catalog application to track and manage all your resources for the solution automated-security-response-on-aws",
+        "Name": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Fn::FindInMap": [
+                  "Solution",
+                  "Data",
+                  "AppRegistryApplicationName",
+                ],
+              },
+              {
+                "Ref": "AWS::Region",
+              },
+              {
+                "Ref": "AWS::AccountId",
+              },
+            ],
+          ],
+        },
+        "Tags": {
+          "Solutions:ApplicationType": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ApplicationType",
+            ],
+          },
+          "Solutions:SolutionID": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ID",
+            ],
+          },
+          "Solutions:SolutionName": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "SolutionName",
+            ],
+          },
+          "Solutions:SolutionVersion": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "Version",
+            ],
+          },
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::Application",
+    },
+    "AppRegistryAssociation": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "AWS::StackId",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryAttributeGroupAssociation8045a8dd9527B814DC7A": {
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "AttributeGroup": {
+          "Fn::GetAtt": [
+            "DefaultApplicationAttributesFC1CC26B",
+            "Id",
+          ],
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
+    },
+    "DefaultApplicationAttributesFC1CC26B": {
+      "Properties": {
+        "Attributes": {
+          "applicationType": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ApplicationType",
+            ],
+          },
+          "solutionID": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "ID",
+            ],
+          },
+          "solutionName": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "SolutionName",
+            ],
+          },
+          "version": {
+            "Fn::FindInMap": [
+              "Solution",
+              "Data",
+              "Version",
+            ],
+          },
+        },
+        "Description": "Attribute group for solution information",
+        "Name": {
+          "Ref": "AWS::StackName",
+        },
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
+    },
     "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B": {
       "Metadata": {
         "PlaybookMemberStackAFSBPReady": {
