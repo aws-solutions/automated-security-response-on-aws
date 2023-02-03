@@ -1428,7 +1428,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
                   "KeyPrefix",
                 ],
               },
-              "/playbooks//aws-sharr-orchestrator-log.template",
+              "/aws-sharr-orchestrator-log.template",
             ],
           ],
         },

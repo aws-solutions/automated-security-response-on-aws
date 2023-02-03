@@ -530,7 +530,6 @@ export class OrchestratorConstruct extends Construct {
         Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
         '-reference.s3.amazonaws.com/' +
         Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-        '/playbooks/' +
         '/aws-sharr-orchestrator-log.template'
     );
     return logStack;

@@ -148,7 +148,7 @@ exports[`test App Orchestrator Construct 1`] = `
                   "KeyPrefix",
                 ],
               },
-              "/playbooks//aws-sharr-orchestrator-log.template",
+              "/aws-sharr-orchestrator-log.template",
             ],
           ],
         },
