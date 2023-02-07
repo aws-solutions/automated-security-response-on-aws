@@ -339,11 +339,11 @@ exports[`member stack snapshot matches 1`] = `
     },
     "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B": {
       "Metadata": {
-        "PlaybookMemberStackAFSBPReady": {
+        "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8Ready": {
           "Fn::If": [
             "loadAFSBPCond",
             {
-              "Ref": "PlaybookMemberStackAFSBP",
+              "Ref": "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8",
             },
             "",
           ],
@@ -353,20 +353,20 @@ exports[`member stack snapshot matches 1`] = `
     },
     "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6": {
       "Metadata": {
-        "PlaybookMemberStackAFSBPReady": {
+        "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8Ready": {
           "Fn::If": [
             "loadAFSBPCond",
             {
-              "Ref": "PlaybookMemberStackAFSBP",
+              "Ref": "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8",
             },
             "",
           ],
         },
-        "PlaybookMemberStackCIS120Ready": {
+        "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77Ready": {
           "Fn::If": [
             "loadCIS120Cond",
             {
-              "Ref": "PlaybookMemberStackCIS120",
+              "Ref": "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77",
             },
             "",
           ],
@@ -376,29 +376,29 @@ exports[`member stack snapshot matches 1`] = `
     },
     "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906": {
       "Metadata": {
-        "PlaybookMemberStackAFSBPReady": {
+        "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8Ready": {
           "Fn::If": [
             "loadAFSBPCond",
             {
-              "Ref": "PlaybookMemberStackAFSBP",
+              "Ref": "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8",
             },
             "",
           ],
         },
-        "PlaybookMemberStackCIS120Ready": {
+        "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77Ready": {
           "Fn::If": [
             "loadCIS120Cond",
             {
-              "Ref": "PlaybookMemberStackCIS120",
+              "Ref": "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77",
             },
             "",
           ],
         },
-        "PlaybookMemberStackCIS140Ready": {
+        "PlaybookMemberStackCIS140NestedStackPlaybookMemberStackCIS140NestedStackResource5B038AD5Ready": {
           "Fn::If": [
             "loadCIS140Cond",
             {
-              "Ref": "PlaybookMemberStackCIS140",
+              "Ref": "PlaybookMemberStackCIS140NestedStackPlaybookMemberStackCIS140NestedStackResource5B038AD5",
             },
             "",
           ],
@@ -408,38 +408,38 @@ exports[`member stack snapshot matches 1`] = `
     },
     "NestedStackFactoryGatePlaybookMemberStackSC0515DB36": {
       "Metadata": {
-        "PlaybookMemberStackAFSBPReady": {
+        "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8Ready": {
           "Fn::If": [
             "loadAFSBPCond",
             {
-              "Ref": "PlaybookMemberStackAFSBP",
+              "Ref": "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8",
             },
             "",
           ],
         },
-        "PlaybookMemberStackCIS120Ready": {
+        "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77Ready": {
           "Fn::If": [
             "loadCIS120Cond",
             {
-              "Ref": "PlaybookMemberStackCIS120",
+              "Ref": "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77",
             },
             "",
           ],
         },
-        "PlaybookMemberStackCIS140Ready": {
+        "PlaybookMemberStackCIS140NestedStackPlaybookMemberStackCIS140NestedStackResource5B038AD5Ready": {
           "Fn::If": [
             "loadCIS140Cond",
             {
-              "Ref": "PlaybookMemberStackCIS140",
+              "Ref": "PlaybookMemberStackCIS140NestedStackPlaybookMemberStackCIS140NestedStackResource5B038AD5",
             },
             "",
           ],
         },
-        "PlaybookMemberStackPCI321Ready": {
+        "PlaybookMemberStackPCI321NestedStackPlaybookMemberStackPCI321NestedStackResource1FC6B290Ready": {
           "Fn::If": [
             "loadPCI321Cond",
             {
-              "Ref": "PlaybookMemberStackPCI321",
+              "Ref": "PlaybookMemberStackPCI321NestedStackPlaybookMemberStackPCI321NestedStackResource1FC6B290",
             },
             "",
           ],
@@ -447,10 +447,11 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
-    "PlaybookMemberStackAFSBP": {
+    "PlaybookMemberStackAFSBPNestedStackPlaybookMemberStackAFSBPNestedStackResourceE0E577A8": {
       "Condition": "loadAFSBPCond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -484,12 +485,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookMemberStackCIS120": {
+    "PlaybookMemberStackCIS120NestedStackPlaybookMemberStackCIS120NestedStackResource82B32A77": {
       "Condition": "loadCIS120Cond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -523,12 +526,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookMemberStackCIS140": {
+    "PlaybookMemberStackCIS140NestedStackPlaybookMemberStackCIS140NestedStackResource5B038AD5": {
       "Condition": "loadCIS140Cond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -562,12 +567,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookMemberStackPCI321": {
+    "PlaybookMemberStackPCI321NestedStackPlaybookMemberStackPCI321NestedStackResource1FC6B290": {
       "Condition": "loadPCI321Cond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -601,12 +608,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookMemberStackSC": {
+    "PlaybookMemberStackSCNestedStackPlaybookMemberStackSCNestedStackResource97321732": {
       "Condition": "loadSCCond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackSC0515DB36",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -640,8 +649,10 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
-    "RunbookStackNoRoles": {
+    "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD": {
+      "DeletionPolicy": "Delete",
       "Properties": {
         "TemplateURL": {
           "Fn::Join": [
@@ -669,6 +680,7 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "S3BucketForRedShiftAuditLogging652E7355": {
       "Condition": "EnableS3BucketForRedShift4",

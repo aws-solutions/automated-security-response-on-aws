@@ -20,6 +20,7 @@ export interface SolutionProps extends StackProps {
 }
 
 export class MemberStack extends Stack {
+  nestedStacks: Stack[] = [];
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
 
@@ -64,13 +65,14 @@ export class MemberStack extends Stack {
         memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
         listOfPlaybooks.push(memberStackOption.logicalId);
 
-        nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
+        const nestedStack = nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
           templateRelativePath: `playbooks/${templateFile}`,
           parameters: { SecHubAdminAccount: adminAccountParam.value },
           condition: new CfnCondition(this, `load${file}Cond`, {
             expression: Fn.conditionEquals(memberStackOption, 'yes'),
           }),
         });
+        this.nestedStacks.push(nestedStack as Stack);
       }
     });
 
