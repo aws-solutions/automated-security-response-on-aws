@@ -3,7 +3,7 @@
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { CfnCondition, CfnParameter, Fn } from 'aws-cdk-lib';
+import { CfnCondition, CfnCustomResource, CfnParameter, CustomResource, Fn } from 'aws-cdk-lib';
 
 import * as cis_140_1_8 from '../ssmdocs/CIS140_1.8';
 import * as cis_140_1_12 from '../ssmdocs/CIS140_1.12';
@@ -22,6 +22,7 @@ import * as cis_140_3_8 from '../ssmdocs/CIS140_3.8';
 import * as cis_140_3_9 from '../ssmdocs/CIS140_3.9';
 import * as cis_140_4_1 from '../ssmdocs/CIS140_4.1';
 import * as cis_140_5_3 from '../ssmdocs/CIS140_5.3';
+import { SsmDocumentWaitProvider } from '../../../solution_deploy/lib/member/wait-provider';
 
 export interface ControlRunbooksProps {
   standardShortName: string;
@@ -31,18 +32,22 @@ export interface ControlRunbooksProps {
   solutionId: string;
   solutionAcronym: string;
   solutionVersion: string;
+  waitProvider: SsmDocumentWaitProvider;
 }
 
 export class ControlRunbooks extends Construct {
   protected readonly standardLongName: string;
   protected readonly standardVersion: string;
   protected controls: Set<string> = new Set<string>();
+  protected waitProvider: SsmDocumentWaitProvider;
+  private previousWaitResource: CustomResource | undefined;
 
   constructor(scope: Construct, id: string, props: ControlRunbooksProps) {
     super(scope, id);
 
     this.standardLongName = props.standardLongName;
     this.standardVersion = props.standardVersion;
+    this.waitProvider = props.waitProvider;
 
     this.add(cis_140_1_8.createControlRunbook(this, '1.8', props));
     this.add(cis_140_1_12.createControlRunbook(this, '1.12', props));
@@ -79,6 +84,17 @@ export class ControlRunbooks extends Construct {
     });
 
     document.cfnDocument.cfnOptions.condition = installSsmDoc;
+
+    const waitResource = this.waitProvider.createWaitResource(this, `Wait${controlId}`, {
+      document: document.cfnDocument,
+    });
+    document.cfnDocument.addDependency(waitResource.node.defaultChild as CfnCustomResource);
+
+    if (this.previousWaitResource) {
+      waitResource.node.addDependency(this.previousWaitResource.node.defaultChild as CfnCustomResource);
+    }
+
+    this.previousWaitResource = waitResource;
 
     this.controls.add(document.getControlId());
   }

@@ -441,10 +441,16 @@ exports[`default stack 2`] = `
       "Description": "Admin account number",
       "Type": "String",
     },
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
   },
   "Resources": {
     "ControlCIS13": {
       "Condition": "Enable13Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitCIS1342939E39",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -764,6 +770,9 @@ def parse_event(event, context):
     },
     "ControlCIS15": {
       "Condition": "Enable15Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitCIS152572AA0C",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1095,6 +1104,9 @@ def parse_event(event, context):
     },
     "ControlCIS21": {
       "Condition": "Enable21Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitCIS21A1B77688",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1424,6 +1436,54 @@ def parse_event(event, context):
         "Value": "4.1",
       },
       "Type": "AWS::SSM::Parameter",
+    },
+    "RunbookFactoryWaitCIS1342939E39": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "114f0e66dd8ec933871c43328b2954be44640a438dae85fac059ab225634cb8c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "RunbookFactoryWaitCIS152572AA0C": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "RunbookFactoryWaitCIS1342939E39",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "4b1d7aad8f9d5866e68ab1428f8c014a632fc239dbae9b59756722f777c03bbd",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "RunbookFactoryWaitCIS21A1B77688": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "RunbookFactoryWaitCIS152572AA0C",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "7adc5c8288d535bf80a40ef5ee2fe443dad25dff1c65e47e8f93948a4361738a",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }

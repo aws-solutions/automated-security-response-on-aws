@@ -374,10 +374,16 @@ exports[`member stack 1`] = `
       "Description": "Admin account number",
       "Type": "String",
     },
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
   },
   "Resources": {
     "ControlNPBRDS6": {
       "Condition": "EnableRDS6Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitNPBRDS6BBC073F6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -733,6 +739,20 @@ def verify_remediation(event, context):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "RunbookFactoryWaitNPBRDS6BBC073F6": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "4900a2c90d8700cdf3813530a248bcf245192d4bcbc40eabe549ebde81645649",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }

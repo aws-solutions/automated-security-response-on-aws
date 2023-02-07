@@ -23,6 +23,7 @@ import { RemediationRunbookFactory } from './runbook_factory';
 import { SNS2DeliveryStatusLoggingRole } from '../../remediation_runbooks/sns2-remediation-resources';
 import { SsmRole } from '../../lib/ssmplaybook';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { CfnParameter } from 'aws-cdk-lib';
 
 export interface MemberRoleStackProps extends cdk.StackProps {
   readonly solutionId: string;
@@ -76,7 +77,11 @@ export class RemediationRunbookStack extends cdk.Stack {
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
     const remediationRoleNameBase = `${RESOURCE_PREFIX}-`;
 
-    const runbookFactory = new RemediationRunbookFactory(this, 'RunbookFactory');
+    const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
+
+    const runbookFactory = new RemediationRunbookFactory(this, 'RunbookFactory', {
+      waitProviderServiceToken: waitProviderServiceTokenParam.valueAsString,
+    });
 
     //-----------------------
     // CreateCloudTrailMultiRegionTrail

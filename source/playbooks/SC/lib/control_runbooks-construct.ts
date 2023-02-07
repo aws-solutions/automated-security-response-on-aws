@@ -3,7 +3,7 @@
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { ControlRunbookDocument } from '../ssmdocs/control_runbook';
-import { CfnCondition, CfnParameter, Fn } from 'aws-cdk-lib';
+import { CfnCondition, CfnCustomResource, CfnParameter, CustomResource, Fn } from 'aws-cdk-lib';
 
 import * as autoscaling_1 from '../ssmdocs/SC_AutoScaling.1';
 import * as cloudformation_1 from '../ssmdocs/SC_CloudFormation.1';
@@ -48,6 +48,7 @@ import * as s3_6 from '../ssmdocs/SC_S3.6';
 import * as sqs_1 from '../ssmdocs/SC_SQS.1';
 import * as sns_1 from '../ssmdocs/SC_SNS.1';
 import * as sns_2 from '../ssmdocs/SC_SNS.2';
+import { SsmDocumentWaitProvider } from '../../../solution_deploy/lib/member/wait-provider';
 
 export interface PlaybookProps {
   standardShortName: string;
@@ -57,18 +58,22 @@ export interface PlaybookProps {
   solutionId: string;
   solutionAcronym: string;
   solutionVersion: string;
+  waitProvider: SsmDocumentWaitProvider;
 }
 
 export class ControlRunbooks extends Construct {
   protected readonly standardLongName: string;
   protected readonly standardVersion: string;
   protected controls: Set<string> = new Set<string>();
+  protected waitProvider: SsmDocumentWaitProvider;
+  private previousWaitResource: CustomResource | undefined;
 
   constructor(scope: Construct, id: string, props: PlaybookProps) {
     super(scope, id);
 
     this.standardLongName = props.standardLongName;
     this.standardVersion = props.standardVersion;
+    this.waitProvider = props.waitProvider;
 
     this.add(autoscaling_1.createControlRunbook(this, 'AutoScaling.1', props));
     this.add(cloudformation_1.createControlRunbook(this, 'CloudFormation.1', props));
@@ -131,6 +136,17 @@ export class ControlRunbooks extends Construct {
     });
 
     document.cfnDocument.cfnOptions.condition = installSsmDoc;
+
+    const waitResource = this.waitProvider.createWaitResource(this, `Wait${controlId}`, {
+      document: document.cfnDocument,
+    });
+    document.cfnDocument.addDependency(waitResource.node.defaultChild as CfnCustomResource);
+
+    if (this.previousWaitResource) {
+      waitResource.node.addDependency(this.previousWaitResource.node.defaultChild as CfnCustomResource);
+    }
+
+    this.previousWaitResource = waitResource;
 
     this.controls.add(document.getControlId());
   }

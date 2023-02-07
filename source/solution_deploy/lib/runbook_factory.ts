@@ -6,6 +6,8 @@ import { Policy } from 'aws-cdk-lib/aws-iam';
 import { CfnDocument } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as yaml from 'js-yaml';
+import { SsmDocumentWaitProvider } from './member/wait-provider';
+import { CfnCondition, CfnCustomResource, CfnWaitConditionHandle, CustomResource, Fn } from 'aws-cdk-lib';
 
 export interface IssmPlaybookProps {
   securityStandard: string; // ex. AFSBP
@@ -34,7 +36,22 @@ export interface RemediationRunbookProps {
   scriptPath?: string;
 }
 
+export interface RemediationRunbookFactoryProps {
+  readonly waitProviderServiceToken: string;
+}
+
 export class ControlRunbookFactory extends Construct {
+  private readonly waitProvider: SsmDocumentWaitProvider;
+  private previousWaitResource: CustomResource | undefined;
+
+  constructor(scope: Construct, id: string, props: RemediationRunbookFactoryProps) {
+    super(scope, id);
+
+    this.waitProvider = new SsmDocumentWaitProvider(this, 'WaitProvider', {
+      serviceToken: props.waitProviderServiceToken,
+    });
+  }
+
   createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
     let scriptPath = '';
     if (props.scriptPath == undefined) {
@@ -99,11 +116,30 @@ export class ControlRunbookFactory extends Construct {
 
     ssmDoc.cfnOptions.condition = installSsmDoc;
 
+    const waitResource = this.waitProvider.createWaitResource(this, `Wait${id}`, { document: ssmDoc });
+    ssmDoc.addDependency(waitResource.node.defaultChild as CfnCustomResource);
+
+    if (this.previousWaitResource) {
+      waitResource.node.addDependency(this.previousWaitResource.node.defaultChild as CfnCustomResource);
+    }
+
+    this.previousWaitResource = waitResource;
+
     return ssmDoc;
   }
 }
 
 export class RemediationRunbookFactory extends Construct {
+  private readonly waitProvider: SsmDocumentWaitProvider;
+  private previousWaitResource: CustomResource | undefined;
+
+  constructor(scope: Construct, id: string, props: RemediationRunbookFactoryProps) {
+    super(scope, id);
+
+    this.waitProvider = new SsmDocumentWaitProvider(this, 'WaitProvider', {
+      serviceToken: props.waitProviderServiceToken,
+    });
+  }
   createRemediationRunbook(scope: Construct, id: string, props: RemediationRunbookProps) {
     const ssmDocName = `ASR-${props.ssmDocName}`;
     let scriptPath = '';
@@ -140,6 +176,15 @@ export class RemediationRunbookFactory extends Construct {
       name: ssmDocName,
       updateMethod: 'NewVersion',
     });
+
+    const waitResource = this.waitProvider.createWaitResource(this, `Wait${id}`, { document: runbook });
+    runbook.addDependency(waitResource.node.defaultChild as CfnCustomResource);
+
+    if (this.previousWaitResource) {
+      waitResource.node.addDependency(this.previousWaitResource.node.defaultChild as CfnCustomResource);
+    }
+
+    this.previousWaitResource = waitResource;
 
     return runbook;
   }

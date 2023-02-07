@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Stack, CfnMapping, App, StackProps } from 'aws-cdk-lib';
+import { Stack, CfnMapping, App, StackProps, CfnParameter } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from '../../../lib/ssmplaybook';
 import { Construct } from 'constructs';
@@ -8,6 +8,7 @@ import { ControlRunbooks } from './control_runbooks-construct';
 import AdminAccountParam from '../../../lib/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { IControl } from '../../../lib/sharrplaybook-construct';
+import { SsmDocumentWaitProvider } from '../../../solution_deploy/lib/member/wait-provider';
 
 export interface SecurityControlsPlaybookProps extends StackProps {
   solutionId: string;
@@ -96,6 +97,12 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
     // Not used, but required by top-level member stack
     new AdminAccountParam(this, 'AdminAccountParameter');
 
+    const waitProviderServiceToken = new CfnParameter(this, 'WaitProviderServiceToken');
+
+    const waitProvider = new SsmDocumentWaitProvider(this, 'WaitProvider', {
+      serviceToken: waitProviderServiceToken.valueAsString,
+    });
+
     const controlRunbooks = new ControlRunbooks(this, 'ControlRunbooks', {
       standardShortName: props.securityStandard,
       standardLongName: props.securityStandardLongName,
@@ -104,6 +111,7 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
       solutionId: props.solutionId,
       solutionAcronym: 'ASR',
       solutionVersion: props.solutionVersion,
+      waitProvider,
     });
 
     // Make sure all known controls have runbooks

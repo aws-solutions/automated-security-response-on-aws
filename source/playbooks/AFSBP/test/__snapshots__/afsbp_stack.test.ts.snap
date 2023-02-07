@@ -62,10 +62,16 @@ exports[`Member Stack - AFSBP 1`] = `
       "Description": "Admin account number",
       "Type": "String",
     },
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
   },
   "Resources": {
     "ControlAFSBPEC21": {
       "Condition": "EnableEC21Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitAFSBPEC219EC604F5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -383,6 +389,9 @@ def parse_event(event, context):
     },
     "ControlAFSBPLambda1": {
       "Condition": "EnableLambda1Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitAFSBPLambda1D1E3CE83",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -720,6 +729,9 @@ def parse_event(event, context):
     },
     "ControlAFSBPRDS1": {
       "Condition": "EnableRDS1Condition",
+      "DependsOn": [
+        "RunbookFactoryWaitAFSBPRDS14E5989A9",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1065,6 +1077,54 @@ def parse_event(event, context):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "RunbookFactoryWaitAFSBPEC219EC604F5": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "a072269dc9c0e25a4cb7fb304b40ac5179ebee765518f9783a1dd74fa642c86e",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "RunbookFactoryWaitAFSBPLambda1D1E3CE83": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "RunbookFactoryWaitAFSBPRDS14E5989A9",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "dc3b76413ca4de4bde1dfbfc1c88505bf997b1ad6f83c44ecf7887a2a0012bcd",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "RunbookFactoryWaitAFSBPRDS14E5989A9": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "RunbookFactoryWaitAFSBPEC219EC604F5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "a173fa97f4b37b0897a59f26fe36d757301ab042446738d60c150bab91dcfb01",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }

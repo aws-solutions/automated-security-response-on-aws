@@ -10,6 +10,7 @@ import { MemberLogGroup } from './member/log-group';
 import { MemberBucketEncryption } from './member/bucket-encryption';
 import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
+import { SsmDocumentWaitProvider } from './member/wait-provider';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -35,6 +36,13 @@ export class MemberStack extends Stack {
 
     new MemberBucketEncryption(this, 'MemberBucketEncryption', { solutionId: props.solutionId });
 
+    const waitProvider = new SsmDocumentWaitProvider(this, 'WaitProvider', {
+      runtimePython: props.runtimePython,
+      solutionDistBucket: props.solutionDistBucket,
+      solutionTMN: props.solutionTMN,
+      solutionVersion: props.solutionVersion,
+    });
+
     const nestedStackFactory = new SerializedNestedStackFactory(this, 'NestedStackFactory', {
       solutionDistBucket: props.solutionDistBucket,
       solutionTMN: props.solutionTMN,
@@ -43,6 +51,7 @@ export class MemberStack extends Stack {
 
     nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
       templateRelativePath: 'aws-sharr-remediations.template',
+      parameters: { WaitProviderServiceToken: waitProvider.serviceToken },
     });
 
     const playbookDirectory = `${__dirname}/../../playbooks`;
@@ -66,7 +75,10 @@ export class MemberStack extends Stack {
 
         nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
           templateRelativePath: `playbooks/${templateFile}`,
-          parameters: { SecHubAdminAccount: adminAccountParam.value },
+          parameters: {
+            SecHubAdminAccount: adminAccountParam.value,
+            WaitProviderServiceToken: waitProvider.serviceToken,
+          },
           condition: new CfnCondition(this, `load${file}Cond`, {
             expression: Fn.conditionEquals(memberStackOption, 'yes'),
           }),

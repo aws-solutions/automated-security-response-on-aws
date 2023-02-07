@@ -12,7 +12,7 @@ import { Trigger } from './ssmplaybook';
 import AdminAccountParam from './admin-account-param';
 import { ControlRunbookFactory } from '../solution_deploy/lib/runbook_factory';
 import { Construct } from 'constructs';
-import { StackProps } from 'aws-cdk-lib';
+import { CfnParameter, StackProps } from 'aws-cdk-lib';
 
 export interface IControl {
   control: string;
@@ -120,7 +120,11 @@ export class PlaybookMemberStack extends cdk.Stack {
 
     new AdminAccountParam(this, 'AdminAccountParameter');
 
-    const runbookFactory = new ControlRunbookFactory(this, 'RunbookFactory');
+    const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
+
+    const runbookFactory = new ControlRunbookFactory(this, 'RunbookFactory', {
+      waitProviderServiceToken: waitProviderServiceTokenParam.valueAsString,
+    });
 
     const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control
