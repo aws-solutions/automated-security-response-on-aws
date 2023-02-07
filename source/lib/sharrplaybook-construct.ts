@@ -120,10 +120,12 @@ export class PlaybookMemberStack extends cdk.Stack {
 
     new AdminAccountParam(this, 'AdminAccountParameter');
 
+    const runbookFactory = new RunbookFactory(this, 'RunbookFactory');
+
     const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control
       if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
-        RunbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
+        runbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
           securityStandard: props.securityStandard,
           securityStandardVersion: props.securityStandardVersion,
           controlId: controlSpec.control,

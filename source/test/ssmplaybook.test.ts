@@ -13,8 +13,8 @@ function getSsmPlaybook(): Stack {
   const stack = new Stack(app, 'MyTestStack', {
     stackName: 'testStack',
   });
-  new RunbookFactory(stack, 'RunbookFactory');
-  RunbookFactory.createControlRunbook(stack, 'Playbook', {
+  const runbookFactory = new RunbookFactory(stack, 'RunbookFactory');
+  runbookFactory.createControlRunbook(stack, 'Playbook', {
     securityStandard: 'SECTEST',
     securityStandardVersion: '1.2.3',
     controlId: 'TEST.1',
@@ -68,8 +68,8 @@ function getSsmRemediationRunbook(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
   });
-  new RunbookFactory(stack, 'RunbookFactory');
-  RunbookFactory.createRemediationRunbook(stack, 'Playbook', {
+  const runbookFactory = new RunbookFactory(stack, 'RunbookFactory');
+  runbookFactory.createRemediationRunbook(stack, 'Playbook', {
     ssmDocName: 'blahblahblah',
     ssmDocPath: 'test/test_data/',
     ssmDocFileName: 'tstest-cis29.yaml',

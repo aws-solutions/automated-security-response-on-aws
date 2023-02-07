@@ -39,7 +39,7 @@ export class RunbookFactory extends Construct {
     super(scope, id);
   }
 
-  static createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
+  createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
     let scriptPath = '';
     if (props.scriptPath == undefined) {
       scriptPath = `${props.ssmDocPath}/scripts`;
@@ -106,7 +106,7 @@ export class RunbookFactory extends Construct {
     return ssmDoc;
   }
 
-  static createRemediationRunbook(scope: Construct, id: string, props: RemediationRunbookProps) {
+  createRemediationRunbook(scope: Construct, id: string, props: RemediationRunbookProps) {
     const ssmDocName = `ASR-${props.ssmDocName}`;
     let scriptPath = '';
     if (props.scriptPath == undefined) {
