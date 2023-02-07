@@ -42,9 +42,11 @@ export class MemberStack extends Stack {
       solutionVersion: props.solutionVersion,
     });
 
-    nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
+    const nestedStackNoRoles = nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
       templateRelativePath: 'aws-sharr-remediations.template',
     });
+
+    this.nestedStacks.push(nestedStackNoRoles as Stack);
 
     const playbookDirectory = `${__dirname}/../../playbooks`;
     const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
