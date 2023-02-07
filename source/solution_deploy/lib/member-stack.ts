@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { readdirSync } from 'fs';
-import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn } from 'aws-cdk-lib';
+import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnResource } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from '../../lib/admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
@@ -74,6 +74,8 @@ export class MemberStack extends Stack {
             expression: Fn.conditionEquals(memberStackOption, 'yes'),
           }),
         });
+        const cfnResource = nestedStack.nestedStackResource as CfnResource;
+        cfnResource.overrideLogicalId(`PlaybookMemberStack${file}`);
         this.nestedStacks.push(nestedStack as Stack);
       }
     });
