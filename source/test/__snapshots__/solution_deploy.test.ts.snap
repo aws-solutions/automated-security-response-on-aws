@@ -104,6 +104,9 @@ exports[`Test if the Stack has all the resources. 1`] = `
                     ],
                   },
                   {
+                    "Ref": "AWS::StackName",
+                  },
+                  {
                     "Ref": "AWS::Region",
                   },
                   {
@@ -187,6 +190,9 @@ exports[`Test if the Stack has all the resources. 1`] = `
                   "Data",
                   "AppRegistryApplicationName",
                 ],
+              },
+              {
+                "Ref": "AWS::StackName",
               },
               {
                 "Ref": "AWS::Region",

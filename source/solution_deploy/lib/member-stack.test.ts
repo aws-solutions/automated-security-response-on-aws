@@ -5,6 +5,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { MemberStack } from './member-stack';
+import { AppRegister } from '../lib/appregistry/applyAppRegistry';
 
 const description = 'ASR Member Stack';
 const solutionId = 'SO9999';
@@ -14,6 +15,14 @@ const solutionDistBucket = 'sharrbukkit';
 
 function getMemberStack(): Stack {
   const app = new App();
+  const appName = 'automated-security-response-on-aws';
+  const appregistry = new AppRegister({
+    solutionId: 'SO0111',
+    solutionName: appName,
+    solutionVersion: 'v1.0.0',
+    appRegistryApplicationName: appName,
+    applicationType: 'AWS-Solutions',
+  });
   const stack = new MemberStack(app, 'MemberStack', {
     analyticsReporting: false,
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -24,6 +33,7 @@ function getMemberStack(): Stack {
     solutionDistBucket,
     runtimePython: Runtime.PYTHON_3_9,
   });
+  appregistry.applyAppRegistryToStacks(stack, []);
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
