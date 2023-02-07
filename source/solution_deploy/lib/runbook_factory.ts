@@ -35,10 +35,6 @@ export interface RemediationRunbookProps {
 }
 
 export class RunbookFactory extends Construct {
-  constructor(scope: Construct, id: string) {
-    super(scope, id);
-  }
-
   createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
     let scriptPath = '';
     if (props.scriptPath == undefined) {
