@@ -5,7 +5,7 @@ import { Policy, PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { SsmRole } from '../lib/ssmplaybook';
-import { RunbookFactory } from '../solution_deploy/lib/runbook_factory';
+import { ControlRunbookFactory, RemediationRunbookFactory } from '../solution_deploy/lib/runbook_factory';
 import { MemberRoleStack } from '../solution_deploy/lib/remediation_runbook-stack';
 
 function getSsmPlaybook(): Stack {
@@ -13,7 +13,7 @@ function getSsmPlaybook(): Stack {
   const stack = new Stack(app, 'MyTestStack', {
     stackName: 'testStack',
   });
-  const runbookFactory = new RunbookFactory(stack, 'RunbookFactory');
+  const runbookFactory = new ControlRunbookFactory(stack, 'RunbookFactory');
   runbookFactory.createControlRunbook(stack, 'Playbook', {
     securityStandard: 'SECTEST',
     securityStandardVersion: '1.2.3',
@@ -68,7 +68,7 @@ function getSsmRemediationRunbook(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
   });
-  const runbookFactory = new RunbookFactory(stack, 'RunbookFactory');
+  const runbookFactory = new RemediationRunbookFactory(stack, 'RunbookFactory');
   runbookFactory.createRemediationRunbook(stack, 'Playbook', {
     ssmDocName: 'blahblahblah',
     ssmDocPath: 'test/test_data/',

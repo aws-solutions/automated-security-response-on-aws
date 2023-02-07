@@ -19,7 +19,7 @@ import {
 import { OrchestratorMemberRole } from '../../lib/orchestrator_roles-construct';
 import AdminAccountParam from '../../lib/admin-account-param';
 import { Rds6EnhancedMonitoringRole } from '../../remediation_runbooks/rds6-remediation-resources';
-import { RunbookFactory } from './runbook_factory';
+import { RemediationRunbookFactory } from './runbook_factory';
 import { SNS2DeliveryStatusLoggingRole } from '../../remediation_runbooks/sns2-remediation-resources';
 import { SsmRole } from '../../lib/ssmplaybook';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
@@ -76,7 +76,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
     const remediationRoleNameBase = `${RESOURCE_PREFIX}-`;
 
-    const runbookFactory = new RunbookFactory(this, 'RunbookFactory');
+    const runbookFactory = new RemediationRunbookFactory(this, 'RunbookFactory');
 
     //-----------------------
     // CreateCloudTrailMultiRegionTrail
