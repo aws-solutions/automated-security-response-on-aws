@@ -335,7 +335,7 @@ exports[`member stack snapshot matches 1`] = `
           "Fn::Join": [
             "",
             [
-              "ASR",
+              "ASR-",
               {
                 "Ref": "AWS::StackName",
               },

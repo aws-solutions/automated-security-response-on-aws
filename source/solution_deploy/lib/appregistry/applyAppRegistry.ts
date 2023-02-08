@@ -74,7 +74,7 @@ export class AppRegister {
     application.associateApplicationWithStack(stack);
 
     const attributeGroup = new AttributeGroup(stack, 'DefaultApplicationAttributes', {
-      attributeGroupName: 'ASR' + Aws.STACK_NAME,
+      attributeGroupName: 'ASR-' + Aws.STACK_NAME,
       description: 'Attribute group for solution information',
       attributes: {
         applicationType: map.findInMap('Data', 'ApplicationType'),

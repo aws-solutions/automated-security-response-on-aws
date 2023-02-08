@@ -482,7 +482,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           "Fn::Join": [
             "",
             [
-              "ASR",
+              "ASR-",
               {
                 "Ref": "AWS::StackName",
               },
