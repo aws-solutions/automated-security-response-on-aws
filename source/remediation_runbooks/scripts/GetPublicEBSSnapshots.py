@@ -15,7 +15,7 @@ boto_config = Config(
 def connect_to_ec2(boto_config):
     return boto3.client('ec2', config=boto_config)
 
-def get_public_snapshots(event, context):
+def get_public_snapshots(event, _):
     account_id = event['account_id']
 
     if 'testmode' in event and event['testmode']:

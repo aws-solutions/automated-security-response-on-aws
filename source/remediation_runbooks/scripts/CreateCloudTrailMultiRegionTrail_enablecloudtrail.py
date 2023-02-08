@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 def connect_to_cloudtrail(boto_config):
     return boto3.client('cloudtrail', config=boto_config)
 
-def enable_cloudtrail(event, context):
+def enable_cloudtrail(event, _):
 
     boto_config = Config(
         retries ={

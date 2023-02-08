@@ -64,7 +64,7 @@ def wait_for_flowlogs(client, wait_interval, max_retries, loggroup):
         if attempts > max_retries:
             exit(f'Timeout waiting for flowlogs to log group {loggroup} to become active')
 
-def enable_flow_logs(event, context):
+def enable_flow_logs(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map

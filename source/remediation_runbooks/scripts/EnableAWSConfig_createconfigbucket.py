@@ -146,7 +146,7 @@ def create_bucket_policy(config_bucket, aws_partition):
     except Exception as e:
         exit(f'ERROR: PutBucketPolicy failed for {config_bucket}: {str(e)}')
 
-def create_encrypted_bucket(event, context):
+def create_encrypted_bucket(event, _):
 
     kms_key_arn = event['kms_key_arn']
     aws_partition = event['partition']

@@ -76,7 +76,7 @@ def verify_expired_credentials_revoked(responses, user_name):
         "http_responses": responses
     }
 
-def unrotated_key_handler(event, context):
+def unrotated_key_handler(event, _):
     user_name = get_user_name(event.get("IAMResourceId"))
     max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
     access_keys = list_access_keys(user_name)

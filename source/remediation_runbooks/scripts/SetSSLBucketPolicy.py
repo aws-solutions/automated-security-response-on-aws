@@ -38,7 +38,7 @@ def new_policy():
         "Statement": []
     }
 
-def add_ssl_bucket_policy(event, context):
+def add_ssl_bucket_policy(event, _):
     bucket_name = event['bucket']
     account_id = event['accountid']
     aws_partition = event['partition']

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import json
 
-def event_handler(event, context):
+def event_handler(event, _):
     try:
         return json.loads(event['SerializedJson'])
     except Exception as e:

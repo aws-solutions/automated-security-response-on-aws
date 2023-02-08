@@ -268,7 +268,7 @@ class FindingEvent:
 '''
 MAIN
 '''
-def parse_event(event, context):
+def parse_event(event, _):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
 
     if not finding_event.valid_finding:
@@ -587,7 +587,7 @@ class FindingEvent:
 '''
 MAIN
 '''
-def parse_event(event, context):
+def parse_event(event, _):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
 
     if not finding_event.valid_finding:
@@ -922,7 +922,7 @@ class FindingEvent:
 '''
 MAIN
 '''
-def parse_event(event, context):
+def parse_event(event, _):
     finding_event = FindingEvent(event['Finding'], event['parse_id_pattern'], event['expected_control_id'], event.get('resource_index', 1))
 
     if not finding_event.valid_finding:

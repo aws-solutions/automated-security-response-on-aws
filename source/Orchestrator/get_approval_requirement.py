@@ -124,7 +124,7 @@ def _doc_is_active(doc, account):
         LOGGER.error('An unhandled error occurred: ' + str(e))
         return False
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     answer.update({
         'workflowdoc': '',

@@ -134,7 +134,7 @@ class DenyStatement:
         if self.deny_statement_json["Resource"] and not resource_arn in self.deny_statement_json.Resource:
             self.deny_statement_json["Resource"].append(resource_arn)
 
-def update_bucket_policy(event, context):
+def update_bucket_policy(event, _):
     def __get_bucket_from_event(event):
         bucket = event.get('bucket') or exit('Bucket not specified')
         return bucket

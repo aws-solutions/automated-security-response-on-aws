@@ -112,7 +112,7 @@ def valid_automation_doc(automation_doc):
        "ControlId" in automation_doc and \
        "AccountId" in automation_doc
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     automation_doc = event['AutomationDocument']
 

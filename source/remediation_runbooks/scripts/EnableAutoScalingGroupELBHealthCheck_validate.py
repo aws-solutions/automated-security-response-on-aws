@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 def connect_to_autoscaling(boto_config):
     return boto3.client('autoscaling', config=boto_config)
 
-def verify(event, context):
+def verify(event, _):
 
     boto_config = Config(
         retries ={

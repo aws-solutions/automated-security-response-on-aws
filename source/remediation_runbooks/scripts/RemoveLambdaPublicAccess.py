@@ -48,7 +48,7 @@ def remove_public_statement(client, functionname, statement, principal):
         print_policy_before(statement)
         remove_resource_policy(functionname, statement['Sid'], client)
 
-def remove_lambda_public_access(event, context):
+def remove_lambda_public_access(event, _):
 
     client = connect_to_lambda(boto_config)
 

@@ -62,7 +62,7 @@ def lambda_role_exists(account, rolename):
     except Exception as e:
         exit('An unhandled error occurred: ' + str(e))
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     # Expected:
     # {
     #   Finding: {
