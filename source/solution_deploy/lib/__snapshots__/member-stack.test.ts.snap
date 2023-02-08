@@ -332,7 +332,15 @@ exports[`member stack snapshot matches 1`] = `
         },
         "Description": "Attribute group for solution information",
         "Name": {
-          "Ref": "AWS::StackName",
+          "Fn::Join": [
+            "",
+            [
+              "ASR",
+              {
+                "Ref": "AWS::StackName",
+              },
+            ],
+          ],
         },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
