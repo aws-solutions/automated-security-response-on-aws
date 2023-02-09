@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 def connect_to_s3(boto_config):
     return boto3.client('s3', config=boto_config)
 
-def create_bucket_policy(event, context):
+def create_bucket_policy(event, _):
 
     boto_config = Config(
         retries ={

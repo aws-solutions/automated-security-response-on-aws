@@ -118,7 +118,7 @@ def parse_project_arn(arn):
     else:
         raise ValueError
 
-def replace_credentials(event, context):
+def replace_credentials(event, _):
     project_info = event.get('ProjectInfo')
     project_name = project_info.get('name')
     project_env = project_info.get('environment')

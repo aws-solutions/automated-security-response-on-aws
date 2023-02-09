@@ -14,6 +14,6 @@ PCI_mappings = {
 }
 
 
-def verify(event, context):
+def verify(event, _):
 
     return PCI_mappings.get(event['ControlId'], None)

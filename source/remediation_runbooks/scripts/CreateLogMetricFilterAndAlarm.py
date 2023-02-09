@@ -98,7 +98,7 @@ def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metri
     log.debug("Successfully added metric alarm.")
 
 
-def verify(event, context):
+def verify(event, _):
     log.info("Begin handler")
     log.debug("====Print Event====")
     log.debug(event)

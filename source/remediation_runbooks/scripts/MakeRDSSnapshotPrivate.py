@@ -13,7 +13,7 @@ def connect_to_rds():
     )
     return boto3.client('rds', config=boto_config)
 
-def make_snapshot_private(event, context):
+def make_snapshot_private(event, _):
 
     rds_client = connect_to_rds()
     snapshot_id = event['DBSnapshotId']

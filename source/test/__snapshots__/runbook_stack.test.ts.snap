@@ -765,7 +765,7 @@ from botocore.config import Config
 def connect_to_s3(boto_config):
     return boto3.client('s3', config=boto_config)
 
-def create_logging_bucket(event, context):
+def create_logging_bucket(event, _):
     boto_config = Config(
         retries ={
           'mode': 'standard'
@@ -892,7 +892,7 @@ ERROR_CREATING_BUCKET = 'Error creating bucket '
 def connect_to_s3(boto_config):
     return boto3.client('s3', config=boto_config)
 
-def create_logging_bucket(event, context):
+def create_logging_bucket(event, _):
 
     boto_config = Config(
         retries ={
@@ -1012,7 +1012,7 @@ from botocore.exceptions import ClientError
 def connect_to_s3(boto_config):
     return boto3.client('s3', config=boto_config)
 
-def create_encrypted_bucket(event, context):
+def create_encrypted_bucket(event, _):
 
     boto_config = Config(
         retries ={
@@ -1136,7 +1136,7 @@ from botocore.exceptions import ClientError
 def connect_to_s3(boto_config):
     return boto3.client('s3', config=boto_config)
 
-def create_bucket_policy(event, context):
+def create_bucket_policy(event, _):
 
     boto_config = Config(
         retries ={
@@ -1227,7 +1227,7 @@ from botocore.exceptions import ClientError
 def connect_to_cloudtrail(boto_config):
     return boto3.client('cloudtrail', config=boto_config)
 
-def enable_cloudtrail(event, context):
+def enable_cloudtrail(event, _):
 
     boto_config = Config(
         retries ={
@@ -1277,7 +1277,7 @@ def enable_cloudtrail(event, context):
                 "Runtime": "python3.8",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-def process_results(event, context):
+def process_results(event, _):
   print(f'Created encrypted CloudTrail bucket {event["cloudtrail_bucket"]}')
   print(f'Created access logging for CloudTrail bucket in bucket {event["logging_bucket"]}')
   print('Enabled multi-region AWS CloudTrail')
@@ -1525,7 +1525,7 @@ def connect_to_sns():
 def connect_to_ssm():
     return boto3.client('ssm', config=boto_config)
 
-def create_encrypted_topic(event, context):
+def create_encrypted_topic(event, _):
 
     kms_key_arn = event['kms_key_arn']
     new_topic = False
@@ -1724,7 +1724,7 @@ def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metri
     log.debug("Successfully added metric alarm.")
 
 
-def verify(event, context):
+def verify(event, _):
     log.info("Begin handler")
     log.debug("====Print Event====")
     log.debug(event)
@@ -2285,7 +2285,7 @@ def connect_to_sns():
 def connect_to_ssm():
     return boto3.client('ssm', config=boto_config)
 
-def create_encrypted_topic(event, context):
+def create_encrypted_topic(event, _):
 
     kms_key_arn = event['kms_key_arn']
     new_topic = False
@@ -2540,7 +2540,7 @@ def create_bucket_policy(config_bucket, aws_partition):
     except Exception as e:
         exit(f'ERROR: PutBucketPolicy failed for {config_bucket}: {str(e)}')
 
-def create_encrypted_bucket(event, context):
+def create_encrypted_bucket(event, _):
 
     kms_key_arn = event['kms_key_arn']
     aws_partition = event['partition']
@@ -2654,7 +2654,7 @@ def start_recorder():
     except Exception as e:
         exit(f'ERROR enabling AWS Config: {str(e)}')
 
-def enable_config(event, context):
+def enable_config(event, _):
     aws_account = event['account']
     aws_partition = event['partition']
     aws_service_role = event['aws_service_role']
@@ -2687,7 +2687,7 @@ def enable_config(event, context):
                 "Runtime": "python3.8",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-def process_results(event, context):
+def process_results(event, _):
     print(f'Created encrypted SNS topic {event["sns_topic_arn"]}')
     print(f'Created encrypted Config bucket {event["config_bucket"]}')
     print(f'Created access logging for Config bucket in bucket {event["logging_bucket"]}')
@@ -2804,7 +2804,7 @@ from botocore.exceptions import ClientError
 def connect_to_autoscaling(boto_config):
     return boto3.client('autoscaling', config=boto_config)
 
-def verify(event, context):
+def verify(event, _):
 
     boto_config = Config(
         retries ={
@@ -3215,7 +3215,7 @@ from botocore.exceptions import ClientError
 def connect_to_cloudtrail(region, boto_config):
     return boto3.client('cloudtrail', region_name=region, config=boto_config)
 
-def enable_trail_encryption(event, context):
+def enable_trail_encryption(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map
@@ -5358,7 +5358,7 @@ def wait_for_flowlogs(client, wait_interval, max_retries, loggroup):
         if attempts > max_retries:
             exit(f'Timeout waiting for flowlogs to log group {loggroup} to become active')
 
-def enable_flow_logs(event, context):
+def enable_flow_logs(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map
@@ -5742,7 +5742,7 @@ boto_config = Config(
 def connect_to_ec2(boto_config):
     return boto3.client('ec2', config=boto_config)
 
-def get_public_snapshots(event, context):
+def get_public_snapshots(event, _):
     account_id = event['account_id']
 
     if 'testmode' in event and event['testmode']:
@@ -5822,7 +5822,7 @@ from botocore.exceptions import ClientError
 def connect_to_ec2(boto_config):
     return boto3.client('ec2', config=boto_config)
 
-def make_snapshots_private(event, context):
+def make_snapshots_private(event, _):
     boto_config = Config(
         retries = {
                 'mode': 'standard',
@@ -5952,7 +5952,7 @@ def connect_to_rds():
     )
     return boto3.client('rds', config=boto_config)
 
-def make_snapshot_private(event, context):
+def make_snapshot_private(event, _):
 
     rds_client = connect_to_rds()
     snapshot_id = event['DBSnapshotId']
@@ -6106,7 +6106,7 @@ def remove_public_statement(client, functionname, statement, principal):
         print_policy_before(statement)
         remove_resource_policy(functionname, statement['Sid'], client)
 
-def remove_lambda_public_access(event, context):
+def remove_lambda_public_access(event, _):
 
     client = connect_to_lambda(boto_config)
 
@@ -6485,7 +6485,7 @@ def parse_project_arn(arn):
     else:
         raise ValueError
 
-def replace_credentials(event, context):
+def replace_credentials(event, _):
     project_info = event.get('ProjectInfo')
     project_name = project_info.get('name')
     project_env = project_info.get('environment')
@@ -6717,7 +6717,7 @@ def verify_expired_credentials_revoked(responses, user_name):
         "http_responses": responses
     }
 
-def unrotated_key_handler(event, context):
+def unrotated_key_handler(event, _):
     user_name = get_user_name(event.get("IAMResourceId"))
     max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
     access_keys = list_access_keys(user_name)
@@ -7096,7 +7096,7 @@ class DenyStatement:
         if self.deny_statement_json["Resource"] and not resource_arn in self.deny_statement_json.Resource:
             self.deny_statement_json["Resource"].append(resource_arn)
 
-def update_bucket_policy(event, context):
+def update_bucket_policy(event, _):
     def __get_bucket_from_event(event):
         bucket = event.get('bucket') or exit('Bucket not specified')
         return bucket
@@ -7394,7 +7394,7 @@ def new_policy():
         "Statement": []
     }
 
-def add_ssl_bucket_policy(event, context):
+def add_ssl_bucket_policy(event, _):
     bucket_name = event['bucket']
     account_id = event['accountid']
     aws_partition = event['partition']

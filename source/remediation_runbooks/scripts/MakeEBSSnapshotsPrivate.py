@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 def connect_to_ec2(boto_config):
     return boto3.client('ec2', config=boto_config)
 
-def make_snapshots_private(event, context):
+def make_snapshots_private(event, _):
     boto_config = Config(
         retries = {
                 'mode': 'standard',

@@ -32,7 +32,7 @@ def get_solution_version():
         print(f'ERROR getting solution version')
     return solution_version
 
-def check_for_s3_bucket_name(event, context):
+def check_for_s3_bucket_name(_, __):
     try:
         ssm = connect_to_ssm(
             Config(

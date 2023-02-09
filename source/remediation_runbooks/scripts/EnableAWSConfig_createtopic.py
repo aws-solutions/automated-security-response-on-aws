@@ -17,7 +17,7 @@ def connect_to_sns():
 def connect_to_ssm():
     return boto3.client('ssm', config=boto_config)
 
-def create_encrypted_topic(event, context):
+def create_encrypted_topic(event, _):
 
     kms_key_arn = event['kms_key_arn']
     new_topic = False

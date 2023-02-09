@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 def connect_to_cloudtrail(region, boto_config):
     return boto3.client('cloudtrail', region_name=region, config=boto_config)
 
-def enable_trail_encryption(event, context):
+def enable_trail_encryption(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map

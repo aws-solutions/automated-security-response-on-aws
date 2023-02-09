@@ -70,7 +70,7 @@ def start_recorder():
     except Exception as e:
         exit(f'ERROR enabling AWS Config: {str(e)}')
 
-def enable_config(event, context):
+def enable_config(event, _):
     aws_account = event['account']
     aws_partition = event['partition']
     aws_service_role = event['aws_service_role']

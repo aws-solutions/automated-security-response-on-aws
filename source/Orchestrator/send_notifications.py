@@ -37,7 +37,7 @@ def format_details_for_output(details):
 
     return details_formatted
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     # Expected input:
     # Notification:
     #   Message: string

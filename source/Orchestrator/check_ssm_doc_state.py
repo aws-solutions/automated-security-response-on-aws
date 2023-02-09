@@ -86,7 +86,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
         })
         LOGGER.error(answer.message)
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
 
     answer = utils.StepFunctionLambdaAnswer() # holds the response to the step function
     LOGGER.info(event)

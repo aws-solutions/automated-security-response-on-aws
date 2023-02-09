@@ -131,6 +131,6 @@ CIS_mappings = {
 }
 
 
-def verify(event, context):
+def verify(event, _):
 
     return CIS_mappings.get(event['ControlId'], None)
