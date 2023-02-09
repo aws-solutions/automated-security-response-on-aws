@@ -771,7 +771,7 @@ def parse_event(event, context):
     "ControlCIS15": {
       "Condition": "Enable15Condition",
       "DependsOn": [
-        "RunbookFactoryWaitCIS152572AA0C",
+        "RunbookFactoryWaitCIS1342939E39",
       ],
       "Properties": {
         "Content": {
@@ -1105,7 +1105,7 @@ def parse_event(event, context):
     "ControlCIS21": {
       "Condition": "Enable21Condition",
       "DependsOn": [
-        "RunbookFactoryWaitCIS21A1B77688",
+        "RunbookFactoryWaitCIS1342939E39",
       ],
       "Properties": {
         "Content": {
@@ -1442,41 +1442,7 @@ def parse_event(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "33c6936c2525babafd5c28f2b56acdd496e777d68f67e8a67c34bf069015556a",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitCIS152572AA0C": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitCIS1342939E39",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "78cabecb3617f556b1e16c8ff4d7a08a069a107e9ca3d2ef8ad55cffeaa7ffe3",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitCIS21A1B77688": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitCIS152572AA0C",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "7e36a728ad6cc73b656e09fd39b00d9cdb057455bfbcd2e3ff788e1747bab77b",
+        "DocumentPropertiesHash": "131d2736a38f8d8a0fd98d966e70dacb17db2495e0fdd6c0aa23c804f5f8eba4",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

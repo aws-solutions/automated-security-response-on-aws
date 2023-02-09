@@ -235,7 +235,7 @@ exports[`Regional Documents 1`] = `
   "Resources": {
     "ASRConfigureS3BucketPublicAccessBlock": {
       "DependsOn": [
-        "RunbookFactoryWaitASRConfigureS3BucketPublicAccessBlock08BBA9CD",
+        "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA",
       ],
       "Properties": {
         "Content": {
@@ -579,7 +579,7 @@ def handler(event, context):
     },
     "ASRConfigureSNSTopicForStack": {
       "DependsOn": [
-        "RunbookFactoryWaitASRConfigureSNSTopicForStackC9EAB91D",
+        "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA",
       ],
       "Properties": {
         "Content": {
@@ -749,7 +749,7 @@ class StackConfigurationFailedException(Exception):
     },
     "ASRCreateAccessLoggingBucket": {
       "DependsOn": [
-        "RunbookFactoryWaitASRCreateAccessLoggingBucketC3EB77DA",
+        "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34",
       ],
       "Properties": {
         "Content": {
@@ -1356,7 +1356,7 @@ def process_results(event, context):
     },
     "ASRCreateIAMSupportRole": {
       "DependsOn": [
-        "RunbookFactoryWaitASRCreateIAMSupportRole9F5D1244",
+        "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA",
       ],
       "Properties": {
         "Content": {
@@ -1505,7 +1505,7 @@ def does_role_exist(iam, role_name):
     },
     "ASRCreateLogMetricFilterAndAlarm": {
       "DependsOn": [
-        "RunbookFactoryWaitASRCreateLogMetricFilterAndAlarmD0985F81",
+        "RunbookFactoryWaitASRCreateCloudTrailMultiRegionTrail59648D64",
       ],
       "Properties": {
         "Content": {
@@ -1855,7 +1855,7 @@ def verify(event, context):
     },
     "ASRDisablePublicAccessToRDSInstance": {
       "DependsOn": [
-        "RunbookFactoryWaitASRDisablePublicAccessToRDSInstance44100ADC",
+        "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02",
       ],
       "Properties": {
         "Content": {
@@ -2031,7 +2031,7 @@ Confirms public accessibility is disabled on the DB instance.
     },
     "ASRDisablePublicAccessToRedshiftCluster": {
       "DependsOn": [
-        "RunbookFactoryWaitASRDisablePublicAccessToRedshiftCluster825A0721",
+        "RunbookFactoryWaitASRS3BlockDenylistC5124331",
       ],
       "Properties": {
         "Content": {
@@ -2137,7 +2137,7 @@ Confirms the public accessibility setting is disabled on the cluster.
     },
     "ASRDisablePublicIPAutoAssign": {
       "DependsOn": [
-        "RunbookFactoryWaitASRDisablePublicIPAutoAssign4F120289",
+        "RunbookFactoryWaitASREnableDeliveryStatusLoggingForSNSTopic6B2897FC",
       ],
       "Properties": {
         "Content": {
@@ -2270,7 +2270,7 @@ def describe_subnet(subnet_id):
     },
     "ASREnableAWSConfig": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableAWSConfig3525A3F3",
+        "RunbookFactoryWaitASRCreateCloudTrailMultiRegionTrail59648D64",
       ],
       "Properties": {
         "Content": {
@@ -2783,7 +2783,7 @@ def process_results(event, context):
     },
     "ASREnableAutoScalingGroupELBHealthCheck": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableAutoScalingGroupELBHealthCheck83273238",
+        "RunbookFactoryWaitASRCreateCloudTrailMultiRegionTrail59648D64",
       ],
       "Properties": {
         "Content": {
@@ -3106,7 +3106,7 @@ The runbook enables automatic snapshots on a Redshift cluster.
     },
     "ASREnableAutomaticVersionUpgradeOnRedshiftCluster": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableAutomaticVersionUpgradeOnRedshiftCluster21E48D7F",
+        "RunbookFactoryWaitASRS3BlockDenylistC5124331",
       ],
       "Properties": {
         "Content": {
@@ -3345,7 +3345,7 @@ def enable_trail_encryption(event, context):
     },
     "ASREnableCloudTrailLogFileValidation": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableCloudTrailLogFileValidationBC3F7A62",
+        "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9",
       ],
       "Properties": {
         "Content": {
@@ -3434,7 +3434,7 @@ Verifies log file validation is enabled for your trail.
     },
     "ASREnableCloudTrailToCloudWatchLogging": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableCloudTrailToCloudWatchLoggingBE7665D9",
+        "RunbookFactoryWaitASRCreateCloudTrailMultiRegionTrail59648D64",
       ],
       "Properties": {
         "Content": {
@@ -3582,7 +3582,7 @@ def wait_for_loggroup(event, _):
     },
     "ASREnableCopyTagsToSnapshotOnRDSCluster": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableCopyTagsToSnapshotOnRDSCluster912111BA",
+        "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E",
       ],
       "Properties": {
         "Content": {
@@ -3721,7 +3721,7 @@ Verifies that \`CopyTagsToSnapshot\` has been enabled on the target resource.
     },
     "ASREnableDefaultEncryptionS3": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableDefaultEncryptionS3708084A1",
+        "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34",
       ],
       "Properties": {
         "Content": {
@@ -4008,7 +4008,7 @@ def reset_to_recognized_state(topic_arn):
     },
     "ASREnableEbsEncryptionByDefault": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableEbsEncryptionByDefaultEE5086CF",
+        "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9",
       ],
       "Properties": {
         "Content": {
@@ -4086,7 +4086,7 @@ Checks if EbsEncryptionByDefault is enabled correctly from the previous step.
     },
     "ASREnableEncryptionForSNSTopic": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableEncryptionForSNSTopicA80819D8",
+        "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02",
       ],
       "Properties": {
         "Content": {
@@ -4185,7 +4185,7 @@ Verifies the given Amazon SNS Topic is encrypted with AWS KMS Key ARN.
     },
     "ASREnableEncryptionForSQSQueue": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableEncryptionForSQSQueueB09B4FC9",
+        "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA",
       ],
       "Properties": {
         "Content": {
@@ -4294,7 +4294,7 @@ Based on your data policy, Amazon SQS queues should be encrypted with different 
     },
     "ASREnableEnhancedMonitoringOnRDSInstance": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableEnhancedMonitoringOnRDSInstanceDD1C1BF3",
+        "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9",
       ],
       "Properties": {
         "Content": {
@@ -4492,7 +4492,7 @@ def handler(event, context):
     },
     "ASREnableKeyRotation": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableKeyRotation8051B8D2",
+        "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9",
       ],
       "Properties": {
         "Content": {
@@ -4578,7 +4578,7 @@ Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
     },
     "ASREnableMinorVersionUpgradeOnRDSDBInstance": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableMinorVersionUpgradeOnRDSDBInstanceAB104E4F",
+        "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02",
       ],
       "Properties": {
         "Content": {
@@ -4760,7 +4760,7 @@ def verify_instance_changes(instanceID):
     },
     "ASREnableMultiAZOnRDSInstance": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableMultiAZOnRDSInstance0E221168",
+        "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E",
       ],
       "Properties": {
         "Content": {
@@ -5060,7 +5060,7 @@ Verifies that deletion protection has been enabled for the given Amazon RDS data
     },
     "ASREnableRDSInstanceDeletionProtection": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableRDSInstanceDeletionProtectionC279E7E4",
+        "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E",
       ],
       "Properties": {
         "Content": {
@@ -5186,7 +5186,7 @@ Checks whether deletion protection is enabled on Amazon RDS Instance.
     },
     "ASREnableRedshiftClusterAuditLogging": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableRedshiftClusterAuditLogging774EA430",
+        "RunbookFactoryWaitASRS3BlockDenylistC5124331",
       ],
       "Properties": {
         "Content": {
@@ -5359,7 +5359,7 @@ Checks whether the value of the "BucketName" parameter is used for the audit log
     },
     "ASREnableVPCFlowLogs": {
       "DependsOn": [
-        "RunbookFactoryWaitASREnableVPCFlowLogs3E9F26B7",
+        "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34",
       ],
       "Properties": {
         "Content": {
@@ -5588,7 +5588,7 @@ def enable_flow_logs(event, context):
     },
     "ASREncryptRDSSnapshot": {
       "DependsOn": [
-        "RunbookFactoryWaitASREncryptRDSSnapshot49845014",
+        "RunbookFactoryWaitASRS3BlockDenylistC5124331",
       ],
       "Properties": {
         "Content": {
@@ -5796,7 +5796,7 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
     },
     "ASRMakeEBSSnapshotsPrivate": {
       "DependsOn": [
-        "RunbookFactoryWaitASRMakeEBSSnapshotsPrivateB36DA424",
+        "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34",
       ],
       "Properties": {
         "Content": {
@@ -6132,7 +6132,7 @@ def make_snapshot_private(event, context):
     },
     "ASRRemoveLambdaPublicAccess": {
       "DependsOn": [
-        "RunbookFactoryWaitASRRemoveLambdaPublicAccessC79BEAD8",
+        "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264",
       ],
       "Properties": {
         "Content": {
@@ -6298,7 +6298,7 @@ def verify(function_name_to_check):
     },
     "ASRRemoveVPCDefaultSecurityGroupRules": {
       "DependsOn": [
-        "RunbookFactoryWaitASRRemoveVPCDefaultSecurityGroupRulesC388ED7D",
+        "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E",
       ],
       "Properties": {
         "Content": {
@@ -6423,7 +6423,7 @@ def handler(event, context):
     },
     "ASRReplaceCodeBuildClearTextCredentials": {
       "DependsOn": [
-        "RunbookFactoryWaitASRReplaceCodeBuildClearTextCredentials20FDDBB7",
+        "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264",
       ],
       "Properties": {
         "Content": {
@@ -6724,7 +6724,7 @@ Changes the settings of a build project.
     },
     "ASRRevokeUnrotatedKeys": {
       "DependsOn": [
-        "RunbookFactoryWaitASRRevokeUnrotatedKeys729E7B55",
+        "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264",
       ],
       "Properties": {
         "Content": {
@@ -7277,7 +7277,7 @@ def update_bucket_policy(event, context):
     },
     "ASRSetIAMPasswordPolicy": {
       "DependsOn": [
-        "RunbookFactoryWaitASRSetIAMPasswordPolicy44AAC428",
+        "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02",
       ],
       "Properties": {
         "Content": {
@@ -7450,7 +7450,7 @@ def update_and_verify_iam_user_password_policy(event, context):
     },
     "ASRSetSSLBucketPolicy": {
       "DependsOn": [
-        "RunbookFactoryWaitASRSetSSLBucketPolicyCD1142F2",
+        "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264",
       ],
       "Properties": {
         "Content": {
@@ -7605,66 +7605,15 @@ def add_ssl_bucket_policy(event, context):
       },
       "Type": "AWS::SSM::Document",
     },
-    "RunbookFactoryWaitASRConfigureS3BucketPublicAccessBlock08BBA9CD": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRConfigureSNSTopicForStackC9EAB91D",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "d46d826df4763585df74f4757224460b4c64d192501cecfbd2d4eef6684f26c2",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
     "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASRConfigureS3BucketPublicAccessBlock08BBA9CD",
+        "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "44666e1e9a133fef5249a420cf6b1827d9ab2cf7b8a9be556a8c1a5e317965ed",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRConfigureSNSTopicForStackC9EAB91D": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableEncryptionForSQSQueueB09B4FC9",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "5b9ee7b3553d436edee47a28ec1ccd32903adea745414788c0d2ef2572acab9e",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRCreateAccessLoggingBucketC3EB77DA": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableVPCFlowLogs3E9F26B7",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "d3e78b1577d20b4b4f44c39a1682cb123a26562fce5abb96e6b9298647dbc068",
+        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7678,126 +7627,7 @@ def add_ssl_bucket_policy(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "0baa7af8a6bd1bbca980bdac18034185a2f37173eac857848d74c2ba84e78c31",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRCreateIAMSupportRole9F5D1244": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "27388acdf839747c3aeeec6c1a245abb3e52ac8eb23598250975857f21c49bcb",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRCreateLogMetricFilterAndAlarmD0985F81": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRCreateCloudTrailMultiRegionTrail59648D64",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "69e43c5adafad414c7a37d8320cc8b67d6ec70bed84c16afdfdb08785697af99",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRDisablePublicAccessToRDSInstance44100ADC": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRSetIAMPasswordPolicy44AAC428",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a361bc190c84d8446b90e97d4467597efd5588eadfdbadad47b91bdb765dc339",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRDisablePublicAccessToRedshiftCluster825A0721": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREncryptRDSSnapshot49845014",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "22d54ac22a0a9ff09b419ffaaa8f6adff5092ed6f3913b154173b4eb58f027ef",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRDisablePublicIPAutoAssign4F120289": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableDeliveryStatusLoggingForSNSTopic6B2897FC",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "ceff3ebcbeb12c839b36e2b0ed60c184742ffdeeeda7f82933965fd23a2228f4",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableAWSConfig3525A3F3": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableAutoScalingGroupELBHealthCheck83273238",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "2ff4a98d0fdd571a26bf6341c77cf602de124e8fa97f6843466a5f4efd58685a",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableAutoScalingGroupELBHealthCheck83273238": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRCreateLogMetricFilterAndAlarmD0985F81",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "26d30f51cccd0807f1ff5fc0ef28a87accada59a9e952ac0235bec97b3e99e0f",
+        "DocumentPropertiesHash": "ebe1f593f68bac17d211fa3bc5587a7db937c450d8f77ad73285baab8faaad98",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7809,29 +7639,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASREnableAutomaticSnapshotsOnRedshiftCluster6D809FEA": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASREnableAutomaticVersionUpgradeOnRedshiftCluster21E48D7F",
+        "RunbookFactoryWaitASRS3BlockDenylistC5124331",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "ace1e70a18c1a2ea3772f5c4f9910fb761ea193e432859d655fe9f6ec837ce21",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableAutomaticVersionUpgradeOnRedshiftCluster21E48D7F": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableRedshiftClusterAuditLogging774EA430",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "ea5377434f76e0ebc4bb2aedd6022895232c5681dd4721fbf46e5f02ff4821d9",
+        "DocumentPropertiesHash": "cbb21589711741582f016da0204b949e6bb393744d53b01dcc5383669d106dea",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7843,80 +7656,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASREnableCloudTrailToCloudWatchLoggingBE7665D9",
+        "RunbookFactoryWaitASRCreateCloudTrailMultiRegionTrail59648D64",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "003a1a49236fcdfc739dfb3f8042f826cf9f4032510b676af46ba99b629b5b7c",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableCloudTrailLogFileValidationBC3F7A62": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "caa227863c2b5c5dc94a90b1f1e1cf927127f30fae916c0bbb6e1b9607c171a4",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableCloudTrailToCloudWatchLoggingBE7665D9": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableAWSConfig3525A3F3",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "3e5913fa7336a8b260d11bef407566fa7d080105f7e9e493132e4417be2520eb",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableCopyTagsToSnapshotOnRDSCluster912111BA": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "36ac21b01db1e3d59bd46592a516c953d48703d5a1c7229ef6440d675b304dac",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableDefaultEncryptionS3708084A1": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "cce3695a00c635a07ef072f1c9acf6756e10e4e98c6bfb4480342492cd7c3a80",
+        "DocumentPropertiesHash": "0374bc4c927868c772cfefafebaaa108b323922d891f0b86d28e4a2638a5f353",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7928,131 +7673,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASREnableDeliveryStatusLoggingForSNSTopic6B2897FC": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASREnableEncryptionForSNSTopicA80819D8",
+        "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "60b1425ab885c47215f2e2515543c019bd9a5146d4ba5e1f02e68ac11ad27260",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableEbsEncryptionByDefaultEE5086CF": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableCloudTrailLogFileValidationBC3F7A62",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "822be5661b27c1f14e4acb849bf83016d4af595609d257612867ebceb328ef22",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableEncryptionForSNSTopicA80819D8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableMinorVersionUpgradeOnRDSDBInstanceAB104E4F",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "61a59380b46a46a69f1fa979d945fc00e1c06d5d6d51e73a761ec91bb12149e0",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableEncryptionForSQSQueueB09B4FC9": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRCreateIAMSupportRole9F5D1244",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "72c82f29b4d94028d9e82f27973045b6a1f16de44526c3394eb33e6fdb15a839",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableEnhancedMonitoringOnRDSInstanceDD1C1BF3": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableEbsEncryptionByDefaultEE5086CF",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "c97afb9ac8b8a2583eea4448c40943ebe59240159ba7c436f9b811b45fbd2700",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableKeyRotation8051B8D2": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableEnhancedMonitoringOnRDSInstanceDD1C1BF3",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "054f29d349a639373862975a095d56c02e019070f9a76ac3c169c890d64390ea",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableMinorVersionUpgradeOnRDSDBInstanceAB104E4F": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRDisablePublicAccessToRDSInstance44100ADC",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "4792d658f4870a505c0374cfd5a0241dafc742bccd72b83ee5588d33e51c5c47",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableMultiAZOnRDSInstance0E221168": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableRDSInstanceDeletionProtectionC279E7E4",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "ab6c691b77016bae8de4def05dd335cf0392f6ec239c9dd38ec0d4b7ca75af1b",
+        "DocumentPropertiesHash": "48149a5b1d9c9f805b246117d5ba0490ff5e0fab9d08d34ca79054672035709b",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -8064,97 +7690,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASREnableKeyRotation8051B8D2",
+        "RunbookFactoryWaitASRConfigureS3PublicAccessBlock3D512CE9",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "b7e86a11f40a8e1ef5d6a5eeda0b2c327604d36982b1cfe1c193aff19c1c2545",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableRDSInstanceDeletionProtectionC279E7E4": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableCopyTagsToSnapshotOnRDSCluster912111BA",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "05fa3511e4100593c8f6a99306fda5e1f19de81f15ff5dc2c248964b57025d55",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableRedshiftClusterAuditLogging774EA430": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRDisablePublicAccessToRedshiftCluster825A0721",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "fcb2fd960230ba090b9ea7d2bad8f8ddb88b13d088dd2c38e00731011e50f134",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREnableVPCFlowLogs3E9F26B7": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableDefaultEncryptionS3708084A1",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "df417f4120e2607e6701a9fa4905e1096fb7972c10769a7474779820e4bfe65a",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASREncryptRDSSnapshot49845014": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRS3BlockDenylistC5124331",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "dcfbd22506a98b94170a97c9b1a59d6eb69b5c4d0e8ea9d7ac7b1ad8579f01eb",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRMakeEBSSnapshotsPrivateB36DA424": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRCreateAccessLoggingBucketC3EB77DA",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "3d0ce35a17c1b5dc226ac9ea9aa8d4cc5322757987265f32cfc14b9b8937bf29",
+        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -8166,80 +7707,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASRMakeEBSSnapshotsPrivateB36DA424",
+        "RunbookFactoryWaitASREnableCloudTrailEncryption27956D34",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a29d272e168f1c033c32f2019ca8445d9769b10020832919afd83f09fd200065",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRRemoveLambdaPublicAccessC79BEAD8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "0f331e1290baab19ce1516c2650ca1f5463b96e071f5ccb6cfcab75193c3c377",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRRemoveVPCDefaultSecurityGroupRulesC388ED7D": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASREnableMultiAZOnRDSInstance0E221168",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "218f33de9a1b921482b9ed5f1114f9979b136d1e9fe892f57c362092f41aecf3",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRReplaceCodeBuildClearTextCredentials20FDDBB7": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRSetSSLBucketPolicyCD1142F2",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9beba37c425b4546c50c73cc2f879265ad3a423a21a8f10fafb75dce1de05244",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRRevokeUnrotatedKeys729E7B55": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRRemoveLambdaPublicAccessC79BEAD8",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "16e4a7791e8708195eef4fb48490a9fca825530b69905edb4f0bcac12e6f4e0a",
+        "DocumentPropertiesHash": "083c4ea6c7a0c6910ca69f9302c059742061110bc8dec336c7d978536d91f001",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -8251,12 +7724,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASRRemoveVPCDefaultSecurityGroupRulesC388ED7D",
+        "RunbookFactoryWaitASREnableRDSClusterDeletionProtection33056C9E",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "363b35c818cadb6621d4ff7da58e3300d9f301df90a02dd3b98a818ce1062b61",
+        "DocumentPropertiesHash": "160a5fcbd69cdf8cbcfc14188cc87476510aab26e5a76e68a14d9338c0bc5f44",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -8268,46 +7741,12 @@ def add_ssl_bucket_policy(event, context):
     "RunbookFactoryWaitASRS3BlockDenylistC5124331": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookFactoryWaitASRReplaceCodeBuildClearTextCredentials20FDDBB7",
+        "RunbookFactoryWaitASRMakeRDSSnapshotPrivate68A32264",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "c5d99304fae4d91393ad856a73a41e5288ff913bc9cb39f9195d6ace2af9e37d",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRSetIAMPasswordPolicy44AAC428": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRRevokeUnusedIAMUserCredentials8F820D02",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "08ace87cffc04a975d1c846626fb506af9facbf45eba124ab3cba4b3999992b5",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitASRSetSSLBucketPolicyCD1142F2": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitASRRevokeUnrotatedKeys729E7B55",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "8ffadb58b190d8ce243a25724f6178a959810a240cb2c843fee22378f7bf95bc",
+        "DocumentPropertiesHash": "7f6a725f52d98dbb022cfb5576d75b8985772fe26791fbbc6f23dcbb6d4e6709",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

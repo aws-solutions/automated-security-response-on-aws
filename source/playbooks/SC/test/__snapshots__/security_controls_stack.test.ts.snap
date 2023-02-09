@@ -1437,7 +1437,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudFormation12CB945DB": {
       "Condition": "ControlRunbooksEnableCloudFormation1ConditionD8D32097",
       "DependsOn": [
-        "ControlRunbooksWaitCloudFormation146D9A34B",
+        "ControlRunbooksWaitAutoScaling10D4441AE",
       ],
       "Properties": {
         "Content": {
@@ -1784,7 +1784,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudTrail1B15F1A13": {
       "Condition": "ControlRunbooksEnableCloudTrail1ConditionB7EBAA86",
       "DependsOn": [
-        "ControlRunbooksWaitCloudTrail1A25D32F1",
+        "ControlRunbooksWaitAutoScaling10D4441AE",
       ],
       "Properties": {
         "Content": {
@@ -2102,7 +2102,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudTrail2979D0B5D": {
       "Condition": "ControlRunbooksEnableCloudTrail2ConditionC182A10F",
       "DependsOn": [
-        "ControlRunbooksWaitCloudTrail21F987E98",
+        "ControlRunbooksWaitAutoScaling10D4441AE",
       ],
       "Properties": {
         "Content": {
@@ -2432,7 +2432,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudTrail4057F669F": {
       "Condition": "ControlRunbooksEnableCloudTrail4Condition587734A2",
       "DependsOn": [
-        "ControlRunbooksWaitCloudTrail458DE43DE",
+        "ControlRunbooksWaitAutoScaling10D4441AE",
       ],
       "Properties": {
         "Content": {
@@ -3128,7 +3128,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudTrail6526C5643": {
       "Condition": "ControlRunbooksEnableCloudTrail6Condition486CC2C3",
       "DependsOn": [
-        "ControlRunbooksWaitCloudTrail67978D253",
+        "ControlRunbooksWaitCloudTrail5696BADE5",
       ],
       "Properties": {
         "Content": {
@@ -3458,7 +3458,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudTrail7C6D85038": {
       "Condition": "ControlRunbooksEnableCloudTrail7ConditionA4FF88B2",
       "DependsOn": [
-        "ControlRunbooksWaitCloudTrail7EABB459B",
+        "ControlRunbooksWaitCloudTrail5696BADE5",
       ],
       "Properties": {
         "Content": {
@@ -3810,7 +3810,7 @@ def parse_event(event, context):
     "ControlRunbooksCloudWatch1A05F543A": {
       "Condition": "ControlRunbooksEnableCloudWatch1ConditionAB0DF2E5",
       "DependsOn": [
-        "ControlRunbooksWaitCloudWatch1153ADE37",
+        "ControlRunbooksWaitCloudTrail5696BADE5",
       ],
       "Properties": {
         "Content": {
@@ -4391,7 +4391,7 @@ def verify(event, context):
     "ControlRunbooksCodeBuild2A2751671": {
       "Condition": "ControlRunbooksEnableCodeBuild2ConditionB01F473D",
       "DependsOn": [
-        "ControlRunbooksWaitCodeBuild238275EA2",
+        "ControlRunbooksWaitCloudTrail5696BADE5",
       ],
       "Properties": {
         "Content": {
@@ -5406,7 +5406,7 @@ def parse_event(event, context):
     "ControlRunbooksEC214D3BB404": {
       "Condition": "ControlRunbooksEnableEC21ConditionD4F1277B",
       "DependsOn": [
-        "ControlRunbooksWaitEC2144340354",
+        "ControlRunbooksWaitConfig14A572694",
       ],
       "Properties": {
         "Content": {
@@ -5730,7 +5730,7 @@ def parse_event(event, context):
     "ControlRunbooksEC2153B43E7A8": {
       "Condition": "ControlRunbooksEnableEC215Condition52A7DE4B",
       "DependsOn": [
-        "ControlRunbooksWaitEC2157FB7B262",
+        "ControlRunbooksWaitEC21311511FED",
       ],
       "Properties": {
         "Content": {
@@ -6076,7 +6076,7 @@ def parse_event(event, context):
     "ControlRunbooksEC22ED852ADF": {
       "Condition": "ControlRunbooksEnableEC22ConditionB9E0D42E",
       "DependsOn": [
-        "ControlRunbooksWaitEC222CA02D05",
+        "ControlRunbooksWaitConfig14A572694",
       ],
       "Properties": {
         "Content": {
@@ -6424,7 +6424,7 @@ def parse_event(event, context):
     "ControlRunbooksEC267E3087AE": {
       "Condition": "ControlRunbooksEnableEC26ConditionF1F880B0",
       "DependsOn": [
-        "ControlRunbooksWaitEC269077B1CA",
+        "ControlRunbooksWaitConfig14A572694",
       ],
       "Properties": {
         "Content": {
@@ -6772,7 +6772,7 @@ def parse_event(event, context):
     "ControlRunbooksEC277719A4CD": {
       "Condition": "ControlRunbooksEnableEC27ConditionC77CF056",
       "DependsOn": [
-        "ControlRunbooksWaitEC274219617D",
+        "ControlRunbooksWaitConfig14A572694",
       ],
       "Properties": {
         "Content": {
@@ -7089,7 +7089,7 @@ def parse_event(event, context):
     "ControlRunbooksIAM3DC25477E": {
       "Condition": "ControlRunbooksEnableIAM3Condition3AA0E892",
       "DependsOn": [
-        "ControlRunbooksWaitIAM3131A4F99",
+        "ControlRunbooksWaitEC21311511FED",
       ],
       "Properties": {
         "Content": {
@@ -7427,7 +7427,7 @@ def parse_event(event, context):
     "ControlRunbooksIAM70A808F7C": {
       "Condition": "ControlRunbooksEnableIAM7ConditionDF8E776B",
       "DependsOn": [
-        "ControlRunbooksWaitIAM7211E71F4",
+        "ControlRunbooksWaitEC21311511FED",
       ],
       "Properties": {
         "Content": {
@@ -7765,7 +7765,7 @@ def parse_event(event, context):
     "ControlRunbooksIAM8632E03ED": {
       "Condition": "ControlRunbooksEnableIAM8Condition9CA5CB4B",
       "DependsOn": [
-        "ControlRunbooksWaitIAM8F6E89A05",
+        "ControlRunbooksWaitEC21311511FED",
       ],
       "Properties": {
         "Content": {
@@ -8441,7 +8441,7 @@ def parse_event(event, context):
     "ControlRunbooksLambda1F6ECACF8": {
       "Condition": "ControlRunbooksEnableLambda1Condition077CECAF",
       "DependsOn": [
-        "ControlRunbooksWaitLambda116719102",
+        "ControlRunbooksWaitKMS4C79B8335",
       ],
       "Properties": {
         "Content": {
@@ -8787,7 +8787,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS13FCEA51BD": {
       "Condition": "ControlRunbooksEnableRDS13Condition0E8A44B3",
       "DependsOn": [
-        "ControlRunbooksWaitRDS13529AD058",
+        "ControlRunbooksWaitRDS5745B6BC7",
       ],
       "Properties": {
         "Content": {
@@ -9482,7 +9482,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS1D73701E9": {
       "Condition": "ControlRunbooksEnableRDS1ConditionFAE5B7EA",
       "DependsOn": [
-        "ControlRunbooksWaitRDS1A1E35585",
+        "ControlRunbooksWaitKMS4C79B8335",
       ],
       "Properties": {
         "Content": {
@@ -9832,7 +9832,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS2FBE04686": {
       "Condition": "ControlRunbooksEnableRDS2Condition4FD00FE6",
       "DependsOn": [
-        "ControlRunbooksWaitRDS29AE2B3A0",
+        "ControlRunbooksWaitKMS4C79B8335",
       ],
       "Properties": {
         "Content": {
@@ -10179,7 +10179,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS4C82F2410": {
       "Condition": "ControlRunbooksEnableRDS4Condition2E89346E",
       "DependsOn": [
-        "ControlRunbooksWaitRDS4932DF75A",
+        "ControlRunbooksWaitKMS4C79B8335",
       ],
       "Properties": {
         "Content": {
@@ -10891,7 +10891,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS6082B0D6B": {
       "Condition": "ControlRunbooksEnableRDS6Condition4A60A39B",
       "DependsOn": [
-        "ControlRunbooksWaitRDS6A575DF16",
+        "ControlRunbooksWaitRDS5745B6BC7",
       ],
       "Properties": {
         "Content": {
@@ -11256,7 +11256,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS715C0A01A": {
       "Condition": "ControlRunbooksEnableRDS7ConditionE53509B0",
       "DependsOn": [
-        "ControlRunbooksWaitRDS7AC8C1011",
+        "ControlRunbooksWaitRDS5745B6BC7",
       ],
       "Properties": {
         "Content": {
@@ -11603,7 +11603,7 @@ def parse_event(event, context):
     "ControlRunbooksRDS89256480A": {
       "Condition": "ControlRunbooksEnableRDS8Condition8F460AB5",
       "DependsOn": [
-        "ControlRunbooksWaitRDS8885A190C",
+        "ControlRunbooksWaitRDS5745B6BC7",
       ],
       "Properties": {
         "Content": {
@@ -11949,7 +11949,7 @@ def parse_event(event, context):
     "ControlRunbooksRedshift1789871EB": {
       "Condition": "ControlRunbooksEnableRedshift1Condition3449D560",
       "DependsOn": [
-        "ControlRunbooksWaitRedshift15794DAD8",
+        "ControlRunbooksWaitRDS1677C2EBCA",
       ],
       "Properties": {
         "Content": {
@@ -12294,7 +12294,7 @@ def parse_event(event, context):
     "ControlRunbooksRedshift3106C10FF": {
       "Condition": "ControlRunbooksEnableRedshift3ConditionC65BAEF6",
       "DependsOn": [
-        "ControlRunbooksWaitRedshift340870EB6",
+        "ControlRunbooksWaitRDS1677C2EBCA",
       ],
       "Properties": {
         "Content": {
@@ -12674,7 +12674,7 @@ def event_handler(event, context):
     "ControlRunbooksRedshift475A78168": {
       "Condition": "ControlRunbooksEnableRedshift4Condition2377F6B5",
       "DependsOn": [
-        "ControlRunbooksWaitRedshift409BE659E",
+        "ControlRunbooksWaitRDS1677C2EBCA",
       ],
       "Properties": {
         "Content": {
@@ -13130,7 +13130,7 @@ def check_for_s3_bucket_name(event, context):
     "ControlRunbooksRedshift658631424": {
       "Condition": "ControlRunbooksEnableRedshift6Condition5A51FC97",
       "DependsOn": [
-        "ControlRunbooksWaitRedshift689426E75",
+        "ControlRunbooksWaitRDS1677C2EBCA",
       ],
       "Properties": {
         "Content": {
@@ -13835,7 +13835,7 @@ def parse_event(event, context):
     "ControlRunbooksS3260D6E897": {
       "Condition": "ControlRunbooksEnableS32ConditionD6F8CCE9",
       "DependsOn": [
-        "ControlRunbooksWaitS32C0E9E154",
+        "ControlRunbooksWaitS317DCF0083",
       ],
       "Properties": {
         "Content": {
@@ -14170,7 +14170,7 @@ def parse_event(event, context):
     "ControlRunbooksS34F82DA9F1": {
       "Condition": "ControlRunbooksEnableS34ConditionC23F6623",
       "DependsOn": [
-        "ControlRunbooksWaitS342E2C8B6C",
+        "ControlRunbooksWaitS317DCF0083",
       ],
       "Properties": {
         "Content": {
@@ -14504,7 +14504,7 @@ def parse_event(event, context):
     "ControlRunbooksS356959B795": {
       "Condition": "ControlRunbooksEnableS35ConditionD5E024B6",
       "DependsOn": [
-        "ControlRunbooksWaitS3595C584DE",
+        "ControlRunbooksWaitS317DCF0083",
       ],
       "Properties": {
         "Content": {
@@ -14831,7 +14831,7 @@ def parse_event(event, context):
     "ControlRunbooksS360762680A": {
       "Condition": "ControlRunbooksEnableS36ConditionD22273E2",
       "DependsOn": [
-        "ControlRunbooksWaitS36025111EA",
+        "ControlRunbooksWaitS317DCF0083",
       ],
       "Properties": {
         "Content": {
@@ -15196,7 +15196,7 @@ def runbook_handler(event, context):
     "ControlRunbooksSNS145784CBB": {
       "Condition": "ControlRunbooksEnableSNS1Condition7720D1CC",
       "DependsOn": [
-        "ControlRunbooksWaitSNS1F99C4DC8",
+        "ControlRunbooksWaitSQS1248958A6",
       ],
       "Properties": {
         "Content": {
@@ -15548,7 +15548,7 @@ def parse_event(event, context):
     "ControlRunbooksSNS2112179CC": {
       "Condition": "ControlRunbooksEnableSNS2Condition69621468",
       "DependsOn": [
-        "ControlRunbooksWaitSNS20DE22D54",
+        "ControlRunbooksWaitSQS1248958A6",
       ],
       "Properties": {
         "Content": {
@@ -16256,75 +16256,7 @@ def parse_event(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "0a5cdc890539ee524d0c297b4a6343b65035470b77d297dd91acaf128db31f8b",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudFormation146D9A34B": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitAutoScaling10D4441AE",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "5e2201d3748d25ec3d12c64e01533754930a86457b76138afc9d2413d57ee3f0",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudTrail1A25D32F1": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudFormation146D9A34B",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "8cf01c9cf5f3b65dc9b8c1a0e27e6f3fbb57e5246143ac56d7b0ee15f6738adb",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudTrail21F987E98": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudTrail1A25D32F1",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "846fa1246669ec63bc480920e0105777cbbe65e727116e4fec265d3016ed3101",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudTrail458DE43DE": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudTrail21F987E98",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "f9dcc13f00cd6bcd6690e9d0c291625e69c795711279b84df114ecee24499283",
+        "DocumentPropertiesHash": "11dc0ae816812ef227e9a7bd3a337d46b3b7c94d23b76ecdc435757c227797ff",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16336,80 +16268,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitCloudTrail5696BADE5": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitCloudTrail458DE43DE",
+        "ControlRunbooksWaitAutoScaling10D4441AE",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "7c3b300b58d684a783f58c1b95634b6bf67fbfaa85767ab8b15c522f38e279da",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudTrail67978D253": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudTrail5696BADE5",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "d532794f5dc3302c1e096ec06d9a27e9a374348beed0b95e0c96fd4374299aa6",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudTrail7EABB459B": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudTrail67978D253",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "4a08db46d0f3aad52bda449f8bf3175e0bce6b9dd228223917a8ef4bb0498a8d",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCloudWatch1153ADE37": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudTrail7EABB459B",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "5c55b314ec285516f98ac951fef3bc4f21c6824554dc65327cb887cf0692d5bf",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitCodeBuild238275EA2": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitCloudWatch1153ADE37",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "41935a200230c1f2c2c2d1e742da29e5516949693f265edffcbf06adcf5dd03d",
+        "DocumentPropertiesHash": "53f801b967c642ca21ddb9491ddf4a80c610bd2342d34f42ac499e3ce5cc710b",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16421,12 +16285,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitConfig14A572694": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitCodeBuild238275EA2",
+        "ControlRunbooksWaitCloudTrail5696BADE5",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "e1792fad7677fda98765e9b6696687df5d2953b154616ebc7daee827525ec714",
+        "DocumentPropertiesHash": "da23d6295b0210b134873b98ca2dd6ffd898bf5ed1f0ccc8bdeab41eedc8d8dd",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16438,148 +16302,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitEC21311511FED": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitEC274219617D",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "1e1fc671c3fbf7a860aee16b3f9bb29eb0b9e09b8c9d60cf76f18e3a5f1c6135",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitEC2144340354": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
         "ControlRunbooksWaitConfig14A572694",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "5b734769a0449f194b275a57be67c588e453fbcf7dd48be5e02ba2f2567c0ddb",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitEC2157FB7B262": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitEC21311511FED",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "0ba5839b22a5728781720d3099ad094e8be8cda0de32ef14eb2a9b3675351798",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitEC222CA02D05": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitEC2144340354",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "413e16de20b9d5fd69b5ac61cd9162d12aeccaef51a64dea7640230e25e33b57",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitEC269077B1CA": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitEC222CA02D05",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "57206c372a4f6503ac294f22fd2b58d507fd133be43293484d0c0d5cfbf14b00",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitEC274219617D": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitEC269077B1CA",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "60fb93edd16ff7bffd79d7e572e4fc3167d49da79a84fd23cc715a3e4d218179",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitIAM3131A4F99": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitEC2157FB7B262",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "2cd79f19e73ebc8ea30e6490accdbe801d0fcdc47e2e43456406aebe29dbb757",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitIAM7211E71F4": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitIAM3131A4F99",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a3c7d5926edb08bc363c8ba1b11a1e34037a8c23cc45fc775fd5b6ebba9ba959",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitIAM8F6E89A05": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitIAM7211E71F4",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "e9e11dc9bfc3a2b9688d2726cf066fc31cabc8c9c3f09ab2aead0c8afe8b7106",
+        "DocumentPropertiesHash": "ac944d9f5dc7f804a638b1f1918c19340da97d041d10594f767afd4031ae66ca",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16591,46 +16319,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitKMS4C79B8335": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitIAM8F6E89A05",
+        "ControlRunbooksWaitEC21311511FED",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "558da743e6c51dba13e6491d7585dd854cb932e1a8d8d5ddbd51632f275f6710",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitLambda116719102": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitKMS4C79B8335",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "203af1f86e091cc6d6904dc172da92fbea3932bf692364d459b90087b54c5e74",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS13529AD058": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS8885A190C",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "f0110e41018452d82dea8340f257536ed956c6bb8c2833e8412a416f6bdd5e9b",
+        "DocumentPropertiesHash": "8f7c5f56862771c4548165a67ac47517f21777f5cf7ee23e9b7b0f5aa3a364a2",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16642,63 +16336,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitRDS1677C2EBCA": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitRDS13529AD058",
+        "ControlRunbooksWaitRDS5745B6BC7",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "43a70213d6d0dae25136cd5e9bd39d6c965d8123793c9f8d875d52e6b34d1de4",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS1A1E35585": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitLambda116719102",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "6346acdcd4b37ff6679bd8f4919bf4d799db8b9b64a327414b6f7ded6998e5cf",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS29AE2B3A0": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS1A1E35585",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "d625c1283fe12c0c7846fb58571a34ae45fd4234c0ae5e5c5c2490074563d7ee",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS4932DF75A": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS29AE2B3A0",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "f77799968e9f7d0163bcf40d726a151a37842770cf632c8192a34a5ed6b6e313",
+        "DocumentPropertiesHash": "b34df59968b49f9824c6b6560d6901e1666d1e75fb0ab85bc7b74e97838e11db",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16710,131 +16353,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitRDS5745B6BC7": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitRDS4932DF75A",
+        "ControlRunbooksWaitKMS4C79B8335",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "1fe1863eef2752714b37f32fb68b592503f232905ef122566ebcd65ff32328c0",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS6A575DF16": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS5745B6BC7",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "e9e4a801949575cdc72a56dac4a6a03ca11ebbc6483f101cb8e09f7bd4167b80",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS7AC8C1011": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS6A575DF16",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "220a35b7ed8513d177fcf40b805470a52030d346d11ecb8a81ff21712c6eb938",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRDS8885A190C": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS7AC8C1011",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a085ff1b619ba662c9250ed0b1943e1e04a375d1565d0af44aa0c636ec012909",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRedshift15794DAD8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRDS1677C2EBCA",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "5edb4b13b12c4147ebbed09cc6759e4efc3fe6359297a675e1ebedf3ab58af0c",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRedshift340870EB6": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRedshift15794DAD8",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "2a9c6197df64a95c1b7c862e624392a4562332bbf375566de1636d83e2d3a60e",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRedshift409BE659E": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRedshift340870EB6",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "d0fd25a3394aef8f9c149f30e54d97ac2bac56063b755e91400ea76f9d6cd44a",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitRedshift689426E75": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitRedshift409BE659E",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "12029c7aff63e5ede4dc97259fcbc46136a732036c7ca078a948db2f0e565d3c",
+        "DocumentPropertiesHash": "e77fa52a0ca342dbfb86409abea49d2243ca46740d79b615ea9dc0618da3ad6e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16846,114 +16370,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitS317DCF0083": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitRedshift689426E75",
+        "ControlRunbooksWaitRDS1677C2EBCA",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "e123b5d4c56f5219121e7fae5258a36dbba0b04467c4fdd19f1b4097d9aaa5a8",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitS32C0E9E154": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitS317DCF0083",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a4d581c01c9fd56d40b248c26fb1611e6414d2c82022a7bd7eb7ded92f4bf1fa",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitS342E2C8B6C": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitS32C0E9E154",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "1fe4fe2014f43bd011b7ca6ca374f35ef9084ce7bfd6bf86d9030ee9131cd3b4",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitS3595C584DE": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitS342E2C8B6C",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "2c55e32ec50a624c93529691ab04dd50781329ac87ab920c9d22213585c89609",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitS36025111EA": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitS3595C584DE",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "76ea55ea7fb6fe4916127c36a5c7fcc09d7f929d6ba60e1b9429b788be14dcc8",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitSNS1F99C4DC8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitSQS1248958A6",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "6bddd4f41609e7375b1d09bd3edcee6a0ec6a4193e1248868d2eee9d3922f445",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlRunbooksWaitSNS20DE22D54": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "ControlRunbooksWaitSNS1F99C4DC8",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "14815b47d30e1729ab55e6cdf31519ab194f5f98a40ac9f877a7a0d808b81c7e",
+        "DocumentPropertiesHash": "5e53fc7abb1c81c81ab08e6a78360e7fdbca399b31fa2f4647bb43cf568ecfa9",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16965,12 +16387,12 @@ def parse_event(event, context):
     "ControlRunbooksWaitSQS1248958A6": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksWaitS36025111EA",
+        "ControlRunbooksWaitS317DCF0083",
       ],
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "aeb66dc2fe36dca5f1ac7fcdc95fb300e9d897127ef76012a710dbbf056bcf58",
+        "DocumentPropertiesHash": "1ddaa66543b6d561222bf40a61c1131852c184293363c6e11181a2f4ae6afb21",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

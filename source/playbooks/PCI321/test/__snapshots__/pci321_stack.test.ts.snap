@@ -761,7 +761,7 @@ def parse_event(event, context):
     "ControlPCIPCIEC26": {
       "Condition": "EnablePCIEC26Condition",
       "DependsOn": [
-        "RunbookFactoryWaitPCIPCIEC2614145FE2",
+        "RunbookFactoryWaitPCIPCIAutoScaling11EDF78C1",
       ],
       "Properties": {
         "Content": {
@@ -1104,7 +1104,7 @@ def parse_event(event, context):
     "ControlPCIPCIIAM8": {
       "Condition": "EnablePCIIAM8Condition",
       "DependsOn": [
-        "RunbookFactoryWaitPCIPCIIAM86AF66562",
+        "RunbookFactoryWaitPCIPCIAutoScaling11EDF78C1",
       ],
       "Properties": {
         "Content": {
@@ -1430,41 +1430,7 @@ def parse_event(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "6db54a1a29c220236a827a2c0c79a6a6d9c8fa1710bffeedfde02cdbfab57f85",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitPCIPCIEC2614145FE2": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitPCIPCIAutoScaling11EDF78C1",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "acf20b72a9a15cff15cf1dccd97b4622aa7e4eaadb776388d6d30368927036f2",
-        "ServiceToken": {
-          "Ref": "WaitProviderServiceToken",
-        },
-        "UpdateIntervalSeconds": 1,
-      },
-      "Type": "Custom::Wait",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "RunbookFactoryWaitPCIPCIIAM86AF66562": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "RunbookFactoryWaitPCIPCIEC2614145FE2",
-      ],
-      "Properties": {
-        "CreateIntervalSeconds": 1,
-        "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "5b1af28b75f5bb3b3c86a15dbaa5721377f2192e41770a8b3e68224815e7a329",
+        "DocumentPropertiesHash": "3ac90e4bba3f9e11954482a6e4a89dfa7031bc2820a952481454d7f11cc52b03",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
