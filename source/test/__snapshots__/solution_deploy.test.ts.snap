@@ -479,7 +479,15 @@ exports[`Test if the Stack has all the resources. 1`] = `
         },
         "Description": "Attribute group for solution information",
         "Name": {
-          "Ref": "AWS::StackName",
+          "Fn::Join": [
+            "",
+            [
+              "ASR-",
+              {
+                "Ref": "AWS::StackName",
+              },
+            ],
+          ],
         },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
