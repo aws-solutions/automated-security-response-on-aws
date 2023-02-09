@@ -3,8 +3,8 @@
 import { Construct } from 'constructs';
 import { PlaybookProps } from '../../SC/lib/control_runbooks-construct';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { IAM_8_ControlRunbookDocument } from '../../SC/ssmdocs/SC_IAM.8';
+import { RevokeUnusedIAMUserCredentialsDocument } from '../../SC/ssmdocs/SC_IAM.8';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new IAM_8_ControlRunbookDocument(stage, id, { ...props, controlId: '1.12' });
+  return new RevokeUnusedIAMUserCredentialsDocument(stage, id, { ...props, controlId: '1.12' });
 }

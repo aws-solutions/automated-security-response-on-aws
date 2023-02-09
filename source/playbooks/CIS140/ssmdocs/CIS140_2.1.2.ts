@@ -3,8 +3,8 @@
 import { Construct } from 'constructs';
 import { PlaybookProps } from '../../SC/lib/control_runbooks-construct';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { S3_5_ControlRunbookDocument } from '../../SC/ssmdocs/SC_S3.5';
+import { SetSSLBucketPolicyDocument } from '../../SC/ssmdocs/SC_S3.5';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3_5_ControlRunbookDocument(stage, id, { ...props, controlId: '2.1.2' });
+  return new SetSSLBucketPolicyDocument(stage, id, { ...props, controlId: '2.1.2' });
 }
