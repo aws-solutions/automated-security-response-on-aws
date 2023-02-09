@@ -21,10 +21,10 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new Redshift_4_ControlRunbookDocument(scope, id, { ...props, controlId: 'Redshift.4' });
+  return new EnableRedshiftClusterAuditLoggingDocument(scope, id, { ...props, controlId: 'Redshift.4' });
 }
 
-class Redshift_4_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

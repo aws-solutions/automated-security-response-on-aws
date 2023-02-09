@@ -17,10 +17,10 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new Redshift_3_ControlRunbookDocument(scope, id, { ...props, controlId: 'Redshift.3' });
+  return new EnableAutomaticSnapshotsOnRedshiftClusterDocument(scope, id, { ...props, controlId: 'Redshift.3' });
 }
 
-class Redshift_3_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

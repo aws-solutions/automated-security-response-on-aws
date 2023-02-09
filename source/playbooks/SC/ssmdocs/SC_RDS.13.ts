@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { DataTypeEnum, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RDS_13_ControlRunbookDocument(scope, id, { ...props, controlId: 'RDS.13' });
+  return new EnableMinorVersionUpgradeOnRDSDBInstanceDocument(scope, id, { ...props, controlId: 'RDS.13' });
 }
 
-class RDS_13_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

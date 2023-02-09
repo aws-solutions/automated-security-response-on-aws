@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudFormation_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'CloudFormation.1' });
+  return new ConfigureSNSTopicForStackDocument(scope, id, { ...props, controlId: 'CloudFormation.1' });
 }
 
-class CloudFormation_1_ControlRunbookDocument extends ControlRunbookDocument {
+class ConfigureSNSTopicForStackDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

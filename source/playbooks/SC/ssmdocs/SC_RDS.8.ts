@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { DataTypeEnum, HardCodedBoolean, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RDS_8_ControlRunbookDocument(scope, id, { ...props, controlId: 'RDS.8' });
+  return new EnableRDSInstanceDeletionProtectionDocument(scope, id, { ...props, controlId: 'RDS.8' });
 }
 
-class RDS_8_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableRDSInstanceDeletionProtectionDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

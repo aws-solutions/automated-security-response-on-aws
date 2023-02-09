@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudTrail_4_ControlRunbookDocument(scope, id, { ...props, controlId: 'CloudTrail.4' });
+  return new EnableCloudTrailLogFileValidationDocument(scope, id, { ...props, controlId: 'CloudTrail.4' });
 }
 
-export class CloudTrail_4_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableCloudTrailLogFileValidationDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EC2_6_ControlRunbookDocument(scope, id, { ...props, controlId: 'EC2.6' });
+  return new EnableVPCFlowLogsDocument(scope, id, { ...props, controlId: 'EC2.6' });
 }
 
-export class EC2_6_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableVPCFlowLogsDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

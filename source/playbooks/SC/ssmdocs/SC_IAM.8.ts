@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { DataTypeEnum, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new IAM_8_ControlRunbookDocument(scope, id, { ...props, controlId: 'IAM.8' });
+  return new RevokeUnusedIAMUserCredentialsDocument(scope, id, { ...props, controlId: 'IAM.8' });
 }
 
-export class IAM_8_ControlRunbookDocument extends ControlRunbookDocument {
+export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const remediationName = 'RevokeUnusedIAMUserCredentials';
 

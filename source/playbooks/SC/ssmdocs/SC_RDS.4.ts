@@ -15,10 +15,10 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RDS_4_ControlRunbookDocument(scope, id, { ...props, controlId: 'RDS.4' });
+  return new EncryptRDSSnapshotDocument(scope, id, { ...props, controlId: 'RDS.4' });
 }
 
-class RDS_4_ControlRunbookDocument extends ControlRunbookDocument {
+class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs: Input[] = [
       Input.ofTypeString('KMSKeyId', {

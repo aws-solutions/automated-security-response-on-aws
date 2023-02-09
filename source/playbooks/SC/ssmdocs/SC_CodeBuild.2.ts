@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CodeBuild_2_ControlRunbookDocument(scope, id, { ...props, controlId: 'CodeBuild.2' });
+  return new ReplaceCodeBuildClearTextCredentialsDocument(scope, id, { ...props, controlId: 'CodeBuild.2' });
 }
 
-class CodeBuild_2_ControlRunbookDocument extends ControlRunbookDocument {
+class ReplaceCodeBuildClearTextCredentialsDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

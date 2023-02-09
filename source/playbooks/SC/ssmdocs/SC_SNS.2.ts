@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, Input, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new SNS_2_ControlRunbookDocument(scope, id, { ...props, controlId: 'SNS.2' });
+  return new EnableDeliveryLoggingForSNSTopicDocument(scope, id, { ...props, controlId: 'SNS.2' });
 }
 
-export class SNS_2_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableDeliveryLoggingForSNSTopicDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs = [
       Input.ofTypeString('LoggingRole', {

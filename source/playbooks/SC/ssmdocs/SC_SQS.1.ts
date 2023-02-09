@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, Input, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new SQS_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'SQS.1' });
+  return new EnableEncryptionForSQSQueueDocument(scope, id, { ...props, controlId: 'SQS.1' });
 }
 
-export class SQS_1_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableEncryptionForSQSQueueDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs = [
       Input.ofTypeString('KmsKeyArn', {

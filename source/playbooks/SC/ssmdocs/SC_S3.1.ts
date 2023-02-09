@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedBoolean, HardCodedString, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'S3.1' });
+  return new ConfigureS3PublicAccessBlockDocument(scope, id, { ...props, controlId: 'S3.1' });
 }
 
-class S3_1_ControlRunbookDocument extends ControlRunbookDocument {
+class ConfigureS3PublicAccessBlockDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

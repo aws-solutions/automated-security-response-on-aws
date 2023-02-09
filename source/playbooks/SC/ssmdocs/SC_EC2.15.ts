@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EC2_15_ControlRunbookDocument(scope, id, { ...props, controlId: 'EC2.15' });
+  return new DisablePublicIPAutoAssignDocument(scope, id, { ...props, controlId: 'EC2.15' });
 }
 
-export class EC2_15_ControlRunbookDocument extends ControlRunbookDocument {
+export class DisablePublicIPAutoAssignDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

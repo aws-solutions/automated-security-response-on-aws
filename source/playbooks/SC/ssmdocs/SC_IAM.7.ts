@@ -6,14 +6,14 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedBoolean, HardCodedNumber, HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new IAM_7_ControlRunbookDocument(scope, id, {
+  return new SetIAMPasswordPolicyDocument(scope, id, {
     ...props,
     controlId: 'IAM.7',
     otherControlIds: ['IAM.11', 'IAM.12', 'IAM.13', 'IAM.14', 'IAM.15', 'IAM.16', 'IAM.17'],
   });
 }
 
-export class IAM_7_ControlRunbookDocument extends ControlRunbookDocument {
+export class SetIAMPasswordPolicyDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const remediationName = 'SetIAMPasswordPolicy';
 

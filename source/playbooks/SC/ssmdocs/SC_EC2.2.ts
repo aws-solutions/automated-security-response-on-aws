@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EC2_2_ControlRunbookDocument(scope, id, { ...props, controlId: 'EC2.2' });
+  return new RemoveVPCDefaultSecurityGroupRulesDocument(scope, id, { ...props, controlId: 'EC2.2' });
 }
 
-export class EC2_2_ControlRunbookDocument extends ControlRunbookDocument {
+export class RemoveVPCDefaultSecurityGroupRulesDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

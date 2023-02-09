@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new KMS_4_ControlRunbookDocument(scope, id, { ...props, controlId: 'KMS.4' });
+  return new EnableKeyRotationDocument(scope, id, { ...props, controlId: 'KMS.4' });
 }
 
-export class KMS_4_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableKeyRotationDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'KeyId';
 

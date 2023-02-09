@@ -17,10 +17,10 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3_6_ControlRunbookDocument(scope, id, { ...props, controlId: 'S3.6' });
+  return new S3BlockDenylistDocument(scope, id, { ...props, controlId: 'S3.6' });
 }
 
-class S3_6_ControlRunbookDocument extends ControlRunbookDocument {
+class S3BlockDenylistDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
