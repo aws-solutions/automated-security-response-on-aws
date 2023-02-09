@@ -457,8 +457,9 @@ exports[`member stack snapshot matches 1`] = `
     },
     "PlaybookMemberStackAFSBP": {
       "Condition": "loadAFSBPCond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -492,12 +493,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "PlaybookMemberStackCIS120": {
       "Condition": "loadCIS120Cond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -531,12 +534,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "PlaybookMemberStackCIS140": {
       "Condition": "loadCIS140Cond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -570,12 +575,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "PlaybookMemberStackPCI321": {
       "Condition": "loadPCI321Cond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -609,12 +616,14 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "PlaybookMemberStackSC": {
       "Condition": "loadSCCond",
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackSC0515DB36",
-        "RunbookStackNoRoles",
+        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
       ],
       "Properties": {
         "Parameters": {
@@ -648,8 +657,10 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
-    "RunbookStackNoRoles": {
+    "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD": {
+      "DeletionPolicy": "Delete",
       "Properties": {
         "TemplateURL": {
           "Fn::Join": [
@@ -677,6 +688,7 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "S3BucketForRedShiftAuditLogging652E7355": {
       "Condition": "EnableS3BucketForRedShift4",

@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCondition, CfnMapping, CfnStack, CfnWaitConditionHandle, Fn } from 'aws-cdk-lib';
+import { CfnCondition, CfnMapping, CfnStack, CfnWaitConditionHandle, Fn, NestedStack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import setCondition from './set-condition';
 
@@ -44,7 +44,7 @@ export class SerializedNestedStackFactory extends Construct {
     });
   }
 
-  addNestedStack(id: string, props: NestedStackProps): CfnStack {
+  addNestedStack(id: string, props: NestedStackProps): NestedStack {
     const templateUrl =
       'https://' +
       this.mapping.findInMap(this.mappingKey, this.bucketKey) +
@@ -55,10 +55,12 @@ export class SerializedNestedStackFactory extends Construct {
 
     // Create all resource at `scope` scope rather than `this` to maintain logical IDs
 
-    const stack = new CfnStack(this.scope, id, { templateUrl, parameters: props.parameters });
+    const stack = new NestedStack(this.scope, id, { parameters: props.parameters });
+    const cfnStack = stack.nestedStackResource as CfnStack;
+    cfnStack.addPropertyOverride('TemplateURL', templateUrl);
 
     this.unconditionalNestedStacks.forEach(function (previousStack: CfnStack) {
-      stack.addDependency(previousStack);
+      cfnStack.addDependency(previousStack);
     });
 
     if (this.conditionalNestedStacks.length > 0) {
@@ -69,14 +71,14 @@ export class SerializedNestedStackFactory extends Construct {
           Fn.conditionIf(previousStack.condition.logicalId, Fn.ref(previousStack.stack.logicalId), '')
         );
       });
-      stack.addDependency(dummyResource);
+      cfnStack.addDependency(dummyResource);
     }
 
     if (props.condition) {
-      setCondition(stack, props.condition);
-      this.conditionalNestedStacks.push({ stack, condition: props.condition });
+      setCondition(cfnStack, props.condition);
+      this.conditionalNestedStacks.push({ stack: cfnStack, condition: props.condition });
     } else {
-      this.unconditionalNestedStacks.push(stack);
+      this.unconditionalNestedStacks.push(cfnStack);
     }
 
     return stack;

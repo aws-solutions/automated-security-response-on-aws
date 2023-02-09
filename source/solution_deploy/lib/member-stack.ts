@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { readdirSync } from 'fs';
-import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn } from 'aws-cdk-lib';
+import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnResource } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from '../../lib/admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
@@ -20,6 +20,7 @@ export interface SolutionProps extends StackProps {
 }
 
 export class MemberStack extends Stack {
+  nestedStacks: Stack[] = [];
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
 
@@ -41,9 +42,11 @@ export class MemberStack extends Stack {
       solutionVersion: props.solutionVersion,
     });
 
-    nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
+    const nestedStackNoRoles = nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
       templateRelativePath: 'aws-sharr-remediations.template',
     });
+
+    this.nestedStacks.push(nestedStackNoRoles as Stack);
 
     const playbookDirectory = `${__dirname}/../../playbooks`;
     const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
@@ -64,13 +67,16 @@ export class MemberStack extends Stack {
         memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
         listOfPlaybooks.push(memberStackOption.logicalId);
 
-        nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
+        const nestedStack = nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
           templateRelativePath: `playbooks/${templateFile}`,
           parameters: { SecHubAdminAccount: adminAccountParam.value },
           condition: new CfnCondition(this, `load${file}Cond`, {
             expression: Fn.conditionEquals(memberStackOption, 'yes'),
           }),
         });
+        const cfnResource = nestedStack.nestedStackResource as CfnResource;
+        cfnResource.overrideLogicalId(`PlaybookMemberStack${file}`);
+        this.nestedStacks.push(nestedStack as Stack);
       }
     });
 
