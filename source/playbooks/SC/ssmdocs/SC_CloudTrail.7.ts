@@ -14,10 +14,10 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudTrail_7_ControlRunbookDocument(scope, id, { ...props, controlId: 'CloudTrail.7' });
+  return new ConfigureS3BucketLoggingDocument(scope, id, { ...props, controlId: 'CloudTrail.7' });
 }
 
-export class CloudTrail_7_ControlRunbookDocument extends ControlRunbookDocument {
+export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'BucketName';
 

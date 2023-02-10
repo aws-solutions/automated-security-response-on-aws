@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, Input, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new Config_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'Config.1' });
+  return new EnableAWSConfigDocument(scope, id, { ...props, controlId: 'Config.1' });
 }
 
-export class Config_1_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableAWSConfigDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs: Input[] = [
       Input.ofTypeString('KMSKeyArn', {

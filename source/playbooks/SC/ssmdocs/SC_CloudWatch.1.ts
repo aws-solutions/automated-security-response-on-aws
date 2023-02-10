@@ -18,7 +18,7 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudWatch_1_ControlRunbookDocument(scope, id, {
+  return new CreateLogMetricFilterAndAlarmDocument(scope, id, {
     ...props,
     controlId: 'CloudWatch.1',
     otherControlIds: [
@@ -39,7 +39,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   });
 }
 
-export class CloudWatch_1_ControlRunbookDocument extends ControlRunbookDocument {
+export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const allowAnyRegex = String.raw`.*`;
     const docInputs: Input[] = [

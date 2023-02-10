@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EC2_7_ControlRunbookDocument(scope, id, { ...props, controlId: 'EC2.7' });
+  return new EnableEbsEncryptionByDefaultDocument(scope, id, { ...props, controlId: 'EC2.7' });
 }
 
-class EC2_7_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableEbsEncryptionByDefaultDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

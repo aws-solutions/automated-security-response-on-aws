@@ -13,14 +13,14 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EC2_13_ControlRunbookDocument(scope, id, {
+  return new DisablePublicAccessForSecurityGroupDocument(scope, id, {
     ...props,
     controlId: 'EC2.13',
     otherControlIds: ['EC2.14'],
   });
 }
 
-class EC2_13_ControlRunbookDocument extends ControlRunbookDocument {
+class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'GroupId';
 

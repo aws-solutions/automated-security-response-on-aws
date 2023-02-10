@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, Input, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudTrail_2_ControlRunbookDocument(scope, id, { ...props, controlId: 'CloudTrail.2' });
+  return new EnableCloudTrailEncryptionDocument(scope, id, { ...props, controlId: 'CloudTrail.2' });
 }
 
-export class CloudTrail_2_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableCloudTrailEncryptionDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs = [
       Input.ofTypeString('KMSKeyArn', {

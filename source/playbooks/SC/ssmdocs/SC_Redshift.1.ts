@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new Redshift_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'Redshift.1' });
+  return new DisablePublicAccessToRedshiftClusterDocument(scope, id, { ...props, controlId: 'Redshift.1' });
 }
 
-class Redshift_1_ControlRunbookDocument extends ControlRunbookDocument {
+class DisablePublicAccessToRedshiftClusterDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

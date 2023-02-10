@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, Input, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new SNS_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'SNS.1' });
+  return new EnableEncryptionForSNSTopicDocument(scope, id, { ...props, controlId: 'SNS.1' });
 }
 
-export class SNS_1_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableEncryptionForSNSTopicDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs = [
       Input.ofTypeString('KmsKeyArn', {

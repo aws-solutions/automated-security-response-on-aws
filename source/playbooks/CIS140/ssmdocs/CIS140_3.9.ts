@@ -3,8 +3,8 @@
 import { Construct } from 'constructs';
 import { PlaybookProps } from '../../SC/lib/control_runbooks-construct';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { EC2_6_ControlRunbookDocument } from '../../SC/ssmdocs/SC_EC2.6';
+import { EnableVPCFlowLogsDocument } from '../../SC/ssmdocs/SC_EC2.6';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EC2_6_ControlRunbookDocument(stage, id, { ...props, controlId: '3.9' });
+  return new EnableVPCFlowLogsDocument(stage, id, { ...props, controlId: '3.9' });
 }

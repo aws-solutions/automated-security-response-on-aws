@@ -3,8 +3,8 @@
 import { Construct } from 'constructs';
 import { PlaybookProps } from '../../SC/lib/control_runbooks-construct';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { CloudTrail_1_ControlRunbookDocument } from '../../SC/ssmdocs/SC_CloudTrail.1';
+import { CreateCloudTrailMultiRegionTrailDocument } from '../../SC/ssmdocs/SC_CloudTrail.1';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudTrail_1_ControlRunbookDocument(stage, id, { ...props, controlId: '3.1' });
+  return new CreateCloudTrailMultiRegionTrailDocument(stage, id, { ...props, controlId: '3.1' });
 }

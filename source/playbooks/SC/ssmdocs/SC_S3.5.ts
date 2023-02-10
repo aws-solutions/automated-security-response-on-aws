@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3_5_ControlRunbookDocument(scope, id, { ...props, controlId: 'S3.5' });
+  return new SetSSLBucketPolicyDocument(scope, id, { ...props, controlId: 'S3.5' });
 }
 
-export class S3_5_ControlRunbookDocument extends ControlRunbookDocument {
+export class SetSSLBucketPolicyDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

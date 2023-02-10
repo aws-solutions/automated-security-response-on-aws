@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { DataTypeEnum, Input, Output, StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new IAM_3_ControlRunbookDocument(scope, id, { ...props, controlId: 'IAM.3' });
+  return new RevokeUnrotatedKeysDocument(scope, id, { ...props, controlId: 'IAM.3' });
 }
 
-export class IAM_3_ControlRunbookDocument extends ControlRunbookDocument {
+export class RevokeUnrotatedKeysDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs: Input[] = [
       Input.ofTypeString('MaxCredentialUsageAge', {

@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new AutoScaling_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'AutoScaling.1' });
+  return new EnableAutoScalingGroupELBHealthCheckDocument(scope, id, { ...props, controlId: 'AutoScaling.1' });
 }
 
-class AutoScaling_1_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableAutoScalingGroupELBHealthCheckDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

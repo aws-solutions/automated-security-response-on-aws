@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { Input, StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3_4_ControlRunbookDocument(scope, id, { ...props, controlId: 'S3.4' });
+  return new EnableDefaultEncryptionS3Document(scope, id, { ...props, controlId: 'S3.4' });
 }
 
-export class S3_4_ControlRunbookDocument extends ControlRunbookDocument {
+export class EnableDefaultEncryptionS3Document extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs: Input[] = [
       Input.ofTypeString('KmsKeyAlias', {

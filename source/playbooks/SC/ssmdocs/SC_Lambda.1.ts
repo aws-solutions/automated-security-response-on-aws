@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new Lambda_1_ControlRunbookDocument(scope, id, { ...props, controlId: 'Lambda.1' });
+  return new RemoveLambdaPublicAccessDocument(scope, id, { ...props, controlId: 'Lambda.1' });
 }
 
-class Lambda_1_ControlRunbookDocument extends ControlRunbookDocument {
+class RemoveLambdaPublicAccessDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'FunctionName';
 

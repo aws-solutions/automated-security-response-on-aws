@@ -3,8 +3,8 @@
 import { Construct } from 'constructs';
 import { PlaybookProps } from '../../SC/lib/control_runbooks-construct';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { CloudTrail_7_ControlRunbookDocument } from '../../SC/ssmdocs/SC_CloudTrail.7';
+import { ConfigureS3BucketLoggingDocument } from '../../SC/ssmdocs/SC_CloudTrail.7';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CloudTrail_7_ControlRunbookDocument(stage, id, { ...props, controlId: '3.6' });
+  return new ConfigureS3BucketLoggingDocument(stage, id, { ...props, controlId: '3.6' });
 }

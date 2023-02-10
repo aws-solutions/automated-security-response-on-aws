@@ -14,10 +14,10 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RDS_6_ControlRunbookDocument(scope, id, { ...props, controlId: 'RDS.6' });
+  return new EnableEnhancedMonitoringOnRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.6' });
 }
 
-class RDS_6_ControlRunbookDocument extends ControlRunbookDocument {
+class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

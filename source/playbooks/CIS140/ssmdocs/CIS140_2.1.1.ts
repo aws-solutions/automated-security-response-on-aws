@@ -3,8 +3,8 @@
 import { Construct } from 'constructs';
 import { PlaybookProps } from '../../SC/lib/control_runbooks-construct';
 import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
-import { S3_4_ControlRunbookDocument } from '../../SC/ssmdocs/SC_S3.4';
+import { EnableDefaultEncryptionS3Document } from '../../SC/ssmdocs/SC_S3.4';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3_4_ControlRunbookDocument(stage, id, { ...props, controlId: '2.1.1' });
+  return new EnableDefaultEncryptionS3Document(stage, id, { ...props, controlId: '2.1.1' });
 }
