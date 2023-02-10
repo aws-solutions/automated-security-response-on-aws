@@ -77,7 +77,7 @@ class CustomAction(object):
             else:
                 logger_obj.error(error)
                 return "FAILED"
-        except Exception as e:
+        except Exception:
             return "FAILED"
 
     def delete(self):
@@ -116,7 +116,7 @@ def lambda_handler(event, context):
     properties = event.get("ResourceProperties", {})
     logger_obj.info(json.dumps(properties))
     account_id = get_account_id()
-    customAction = CustomAction(account_id, properties)
+    custom_action = CustomAction(account_id, properties)
     physical_resource_id = "CustomAction" + properties.get("Id", "ERROR")
 
     try:
@@ -126,7 +126,7 @@ def lambda_handler(event, context):
             or event["RequestType"].upper() == "UPDATE"
         ):
             logger_obj.info(event["RequestType"].upper() + ": " + physical_resource_id)
-            custom_action_result = customAction.create()
+            custom_action_result = custom_action.create()
             if custom_action_result == "FAILED":
                 status = "FAILED"
             else:
@@ -135,7 +135,7 @@ def lambda_handler(event, context):
 
         elif event["RequestType"].upper() == "DELETE":
             logger_obj.info("DELETE: " + physical_resource_id)
-            status = customAction.delete()
+            status = custom_action.delete()
 
         else:
             err_msg = "Invalid RequestType: " + event["RequestType"]

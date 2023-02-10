@@ -45,7 +45,7 @@ def check_for_s3_bucket_name(_, __):
         s3_bucket_name_for_audit_logging = ssm.get_parameter(
             Name=f'/Solutions/{get_solution_id()}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging'
         )['Parameter'].get('Value', 'unknown')
-    except Exception as e:
+    except Exception:
         return {
             "s3_bucket_name_for_redshift_audit_logging": "NOT_AVAILABLE"
         }
