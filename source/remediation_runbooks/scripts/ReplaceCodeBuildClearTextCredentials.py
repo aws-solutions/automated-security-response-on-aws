@@ -20,7 +20,7 @@ def connect_to_iam(boto_config):
     return client('iam', config = boto_config)
 
 def is_clear_text_credential(env_var):
-    if not env_var.get('type') == 'PLAINTEXT':
+    if env_var.get('type') != 'PLAINTEXT':
         return False
     return any(env_var.get('name').upper() == credential_name for credential_name in CREDENTIAL_NAMES_UPPER)
 

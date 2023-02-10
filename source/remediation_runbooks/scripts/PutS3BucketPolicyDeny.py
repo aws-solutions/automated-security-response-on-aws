@@ -127,11 +127,11 @@ class DenyStatement:
         self.add_next_principal_to_deny(principals_to_deny, bucket_account)
 
     def add_deny_principal(self, principal_arn):
-        if not principal_arn in self.deny_statement_json["Principal"]["AWS"]:
+        if principal_arn not in self.deny_statement_json["Principal"]["AWS"]:
             self.deny_statement_json["Principal"]["AWS"].append(principal_arn)
 
     def add_deny_resource(self, resource_arn):
-        if self.deny_statement_json["Resource"] and not resource_arn in self.deny_statement_json.Resource:
+        if self.deny_statement_json["Resource"] and resource_arn not in self.deny_statement_json.Resource:
             self.deny_statement_json["Resource"].append(resource_arn)
 
 def update_bucket_policy(event, _):

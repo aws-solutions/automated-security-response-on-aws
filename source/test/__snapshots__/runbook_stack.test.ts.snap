@@ -4533,7 +4533,7 @@ boto_config = Config(
         }
     )
 
-multiAZClusterEngines = ["mysql","postgres"]
+multi_az_cluster_engines = ["mysql","postgres"]
 
 def connect_to_rds():
     return boto3.client('rds', config=boto_config)
@@ -4547,99 +4547,99 @@ def lambda_handler(event, _):
  
      \`context\` is ignored
     """
-    dbInstanceID = event["DBInstanceIdentifier"]
+    db_instance_id = event["DBInstanceIdentifier"]
 
     rds = connect_to_rds()
 
-    foundInstance = rds.describe_db_instances(DBInstanceIdentifier=dbInstanceID)
+    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_id)
 
-    instanceInfo = foundInstance['DBInstances'][0]
+    instance_info = found_instance['DBInstances'][0]
 
     response = False
 
-    if ("DBClusterIdentifier" in instanceInfo.keys()):
-        if (multi_az_check(instanceInfo["DBClusterIdentifier"])):
-            clusterID = instanceInfo["DBClusterIdentifier"]
-            enable_minor_version_upgrade_cluster(clusterID)
-            response = verify_cluster_changes(clusterID)
+    if ("DBClusterIdentifier" in instance_info.keys()):
+        if (multi_az_check(instance_info["DBClusterIdentifier"])):
+            cluster_id = instance_info["DBClusterIdentifier"]
+            enable_minor_version_upgrade_cluster(cluster_id)
+            response = verify_cluster_changes(cluster_id)
         else:
-            enable_minor_version_upgrade_instance(dbInstanceID)
-            response = verify_instance_changes(dbInstanceID)
+            enable_minor_version_upgrade_instance(db_instance_id)
+            response = verify_instance_changes(db_instance_id)
     else:
-        enable_minor_version_upgrade_instance(dbInstanceID)
-        response = verify_instance_changes(dbInstanceID)
+        enable_minor_version_upgrade_instance(db_instance_id)
+        response = verify_instance_changes(db_instance_id)
         
     if response == True:
         return {
             "AutoMinorVersionUpgrade": response
         }
     
-    raise Exception(f'ASR Remediation failed - {dbInstanceID} did not have enable auto minor version upgrades enabled.')
+    raise Exception(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
 
-def multi_az_check(clusterID):
+def multi_az_check(cluster_id):
     """
     Checks to see if the cluster is Multi-AZ. Instances within clusters that match this check are not able to be modified.
     """  
 
     rds = connect_to_rds()
     try:
-        foundCluster = rds.describe_db_clusters(DBClusterIdentifier=clusterID)
-        clusterInfo = foundCluster['DBClusters'][0]
+        found_cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_id)
+        cluster_info = found_cluster['DBClusters'][0]
     except Exception as e:
-        exit(f'Failed to get information about the cluster: {clusterID} ')
+        exit(f'Failed to get information about the cluster: {cluster_id}.  Error: {e}')
 
-    return ((clusterInfo["MultiAZ"] == True) and (clusterInfo["Engine"] in multiAZClusterEngines))
+    return ((cluster_info["MultiAZ"] == True) and (cluster_info["Engine"] in multi_az_cluster_engines))
 
 
-def enable_minor_version_upgrade_cluster(clusterID):
+def enable_minor_version_upgrade_cluster(cluster_id):
     """
     Enables automatic minor version upgrade for a Multi-AZ Cluster.
     """ 
 
     rds = connect_to_rds()
     try:
-        rds.modify_db_cluster(DBClusterIdentifier=clusterID,AutoMinorVersionUpgrade=True)
+        rds.modify_db_cluster(DBClusterIdentifier=cluster_id,AutoMinorVersionUpgrade=True)
     except Exception as e:
-        exit(f'Failed to modify the cluster: {clusterID}. Error: {e}')
+        exit(f'Failed to modify the cluster: {cluster_id}. Error: {e}')
 
-def enable_minor_version_upgrade_instance(instanceID):
+def enable_minor_version_upgrade_instance(instance_id):
     """
     Enables automatic minor version upgrade for an instance.
     """ 
 
     rds = connect_to_rds()
     try:
-        rds.modify_db_instance(DBInstanceIdentifier=instanceID,AutoMinorVersionUpgrade=True)
+        rds.modify_db_instance(DBInstanceIdentifier=instance_id,AutoMinorVersionUpgrade=True)
     except Exception as e:
-        exit(f'Failed to modify the instance: {instanceID}. Error: {e}')
+        exit(f'Failed to modify the instance: {instance_id}. Error: {e}')
 
-def verify_cluster_changes(clusterID):
+def verify_cluster_changes(cluster_id):
     """
     Verifies automatic minor version upgrade for a Multi-AZ cluster.
     """ 
     rds = connect_to_rds()
     try:
-        foundCluster = rds.describe_db_clusters(DBClusterIdentifier=clusterID, MaxRecords=100)
-        clusterInfo = foundCluster['DBClusters'][0]
+        found_cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_id, MaxRecords=100)
+        cluster_info = found_cluster['DBClusters'][0]
 
     except Exception as e:
-        exit(f'Failed to verify cluster changes: {clusterID}. Error: {e}')
+        exit(f'Failed to verify cluster changes: {cluster_id}. Error: {e}')
 
-    return clusterInfo['AutoMinorVersionUpgrade']
+    return cluster_info['AutoMinorVersionUpgrade']
         
-def verify_instance_changes(instanceID):
+def verify_instance_changes(instance_id):
     """
     Verifies automatic minor version upgrade for an instance.
     """ 
     rds = connect_to_rds()
     try:
-        foundInstance = rds.describe_db_instances(DBInstanceIdentifier=instanceID, MaxRecords=100)
-        instanceInfo = foundInstance['DBInstances'][0]
+        found_instance = rds.describe_db_instances(DBInstanceIdentifier=instance_id, MaxRecords=100)
+        instance_info = found_instance['DBInstances'][0]
     except Exception as e:
 
-        exit(f'Failed to verify instance changes: {instanceID}. Error: {e}')
+        exit(f'Failed to verify instance changes: {instance_id}. Error: {e}')
 
-    return instanceInfo['AutoMinorVersionUpgrade'] ",
+    return instance_info['AutoMinorVersionUpgrade'] ",
               },
               "name": "ModifyDBInstance",
               "outputs": [
@@ -6082,12 +6082,12 @@ def public_s3_statement_check(statement, principal):
     This function checks if the user has given access to an S3 bucket without providing an AWS account.
     """
     try:
-        emptySourceAccountCheck = False
+        empty_source_account_check = False
         if ("StringEquals" in statement["Condition"]):
-            emptySourceAccountCheck = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
+            empty_source_account_check = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
         else:
-            emptySourceAccountCheck = True
-        return principal.get("Service", "") == "s3.amazonaws.com" and emptySourceAccountCheck
+            empty_source_account_check = True
+        return principal.get("Service", "") == "s3.amazonaws.com" and empty_source_account_check
     except KeyError:
         return principal.get("Service", "") == "s3.amazonaws.com"
 
@@ -6387,7 +6387,7 @@ def connect_to_iam(boto_config):
     return client('iam', config = boto_config)
 
 def is_clear_text_credential(env_var):
-    if not env_var.get('type') == 'PLAINTEXT':
+    if env_var.get('type') != 'PLAINTEXT':
         return False
     return any(env_var.get('name').upper() == credential_name for credential_name in CREDENTIAL_NAMES_UPPER)
 
@@ -7089,11 +7089,11 @@ class DenyStatement:
         self.add_next_principal_to_deny(principals_to_deny, bucket_account)
 
     def add_deny_principal(self, principal_arn):
-        if not principal_arn in self.deny_statement_json["Principal"]["AWS"]:
+        if principal_arn not in self.deny_statement_json["Principal"]["AWS"]:
             self.deny_statement_json["Principal"]["AWS"].append(principal_arn)
 
     def add_deny_resource(self, resource_arn):
-        if self.deny_statement_json["Resource"] and not resource_arn in self.deny_statement_json.Resource:
+        if self.deny_statement_json["Resource"] and resource_arn not in self.deny_statement_json.Resource:
             self.deny_statement_json["Resource"].append(resource_arn)
 
 def update_bucket_policy(event, _):

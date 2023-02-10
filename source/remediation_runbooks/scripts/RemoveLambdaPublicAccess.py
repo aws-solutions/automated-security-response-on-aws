@@ -24,12 +24,12 @@ def public_s3_statement_check(statement, principal):
     This function checks if the user has given access to an S3 bucket without providing an AWS account.
     """
     try:
-        emptySourceAccountCheck = False
+        empty_source_account_check = False
         if ("StringEquals" in statement["Condition"]):
-            emptySourceAccountCheck = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
+            empty_source_account_check = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
         else:
-            emptySourceAccountCheck = True
-        return principal.get("Service", "") == "s3.amazonaws.com" and emptySourceAccountCheck
+            empty_source_account_check = True
+        return principal.get("Service", "") == "s3.amazonaws.com" and empty_source_account_check
     except KeyError:
         return principal.get("Service", "") == "s3.amazonaws.com"
 

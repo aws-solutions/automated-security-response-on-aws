@@ -10,7 +10,7 @@ boto_config = Config(
         }
     )
 
-multiAZClusterEngines = ["mysql","postgres"]
+multi_az_cluster_engines = ["mysql","postgres"]
 
 def connect_to_rds():
     return boto3.client('rds', config=boto_config)
@@ -24,97 +24,97 @@ def lambda_handler(event, _):
  
      `context` is ignored
     """
-    dbInstanceID = event["DBInstanceIdentifier"]
+    db_instance_id = event["DBInstanceIdentifier"]
 
     rds = connect_to_rds()
 
-    foundInstance = rds.describe_db_instances(DBInstanceIdentifier=dbInstanceID)
+    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_id)
 
-    instanceInfo = foundInstance['DBInstances'][0]
+    instance_info = found_instance['DBInstances'][0]
 
     response = False
 
-    if ("DBClusterIdentifier" in instanceInfo.keys()):
-        if (multi_az_check(instanceInfo["DBClusterIdentifier"])):
-            clusterID = instanceInfo["DBClusterIdentifier"]
-            enable_minor_version_upgrade_cluster(clusterID)
-            response = verify_cluster_changes(clusterID)
+    if ("DBClusterIdentifier" in instance_info.keys()):
+        if (multi_az_check(instance_info["DBClusterIdentifier"])):
+            cluster_id = instance_info["DBClusterIdentifier"]
+            enable_minor_version_upgrade_cluster(cluster_id)
+            response = verify_cluster_changes(cluster_id)
         else:
-            enable_minor_version_upgrade_instance(dbInstanceID)
-            response = verify_instance_changes(dbInstanceID)
+            enable_minor_version_upgrade_instance(db_instance_id)
+            response = verify_instance_changes(db_instance_id)
     else:
-        enable_minor_version_upgrade_instance(dbInstanceID)
-        response = verify_instance_changes(dbInstanceID)
+        enable_minor_version_upgrade_instance(db_instance_id)
+        response = verify_instance_changes(db_instance_id)
         
     if response == True:
         return {
             "AutoMinorVersionUpgrade": response
         }
     
-    raise Exception(f'ASR Remediation failed - {dbInstanceID} did not have enable auto minor version upgrades enabled.')
+    raise Exception(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
 
-def multi_az_check(clusterID):
+def multi_az_check(cluster_id):
     """
     Checks to see if the cluster is Multi-AZ. Instances within clusters that match this check are not able to be modified.
     """  
 
     rds = connect_to_rds()
     try:
-        foundCluster = rds.describe_db_clusters(DBClusterIdentifier=clusterID)
-        clusterInfo = foundCluster['DBClusters'][0]
+        found_cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_id)
+        cluster_info = found_cluster['DBClusters'][0]
     except Exception as e:
-        exit(f'Failed to get information about the cluster: {clusterID} ')
+        exit(f'Failed to get information about the cluster: {cluster_id}.  Error: {e}')
 
-    return ((clusterInfo["MultiAZ"] == True) and (clusterInfo["Engine"] in multiAZClusterEngines))
+    return ((cluster_info["MultiAZ"] == True) and (cluster_info["Engine"] in multi_az_cluster_engines))
 
 
-def enable_minor_version_upgrade_cluster(clusterID):
+def enable_minor_version_upgrade_cluster(cluster_id):
     """
     Enables automatic minor version upgrade for a Multi-AZ Cluster.
     """ 
 
     rds = connect_to_rds()
     try:
-        rds.modify_db_cluster(DBClusterIdentifier=clusterID,AutoMinorVersionUpgrade=True)
+        rds.modify_db_cluster(DBClusterIdentifier=cluster_id,AutoMinorVersionUpgrade=True)
     except Exception as e:
-        exit(f'Failed to modify the cluster: {clusterID}. Error: {e}')
+        exit(f'Failed to modify the cluster: {cluster_id}. Error: {e}')
 
-def enable_minor_version_upgrade_instance(instanceID):
+def enable_minor_version_upgrade_instance(instance_id):
     """
     Enables automatic minor version upgrade for an instance.
     """ 
 
     rds = connect_to_rds()
     try:
-        rds.modify_db_instance(DBInstanceIdentifier=instanceID,AutoMinorVersionUpgrade=True)
+        rds.modify_db_instance(DBInstanceIdentifier=instance_id,AutoMinorVersionUpgrade=True)
     except Exception as e:
-        exit(f'Failed to modify the instance: {instanceID}. Error: {e}')
+        exit(f'Failed to modify the instance: {instance_id}. Error: {e}')
 
-def verify_cluster_changes(clusterID):
+def verify_cluster_changes(cluster_id):
     """
     Verifies automatic minor version upgrade for a Multi-AZ cluster.
     """ 
     rds = connect_to_rds()
     try:
-        foundCluster = rds.describe_db_clusters(DBClusterIdentifier=clusterID, MaxRecords=100)
-        clusterInfo = foundCluster['DBClusters'][0]
+        found_cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_id, MaxRecords=100)
+        cluster_info = found_cluster['DBClusters'][0]
 
     except Exception as e:
-        exit(f'Failed to verify cluster changes: {clusterID}. Error: {e}')
+        exit(f'Failed to verify cluster changes: {cluster_id}. Error: {e}')
 
-    return clusterInfo['AutoMinorVersionUpgrade']
+    return cluster_info['AutoMinorVersionUpgrade']
         
-def verify_instance_changes(instanceID):
+def verify_instance_changes(instance_id):
     """
     Verifies automatic minor version upgrade for an instance.
     """ 
     rds = connect_to_rds()
     try:
-        foundInstance = rds.describe_db_instances(DBInstanceIdentifier=instanceID, MaxRecords=100)
-        instanceInfo = foundInstance['DBInstances'][0]
+        found_instance = rds.describe_db_instances(DBInstanceIdentifier=instance_id, MaxRecords=100)
+        instance_info = found_instance['DBInstances'][0]
     except Exception as e:
 
-        exit(f'Failed to verify instance changes: {instanceID}. Error: {e}')
+        exit(f'Failed to verify instance changes: {instance_id}. Error: {e}')
 
-    return instanceInfo['AutoMinorVersionUpgrade'] 
+    return instance_info['AutoMinorVersionUpgrade'] 
 
