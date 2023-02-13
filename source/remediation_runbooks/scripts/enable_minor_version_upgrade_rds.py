@@ -51,7 +51,7 @@ def lambda_handler(event, _):
             "AutoMinorVersionUpgrade": response
         }
     
-    raise Exception(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
+    raise RuntimeError(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
 
 def multi_az_check(cluster_id):
     """

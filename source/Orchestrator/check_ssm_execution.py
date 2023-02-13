@@ -94,11 +94,12 @@ class AutomationExecution(object):
             {}
         )
 
-        if 'Remediation.Output' in self.outputs and \
-            isinstance(self.outputs['Remediation.Output'], list) and \
-            len(self.outputs['Remediation.Output']) == 1 and \
-            self.outputs['Remediation.Output'][0] == "No output available yet because the step is not successfully executed":
-                self.outputs['Remediation.Output'][0] = "See Automation Execution output for details"
+        remediationOutputName = 'Remediation.Output'     
+        if remediationOutputName in self.outputs and \
+            isinstance(self.outputs[remediationOutputName], list) and \
+            len(self.outputs[remediationOutputName]) == 1 and \
+            self.outputs[remediationOutputName][0] == "No output available yet because the step is not successfully executed":
+                self.outputs[remediationOutputName][0] = "See Automation Execution output for details"
 
         self.failure_message = automation_exec_info.get(
             "AutomationExecutionMetadataList"
@@ -200,9 +201,10 @@ def lambda_handler(event, _):
         ssm_outputs = automation_exec_info.outputs
         affected_object = get_affected_object(ssm_outputs)
         remediation_response_raw = None
+        remediationOutputName = 'Remediation.Output'
 
-        if 'Remediation.Output' in ssm_outputs:
-            remediation_response_raw = ssm_outputs['Remediation.Output']
+        if remediationOutputName in ssm_outputs:
+            remediation_response_raw = ssm_outputs[remediationOutputName]
         elif 'VerifyRemediation.Output' in ssm_outputs:
             remediation_response_raw = ssm_outputs['VerifyRemediation.Output']
         else:

@@ -203,7 +203,7 @@ def partition_from_region(region_name):
         else:
             return 'aws'
     except:
-        raise
+        raise Exception
 
 def publish_to_sns(topic_name, message, region=''):
     """

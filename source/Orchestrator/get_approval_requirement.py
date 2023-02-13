@@ -43,10 +43,10 @@ def _get_ssm_client(account, role, region=''):
 
     return sess.client('ssm', **kwargs)
 
-def _is_remediation_destructive(standard, version, control):
+def _is_remediation_destructive(_, __, ___):
     return False
 
-def _is_account_sensitive(accountid):
+def _is_account_sensitive(_):
     return False
 
 def _is_automatic_trigger(event_type):

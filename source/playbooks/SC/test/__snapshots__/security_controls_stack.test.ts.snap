@@ -1200,7 +1200,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -1220,7 +1219,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -1245,10 +1243,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -1275,10 +1272,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -1544,7 +1540,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -1564,7 +1559,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -1589,10 +1583,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -1619,10 +1612,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -1885,7 +1877,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -1905,7 +1896,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -1930,10 +1920,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -1960,10 +1949,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -2200,7 +2188,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -2220,7 +2207,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -2245,10 +2231,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -2275,10 +2260,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -2530,7 +2514,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -2550,7 +2533,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -2575,10 +2557,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -2605,10 +2586,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -2874,7 +2854,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -2894,7 +2873,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -2919,10 +2897,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -2949,10 +2926,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -3220,7 +3196,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -3240,7 +3215,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -3265,10 +3239,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -3295,10 +3268,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -3547,7 +3519,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -3567,7 +3538,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -3592,10 +3562,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -3622,10 +3591,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -3938,7 +3906,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -3958,7 +3925,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -3983,10 +3949,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -4013,10 +3978,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -4474,7 +4438,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -4494,7 +4457,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -4519,10 +4481,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -4549,10 +4510,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -4819,7 +4779,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -4839,7 +4798,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -4864,10 +4822,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -4894,10 +4851,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -5147,7 +5103,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -5167,7 +5122,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -5192,10 +5146,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -5222,10 +5175,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -5477,7 +5429,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -5497,7 +5448,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -5522,10 +5472,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -5552,10 +5501,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -5800,7 +5748,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -5820,7 +5767,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -5845,10 +5791,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -5875,10 +5820,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -6145,7 +6089,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -6165,7 +6108,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -6190,10 +6132,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -6220,10 +6161,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -6489,7 +6429,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -6509,7 +6448,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -6534,10 +6472,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -6564,10 +6501,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -6831,7 +6767,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -6851,7 +6786,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -6876,10 +6810,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -6906,10 +6839,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -7148,7 +7080,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -7168,7 +7099,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -7193,10 +7123,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -7223,10 +7152,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -7492,7 +7420,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -7512,7 +7439,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -7537,10 +7463,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -7567,10 +7492,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -7820,7 +7744,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -7840,7 +7763,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -7865,10 +7787,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -7895,10 +7816,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -8144,7 +8064,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -8164,7 +8083,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -8189,10 +8107,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -8219,10 +8136,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -8487,7 +8403,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -8507,7 +8422,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -8532,10 +8446,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -8562,10 +8475,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -8831,7 +8743,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -8851,7 +8762,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -8876,10 +8786,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -8906,10 +8815,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -9175,7 +9083,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -9195,7 +9102,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -9220,10 +9126,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -9250,10 +9155,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -9517,7 +9421,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -9537,7 +9440,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -9562,10 +9464,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -9592,10 +9493,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -9867,7 +9767,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -9887,7 +9786,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -9912,10 +9810,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -9942,10 +9839,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -10211,7 +10107,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -10231,7 +10126,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -10256,10 +10150,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -10286,10 +10179,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -10572,7 +10464,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -10592,7 +10483,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -10617,10 +10507,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -10647,10 +10536,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -10917,7 +10805,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -10937,7 +10824,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -10962,10 +10848,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -10992,10 +10877,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -11279,7 +11163,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -11299,7 +11182,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -11324,10 +11206,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -11354,10 +11235,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -11621,7 +11501,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -11641,7 +11520,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -11666,10 +11544,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -11696,10 +11573,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -11964,7 +11840,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -11984,7 +11859,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -12009,10 +11883,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -12039,10 +11912,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -12306,7 +12178,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -12326,7 +12197,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -12351,10 +12221,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -12381,10 +12250,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -12683,7 +12551,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -12703,7 +12570,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -12728,10 +12594,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -12758,10 +12623,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -13136,7 +13000,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -13156,7 +13019,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -13181,10 +13043,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -13211,10 +13072,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -13515,7 +13375,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -13535,7 +13394,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -13560,10 +13418,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -13590,10 +13447,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -13841,7 +13697,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -13861,7 +13716,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -13886,10 +13740,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -13916,10 +13769,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -14169,7 +14021,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -14189,7 +14040,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -14214,10 +14064,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -14244,10 +14093,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -14500,7 +14348,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -14520,7 +14367,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -14545,10 +14391,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -14575,10 +14420,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -14824,7 +14668,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -14844,7 +14687,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -14869,10 +14711,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -14899,10 +14740,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -15185,7 +15025,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -15205,7 +15044,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -15230,10 +15068,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -15260,10 +15097,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -15534,7 +15370,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -15554,7 +15389,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -15579,10 +15413,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -15609,10 +15442,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data
@@ -15884,7 +15716,6 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
-            return
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -15904,7 +15735,6 @@ class FindingEvent:
         if "RelatedAWSResources:0/type" in self.finding_json['ProductFields'] and self.finding_json['ProductFields']['RelatedAWSResources:0/type'] == 'AWS::Config::ConfigRule':
             self.aws_config_rule_id = self.finding_json['ProductFields']['RelatedAWSResources:0/name']
             self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
-        return
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -15929,10 +15759,9 @@ class FindingEvent:
 
         # V1.4
         self.account_id = self.finding_json.get('AwsAccountId', None)    # deprecate - get Finding.AwsAccountId
-        if not re.match(r'^\\d{12}$', self.account_id):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
+        if not re.match(r'^\\d{12}$', self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f'AwsAccountId is invalid: {self.account_id}'
         self.finding_id = self.finding_json.get('Id', None)              # deprecate
         self.product_arn = self.finding_json.get('ProductArn', None)
         if not re.match(r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$', self.product_arn):
@@ -15959,10 +15788,9 @@ class FindingEvent:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Control Id from input ({self.control_id}) does not match {str(expected_control_id)}'
 
-        if not self.resource_id:
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = 'Resource Id is missing from the finding json Resources (Id)'
 
         if not self.valid_finding:
             # Error message and return error data

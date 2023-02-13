@@ -41,7 +41,7 @@ def lambda_handler(event, _):
                 "MapPublicIpOnLaunch": public_ip_on_launch
             }
 
-     raise Exception(f'ASR Remediation failed - {subnet_id} did not have public IP auto assignment turned off.')
+     raise RuntimeError(f'ASR Remediation failed - {subnet_id} did not have public IP auto assignment turned off.')
     
  
 def disable_publicip_auto_assign(subnet_id):

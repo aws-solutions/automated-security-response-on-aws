@@ -90,13 +90,10 @@ def lambda_handler(event, _):
         LOGGER.error(answer.message)
         return answer.json()
 
-    finding = Finding(event['Finding'])
-
     automation_doc = event['AutomationDocument']
     alt_workflow_doc = event.get('Workflow',{}).get('WorkflowDocument', None)
     alt_workflow_account = event.get('Workflow',{}).get('WorkflowAccount', None)
     alt_workflow_role = event.get('Workflow',{}).get('WorkflowRole', None)
-    alt_workflow_config = event.get('Workflow',{}).get('WorkflowConfig', None)
 
     remote_workflow_doc = alt_workflow_doc if alt_workflow_doc else event['AutomationDocument']['AutomationDocId']
 

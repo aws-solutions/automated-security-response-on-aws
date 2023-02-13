@@ -69,7 +69,7 @@ def verify_expired_credentials_revoked(responses, user_name):
             key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True)))
             if key_data.get("Status") != "Inactive":
                 error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
-                raise Exception(error_message)
+                raise KeyError(error_message)
 
     return {
         "output": "Verification of unrotated access keys is successful.",
