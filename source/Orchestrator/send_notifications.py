@@ -37,11 +37,14 @@ def format_details_for_output(details):
 
     return details_formatted
 
-def setMessagePrefixAndSuffix(message_prefix, message_suffix):
+def set_message_prefix_and_suffix(event):
+    message_prefix = event['Notification'].get('ExecId','')
+    message_suffix = event['Notification'].get('AffectedObject', '')
     if message_prefix:
         message_prefix += ': '
     if message_suffix:
         message_suffix = f' ({message_suffix})'
+    return message_prefix, message_suffix
 
 def lambda_handler(event, _):
     # Expected input:
@@ -56,10 +59,7 @@ def lambda_handler(event, _):
     #   SecurityStandard?: string
     #   EventType?: string
 
-    message_prefix = event['Notification'].get('ExecId','')
-    message_suffix = event['Notification'].get('AffectedObject', '')
-
-    setMessagePrefixAndSuffix(message_prefix, message_suffix)
+    message_prefix, message_suffix = set_message_prefix_and_suffix(event)
 
     # Get finding status
     finding_status = 'FAILED' # default state

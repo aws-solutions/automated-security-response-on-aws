@@ -20,7 +20,7 @@ class AWSCachedClient:
         as retrieving account number, and as the default for get_connection.
         """
         self.solution_id = os.getenv('SOLUTION_ID', 'SO0111')
-        self.solutionVersion = os.getenv('SOLUTION_VERSION', 'undefined')
+        self.solution_version = os.getenv('SOLUTION_VERSION', 'undefined')
         self.region = region
         self.boto_config = Config(
             user_agent_extra=f'AwsSolution/{self.solution_id}/{self.solution_version}',
