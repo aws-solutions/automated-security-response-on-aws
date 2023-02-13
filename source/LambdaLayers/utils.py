@@ -202,8 +202,8 @@ def partition_from_region(region_name):
             return 'aws-cn'
         else:
             return 'aws'
-    except:
-        raise Exception
+    except RuntimeError:
+        raise RuntimeError
 
 def publish_to_sns(topic_name, message, region=''):
     """
