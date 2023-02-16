@@ -4,8 +4,8 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 jobs:
-  cdk-nag-solution-deploy:
-    name: CDK Nag solution_deploy
+  cdk-nag:
+    name: CDK Nag
     if: ${{ (github.repository_owner != 'aws-solutions' && github.event_name == 'push') || (github.repository_owner == 'aws-solutions' && github.event_name == 'pull_request') }}
     runs-on: ubuntu-latest
     defaults:
