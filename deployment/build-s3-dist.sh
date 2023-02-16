@@ -47,7 +47,7 @@ main() {
 	local source_dir="$root_dir"/source
 	local temp_work_dir="${template_dir}"/temp
 
-	local clean_dirs=("$template_dist_dir" "$build_dist_dir" "$temp_work_dir" "$source_dir"/node_modules)
+	local clean_dirs=("$template_dist_dir" "$build_dist_dir" "$temp_work_dir")
 
 	while getopts ":b:v:tch" opt;
 	do
@@ -105,23 +105,9 @@ main() {
 	mkdir -p "$build_dist_dir"/lambda
 	mkdir -p "$template_dist_dir"/playbooks
 
-	header "[Install] CDK"
-
-	pushd "$source_dir"
-	npm install
-	export PATH=$(npm bin):$PATH
-	npm run build       # build javascript from typescript
-	popd
-
 	header "[Pack] Lambda Layer (used by playbooks)"
 
-	cp -r "$source_dir" "$temp_work_dir"
-
 	pushd "$temp_work_dir"
-
-	find . -name node_modules | while read file;do rm -rf $file; done
-	find . -name package-lock.json | while read file;do rm $file; done
-
 	mkdir -p "$temp_work_dir"/source/solution_deploy/lambdalayer/python
 	cp "$source_dir"/LambdaLayers/*.py "$temp_work_dir"/source/solution_deploy/lambdalayer/python
 	popd
@@ -132,24 +118,18 @@ main() {
 
 	header "[Pack] Custom Action Lambda"
 
-	pushd "$temp_work_dir"/source/solution_deploy/source
+	pushd "$source_dir"/solution_deploy/source
 	zip ${build_dist_dir}/lambda/action_target_provider.zip action_target_provider.py cfnresponse.py
-	# Copy LambdaLayer modules in preparation for running tests
-	# These are not packaged with the Lambda
-	cp ../../LambdaLayers/*.py .
 	popd
 
 	header "[Pack] Orchestrator Lambdas"
 
-	pushd "$temp_work_dir"/source/Orchestrator
+	pushd "$source_dir"/Orchestrator
 	ls | while read file; do
 		if [ ! -d $file ]; then
 			zip "$build_dist_dir"/lambda/"$file".zip "$file"
 		fi
 	done
-	# Copy LambdaLayer modules in preparation for running tests
-	# These are not packaged with the Lambda
-	cp ../LambdaLayers/*.py .
 	popd
 
 	header "[Create] Playbooks"
@@ -161,9 +141,9 @@ main() {
 		echo Create $playbook playbook
 		pushd "$source_dir"/playbooks/"$playbook"
 		npx cdk synth
-		for template in $(npx cdk --app cdk.out list); do
-			echo Create $playbook template "$template"
-			npx cdk synth --app cdk.out "$template" > "$template_dist_dir"/playbooks/"$template".template
+		cd cdk.out
+		for template in $(ls *.template.json); do
+			cp "$template" "$template_dist_dir"/playbooks/${template%.json}
 		done
 		popd
 	done
@@ -172,10 +152,10 @@ main() {
 
 	pushd "$source_dir"/solution_deploy
 
-	# Output YAML - this is currently the only way to do this for multiple templates
 	npx cdk synth
-	for template in $(npx cdk --app cdk.out ls); do
-		npx cdk --app cdk.out synth "$template" > "$template_dist_dir"/"$template".template
+	cd cdk.out
+	for template in $(ls *.template.json); do
+		cp "$template" "$template_dist_dir"/${template%.json}
 	done
 	popd
 
@@ -186,6 +166,8 @@ main() {
 	mv "$template_dist_dir"/RunbookStack.template "$template_dist_dir"/aws-sharr-remediations.template
 	mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/aws-sharr-orchestrator-log.template
 	mv "$template_dist_dir"/MemberRoleStack.template "$template_dist_dir"/aws-sharr-member-roles.template
+
+	rm "$template_dist_dir"/*.nested.template
 }
 
 main "$@"
