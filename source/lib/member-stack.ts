@@ -3,7 +3,7 @@
 import { readdirSync } from 'fs';
 import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnResource } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import AdminAccountParam from '../../lib/admin-account-param';
+import AdminAccountParam from './admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
 import { MemberRemediationKey } from './member/remediation-key';
 import { MemberLogGroup } from './member/log-group';
@@ -48,7 +48,7 @@ export class MemberStack extends Stack {
 
     this.nestedStacks.push(nestedStackNoRoles as Stack);
 
-    const playbookDirectory = `${__dirname}/../../playbooks`;
+    const playbookDirectory = `${__dirname}/../playbooks`;
     const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     const illegalChars = /[\\._]/g;
     const listOfPlaybooks: string[] = [];

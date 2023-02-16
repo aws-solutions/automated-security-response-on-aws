@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { SolutionDeployStack } from '../lib/solution_deploy-stack';
-import { OrchLogStack } from '../lib/orchestrator-log-stack';
-import { RemediationRunbookStack, MemberRoleStack } from '../lib/remediation_runbook-stack';
-import { MemberStack } from '../lib/member-stack';
+import { SolutionDeployStack } from '../../lib/solution_deploy-stack';
+import { OrchLogStack } from '../../lib/orchestrator-log-stack';
+import { RemediationRunbookStack, MemberRoleStack } from '../../lib/remediation_runbook-stack';
+import { MemberStack } from '../../lib/member-stack';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';
-import { AppRegister } from '../lib/appregistry/applyAppRegistry';
+import { AppRegister } from '../../lib/appregistry/applyAppRegistry';
 
 const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
 const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'unknown';

@@ -6,7 +6,7 @@ import { Key } from 'aws-cdk-lib/aws-kms';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { OrchestratorConstruct } from '../Orchestrator/lib/common-orchestrator-construct';
+import { OrchestratorConstruct } from '../lib/common-orchestrator-construct';
 
 test('test App Orchestrator Construct', () => {
   const app = new App();

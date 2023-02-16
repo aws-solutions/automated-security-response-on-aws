@@ -10,7 +10,7 @@ import * as cdk from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from './ssmplaybook';
 import AdminAccountParam from './admin-account-param';
-import { RunbookFactory } from '../solution_deploy/lib/runbook_factory';
+import { RunbookFactory } from './runbook_factory';
 import { Construct } from 'constructs';
 import { StackProps } from 'aws-cdk-lib';
 

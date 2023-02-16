@@ -18,9 +18,9 @@ import {
   ServicePrincipal,
   AccountRootPrincipal,
 } from 'aws-cdk-lib/aws-iam';
-import { OrchestratorConstruct } from '../../Orchestrator/lib/common-orchestrator-construct';
+import { OrchestratorConstruct } from './common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import { OneTrigger } from '../../lib/ssmplaybook';
+import { OneTrigger } from './ssmplaybook';
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
   solutionVersion: string;
@@ -702,7 +702,7 @@ export class SolutionDeployStack extends cdk.Stack {
     //-------------------------------------------------------------------------
     // Loop through all of the Playbooks and create an option to load each
     //
-    const PB_DIR = `${__dirname}/../../playbooks`;
+    const PB_DIR = `${__dirname}/../playbooks`;
     const ignore = ['.DS_Store', 'common', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
     const illegalChars = /[\\._]/g;
 

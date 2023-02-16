@@ -3,7 +3,7 @@
 import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { MemberRoleStack, RemediationRunbookStack } from '../solution_deploy/lib/remediation_runbook-stack';
+import { MemberRoleStack, RemediationRunbookStack } from '../lib/remediation_runbook-stack';
 
 function getRoleTestStack(): MemberRoleStack {
   const app = new App();

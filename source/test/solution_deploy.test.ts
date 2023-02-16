@@ -4,8 +4,8 @@ import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { SolutionDeployStack } from '../solution_deploy/lib/solution_deploy-stack';
-import { AppRegister } from '../solution_deploy/lib/appregistry/applyAppRegistry';
+import { SolutionDeployStack } from '../lib/solution_deploy-stack';
+import { AppRegister } from '../lib/appregistry/applyAppRegistry';
 
 function getTestStack(): Stack {
   const envEU = { account: '111111111111', region: 'eu-west-1' };
