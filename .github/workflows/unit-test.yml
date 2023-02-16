@@ -22,5 +22,4 @@ jobs:
         cache: npm
         cache-dependency-path: source/package-lock.json
     - run: npm ci
-    - run: cd ../deployment
-    - run: DEBUG=true ./run-unit-tests.sh
+    - run: cd ../deployment && DEBUG=true ./run-unit-tests.sh

@@ -30,5 +30,4 @@ jobs:
         cache: npm
         cache-dependency-path: source/package-lock.json
     - run: npm ci
-    - run: cd ${{ matrix.working-directory }}
-    - run: npx cdk synth
+    - run: cd ${{ matrix.working-directory }} && npx cdk synth
