@@ -20,6 +20,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: npm
+        cache-dependency-path: source/package-lock.json
     - run: npm ci
     - run: cd ../deployment
     - run: DEBUG=true ./run-unit-tests.sh

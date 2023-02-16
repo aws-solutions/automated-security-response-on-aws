@@ -28,6 +28,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: npm
+        cache-dependency-path: source/package-lock.json
     - run: npm ci
     - run: cd ${{ matrix.working-directory }}
     - run: npx cdk synth
