@@ -1,11 +1,11 @@
-name: CDK Nag
+name: Unit Test
 on:
   push:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 jobs:
-  cdk-nag:
-    name: CDK Nag
+  unit-test:
+    name: Unit Test
     if: ${{ (github.repository_owner != 'aws-solutions' && github.event_name == 'push') || (github.repository_owner == 'aws-solutions' && github.event_name == 'pull_request') }}
     runs-on: ubuntu-latest
     defaults:
@@ -14,14 +14,6 @@ jobs:
     strategy:
       matrix:
         node-version: [16]
-        working-directory:
-        - solution_deploy
-        - playbooks/AFSBP
-        - playbooks/CIS120
-        - playbooks/CIS140
-        - playbooks/NEWPLAYBOOK
-        - playbooks/PCI321
-        - playbooks/SC
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-node@v3
@@ -30,4 +22,4 @@ jobs:
         cache: npm
         cache-dependency-path: source/package-lock.json
     - run: npm ci
-    - run: cd ${{ matrix.working-directory }} && npx cdk synth
+    - run: cd ../deployment && DEBUG=true ./run-unit-tests.sh

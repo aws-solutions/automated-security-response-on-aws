@@ -1,15 +1,11 @@
-name: Security Scans
-
+name: CodeQL
 on:
   push:
-    branches:
-      - "*"
   pull_request:
     types: [opened, edited, reopened, synchronize]
-
 jobs:
   codeql:
-    name: CodeQL Check
+    name: CodeQL
     if: ${{ (github.repository_owner != 'aws-solutions' && github.event_name == 'push') || (github.repository_owner == 'aws-solutions' && github.event_name == 'pull_request') }}
     runs-on: ubuntu-latest
     strategy:
@@ -17,8 +13,8 @@ jobs:
       matrix:
         language: [javascript, typescript]
     steps:
-      - uses: actions/checkout@v3
-      - uses: github/codeql-action/init@v2
-        with:
-          languages: ${{ matrix.language }}
-      - uses: github/codeql-action/analyze@v2
+    - uses: actions/checkout@v3
+    - uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+    - uses: github/codeql-action/analyze@v2
