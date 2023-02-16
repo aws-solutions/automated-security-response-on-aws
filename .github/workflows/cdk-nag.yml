@@ -1,37 +1,33 @@
-name: CDK Nag Test
-
+name: CDK Nag
 on:
   push:
   pull_request:
     types: [opened, edited, reopened, synchronize]
-
 jobs:
-  cdk-nag:
-    name: CDK Nag Check
+  cdk-nag-solution-deploy:
+    name: CDK Nag solution_deploy
     if: ${{ (github.repository_owner != 'aws-solutions' && github.event_name == 'push') || (github.repository_owner == 'aws-solutions' && github.event_name == 'pull_request') }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: source
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [16]
+        working-directory:
+        - solution_deploy
+        - playbooks/AFSBP
+        - playbooks/CIS120
+        - playbooks/CIS140
+        - playbooks/NEWPLAYBOOK
+        - playbooks/PCI321
+        - playbooks/SC
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: |
-          cd source
-          npm ci
-          cd solution_deploy
-          npx cdk synth
-          cd ../playbooks/AFSBP
-          npx cdk synth
-          cd ../CIS120
-          npx cdk synth
-          cd ../CIS140
-          npx cdk synth
-          cd ../NEWPLAYBOOK
-          npx cdk synth
-          cd ../PCI321
-          npx cdk synth
-          cd ../SC
-          npx cdk synth
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: npm
+    - run: npm ci
+    - run: cd ${{ matrix.working-directory }}
+    - run: npx cdk synth
