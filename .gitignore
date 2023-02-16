@@ -13,7 +13,6 @@
 *.js
 
 # config
-!jest.config.js
 !.eslintrc.js
 
 # Node
