@@ -5,6 +5,7 @@ import re
 import os
 import boto3
 from awsapi_cached_client import AWSCachedClient
+from botocore.exceptions import UnknownRegionError
 
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 
@@ -64,22 +65,17 @@ def resource_from_arn(arn):
 def partition_from_region(region_name):
     """
     returns the partition for a given region
-    Note: this should be a Boto3 function and should be deprecated once it is.
     On success returns a string
-    On failure returns NoneType
+    On failure returns aws
     """
-
-    parts = region_name.split('-')
-
+    partition = ''
+    session = boto3.Session()
     try:
-        if parts[0] == 'us' and parts[1] == 'gov':
-            return 'aws-us-gov'
-        elif parts[0] == 'cn':
-            return 'aws-cn'
-        else:
-            return 'aws'
-    except IndexError:
-        raise RuntimeError
+        partition = session.get_partition_for_region(region_name)
+    except UnknownRegionError:
+        return 'aws'
+    
+    return partition
 
 def publish_to_sns(topic_name, message, region=''):
     """
