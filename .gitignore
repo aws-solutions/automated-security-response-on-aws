@@ -9,6 +9,7 @@
 /deployment/test/coverage-reports/
 
 # Typescript
+/source/dist/
 *.d.ts
 *.js
 
