@@ -5,8 +5,8 @@ import { Policy, PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { SsmRole } from '../lib/ssmplaybook';
-import { RunbookFactory } from '../solution_deploy/lib/runbook_factory';
-import { MemberRoleStack } from '../solution_deploy/lib/remediation_runbook-stack';
+import { RunbookFactory } from '../lib/runbook_factory';
+import { MemberRoleStack } from '../lib/remediation_runbook-stack';
 
 function getSsmPlaybook(): Stack {
   const app = new App();

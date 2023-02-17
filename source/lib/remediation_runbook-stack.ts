@@ -16,12 +16,12 @@ import {
   CfnPolicy,
   CfnRole,
 } from 'aws-cdk-lib/aws-iam';
-import { OrchestratorMemberRole } from '../../lib/orchestrator_roles-construct';
-import AdminAccountParam from '../../lib/admin-account-param';
-import { Rds6EnhancedMonitoringRole } from '../../remediation_runbooks/rds6-remediation-resources';
+import { OrchestratorMemberRole } from './orchestrator_roles-construct';
+import AdminAccountParam from './admin-account-param';
+import { Rds6EnhancedMonitoringRole } from './rds6-remediation-resources';
 import { RunbookFactory } from './runbook_factory';
-import { SNS2DeliveryStatusLoggingRole } from '../../remediation_runbooks/sns2-remediation-resources';
-import { SsmRole } from '../../lib/ssmplaybook';
+import { SNS2DeliveryStatusLoggingRole } from './sns2-remediation-resources';
+import { SsmRole } from './ssmplaybook';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 
 export interface MemberRoleStackProps extends cdk.StackProps {

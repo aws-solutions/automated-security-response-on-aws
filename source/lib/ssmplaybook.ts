@@ -16,7 +16,7 @@ import {
 } from 'aws-cdk-lib/aws-iam';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { IRuleTarget, EventPattern, Rule } from 'aws-cdk-lib/aws-events';
-import { MemberRoleStack } from '../solution_deploy/lib/remediation_runbook-stack';
+import { MemberRoleStack } from './remediation_runbook-stack';
 import { Construct } from 'constructs';
 
 /*
