@@ -9,6 +9,13 @@ from botocore.exceptions import UnknownRegionError
 
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 
+properties = ['status','message','executionid',
+'affected_object','remediation_status','logdata',
+'securitystandard','securitystandardversion','standardsupported',
+'controlid','accountid','automationdocid',
+'remediationrole','workflowdoc','workflowaccount',
+'workflowrole','eventtype','resourceregion','workflow_data','executionaccount', 'executionregion']
+
 class StepFunctionLambdaAnswer:
     """
     Maintains a hash of AWS API Client connections by region and service
@@ -48,7 +55,8 @@ class StepFunctionLambdaAnswer:
 
     def update(self, answer_data):
         for property, value in answer_data.items():
-            setattr(self, property, value)
+            if property in properties:
+                setattr(self, property, value)
 
 def resource_from_arn(arn):
     """

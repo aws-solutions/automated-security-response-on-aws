@@ -6,7 +6,7 @@ Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
 """
 
 import os
-from send_notifications import lambda_handler
+from send_notifications import lambda_handler, set_message_prefix_and_suffix
 from pytest_mock import mocker
 
 event = {
@@ -40,3 +40,17 @@ def test_wrong_standard(mocker):
     }
     mocker.patch('send_notifications.sechub_findings.SHARRNotification.notify', return_value=None)
     assert lambda_handler(event, {}) == None
+
+def test_message_prefix_and_suffix():
+    event = {
+        'Notification': {
+            'ExecId': 'Test Prefix',
+            'AffectedObject': 'Test Suffix'
+        },
+        'SecurityStandard': 'AFSBP',
+        'ControlId': 'foobar.1'
+    }
+    messagePrefix, messageSuffix = set_message_prefix_and_suffix(event)
+    assert messagePrefix == "Test Prefix: "
+    assert messageSuffix == " (Test Suffix)"
+    

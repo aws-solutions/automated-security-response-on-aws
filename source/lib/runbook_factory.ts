@@ -40,9 +40,9 @@ export class RunbookFactory extends Construct {
   }
 
   static createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
-    const scriptPath = props.scriptPath ? props.scriptPath : `${props.ssmDocPath}/scripts`;
+    const scriptPath = props.scriptPath ?? `${props.ssmDocPath}/scripts`;
 
-    const commonScripts = props.commonScripts ? props.commonScripts : '../common';
+    const commonScripts = props.commonScripts ?? '../common';
 
     const enableParam = new cdk.CfnParameter(scope, 'Enable ' + props.controlId, {
       type: 'String',
