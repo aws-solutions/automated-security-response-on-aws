@@ -112,6 +112,45 @@ def valid_automation_doc(automation_doc):
        "ControlId" in automation_doc and \
        "AccountId" in automation_doc
 
+def get_execution_log(response_data):
+    logdata = []
+    if 'ExecutionLog' in response_data:
+        logdata = response_data['ExecutionLog'].split('\n')
+
+    return logdata
+
+def get_affected_object(response_data):
+    affected_object_out = 'UNKNOWN'
+    if "ParseInput.AffectedObject" in response_data:
+        affected_object = response_data.get('ParseInput.AffectedObject')[0]
+        try:
+            affected_object = json.loads(affected_object)
+            if 'Type' in affected_object and 'Id' in affected_object:
+                affected_object_out = affected_object['Type'] + ' ' + affected_object['Id']
+            else:
+                affected_object_out = str(affected_object)
+        except JSONDecodeError:
+            print('Expected serialized json, got ' + str(affected_object))
+            affected_object_out = str(affected_object)
+
+    return affected_object_out
+
+def get_remediation_status(response_data, exec_status):
+    status = exec_status
+    if 'Payload' in response_data and 'response' in response_data['Payload']:
+        status = response_data['Payload']['response'].get('status', 'UNKNOWN')
+    elif 'status' in response_data:
+        status = response_data['status']
+    return status
+
+def get_remediation_message(response_data, remediation_status):
+    message = f'Remediation status: {remediation_status} - please verify remediation'
+    if 'Payload' in response_data and 'response' in response_data['Payload']:
+        message = response_data['Payload']['response'].get('status', 'UNKNOWN')
+    elif 'message' in response_data:
+        message = response_data['message']
+    return message
+
 def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     automation_doc = event['AutomationDocument']
@@ -155,45 +194,6 @@ def lambda_handler(event, _):
     #           status: [SUCCESS|FAILED] - did the REMEDIATION succeed?
     #   VerifyRemediation.Output or Remediation.Output may be a string, when using a child runbook for
     #       remediation.
-
-    def get_execution_log(response_data):
-        logdata = []
-        if 'ExecutionLog' in response_data:
-            logdata = response_data['ExecutionLog'].split('\n')
-
-        return logdata
-
-    def get_affected_object(response_data):
-        affected_object_out = 'UNKNOWN'
-        if "ParseInput.AffectedObject" in response_data:
-            affected_object = response_data.get('ParseInput.AffectedObject')[0]
-            try:
-                affected_object = json.loads(affected_object)
-                if 'Type' in affected_object and 'Id' in affected_object:
-                    affected_object_out = affected_object['Type'] + ' ' + affected_object['Id']
-                else:
-                    affected_object_out = str(affected_object)
-            except JSONDecodeError:
-                print('Expected serialized json, got ' + str(affected_object))
-                affected_object_out = str(affected_object)
-
-        return affected_object_out
-
-    def get_remediation_status(response_data, exec_status):
-        status = exec_status
-        if 'Payload' in response_data and 'response' in response_data['Payload']:
-            status = response_data['Payload']['response'].get('status', 'UNKNOWN')
-        elif 'status' in response_data:
-            status = response_data['status']
-        return status
-
-    def get_remediation_message(response_data, remediation_status):
-        message = f'Remediation status: {remediation_status} - please verify remediation'
-        if 'Payload' in response_data and 'response' in response_data['Payload']:
-            message = response_data['Payload']['response'].get('status', 'UNKNOWN')
-        elif 'message' in response_data:
-            message = response_data['message']
-        return message
 
     if automation_exec_info.status in ('Success', 'TimedOut', 'Cancelled', 'Cancelling', 'Failed'):
         remediation_response = {}
