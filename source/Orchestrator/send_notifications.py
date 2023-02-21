@@ -111,7 +111,7 @@ def lambda_handler(event, _):
         notification.severity = 'ERROR'
         notification.send_to_sns = True
 
-    elif event['Notification']['State'].upper() == {'WRONGSTANDARD' or 'LAMBDAERROR'}:
+    elif event['Notification']['State'].upper() == {'WRONGSTANDARD', 'LAMBDAERROR'}:
         notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
         notification.severity = 'ERROR'
 
