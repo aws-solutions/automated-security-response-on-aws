@@ -37,6 +37,15 @@ def format_details_for_output(details):
 
     return details_formatted
 
+def set_message_prefix_and_suffix(event):
+    message_prefix = event['Notification'].get('ExecId','')
+    message_suffix = event['Notification'].get('AffectedObject', '')
+    if message_prefix:
+        message_prefix += ': '
+    if message_suffix:
+        message_suffix = f' ({message_suffix})'
+    return message_prefix, message_suffix
+
 def lambda_handler(event, _):
     # Expected input:
     # Notification:
@@ -50,12 +59,7 @@ def lambda_handler(event, _):
     #   SecurityStandard?: string
     #   EventType?: string
 
-    message_prefix = event['Notification'].get('ExecId','')
-    if message_prefix:
-        message_prefix += ': '
-    message_suffix = event['Notification'].get('AffectedObject', '')
-    if message_suffix:
-        message_suffix = f' ({message_suffix})'
+    message_prefix, message_suffix = set_message_prefix_and_suffix(event)
 
     # Get finding status
     finding_status = 'FAILED' # default state
@@ -107,11 +111,7 @@ def lambda_handler(event, _):
         notification.severity = 'ERROR'
         notification.send_to_sns = True
 
-    elif event['Notification']['State'].upper() == 'WRONGSTANDARD':
-        notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
-        notification.severity = 'ERROR'
-
-    elif event['Notification']['State'].upper() == 'LAMBDAERROR':
+    elif event['Notification']['State'].upper() in {'WRONGSTANDARD', 'LAMBDAERROR'}:
         notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
         notification.severity = 'ERROR'
 

@@ -2172,7 +2172,7 @@ def lambda_handler(event, _):
                 "MapPublicIpOnLaunch": public_ip_on_launch
             }
 
-     raise Exception(f'ASR Remediation failed - {subnet_id} did not have public IP auto assignment turned off.')
+     raise RuntimeError(f'ASR Remediation failed - {subnet_id} did not have public IP auto assignment turned off.')
     
  
 def disable_publicip_auto_assign(subnet_id):
@@ -4574,7 +4574,7 @@ def lambda_handler(event, _):
             "AutoMinorVersionUpgrade": response
         }
     
-    raise Exception(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
+    raise RuntimeError(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
 
 def multi_az_check(cluster_id):
     """
@@ -6710,7 +6710,7 @@ def verify_expired_credentials_revoked(responses, user_name):
             key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True)))
             if key_data.get("Status") != "Inactive":
                 error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
-                raise Exception(error_message)
+                raise RuntimeError(error_message)
 
     return {
         "output": "Verification of unrotated access keys is successful.",
@@ -6991,8 +6991,8 @@ def get_partition():
     return boto3.client('sts', config=BOTO_CONFIG).get_caller_identity().get('Arn').split(':')[1]
 
 class BucketToRemediate:
-    def __init__(self, bucketName):
-        self.bucket_name = bucketName
+    def __init__(self, bucket_name):
+        self.bucket_name = bucket_name
         self.get_partition_where_running()
         self.initialize_bucket_policy_to_none()
 

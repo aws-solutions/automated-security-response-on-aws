@@ -29,8 +29,8 @@ def get_partition():
     return boto3.client('sts', config=BOTO_CONFIG).get_caller_identity().get('Arn').split(':')[1]
 
 class BucketToRemediate:
-    def __init__(self, bucketName):
-        self.bucket_name = bucketName
+    def __init__(self, bucket_name):
+        self.bucket_name = bucket_name
         self.get_partition_where_running()
         self.initialize_bucket_policy_to_none()
 
