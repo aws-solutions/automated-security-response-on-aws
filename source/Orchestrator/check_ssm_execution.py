@@ -182,7 +182,6 @@ def lambda_handler(event, _):
     SSM_EXEC_ID = event['SSMExecution']['ExecId']
     SSM_ACCOUNT = event['SSMExecution'].get('Account')
     SSM_REGION = event['SSMExecution'].get('Region')
-    print(SSM_ACCOUNT)
 
     if not all([SSM_ACCOUNT,SSM_REGION]):
         exit('ERROR: missing remediation account information. SSMExecution missing region or account.')
