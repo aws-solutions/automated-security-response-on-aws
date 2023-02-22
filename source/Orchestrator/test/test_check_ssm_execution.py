@@ -348,3 +348,61 @@ def test_execid_parsing_sharr(mocker):
 
     ssmc_stub.deactivate()
     ssmc_stub.deactivate()
+
+def test_missing_account_id(mocker):
+    """
+    Verifies that system exit occurs when an account ID is missing from event
+    """
+    ssm_c = boto3.client('ssm')
+    test_event['SSMExecution']['ExecId'] = '5f12697a-70a5-4a64-83e6-b7d429ec2b17'
+    test_event['SSMExecution']['Account'] = None
+
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        'describe_automation_executions',
+        ssm_mocked_good_response,
+        {'Filters': [{'Key': 'ExecutionId', 'Values': ['5f12697a-70a5-4a64-83e6-b7d429ec2b17']}]}
+    )
+    ssmc_stub.activate()
+
+    mocker.patch('check_ssm_execution._get_ssm_client', return_value=ssm_c)
+    mocker.patch('check_ssm_execution.Metrics.send_metrics', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.get_metrics_from_finding', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.__init__', return_value=None)
+
+    with pytest.raises(SystemExit) as response:
+        lambda_handler(test_event, {})
+
+    assert response.value.code == 'ERROR: missing remediation account information. SSMExecution missing region or account.'
+
+    ssmc_stub.deactivate()
+
+def test_missing_region(mocker):
+    """
+    Verifies that system exit occurs when region is missing
+    """
+    ssm_c = boto3.client('ssm')
+    test_event['SSMExecution']['ExecId'] = '5f12697a-70a5-4a64-83e6-b7d429ec2b17'
+    test_event['SSMExecution']['Region'] = None
+
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        'describe_automation_executions',
+        ssm_mocked_good_response,
+        {'Filters': [{'Key': 'ExecutionId', 'Values': ['5f12697a-70a5-4a64-83e6-b7d429ec2b17']}]}
+    )
+    ssmc_stub.activate()
+
+    mocker.patch('check_ssm_execution._get_ssm_client', return_value=ssm_c)
+    mocker.patch('check_ssm_execution.Metrics.send_metrics', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.get_metrics_from_finding', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.__init__', return_value=None)
+
+    with pytest.raises(SystemExit) as response:
+        lambda_handler(test_event, {})
+
+    assert response.value.code == 'ERROR: missing remediation account information. SSMExecution missing region or account.'
+
+    ssmc_stub.deactivate()
