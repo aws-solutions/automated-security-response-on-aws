@@ -134,10 +134,12 @@ main() {
 
 	pushd "$temp_work_dir"/source/solution_deploy/source
 	zip ${build_dist_dir}/lambda/action_target_provider.zip action_target_provider.py cfnresponse.py
-	# Copy LambdaLayer modules in preparation for running tests
-	# These are not packaged with the Lambda
-	cp ../../LambdaLayers/*.py .
 	popd
+
+	header "[Pack] Wait Provider Lambda"
+
+	pushd "$temp_work_dir"/source/solution_deploy/source
+	zip ${build_dist_dir}/lambda/wait_provider.zip wait_provider.py cfnresponse.py
 
 	header "[Pack] Orchestrator Lambdas"
 
@@ -147,9 +149,6 @@ main() {
 			zip "$build_dist_dir"/lambda/"$file".zip "$file"
 		fi
 	done
-	# Copy LambdaLayer modules in preparation for running tests
-	# These are not packaged with the Lambda
-	cp ../LambdaLayers/*.py .
 	popd
 
 	header "[Create] Playbooks"
