@@ -408,6 +408,9 @@ exports[`default stack 2`] = `
       "Description": "Admin account number",
       "Type": "String",
     },
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
   },
   "Resources": {
     "ControlPCIPCIAutoScaling1": {

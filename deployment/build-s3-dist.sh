@@ -124,7 +124,7 @@ main() {
 
 	header "[Pack] Wait Provider Lambda"
 
-	pushd "$temp_work_dir"/source/solution_deploy/source
+	pushd "$source_dir"/solution_deploy/source
 	zip ${build_dist_dir}/lambda/wait_provider.zip wait_provider.py cfnresponse.py
 
 	header "[Pack] Orchestrator Lambdas"
