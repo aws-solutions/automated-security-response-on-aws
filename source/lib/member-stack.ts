@@ -42,8 +42,11 @@ export class MemberStack extends Stack {
       solutionVersion: props.solutionVersion,
     });
 
+    const waitProvider = new WaitProvider()
+
     const nestedStackNoRoles = nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
       templateRelativePath: 'aws-sharr-remediations.template',
+      parameters: { WaitProviderServiceToken: }
     });
 
     this.nestedStacks.push(nestedStackNoRoles as Stack);
