@@ -227,6 +227,11 @@ exports[`Global Roles Stack 1`] = `
 exports[`Regional Documents 1`] = `
 {
   "Description": "test;",
+  "Parameters": {
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
+  },
   "Resources": {
     "ASRConfigureS3BucketPublicAccessBlock": {
       "Properties": {
