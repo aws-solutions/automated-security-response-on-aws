@@ -56,9 +56,9 @@ context = MockContext("SO0111-SHARR-Custom-Action-Lambda", "v1.0.0")
 def event(type):
     return {
         "ResourceProperties": {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
         "RequestType": type,
         "ResponseURL": "https://bogus",
@@ -92,9 +92,9 @@ def test_create(mocker):
         "create_action_target",
         {"ActionTargetArn": "foobarbaz"},
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": " Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": " Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     sechub_stub.activate()
@@ -119,9 +119,9 @@ def test_create_already_exists(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.create() == None
@@ -141,9 +141,9 @@ def test_create_no_sechub(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.create() == "FAILED"
@@ -163,9 +163,9 @@ def test_create_other_client_error(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.create() == "FAILED"
@@ -189,9 +189,9 @@ def test_delete(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.delete() == "SUCCESS"
@@ -211,9 +211,9 @@ def test_delete_already_exists(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.delete() == "SUCCESS"
@@ -232,9 +232,9 @@ def test_delete_no_sechub(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.delete() == "SUCCESS"
@@ -253,9 +253,9 @@ def test_delete_other_client_error(mocker):
     customAction = CustomAction(
         "111122223333",
         {
-            "Name": "Remediate with SHARR Test",
-            "Description": "Test Submit the finding to AWS Security Hub Automated Response and Remediation",
-            "Id": "SHARRRemediationTest",
+            "Name": "Remediate with ASR Test",
+            "Description": "Test Submit the finding to Automated Security Response on AWS",
+            "Id": "ASRRemediationTest",
         },
     )
     assert customAction.delete() == "FAILED"

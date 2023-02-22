@@ -144,7 +144,7 @@ export class OneTrigger extends Construct {
     // Create CWE rule
     // Create custom action
 
-    let description = `Remediate with SHARR`;
+    let description = `Remediate with ASR`;
     if (props.description) {
       description = props.description;
     }
@@ -160,9 +160,9 @@ export class OneTrigger extends Construct {
       serviceToken: props.serviceToken,
       resourceType: 'Custom::ActionTarget',
       properties: {
-        Name: 'Remediate with SHARR',
+        Name: 'Remediate with ASR',
         Description: 'Submit the finding to AWS Security Hub Automated Response and Remediation',
-        Id: 'SHARRRemediation',
+        Id: 'ASRRemediation',
       },
     });
     {

@@ -680,8 +680,8 @@ exports[`Test if the Stack has all the resources. 1`] = `
       ],
       "Properties": {
         "Description": "Submit the finding to AWS Security Hub Automated Response and Remediation",
-        "Id": "SHARRRemediation",
-        "Name": "Remediate with SHARR",
+        "Id": "ASRRemediation",
+        "Name": "Remediate with ASR",
         "ServiceToken": {
           "Fn::GetAtt": [
             "CreateCustomActionE7A973F5",
@@ -734,7 +734,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "RemediateWithSharrRemediateCustomAction40B496D2": {
       "Properties": {
-        "Description": "Remediate with SHARR",
+        "Description": "Remediate with ASR",
         "EventPattern": {
           "detail": {
             "findings": {
