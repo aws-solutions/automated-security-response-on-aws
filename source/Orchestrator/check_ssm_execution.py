@@ -152,6 +152,21 @@ def get_remediation_message(response_data, remediation_status):
         message = response_data['message']
     return message
 
+def get_remediation_response(remediation_response_raw):
+    # Remediation.Response is a list, if present. Only the first item should exist.
+    remediation_response = {}
+    if isinstance(remediation_response_raw, list):
+        try:
+            remediation_response = json.loads(remediation_response_raw[0])
+        except JSONDecodeError:
+            remediation_response = {"message": remediation_response_raw[0]}
+        except Exception as e:
+            print(e)
+            print('Unhandled error')
+    elif isinstance(remediation_response_raw, str):
+        remediation_response = { "message": remediation_response_raw}
+    return remediation_response
+
 def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     automation_doc = event['AutomationDocument']
@@ -168,7 +183,7 @@ def lambda_handler(event, _):
     SSM_ACCOUNT = event['SSMExecution'].get('Account')
     SSM_REGION = event['SSMExecution'].get('Region')
 
-    if not SSM_ACCOUNT or not SSM_REGION:
+    if not all([SSM_ACCOUNT,SSM_REGION]):
         exit('ERROR: missing remediation account information. SSMExecution missing region or account.')
 
     metrics_obj = Metrics(
@@ -197,7 +212,6 @@ def lambda_handler(event, _):
     #       remediation.
 
     if automation_exec_info.status in ('Success', 'TimedOut', 'Cancelled', 'Cancelling', 'Failed'):
-        remediation_response = {}
         ssm_outputs = automation_exec_info.outputs
         affected_object = get_affected_object(ssm_outputs)
         remediation_response_raw = None
@@ -210,17 +224,7 @@ def lambda_handler(event, _):
         else:
             remediation_response_raw = json.dumps(ssm_outputs)
 
-        # Remediation.Response is a list, if present. Only the first item should exist.
-        if isinstance(remediation_response_raw, list):
-            try:
-                remediation_response = json.loads(remediation_response_raw[0])
-            except JSONDecodeError:
-                remediation_response = {"message": remediation_response_raw[0]}
-            except Exception as e:
-                print(e)
-                print('Unhandled error')
-        elif isinstance(remediation_response_raw, str):
-            remediation_response = { "message": remediation_response_raw}
+        remediation_response = get_remediation_response(remediation_response_raw)
 
         status_for_message = automation_exec_info.status
         if automation_exec_info.status == 'Success':
