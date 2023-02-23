@@ -23,7 +23,9 @@ import { RunbookFactory } from './runbook_factory';
 import { SNS2DeliveryStatusLoggingRole } from './sns2-remediation-resources';
 import { SsmRole } from './ssmplaybook';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { CfnParameter } from 'aws-cdk-lib';
+import { Aspects, CfnParameter } from 'aws-cdk-lib';
+import { WaitProvider } from './wait-provider';
+import SsmDocRateLimit from './ssm-doc-rate-limit';
 
 export interface MemberRoleStackProps extends cdk.StackProps {
   readonly solutionId: string;
@@ -67,7 +69,15 @@ export class RemediationRunbookStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: StackProps) {
     super(scope, id, props);
 
-    new CfnParameter(this, 'WaitProviderServiceToken');
+    const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
+
+    const waitProvider = WaitProvider.fromServiceToken(
+      this,
+      'WaitProvider',
+      waitProviderServiceTokenParam.valueAsString
+    );
+
+    Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
 
     let ssmdocs = '';
     if (props.ssmdocs == undefined) {

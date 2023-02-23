@@ -234,6 +234,9 @@ exports[`Regional Documents 1`] = `
   },
   "Resources": {
     "ASRConfigureS3BucketPublicAccessBlock": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -407,6 +410,9 @@ def validate_s3_bucket_publicaccessblock(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRConfigureS3PublicAccessBlock": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -572,6 +578,9 @@ def handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRConfigureSNSTopicForStack": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -739,6 +748,9 @@ class StackConfigurationFailedException(Exception):
       "Type": "AWS::SSM::Document",
     },
     "ASRCreateAccessLoggingBucket": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -858,6 +870,9 @@ def create_logging_bucket(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRCreateCloudTrailMultiRegionTrail": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1340,6 +1355,9 @@ def process_results(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRCreateIAMSupportRole": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1486,6 +1504,9 @@ def does_role_exist(iam, role_name):
       "Type": "AWS::SSM::Document",
     },
     "ASRCreateLogMetricFilterAndAlarm": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1833,6 +1854,9 @@ def verify(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRDisablePublicAccessToRDSInstance": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2006,6 +2030,9 @@ Confirms public accessibility is disabled on the DB instance.
       "Type": "AWS::SSM::Document",
     },
     "ASRDisablePublicAccessToRedshiftCluster": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2109,6 +2136,9 @@ Confirms the public accessibility setting is disabled on the cluster.
       "Type": "AWS::SSM::Document",
     },
     "ASRDisablePublicIPAutoAssign": {
+      "DependsOn": [
+        "CreateWait8",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2239,6 +2269,9 @@ def describe_subnet(subnet_id):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAWSConfig": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2749,6 +2782,9 @@ def process_results(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAutoScalingGroupELBHealthCheck": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2885,6 +2921,9 @@ def verify(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAutomaticSnapshotsOnRedshiftCluster": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{AutomationAssumeRole}}",
@@ -3066,6 +3105,9 @@ The runbook enables automatic snapshots on a Redshift cluster.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAutomaticVersionUpgradeOnRedshiftCluster": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{AutomationAssumeRole}}",
@@ -3180,6 +3222,9 @@ The runbook enables automatic version upgrade on a Redshift cluster.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCloudTrailEncryption": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3299,6 +3344,9 @@ def enable_trail_encryption(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCloudTrailLogFileValidation": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3385,6 +3433,9 @@ Verifies log file validation is enabled for your trail.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCloudTrailToCloudWatchLogging": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3530,6 +3581,9 @@ def wait_for_loggroup(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCopyTagsToSnapshotOnRDSCluster": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3666,6 +3720,9 @@ Verifies that \`CopyTagsToSnapshot\` has been enabled on the target resource.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableDefaultEncryptionS3": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3780,6 +3837,9 @@ This document configures default encryption for an Amazon S3 Bucket.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableDeliveryStatusLoggingForSNSTopic": {
+      "DependsOn": [
+        "CreateWait8",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3947,6 +4007,9 @@ def reset_to_recognized_state(topic_arn):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableEbsEncryptionByDefault": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4022,6 +4085,9 @@ Checks if EbsEncryptionByDefault is enabled correctly from the previous step.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableEncryptionForSNSTopic": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4118,6 +4184,9 @@ Verifies the given Amazon SNS Topic is encrypted with AWS KMS Key ARN.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableEncryptionForSQSQueue": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4224,6 +4293,9 @@ Based on your data policy, Amazon SQS queues should be encrypted with different 
       "Type": "AWS::SSM::Document",
     },
     "ASREnableEnhancedMonitoringOnRDSInstance": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4419,6 +4491,9 @@ def handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableKeyRotation": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4502,6 +4577,9 @@ Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableMinorVersionUpgradeOnRDSDBInstance": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4681,6 +4759,9 @@ def verify_instance_changes(instance_id):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableMultiAZOnRDSInstance": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4847,6 +4928,9 @@ Verifies that the RDS Instance's \`PendingModifiedValues.MultiAZ\` value is \`Tr
       "Type": "AWS::SSM::Document",
     },
     "ASREnableRDSClusterDeletionProtection": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4975,6 +5059,9 @@ Verifies that deletion protection has been enabled for the given Amazon RDS data
       "Type": "AWS::SSM::Document",
     },
     "ASREnableRDSInstanceDeletionProtection": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5098,6 +5185,9 @@ Checks whether deletion protection is enabled on Amazon RDS Instance.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableRedshiftClusterAuditLogging": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5268,6 +5358,9 @@ Checks whether the value of the "BucketName" parameter is used for the audit log
       "Type": "AWS::SSM::Document",
     },
     "ASREnableVPCFlowLogs": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5494,6 +5587,9 @@ def enable_flow_logs(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASREncryptRDSSnapshot": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{AutomationAssumeRole}}",
@@ -5699,6 +5795,9 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
       "Type": "AWS::SSM::Document",
     },
     "ASRMakeEBSSnapshotsPrivate": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5910,6 +6009,9 @@ def make_snapshots_private(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRMakeRDSSnapshotPrivate": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6029,6 +6131,9 @@ def make_snapshot_private(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRRemoveLambdaPublicAccess": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6192,6 +6297,9 @@ def verify(function_name_to_check):
       "Type": "AWS::SSM::Document",
     },
     "ASRRemoveVPCDefaultSecurityGroupRules": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6314,6 +6422,9 @@ def handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRReplaceCodeBuildClearTextCredentials": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6612,6 +6723,9 @@ Changes the settings of a build project.
       "Type": "AWS::SSM::Document",
     },
     "ASRRevokeUnrotatedKeys": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6772,6 +6886,9 @@ def unrotated_key_handler(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRRevokeUnusedIAMUserCredentials": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6935,6 +7052,9 @@ def unused_iam_credentials_handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRS3BlockDenylist": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -7156,6 +7276,9 @@ def update_bucket_policy(event, _):
       "Type": "AWS::SSM::Document",
     },
     "ASRSetIAMPasswordPolicy": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -7326,6 +7449,9 @@ def update_and_verify_iam_user_password_policy(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRSetSSLBucketPolicy": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -7478,6 +7604,350 @@ def add_ssl_bucket_policy(event, _):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "c4540eed51da7f2ee15da83ea6579cdba6e6d11737e5a4d69cf30fa06597f65f",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "044d90d6e1adcebd305b98826e15d6ec1689beb21071e39f1bbfb0f2d085c6c1",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "c2711bac94ab01b7f8559577a9d68963f84edbe2c0a5d3632f2c11841a2b72ca",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait2",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "cb6782f876ab2702e23b0fbc76bb9333d06f771af9e0638ca01548ea842b47eb",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait3",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "86960921b115cdd0388e38ad855533cce767a3716a006fa0c228fcc6a23f549b",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait5": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "1a5004298e2da3604a732e2aa91c4cbaf60b2426f5d27d6db4f31d559a65aa40",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait6": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "243e656c60a52b4b431b00c52cda3e705df6bb31794a046690c05827beb59fa5",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait7": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait6",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "3db06d6132ae68c8cf122f616842284cc4cfae7c1839d5f90b16b81a2069df4c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait7",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "7ff55dc6de5f4bd8edfb75dcb4436455890e28b812245d5d8024b4e792039396",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRCreateCloudTrailMultiRegionTrail",
+        "ASRCreateLogMetricFilterAndAlarm",
+        "ASREnableAutoScalingGroupELBHealthCheck",
+        "ASREnableAWSConfig",
+        "ASREnableCloudTrailToCloudWatchLogging",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "c4540eed51da7f2ee15da83ea6579cdba6e6d11737e5a4d69cf30fa06597f65f",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRCreateAccessLoggingBucket",
+        "ASREnableCloudTrailEncryption",
+        "ASREnableDefaultEncryptionS3",
+        "ASREnableVPCFlowLogs",
+        "ASRMakeEBSSnapshotsPrivate",
+        "DeletWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "044d90d6e1adcebd305b98826e15d6ec1689beb21071e39f1bbfb0f2d085c6c1",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRMakeRDSSnapshotPrivate",
+        "ASRRemoveLambdaPublicAccess",
+        "ASRReplaceCodeBuildClearTextCredentials",
+        "ASRRevokeUnrotatedKeys",
+        "ASRSetSSLBucketPolicy",
+        "DeletWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "c2711bac94ab01b7f8559577a9d68963f84edbe2c0a5d3632f2c11841a2b72ca",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRDisablePublicAccessToRedshiftCluster",
+        "ASREnableAutomaticVersionUpgradeOnRedshiftCluster",
+        "ASREnableRedshiftClusterAuditLogging",
+        "ASREncryptRDSSnapshot",
+        "ASRS3BlockDenylist",
+        "DeletWait2",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "cb6782f876ab2702e23b0fbc76bb9333d06f771af9e0638ca01548ea842b47eb",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRConfigureS3BucketPublicAccessBlock",
+        "ASRConfigureSNSTopicForStack",
+        "ASRCreateIAMSupportRole",
+        "ASREnableAutomaticSnapshotsOnRedshiftCluster",
+        "ASREnableEncryptionForSQSQueue",
+        "DeletWait3",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "86960921b115cdd0388e38ad855533cce767a3716a006fa0c228fcc6a23f549b",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait5": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRConfigureS3PublicAccessBlock",
+        "ASREnableCloudTrailLogFileValidation",
+        "ASREnableEbsEncryptionByDefault",
+        "ASREnableEnhancedMonitoringOnRDSInstance",
+        "ASREnableKeyRotation",
+        "DeletWait4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "1a5004298e2da3604a732e2aa91c4cbaf60b2426f5d27d6db4f31d559a65aa40",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait6": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASREnableCopyTagsToSnapshotOnRDSCluster",
+        "ASREnableMultiAZOnRDSInstance",
+        "ASREnableRDSClusterDeletionProtection",
+        "ASREnableRDSInstanceDeletionProtection",
+        "ASRRemoveVPCDefaultSecurityGroupRules",
+        "DeletWait5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "243e656c60a52b4b431b00c52cda3e705df6bb31794a046690c05827beb59fa5",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait7": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRDisablePublicAccessToRDSInstance",
+        "ASREnableEncryptionForSNSTopic",
+        "ASREnableMinorVersionUpgradeOnRDSDBInstance",
+        "ASRRevokeUnusedIAMUserCredentials",
+        "ASRSetIAMPasswordPolicy",
+        "DeletWait6",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "3db06d6132ae68c8cf122f616842284cc4cfae7c1839d5f90b16b81a2069df4c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRDisablePublicIPAutoAssign",
+        "ASREnableDeliveryStatusLoggingForSNSTopic",
+        "DeletWait7",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "7ff55dc6de5f4bd8edfb75dcb4436455890e28b812245d5d8024b4e792039396",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }

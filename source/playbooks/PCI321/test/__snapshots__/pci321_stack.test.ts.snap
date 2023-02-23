@@ -415,6 +415,9 @@ exports[`default stack 2`] = `
   "Resources": {
     "ControlPCIPCIAutoScaling1": {
       "Condition": "EnablePCIAutoScaling1Condition",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -754,6 +757,9 @@ def parse_event(event, _):
     },
     "ControlPCIPCIEC26": {
       "Condition": "EnablePCIEC26Condition",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1091,6 +1097,9 @@ def parse_event(event, _):
     },
     "ControlPCIPCIIAM8": {
       "Condition": "EnablePCIIAM8Condition",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1406,6 +1415,39 @@ def parse_event(event, _):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "afd071697fc6bbf0c64306624ba039f438a8ecdacfe14511de0aecebbe750022",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlPCIPCIAutoScaling1",
+        "ControlPCIPCIEC26",
+        "ControlPCIPCIIAM8",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "afd071697fc6bbf0c64306624ba039f438a8ecdacfe14511de0aecebbe750022",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }
