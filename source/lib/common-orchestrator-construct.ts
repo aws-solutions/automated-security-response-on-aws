@@ -8,6 +8,7 @@ import { LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as cdk_nag from 'cdk-nag';
+import { Timeout } from 'aws-cdk-lib/aws-stepfunctions';
 
 export interface ConstructProps {
   roleArn: string;
@@ -80,7 +81,7 @@ export class OrchestratorConstruct extends Construct {
     const getDocState = new LambdaInvoke(this, 'Get Automation Document State', {
       comment: 'Get the status of the remediation automation document in the target account',
       lambdaFunction: getDocStateFunc,
-      timeout: Duration.minutes(1),
+      taskTimeout: Timeout.duration(Duration.minutes(1)),
       resultSelector: {
         'DocState.$': '$.Payload.status',
         'Message.$': '$.Payload.message',
@@ -100,7 +101,7 @@ export class OrchestratorConstruct extends Construct {
     const getApprovalRequirement = new LambdaInvoke(this, 'Get Remediation Approval Requirement', {
       comment: 'Determine whether the selected remediation requires manual approval',
       lambdaFunction: getApprovalRequirementFunc,
-      timeout: Duration.minutes(5),
+      taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultSelector: {
         'WorkflowDocument.$': '$.Payload.workflowdoc',
         'WorkflowAccount.$': '$.Payload.workflowaccount',
@@ -114,8 +115,8 @@ export class OrchestratorConstruct extends Construct {
     const remediateFinding = new LambdaInvoke(this, 'Execute Remediation', {
       comment: 'Execute the SSM Automation Document in the target account',
       lambdaFunction: execRemediationFunc,
-      heartbeat: Duration.seconds(60),
-      timeout: Duration.minutes(5),
+      heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
+      taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultSelector: {
         'ExecState.$': '$.Payload.status',
         'Message.$': '$.Payload.message',
@@ -130,8 +131,8 @@ export class OrchestratorConstruct extends Construct {
     const execMonitor = new LambdaInvoke(this, 'execMonitor', {
       comment: 'Monitor the remediation execution until done',
       lambdaFunction: execMonFunc,
-      heartbeat: Duration.seconds(60),
-      timeout: Duration.minutes(5),
+      heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
+      taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultSelector: {
         'ExecState.$': '$.Payload.status',
         'ExecId.$': '$.Payload.executionid',
@@ -147,15 +148,15 @@ export class OrchestratorConstruct extends Construct {
     const notify = new LambdaInvoke(this, 'notify', {
       comment: 'Send notifications',
       lambdaFunction: notifyFunc,
-      heartbeat: Duration.seconds(60),
-      timeout: Duration.minutes(5),
+      heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
+      taskTimeout: Timeout.duration(Duration.minutes(5)),
     });
 
     const notifyQueued = new LambdaInvoke(this, 'Queued Notification', {
       comment: 'Send notification that a remediation has queued',
       lambdaFunction: notifyFunc,
-      heartbeat: Duration.seconds(60),
-      timeout: Duration.minutes(5),
+      heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
+      taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultPath: '$.notificationResult',
     });
 

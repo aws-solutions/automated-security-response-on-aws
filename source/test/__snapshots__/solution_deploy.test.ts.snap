@@ -1802,6 +1802,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "orchestratorStateMachine77C3F8FB": {
+      "DeletionPolicy": "Delete",
       "DependsOn": [
         "orchestratorNestedLogStackNestedStackNestedLogStackNestedStackResourceE4E042A6",
         "orchestratorRole12B410FD",
@@ -1926,6 +1927,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "StateMachineName": "SO0111-SHARR-Orchestrator",
       },
       "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
     },
     "sendNotifications1367638A": {
       "DependsOn": [
