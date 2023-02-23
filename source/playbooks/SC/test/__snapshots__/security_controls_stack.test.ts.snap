@@ -1080,6 +1080,9 @@ exports[`member stack 1`] = `
       "Description": "Admin account number",
       "Type": "String",
     },
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
   },
   "Resources": {
     "ControlRunbooksAutoScaling1BA109277": {

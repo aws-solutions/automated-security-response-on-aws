@@ -12,7 +12,7 @@ import { Trigger } from './ssmplaybook';
 import AdminAccountParam from './admin-account-param';
 import { RunbookFactory } from './runbook_factory';
 import { Construct } from 'constructs';
-import { StackProps } from 'aws-cdk-lib';
+import { CfnParameter, StackProps } from 'aws-cdk-lib';
 
 export interface IControl {
   control: string;
@@ -119,6 +119,8 @@ export class PlaybookMemberStack extends cdk.Stack {
     }
 
     new AdminAccountParam(this, 'AdminAccountParameter');
+
+    new CfnParameter(this, 'WaitProviderServiceToken');
 
     const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control

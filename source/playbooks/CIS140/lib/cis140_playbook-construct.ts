@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Stack, App, StackProps } from 'aws-cdk-lib';
+import { Stack, App, StackProps, CfnParameter } from 'aws-cdk-lib';
 import { ControlRunbooks } from './control_runbooks-construct';
 import AdminAccountParam from '../../../lib/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -28,6 +28,8 @@ export class CIS140PlaybookMemberStack extends Stack {
 
     // Not used, but required by top-level member stack
     new AdminAccountParam(this, 'AdminAccountParameter');
+
+    new CfnParameter(this, 'WaitProviderServiceToken');
 
     const controlRunbooks = new ControlRunbooks(this, 'ControlRunbooks', {
       standardShortName: props.securityStandard,
