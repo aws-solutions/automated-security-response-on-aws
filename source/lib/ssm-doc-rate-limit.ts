@@ -77,6 +77,7 @@ export default class SsmDocRateLimit implements IAspect {
         this.previousDeleteWaitResource = this.currentDeleteWaitResource;
         this.currentCreateWaitResource = undefined;
         this.currentDeleteWaitResource = undefined;
+        this.hash = createHash('sha256');
       }
     }
   }
