@@ -459,7 +459,7 @@ exports[`member stack snapshot matches 1`] = `
       "Condition": "loadAFSBPCond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
+        "RunbookStackNoRoles",
       ],
       "Properties": {
         "Parameters": {
@@ -506,7 +506,7 @@ exports[`member stack snapshot matches 1`] = `
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B",
-        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
+        "RunbookStackNoRoles",
       ],
       "Properties": {
         "Parameters": {
@@ -553,7 +553,7 @@ exports[`member stack snapshot matches 1`] = `
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6",
-        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
+        "RunbookStackNoRoles",
       ],
       "Properties": {
         "Parameters": {
@@ -600,7 +600,7 @@ exports[`member stack snapshot matches 1`] = `
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906",
-        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
+        "RunbookStackNoRoles",
       ],
       "Properties": {
         "Parameters": {
@@ -647,7 +647,7 @@ exports[`member stack snapshot matches 1`] = `
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackSC0515DB36",
-        "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD",
+        "RunbookStackNoRoles",
       ],
       "Properties": {
         "Parameters": {
@@ -689,7 +689,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
-    "RunbookStackNoRolesNestedStackRunbookStackNoRolesNestedStackResource37E060FD": {
+    "RunbookStackNoRoles": {
       "DeletionPolicy": "Delete",
       "Properties": {
         "Parameters": {

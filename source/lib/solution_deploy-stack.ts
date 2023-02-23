@@ -741,7 +741,7 @@ export class SolutionDeployStack extends cdk.Stack {
         });
         cfnStack.node.addDependency(stateMachineConstruct);
         cfnStack.node.addDependency(orchestratorArn);
-
+        cfnStack.overrideLogicalId(`PlaybookAdminStack${file}`);
         this.nestedStacks.push(adminStack as cdk.Stack);
       }
     });
