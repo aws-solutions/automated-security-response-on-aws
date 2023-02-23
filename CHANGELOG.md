@@ -86,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduced duplicate code
 - Updated CIS playbook to Orchestrator architecture
 - Single Orchestrator deployment to enable multi-standard remediation with a single click
-- Custom Actions now consolidated to one: "Remediate with ASR"
+- Custom Actions now consolidated to one: "Remediate with SHARR"
 
 ### Removed
 - AWS Service Catalog for Playbook deployment
