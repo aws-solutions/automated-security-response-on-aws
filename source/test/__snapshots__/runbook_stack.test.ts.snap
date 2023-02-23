@@ -7627,7 +7627,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "044d90d6e1adcebd305b98826e15d6ec1689beb21071e39f1bbfb0f2d085c6c1",
+        "DocumentPropertiesHash": "57077238cf7b15b1b09b69243f44ed4d7ec5d86859b7421652492f5236865239",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7644,7 +7644,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "c2711bac94ab01b7f8559577a9d68963f84edbe2c0a5d3632f2c11841a2b72ca",
+        "DocumentPropertiesHash": "d9d70554583f2debde0daaee77134a4f27f295524be0a9fbc1f5896899b12862",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7661,7 +7661,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "cb6782f876ab2702e23b0fbc76bb9333d06f771af9e0638ca01548ea842b47eb",
+        "DocumentPropertiesHash": "d8cb9fbe52d6cb8d12cf3f418251ea9ecf2a823155b7aeceaefc304e2999d008",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7678,7 +7678,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "86960921b115cdd0388e38ad855533cce767a3716a006fa0c228fcc6a23f549b",
+        "DocumentPropertiesHash": "cbb21589711741582f016da0204b949e6bb393744d53b01dcc5383669d106dea",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7695,7 +7695,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "1a5004298e2da3604a732e2aa91c4cbaf60b2426f5d27d6db4f31d559a65aa40",
+        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7712,7 +7712,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "243e656c60a52b4b431b00c52cda3e705df6bb31794a046690c05827beb59fa5",
+        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7729,7 +7729,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "3db06d6132ae68c8cf122f616842284cc4cfae7c1839d5f90b16b81a2069df4c",
+        "DocumentPropertiesHash": "971be703d38efdd2d75a17325953419f3244f959e839b5a0668b12146968ac0c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7746,7 +7746,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "7ff55dc6de5f4bd8edfb75dcb4436455890e28b812245d5d8024b4e792039396",
+        "DocumentPropertiesHash": "76a143310018a965418e9379eb90670ea780456ea33047bd55f0b597443d59ba",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7789,7 +7789,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "044d90d6e1adcebd305b98826e15d6ec1689beb21071e39f1bbfb0f2d085c6c1",
+        "DocumentPropertiesHash": "57077238cf7b15b1b09b69243f44ed4d7ec5d86859b7421652492f5236865239",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7811,7 +7811,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "c2711bac94ab01b7f8559577a9d68963f84edbe2c0a5d3632f2c11841a2b72ca",
+        "DocumentPropertiesHash": "d9d70554583f2debde0daaee77134a4f27f295524be0a9fbc1f5896899b12862",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7833,7 +7833,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "cb6782f876ab2702e23b0fbc76bb9333d06f771af9e0638ca01548ea842b47eb",
+        "DocumentPropertiesHash": "d8cb9fbe52d6cb8d12cf3f418251ea9ecf2a823155b7aeceaefc304e2999d008",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7855,7 +7855,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "86960921b115cdd0388e38ad855533cce767a3716a006fa0c228fcc6a23f549b",
+        "DocumentPropertiesHash": "cbb21589711741582f016da0204b949e6bb393744d53b01dcc5383669d106dea",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7877,7 +7877,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "1a5004298e2da3604a732e2aa91c4cbaf60b2426f5d27d6db4f31d559a65aa40",
+        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7899,7 +7899,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "243e656c60a52b4b431b00c52cda3e705df6bb31794a046690c05827beb59fa5",
+        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7921,7 +7921,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "3db06d6132ae68c8cf122f616842284cc4cfae7c1839d5f90b16b81a2069df4c",
+        "DocumentPropertiesHash": "971be703d38efdd2d75a17325953419f3244f959e839b5a0668b12146968ac0c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7940,7 +7940,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "7ff55dc6de5f4bd8edfb75dcb4436455890e28b812245d5d8024b4e792039396",
+        "DocumentPropertiesHash": "76a143310018a965418e9379eb90670ea780456ea33047bd55f0b597443d59ba",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

@@ -16144,7 +16144,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "85e4b4ef56ad9cd510300b0258f2d8e882583b8605a5963d1ffd0d8cb87b1182",
+        "DocumentPropertiesHash": "53f801b967c642ca21ddb9491ddf4a80c610bd2342d34f42ac499e3ce5cc710b",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16161,7 +16161,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "be1e0d463f4ca13431147f136d7f909f3cc327250d146d1eaf3df8fd8f2c87c9",
+        "DocumentPropertiesHash": "da23d6295b0210b134873b98ca2dd6ffd898bf5ed1f0ccc8bdeab41eedc8d8dd",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16178,7 +16178,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9e6a4f5ff4645784495fd7a44aae74f272391bea52a76663372bdafcf9b7aff4",
+        "DocumentPropertiesHash": "ac944d9f5dc7f804a638b1f1918c19340da97d041d10594f767afd4031ae66ca",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16195,7 +16195,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9a04d0dfebf5bf2bbe97c18e3cb83bce0ab62fe91f6c7607581857e3fa565465",
+        "DocumentPropertiesHash": "8f7c5f56862771c4548165a67ac47517f21777f5cf7ee23e9b7b0f5aa3a364a2",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16212,7 +16212,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "fc08296da25daedfa9f9804ab14e3d6736c3044285dac509e0d04e8d235fe1d7",
+        "DocumentPropertiesHash": "e77fa52a0ca342dbfb86409abea49d2243ca46740d79b615ea9dc0618da3ad6e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16229,7 +16229,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "02a1c58756911e525189b54de459d91600c8153ba3dff735fe6bd3d2ffe53e69",
+        "DocumentPropertiesHash": "b34df59968b49f9824c6b6560d6901e1666d1e75fb0ab85bc7b74e97838e11db",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16246,7 +16246,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9e83eef824fd558b42d96a1360699eab05048a32bb37df1df4769c64b76d59a3",
+        "DocumentPropertiesHash": "5e53fc7abb1c81c81ab08e6a78360e7fdbca399b31fa2f4647bb43cf568ecfa9",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16263,7 +16263,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9d19a218944c1e0c45509205642d812d7e7168ae560a5962913a4c99bea8ac20",
+        "DocumentPropertiesHash": "1ddaa66543b6d561222bf40a61c1131852c184293363c6e11181a2f4ae6afb21",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16306,7 +16306,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "85e4b4ef56ad9cd510300b0258f2d8e882583b8605a5963d1ffd0d8cb87b1182",
+        "DocumentPropertiesHash": "53f801b967c642ca21ddb9491ddf4a80c610bd2342d34f42ac499e3ce5cc710b",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16328,7 +16328,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "be1e0d463f4ca13431147f136d7f909f3cc327250d146d1eaf3df8fd8f2c87c9",
+        "DocumentPropertiesHash": "da23d6295b0210b134873b98ca2dd6ffd898bf5ed1f0ccc8bdeab41eedc8d8dd",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16350,7 +16350,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9e6a4f5ff4645784495fd7a44aae74f272391bea52a76663372bdafcf9b7aff4",
+        "DocumentPropertiesHash": "ac944d9f5dc7f804a638b1f1918c19340da97d041d10594f767afd4031ae66ca",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16372,7 +16372,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9a04d0dfebf5bf2bbe97c18e3cb83bce0ab62fe91f6c7607581857e3fa565465",
+        "DocumentPropertiesHash": "8f7c5f56862771c4548165a67ac47517f21777f5cf7ee23e9b7b0f5aa3a364a2",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16394,7 +16394,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "fc08296da25daedfa9f9804ab14e3d6736c3044285dac509e0d04e8d235fe1d7",
+        "DocumentPropertiesHash": "e77fa52a0ca342dbfb86409abea49d2243ca46740d79b615ea9dc0618da3ad6e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16416,7 +16416,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "02a1c58756911e525189b54de459d91600c8153ba3dff735fe6bd3d2ffe53e69",
+        "DocumentPropertiesHash": "b34df59968b49f9824c6b6560d6901e1666d1e75fb0ab85bc7b74e97838e11db",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16438,7 +16438,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9e83eef824fd558b42d96a1360699eab05048a32bb37df1df4769c64b76d59a3",
+        "DocumentPropertiesHash": "5e53fc7abb1c81c81ab08e6a78360e7fdbca399b31fa2f4647bb43cf568ecfa9",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -16458,7 +16458,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9d19a218944c1e0c45509205642d812d7e7168ae560a5962913a4c99bea8ac20",
+        "DocumentPropertiesHash": "1ddaa66543b6d561222bf40a61c1131852c184293363c6e11181a2f4ae6afb21",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
