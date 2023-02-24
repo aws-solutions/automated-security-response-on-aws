@@ -54,6 +54,8 @@ export class MemberStack extends Stack {
       templateRelativePath: 'aws-sharr-remediations.template',
       parameters: { WaitProviderServiceToken: waitProvider.serviceToken },
     });
+    const noRolesCfnResource = nestedStackNoRoles.nestedStackResource as CfnResource;
+    noRolesCfnResource.overrideLogicalId('RunbookStackNoRoles');
 
     this.nestedStacks.push(nestedStackNoRoles as Stack);
 

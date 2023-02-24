@@ -691,7 +691,7 @@ export class SolutionDeployStack extends cdk.Stack {
     const orchestratorArn = orchArnParm.node.defaultChild as CfnParameter;
 
     //---------------------------------------------------------------------
-    // OneTrigger - Remediate with SHARR custom action
+    // OneTrigger - Remediate with ASR custom action
     //
     new OneTrigger(this, 'RemediateWithSharr', {
       targetArn: orchStateMachine.stateMachineArn,
@@ -741,7 +741,7 @@ export class SolutionDeployStack extends cdk.Stack {
         });
         cfnStack.node.addDependency(stateMachineConstruct);
         cfnStack.node.addDependency(orchestratorArn);
-
+        cfnStack.overrideLogicalId(`PlaybookAdminStack${file}`);
         this.nestedStacks.push(adminStack as cdk.Stack);
       }
     });

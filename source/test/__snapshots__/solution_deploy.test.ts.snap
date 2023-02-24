@@ -289,7 +289,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     "AppRegistryResourceAssociation2BB1A3300": {
       "Condition": "loadAFSBPCond",
       "DependsOn": [
-        "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317",
+        "PlaybookAdminStackAFSBP",
       ],
       "Properties": {
         "Application": {
@@ -299,7 +299,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
         },
         "Resource": {
-          "Ref": "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317",
+          "Ref": "PlaybookAdminStackAFSBP",
         },
         "ResourceType": "CFN_STACK",
       },
@@ -308,7 +308,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     "AppRegistryResourceAssociation3BEAC7BB7": {
       "Condition": "loadCIS120Cond",
       "DependsOn": [
-        "PlaybookAdminStackCIS120NestedStackPlaybookAdminStackCIS120NestedStackResource21DCA876",
+        "PlaybookAdminStackCIS120",
       ],
       "Properties": {
         "Application": {
@@ -318,7 +318,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
         },
         "Resource": {
-          "Ref": "PlaybookAdminStackCIS120NestedStackPlaybookAdminStackCIS120NestedStackResource21DCA876",
+          "Ref": "PlaybookAdminStackCIS120",
         },
         "ResourceType": "CFN_STACK",
       },
@@ -327,7 +327,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     "AppRegistryResourceAssociation46F7B9873": {
       "Condition": "loadCIS140Cond",
       "DependsOn": [
-        "PlaybookAdminStackCIS140NestedStackPlaybookAdminStackCIS140NestedStackResource54008C57",
+        "PlaybookAdminStackCIS140",
       ],
       "Properties": {
         "Application": {
@@ -337,7 +337,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
         },
         "Resource": {
-          "Ref": "PlaybookAdminStackCIS140NestedStackPlaybookAdminStackCIS140NestedStackResource54008C57",
+          "Ref": "PlaybookAdminStackCIS140",
         },
         "ResourceType": "CFN_STACK",
       },
@@ -346,7 +346,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     "AppRegistryResourceAssociation5FAA30631": {
       "Condition": "loadPCI321Cond",
       "DependsOn": [
-        "PlaybookAdminStackPCI321NestedStackPlaybookAdminStackPCI321NestedStackResourceB6A45DB0",
+        "PlaybookAdminStackPCI321",
       ],
       "Properties": {
         "Application": {
@@ -356,7 +356,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
         },
         "Resource": {
-          "Ref": "PlaybookAdminStackPCI321NestedStackPlaybookAdminStackPCI321NestedStackResourceB6A45DB0",
+          "Ref": "PlaybookAdminStackPCI321",
         },
         "ResourceType": "CFN_STACK",
       },
@@ -365,7 +365,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     "AppRegistryResourceAssociation62B582FF5": {
       "Condition": "loadSCCond",
       "DependsOn": [
-        "PlaybookAdminStackSCNestedStackPlaybookAdminStackSCNestedStackResource269A112D",
+        "PlaybookAdminStackSC",
       ],
       "Properties": {
         "Application": {
@@ -375,7 +375,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
         },
         "Resource": {
-          "Ref": "PlaybookAdminStackSCNestedStackPlaybookAdminStackSCNestedStackResource269A112D",
+          "Ref": "PlaybookAdminStackSC",
         },
         "ResourceType": "CFN_STACK",
       },
@@ -492,7 +492,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
-    "PlaybookAdminStackAFSBPNestedStackPlaybookAdminStackAFSBPNestedStackResource649D3317": {
+    "PlaybookAdminStackAFSBP": {
       "Condition": "loadAFSBPCond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -528,7 +528,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookAdminStackCIS120NestedStackPlaybookAdminStackCIS120NestedStackResource21DCA876": {
+    "PlaybookAdminStackCIS120": {
       "Condition": "loadCIS120Cond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -564,7 +564,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookAdminStackCIS140NestedStackPlaybookAdminStackCIS140NestedStackResource54008C57": {
+    "PlaybookAdminStackCIS140": {
       "Condition": "loadCIS140Cond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -600,7 +600,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookAdminStackPCI321NestedStackPlaybookAdminStackPCI321NestedStackResourceB6A45DB0": {
+    "PlaybookAdminStackPCI321": {
       "Condition": "loadPCI321Cond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -636,7 +636,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
-    "PlaybookAdminStackSCNestedStackPlaybookAdminStackSCNestedStackResource269A112D": {
+    "PlaybookAdminStackSC": {
       "Condition": "loadSCCond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -680,8 +680,8 @@ exports[`Test if the Stack has all the resources. 1`] = `
       ],
       "Properties": {
         "Description": "Submit the finding to AWS Security Hub Automated Response and Remediation",
-        "Id": "SHARRRemediation",
-        "Name": "Remediate with SHARR",
+        "Id": "ASRRemediation",
+        "Name": "Remediate with ASR",
         "ServiceToken": {
           "Fn::GetAtt": [
             "CreateCustomActionE7A973F5",
@@ -734,7 +734,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "RemediateWithSharrRemediateCustomAction40B496D2": {
       "Properties": {
-        "Description": "Remediate with SHARR",
+        "Description": "Remediate with ASR",
         "EventPattern": {
           "detail": {
             "findings": {
