@@ -137,7 +137,8 @@ def get_shortname(long_name):
     short_name = {
         'aws-foundational-security-best-practices': 'AFSBP',
         'cis-aws-foundations-benchmark': 'CIS',
-        'pci-dss': 'PCI'
+        'pci-dss': 'PCI',
+        'security-control': 'SC'
     }
     return short_name.get(long_name, None)
 
@@ -180,6 +181,18 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
+    
+    def _get_sc_check(self):
+        match_finding_id = re.match(
+            r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:'+
+            'security-control/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',
+            self.finding_json['Id']
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname('security-control')
+            self.control_id = match_finding_id.group(1)
+
+        return match_finding_id
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -192,8 +205,10 @@ class FindingEvent:
             self.standard_version = match_finding_id.group(2)
             self.control_id = match_finding_id.group(3)
         else:
-            self.valid_finding = False
-            self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
+            match_sc_finding_id = self._get_sc_check()
+            if not match_sc_finding_id:
+                self.valid_finding = False
+                self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
 
     def _get_aws_config_rule(self):
         # config_rule_id refers to the AWS Config Rule that produced the finding
@@ -453,7 +468,8 @@ def get_shortname(long_name):
     short_name = {
         'aws-foundational-security-best-practices': 'AFSBP',
         'cis-aws-foundations-benchmark': 'CIS',
-        'pci-dss': 'PCI'
+        'pci-dss': 'PCI',
+        'security-control': 'SC'
     }
     return short_name.get(long_name, None)
 
@@ -496,6 +512,18 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
+    
+    def _get_sc_check(self):
+        match_finding_id = re.match(
+            r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:'+
+            'security-control/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',
+            self.finding_json['Id']
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname('security-control')
+            self.control_id = match_finding_id.group(1)
+
+        return match_finding_id
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -508,8 +536,10 @@ class FindingEvent:
             self.standard_version = match_finding_id.group(2)
             self.control_id = match_finding_id.group(3)
         else:
-            self.valid_finding = False
-            self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
+            match_sc_finding_id = self._get_sc_check()
+            if not match_sc_finding_id:
+                self.valid_finding = False
+                self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
 
     def _get_aws_config_rule(self):
         # config_rule_id refers to the AWS Config Rule that produced the finding
@@ -785,7 +815,8 @@ def get_shortname(long_name):
     short_name = {
         'aws-foundational-security-best-practices': 'AFSBP',
         'cis-aws-foundations-benchmark': 'CIS',
-        'pci-dss': 'PCI'
+        'pci-dss': 'PCI',
+        'security-control': 'SC'
     }
     return short_name.get(long_name, None)
 
@@ -828,6 +859,18 @@ class FindingEvent:
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f'ERROR: Invalid resource Id {identifier_raw}')
+    
+    def _get_sc_check(self):
+        match_finding_id = re.match(
+            r'^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:'+
+            'security-control/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$',
+            self.finding_json['Id']
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname('security-control')
+            self.control_id = match_finding_id.group(1)
+
+        return match_finding_id
 
     def _get_standard_info(self):
         match_finding_id = re.match(
@@ -840,8 +883,10 @@ class FindingEvent:
             self.standard_version = match_finding_id.group(2)
             self.control_id = match_finding_id.group(3)
         else:
-            self.valid_finding = False
-            self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
+            match_sc_finding_id = self._get_sc_check()
+            if not match_sc_finding_id:
+                self.valid_finding = False
+                self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]}'
 
     def _get_aws_config_rule(self):
         # config_rule_id refers to the AWS Config Rule that produced the finding
