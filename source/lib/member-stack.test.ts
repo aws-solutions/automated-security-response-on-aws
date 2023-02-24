@@ -390,19 +390,21 @@ describe('member stack', function () {
     });
   });
 
-  it('creates stacks serially', function () {
-    interface Resource {
-      [_: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    }
+  interface Resource {
+    [_: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  }
 
-    const stacks = template.findResources('AWS::CloudFormation::Stack');
-    const gates = template.findResources('AWS::CloudFormation::WaitConditionHandle');
+  interface GraphNode {
+    readonly logicalId: string;
+    dependencies: string[]; // _outgoing_ dependencies, _incoming_ edges
+  }
 
-    interface GraphNode {
-      readonly logicalId: string;
-      dependencies: string[]; // _outgoing_ dependencies, _incoming_ edges
-    }
+  interface NodeTypes {
+    readonly startingNodes: { [_: string]: Resource };
+    readonly remainingNodes: { [_: string]: GraphNode };
+  }
 
+  function getNodeTypes(gates: { [_: string]: Resource }, stacks: { [_: string]: Resource }): NodeTypes {
     // make a list of all nodes with no incoming edges
     const startingNodes: { [_: string]: Resource } = {};
     const remainingNodes: { [_: string]: GraphNode } = {};
@@ -433,6 +435,15 @@ describe('member stack', function () {
         startingNodes[logicalId] = node;
       }
     }
+
+    return { startingNodes, remainingNodes };
+  }
+
+  it('creates stacks serially', function () {
+    const stacks = template.findResources('AWS::CloudFormation::Stack');
+    const gates = template.findResources('AWS::CloudFormation::WaitConditionHandle');
+
+    const { startingNodes, remainingNodes } = getNodeTypes(gates, stacks);
 
     // create a deep copy to check edges later
     const allNodes: { [_: string]: GraphNode } = JSON.parse(JSON.stringify(remainingNodes));
