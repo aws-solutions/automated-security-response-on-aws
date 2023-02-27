@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Stack, CfnMapping, App, StackProps, CfnParameter } from 'aws-cdk-lib';
+import { Stack, CfnMapping, App, StackProps, CfnParameter, Aspects } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from '../../../lib/ssmplaybook';
 import { Construct } from 'constructs';
@@ -8,6 +8,8 @@ import { ControlRunbooks } from './control_runbooks-construct';
 import AdminAccountParam from '../../../lib/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { IControl } from '../../../lib/sharrplaybook-construct';
+import { WaitProvider } from '../../../lib/wait-provider';
+import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
 
 export interface SecurityControlsPlaybookProps extends StackProps {
   solutionId: string;
@@ -96,7 +98,15 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
     // Not used, but required by top-level member stack
     new AdminAccountParam(this, 'AdminAccountParameter');
 
-    new CfnParameter(this, 'WaitProviderServiceToken');
+    const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
+
+    const waitProvider = WaitProvider.fromServiceToken(
+      this,
+      'WaitProvider',
+      waitProviderServiceTokenParam.valueAsString
+    );
+
+    Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
 
     const controlRunbooks = new ControlRunbooks(this, 'ControlRunbooks', {
       standardShortName: props.securityStandard,

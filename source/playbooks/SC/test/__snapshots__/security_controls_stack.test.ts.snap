@@ -1087,6 +1087,9 @@ exports[`member stack 1`] = `
   "Resources": {
     "ControlRunbooksAutoScaling1BA109277": {
       "Condition": "ControlRunbooksEnableAutoScaling1ConditionD5DF4981",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1445,6 +1448,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudFormation12CB945DB": {
       "Condition": "ControlRunbooksEnableCloudFormation1ConditionD8D32097",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1801,6 +1807,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudTrail1B15F1A13": {
       "Condition": "ControlRunbooksEnableCloudTrail1ConditionB7EBAA86",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2128,6 +2137,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudTrail2979D0B5D": {
       "Condition": "ControlRunbooksEnableCloudTrail2ConditionC182A10F",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2467,6 +2479,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudTrail4057F669F": {
       "Condition": "ControlRunbooksEnableCloudTrail4Condition587734A2",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2823,6 +2838,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudTrail54F5ED8E4": {
       "Condition": "ControlRunbooksEnableCloudTrail5Condition17B6B536",
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3181,6 +3199,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudTrail6526C5643": {
       "Condition": "ControlRunbooksEnableCloudTrail6Condition486CC2C3",
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3520,6 +3541,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudTrail7C6D85038": {
       "Condition": "ControlRunbooksEnableCloudTrail7ConditionA4FF88B2",
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3881,6 +3905,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksCloudWatch1A05F543A": {
       "Condition": "ControlRunbooksEnableCloudWatch1ConditionAB0DF2E5",
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4471,6 +4498,9 @@ def verify(event, _):
     },
     "ControlRunbooksCodeBuild2A2751671": {
       "Condition": "ControlRunbooksEnableCodeBuild2ConditionB01F473D",
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4827,6 +4857,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksConfig1512B566F": {
       "Condition": "ControlRunbooksEnableConfig1Condition8CEB8627",
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5165,6 +5198,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksEC213D7C9C1EB": {
       "Condition": "ControlRunbooksEnableEC213Condition567EA275",
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5513,6 +5549,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksEC214D3BB404": {
       "Condition": "ControlRunbooksEnableEC21ConditionD4F1277B",
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5846,6 +5885,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksEC2153B43E7A8": {
       "Condition": "ControlRunbooksEnableEC215Condition52A7DE4B",
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6201,6 +6243,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksEC22ED852ADF": {
       "Condition": "ControlRunbooksEnableEC22ConditionB9E0D42E",
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6558,6 +6603,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksEC267E3087AE": {
       "Condition": "ControlRunbooksEnableEC26ConditionF1F880B0",
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6915,6 +6963,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksEC277719A4CD": {
       "Condition": "ControlRunbooksEnableEC27ConditionC77CF056",
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -7241,6 +7292,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksIAM3DC25477E": {
       "Condition": "ControlRunbooksEnableIAM3Condition3AA0E892",
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -7588,6 +7642,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksIAM70A808F7C": {
       "Condition": "ControlRunbooksEnableIAM7ConditionDF8E776B",
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -7935,6 +7992,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksIAM8632E03ED": {
       "Condition": "ControlRunbooksEnableIAM8Condition9CA5CB4B",
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -8272,6 +8332,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksKMS41A22BB8D": {
       "Condition": "ControlRunbooksEnableKMS4Condition710C0C5C",
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -8629,6 +8692,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksLambda1F6ECACF8": {
       "Condition": "ControlRunbooksEnableLambda1Condition077CECAF",
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -8984,6 +9050,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS13FCEA51BD": {
       "Condition": "ControlRunbooksEnableRDS13Condition0E8A44B3",
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -9340,6 +9409,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS16EB04DCBF": {
       "Condition": "ControlRunbooksEnableRDS16ConditionCB5C3E8F",
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -9697,6 +9769,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS1D73701E9": {
       "Condition": "ControlRunbooksEnableRDS1ConditionFAE5B7EA",
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -10056,6 +10131,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS2FBE04686": {
       "Condition": "ControlRunbooksEnableRDS2Condition4FD00FE6",
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -10412,6 +10490,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS4C82F2410": {
       "Condition": "ControlRunbooksEnableRDS4Condition2E89346E",
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -10787,6 +10868,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS5CECD9314": {
       "Condition": "ControlRunbooksEnableRDS5ConditionEC2574C3",
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -11142,6 +11226,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS6082B0D6B": {
       "Condition": "ControlRunbooksEnableRDS6Condition4A60A39B",
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -11516,6 +11603,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS715C0A01A": {
       "Condition": "ControlRunbooksEnableRDS7ConditionE53509B0",
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -11872,6 +11962,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRDS89256480A": {
       "Condition": "ControlRunbooksEnableRDS8Condition8F460AB5",
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -12227,6 +12320,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRedshift1789871EB": {
       "Condition": "ControlRunbooksEnableRedshift1Condition3449D560",
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -12581,6 +12677,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksRedshift3106C10FF": {
       "Condition": "ControlRunbooksEnableRedshift3ConditionC65BAEF6",
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -12970,6 +13069,9 @@ def event_handler(event, _):
     },
     "ControlRunbooksRedshift475A78168": {
       "Condition": "ControlRunbooksEnableRedshift4Condition2377F6B5",
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -13435,6 +13537,9 @@ def check_for_s3_bucket_name(_, __):
     },
     "ControlRunbooksRedshift658631424": {
       "Condition": "ControlRunbooksEnableRedshift6Condition5A51FC97",
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -13824,6 +13929,9 @@ def event_handler(event, _):
     },
     "ControlRunbooksS311C5AAD45": {
       "Condition": "ControlRunbooksEnableS31Condition25C33B3F",
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -14158,6 +14266,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksS3260D6E897": {
       "Condition": "ControlRunbooksEnableS32ConditionD6F8CCE9",
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -14502,6 +14613,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksS34F82DA9F1": {
       "Condition": "ControlRunbooksEnableS34ConditionC23F6623",
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -14845,6 +14959,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksS356959B795": {
       "Condition": "ControlRunbooksEnableS35ConditionD5E024B6",
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -15181,6 +15298,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksS360762680A": {
       "Condition": "ControlRunbooksEnableS36ConditionD22273E2",
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -15555,6 +15675,9 @@ def runbook_handler(event, _):
     },
     "ControlRunbooksSNS145784CBB": {
       "Condition": "ControlRunbooksEnableSNS1Condition7720D1CC",
+      "DependsOn": [
+        "CreateWait8",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -15916,6 +16039,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksSNS2112179CC": {
       "Condition": "ControlRunbooksEnableSNS2Condition69621468",
+      "DependsOn": [
+        "CreateWait8",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -16277,6 +16403,9 @@ def parse_event(event, _):
     },
     "ControlRunbooksSQS173AA7C81": {
       "Condition": "ControlRunbooksEnableSQS1Condition3065B4F2",
+      "DependsOn": [
+        "CreateWait8",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -16637,6 +16766,351 @@ def parse_event(event, _):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "11dc0ae816812ef227e9a7bd3a337d46b3b7c94d23b76ecdc435757c227797ff",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "53f801b967c642ca21ddb9491ddf4a80c610bd2342d34f42ac499e3ce5cc710b",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "da23d6295b0210b134873b98ca2dd6ffd898bf5ed1f0ccc8bdeab41eedc8d8dd",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait2",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "ac944d9f5dc7f804a638b1f1918c19340da97d041d10594f767afd4031ae66ca",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait3",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "8f7c5f56862771c4548165a67ac47517f21777f5cf7ee23e9b7b0f5aa3a364a2",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait5": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "e77fa52a0ca342dbfb86409abea49d2243ca46740d79b615ea9dc0618da3ad6e",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait6": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "b34df59968b49f9824c6b6560d6901e1666d1e75fb0ab85bc7b74e97838e11db",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait7": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait6",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "5e53fc7abb1c81c81ab08e6a78360e7fdbca399b31fa2f4647bb43cf568ecfa9",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait7",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "1ddaa66543b6d561222bf40a61c1131852c184293363c6e11181a2f4ae6afb21",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksAutoScaling1BA109277",
+        "ControlRunbooksCloudFormation12CB945DB",
+        "ControlRunbooksCloudTrail1B15F1A13",
+        "ControlRunbooksCloudTrail2979D0B5D",
+        "ControlRunbooksCloudTrail4057F669F",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "11dc0ae816812ef227e9a7bd3a337d46b3b7c94d23b76ecdc435757c227797ff",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksCloudTrail54F5ED8E4",
+        "ControlRunbooksCloudTrail6526C5643",
+        "ControlRunbooksCloudTrail7C6D85038",
+        "ControlRunbooksCloudWatch1A05F543A",
+        "ControlRunbooksCodeBuild2A2751671",
+        "DeletWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "53f801b967c642ca21ddb9491ddf4a80c610bd2342d34f42ac499e3ce5cc710b",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksConfig1512B566F",
+        "ControlRunbooksEC214D3BB404",
+        "ControlRunbooksEC22ED852ADF",
+        "ControlRunbooksEC267E3087AE",
+        "ControlRunbooksEC277719A4CD",
+        "DeletWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "da23d6295b0210b134873b98ca2dd6ffd898bf5ed1f0ccc8bdeab41eedc8d8dd",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksEC213D7C9C1EB",
+        "ControlRunbooksEC2153B43E7A8",
+        "ControlRunbooksIAM3DC25477E",
+        "ControlRunbooksIAM70A808F7C",
+        "ControlRunbooksIAM8632E03ED",
+        "DeletWait2",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "ac944d9f5dc7f804a638b1f1918c19340da97d041d10594f767afd4031ae66ca",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksKMS41A22BB8D",
+        "ControlRunbooksLambda1F6ECACF8",
+        "ControlRunbooksRDS1D73701E9",
+        "ControlRunbooksRDS2FBE04686",
+        "ControlRunbooksRDS4C82F2410",
+        "DeletWait3",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "8f7c5f56862771c4548165a67ac47517f21777f5cf7ee23e9b7b0f5aa3a364a2",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait5": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksRDS13FCEA51BD",
+        "ControlRunbooksRDS5CECD9314",
+        "ControlRunbooksRDS6082B0D6B",
+        "ControlRunbooksRDS715C0A01A",
+        "ControlRunbooksRDS89256480A",
+        "DeletWait4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "e77fa52a0ca342dbfb86409abea49d2243ca46740d79b615ea9dc0618da3ad6e",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait6": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksRDS16EB04DCBF",
+        "ControlRunbooksRedshift1789871EB",
+        "ControlRunbooksRedshift3106C10FF",
+        "ControlRunbooksRedshift475A78168",
+        "ControlRunbooksRedshift658631424",
+        "DeletWait5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "b34df59968b49f9824c6b6560d6901e1666d1e75fb0ab85bc7b74e97838e11db",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait7": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksS311C5AAD45",
+        "ControlRunbooksS3260D6E897",
+        "ControlRunbooksS34F82DA9F1",
+        "ControlRunbooksS356959B795",
+        "ControlRunbooksS360762680A",
+        "DeletWait6",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "5e53fc7abb1c81c81ab08e6a78360e7fdbca399b31fa2f4647bb43cf568ecfa9",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlRunbooksSNS145784CBB",
+        "ControlRunbooksSNS2112179CC",
+        "ControlRunbooksSQS173AA7C81",
+        "DeletWait7",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "1ddaa66543b6d561222bf40a61c1131852c184293363c6e11181a2f4ae6afb21",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }

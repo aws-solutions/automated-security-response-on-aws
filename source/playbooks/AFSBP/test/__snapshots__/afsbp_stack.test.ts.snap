@@ -69,6 +69,9 @@ exports[`Member Stack - AFSBP 1`] = `
   "Resources": {
     "ControlAFSBPEC21": {
       "Condition": "EnableEC21Condition",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -398,6 +401,9 @@ def parse_event(event, _):
     },
     "ControlAFSBPLambda1": {
       "Condition": "EnableLambda1Condition",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -747,6 +753,9 @@ def parse_event(event, _):
     },
     "ControlAFSBPRDS1": {
       "Condition": "EnableRDS1Condition",
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1104,6 +1113,39 @@ def parse_event(event, _):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "89d471d6ccc97947dcc4b517e5c43205475a09652e6dd7e1158a78f2df2c71c6",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ControlAFSBPEC21",
+        "ControlAFSBPLambda1",
+        "ControlAFSBPRDS1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "89d471d6ccc97947dcc4b517e5c43205475a09652e6dd7e1158a78f2df2c71c6",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }
