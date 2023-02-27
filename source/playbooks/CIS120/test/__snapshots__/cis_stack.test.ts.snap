@@ -1469,7 +1469,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "3baaa9e89510f994092a965e5104035470af74975cf74fe569319463fb4569b1",
+        "DocumentPropertiesHash": "c275c0d9e95945c9a2e73ba060457a2ea175ae65c3cb302192fc92a2c23d215f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1488,7 +1488,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "3baaa9e89510f994092a965e5104035470af74975cf74fe569319463fb4569b1",
+        "DocumentPropertiesHash": "c275c0d9e95945c9a2e73ba060457a2ea175ae65c3cb302192fc92a2c23d215f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
