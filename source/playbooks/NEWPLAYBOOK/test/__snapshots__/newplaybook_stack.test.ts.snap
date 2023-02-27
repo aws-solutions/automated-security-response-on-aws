@@ -757,7 +757,7 @@ def verify_remediation(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9b1d695f0fd6aba8f25d0687c5df6ab9a492547c93749be4db137d9ed965dfff",
+        "DocumentPropertiesHash": "59676fa5d188027bd00a93038c2c1e278186320cd9e86edd24c7fb7c89adb88a",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -774,7 +774,7 @@ def verify_remediation(event, context):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9b1d695f0fd6aba8f25d0687c5df6ab9a492547c93749be4db137d9ed965dfff",
+        "DocumentPropertiesHash": "59676fa5d188027bd00a93038c2c1e278186320cd9e86edd24c7fb7c89adb88a",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
