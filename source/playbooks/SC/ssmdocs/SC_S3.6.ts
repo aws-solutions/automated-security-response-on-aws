@@ -43,6 +43,12 @@ class S3BlockDenylistDocument extends ControlRunbookDocument {
       selector: '$.Payload.aws_config_rule.InputParameters',
     });
 
+    outputs.push({
+      name: 'RemediationAccount',
+      outputType: DataTypeEnum.STRING,
+      selector: '$.Payload.account_id',
+    });
+
     return outputs;
   }
 
