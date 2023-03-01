@@ -34,7 +34,7 @@ export class EnableAWSConfigDocument extends ControlRunbookDocument {
   protected getRemediationParams(): { [_: string]: any } {
     const params = super.getRemediationParams();
 
-    params.SNSTopicName = `${this.solutionId}-${this.solutionAcronym}-AWSConfigNotification`;
+    params.SNSTopicName = `${this.solutionId}-SHARR-AWSConfigNotification`;
     params.KMSKeyArn = StringVariable.of('KMSKeyArn');
 
     return params;
