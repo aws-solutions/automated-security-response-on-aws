@@ -13342,6 +13342,11 @@ def parse_event(event, _):
                   "Selector": "$.Payload.resource_region",
                   "Type": "String",
                 },
+                {
+                  "Name": "RetentionPeriodSerialized",
+                  "Selector": "$.Payload.aws_config_rule.InputParameters",
+                  "Type": "String",
+                },
               ],
             },
             {
