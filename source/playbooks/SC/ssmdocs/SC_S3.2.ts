@@ -3,7 +3,7 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { HardCodedBoolean, HardCodedString, StringVariable } from '@cdklabs/cdk-ssm-documents';
+import { DataTypeEnum, HardCodedBoolean, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new ConfigureS3BucketPublicAccessBlockDocument(scope, id, {
@@ -24,6 +24,19 @@ export class ConfigureS3BucketPublicAccessBlockDocument extends ControlRunbookDo
       resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$`,
       updateDescription: HardCodedString.of('Disabled public access to S3 bucket.'),
     });
+  }
+
+  /** @override */
+  protected getParseInputStepOutputs(): Output[] {
+    const outputs = super.getParseInputStepOutputs();
+
+    outputs.push({
+      name: 'RemediationAccount',
+      outputType: DataTypeEnum.STRING,
+      selector: '$.Payload.account_id',
+    });
+
+    return outputs;
   }
 
   /** @override */
