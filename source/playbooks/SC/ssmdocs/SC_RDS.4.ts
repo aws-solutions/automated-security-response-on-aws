@@ -35,7 +35,7 @@ class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
       securityControlId: 'RDS.4',
       remediationName: 'EncryptRDSSnapshot',
       scope: RemediationScope.REGIONAL,
-      resourceIdRegex: String.raw`^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:alias\/[A-Za-z0-9/_-]+)|(?:key\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$`,
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$`,
       updateDescription: HardCodedString.of('Encrypted RDS snapshot'),
     });
   }

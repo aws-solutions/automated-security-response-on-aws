@@ -151,7 +151,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     params.AlarmDesc = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmDesc');
     params.AlarmThreshold = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmThreshold');
     params.LogGroupName = StringVariable.of('LogGroupName');
-    params.SNSTopicName = getSNSTopicName(this.solutionId, this.solutionAcronym);
+    params.SNSTopicName = getSNSTopicName(this.solutionId, 'SHARR');
     params.KMSKeyArn = StringVariable.of('KMSKeyArn');
 
     return params;

@@ -4415,7 +4415,7 @@ def verify(event, _):
                   "MetricName": "{{ GetMetricFilterAndAlarmInputValue.MetricName }}",
                   "MetricNamespace": "{{ MetricNamespace }}",
                   "MetricValue": "{{ GetMetricFilterAndAlarmInputValue.MetricValue }}",
-                  "SNSTopicName": "SO0111-ASR-LocalAlarmNotification",
+                  "SNSTopicName": "SO0111-SHARR-LocalAlarmNotification",
                 },
               },
               "name": "Remediation",
@@ -10520,7 +10520,7 @@ This document encrypts an unencrypted RDS snapshot by calling another SSM docume
                   "expected_control_id": [
                     "RDS.4",
                   ],
-                  "parse_id_pattern": "^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:)?(?:(?:alias\\/[A-Za-z0-9/_-]+)|(?:key\\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$",
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$",
                   "resource_index": 2,
                 },
                 "Runtime": "python3.8",
