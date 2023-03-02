@@ -69,7 +69,7 @@ class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDo
   protected getRemediationParams(): { [_: string]: any } {
     const params = super.getRemediationParams();
 
-    params.MinRetentionPeriod = StringVariable.of('ExtractConfigRuleParameters.RetentionPeriodSerialized');
+    params.MinRetentionPeriod = StringVariable.of('ExtractConfigRuleParameters.MinRetentionPeriod');
 
     return params;
   }

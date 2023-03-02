@@ -15,6 +15,7 @@ import {
   ExecuteScriptStep,
   HardCodedString,
   Operation,
+  Output,
   ScriptCode,
   ScriptLanguage,
   StringVariable,
@@ -35,6 +36,19 @@ class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
       resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):redshift:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:cluster:(?!.*--)([a-z][a-z0-9-]{0,62})(?<!-)$`,
       updateDescription: HardCodedString.of('Enabled Audit logging for the Redshift cluster.'),
     });
+  }
+
+  /** @override */
+  protected getParseInputStepOutputs(): Output[] {
+    const outputs = super.getParseInputStepOutputs();
+
+    outputs.push({
+      name: 'RetentionPeriodSerialized',
+      outputType: DataTypeEnum.STRING,
+      selector: '$.Payload.aws_config_rule.InputParameters',
+    });
+
+    return outputs;
   }
 
   /** @override */
@@ -95,7 +109,7 @@ class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
   protected getRemediationParams(): { [_: string]: any } {
     const params = super.getRemediationParams();
 
-    params.MinRetentionPeriod = StringVariable.of('ExtractConfigRuleParameters.RetentionPeriodSerialized');
+    params.BucketName = StringVariable.of('CheckIfSSMParameterWithS3BucketNameIsAvailable.BucketName');
 
     return params;
   }
