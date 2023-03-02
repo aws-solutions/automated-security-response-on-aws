@@ -103,4 +103,14 @@ class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
       }),
     ];
   }
+
+  /** @override */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected getRemediationParams(): { [_: string]: any } {
+    const params = super.getRemediationParams();
+
+    params.BucketName = StringVariable.of('CheckIfSSMParameterWithS3BucketNameIsAvailable.BucketName');
+
+    return params;
+  }
 }
