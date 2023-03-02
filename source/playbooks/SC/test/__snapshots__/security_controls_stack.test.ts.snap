@@ -13466,7 +13466,6 @@ def check_for_s3_bucket_name(_, __):
                 "RuntimeParameters": {
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
                   "ClusterIdentifier": "{{ ParseInput.ClusterIdentifier }}",
-                  "MinRetentionPeriod": "{{ ExtractConfigRuleParameters.MinRetentionPeriod }}",
                 },
                 "TargetLocations": [
                   {
