@@ -103,14 +103,4 @@ class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
       }),
     ];
   }
-
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    const params = super.getRemediationParams();
-
-    params.MinRetentionPeriod = StringVariable.of('ExtractConfigRuleParameters.RetentionPeriodSerialized');
-
-    return params;
-  }
 }
