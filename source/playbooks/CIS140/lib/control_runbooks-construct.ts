@@ -11,6 +11,7 @@ import * as cis_140_1_14 from '../ssmdocs/CIS140_1.14';
 import * as cis_140_2_1_1 from '../ssmdocs/CIS140_2.1.1';
 import * as cis_140_2_1_2 from '../ssmdocs/CIS140_2.1.2';
 import * as cis_140_2_1_5 from '../ssmdocs/CIS140_2.1.5';
+import * as cis_140_2_2_1 from '../ssmdocs/CIS140_2.2.1';
 import * as cis_140_3_1 from '../ssmdocs/CIS140_3.1';
 import * as cis_140_3_2 from '../ssmdocs/CIS140_3.2';
 import * as cis_140_3_3 from '../ssmdocs/CIS140_3.3';
@@ -50,6 +51,7 @@ export class ControlRunbooks extends Construct {
     this.add(cis_140_2_1_1.createControlRunbook(this, '2.1.1', props));
     this.add(cis_140_2_1_2.createControlRunbook(this, '2.1.2', props));
     this.add(cis_140_2_1_5.createControlRunbook(this, '2.1.5', props));
+    this.add(cis_140_2_2_1.createControlRunbook(this, '2.2.1', props));
     this.add(cis_140_3_1.createControlRunbook(this, '3.1', props));
     this.add(cis_140_3_2.createControlRunbook(this, '3.2', props));
     this.add(cis_140_3_3.createControlRunbook(this, '3.3', props));

@@ -6,5 +6,5 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { EnableEbsEncryptionByDefaultDocument } from '../../SC/ssmdocs/SC_EC2.7';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableEbsEncryptionByDefaultDocument(stage, id, { ...props, controlId: '3.1' });
+  return new EnableEbsEncryptionByDefaultDocument(stage, id, { ...props, controlId: '2.2.1' });
 }
