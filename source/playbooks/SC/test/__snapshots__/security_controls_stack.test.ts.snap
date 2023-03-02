@@ -2399,6 +2399,11 @@ def parse_event(event, _):
                   "Selector": "$.Payload.resource_id",
                   "Type": "String",
                 },
+                {
+                  "Name": "RemediationRegion",
+                  "Selector": "$.Payload.resource_region",
+                  "Type": "String",
+                },
               ],
             },
             {
@@ -5127,7 +5132,7 @@ def parse_event(event, _):
                 "RuntimeParameters": {
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
                   "KMSKeyArn": "{{ KMSKeyArn }}",
-                  "SNSTopicName": "SO0111-ASR-AWSConfigNotification",
+                  "SNSTopicName": "SO0111-SHARR-AWSConfigNotification",
                 },
               },
               "name": "Remediation",

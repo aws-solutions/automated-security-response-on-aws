@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableEbsEncryptionByDefaultDocument(scope, id, { ...props, controlId: 'EC2.7' });
 }
 
-class EnableEbsEncryptionByDefaultDocument extends ControlRunbookDocument {
+export class EnableEbsEncryptionByDefaultDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
