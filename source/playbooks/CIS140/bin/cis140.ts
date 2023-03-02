@@ -32,6 +32,7 @@ const remediations: IControl[] = [
   { control: '2.1.1' },
   { control: '2.1.2' },
   { control: '2.1.5' },
+  { control: '2.2.1' },
   { control: '3.1' },
   { control: '3.2' },
   { control: '3.3' },
