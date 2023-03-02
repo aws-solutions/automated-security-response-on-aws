@@ -14545,11 +14545,6 @@ def parse_event(event, _):
                   "Selector": "$.Payload.resource_id",
                   "Type": "String",
                 },
-                {
-                  "Name": "RemediationAccount",
-                  "Selector": "$.Payload.account_id",
-                  "Type": "String",
-                },
               ],
             },
             {
@@ -14557,7 +14552,6 @@ def parse_event(event, _):
               "inputs": {
                 "DocumentName": "ASR-ConfigureS3BucketPublicAccessBlock",
                 "RuntimeParameters": {
-                  "AccountId": "{{ ParseInput.RemediationAccount }}",
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
                   "BlockPublicAcls": true,
                   "BlockPublicPolicy": true,
