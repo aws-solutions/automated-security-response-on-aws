@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 SC_mappings = {
-    "Cloudwatch.1": {
+    "CloudWatch.1": {
         "filter_name": "UnauthorizedAPICalls",
         "filter_pattern": '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}',
         "metric_name": "UnauthorizedAPICalls",
@@ -11,7 +11,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for UnauthorizedAPICalls > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.2": {
+    "CloudWatch.2": {
         "filter_name": "ConsoleSigninWithoutMFA",
         "filter_pattern": '{($.eventName="ConsoleLogin") && ($.additionalEventData.MFAUsed !="Yes")}',
         "metric_name": "ConsoleSigninWithoutMFA",
@@ -20,7 +20,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for ConsoleSigninWithoutMFA > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.3": {
+    "CloudWatch.3": {
         "filter_name": "RootAccountUsage",
         "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
         "metric_name": "RootAccountUsage",
@@ -29,7 +29,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for RootAccountUsage > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.4": {
+    "CloudWatch.4": {
         "filter_name": "IAMPolicyChanges",
         "filter_pattern": '{($.eventName=DeleteGroupPolicy) || ($.eventName=DeleteRolePolicy) || ($.eventName=DeleteUserPolicy) || ($.eventName=PutGroupPolicy) || ($.eventName=PutRolePolicy) || ($.eventName=PutUserPolicy) || ($.eventName=CreatePolicy) || ($.eventName=DeletePolicy) || ($.eventName=CreatePolicyVersion) || ($.eventName=DeletePolicyVersion) || ($.eventName=AttachRolePolicy) || ($.eventName=DetachRolePolicy) || ($.eventName=AttachUserPolicy) || ($.eventName=DetachUserPolicy) || ($.eventName=AttachGroupPolicy) || ($.eventName=DetachGroupPolicy)}',
         "metric_name": "IAMPolicyChanges",
@@ -38,7 +38,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for IAMPolicyChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.5": {
+    "CloudWatch.5": {
         "filter_name": "CloudTrailChanges",
         "filter_pattern": '{($.eventName=CreateTrail) || ($.eventName=UpdateTrail) || ($.eventName=DeleteTrail) || ($.eventName=StartLogging) || ($.eventName=StopLogging)}',
         "metric_name": "CloudTrailChanges",
@@ -47,7 +47,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for CloudTrailChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.6": {
+    "CloudWatch.6": {
         "filter_name": "ConsoleAuthenticationFailure",
         "filter_pattern": '{($.eventName=ConsoleLogin) && ($.errorMessage="Failed authentication")}',
         "metric_name": "ConsoleAuthenticationFailure",
@@ -56,7 +56,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for ConsoleAuthenticationFailure > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.7": {
+    "CloudWatch.7": {
         "filter_name": "DisableOrDeleteCMK",
         "filter_pattern": '{($.eventSource=kms.amazonaws.com) && (($.eventName=DisableKey) || ($.eventName=ScheduleKeyDeletion))}',
         "metric_name": "DisableOrDeleteCMK",
@@ -65,7 +65,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for DisableOrDeleteCMK > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.8": {
+    "CloudWatch.8": {
         "filter_name": "S3BucketPolicyChanges",
         "filter_pattern": '{($.eventSource=s3.amazonaws.com) && (($.eventName=PutBucketAcl) || ($.eventName=PutBucketPolicy) || ($.eventName=PutBucketCors) || ($.eventName=PutBucketLifecycle) || ($.eventName=PutBucketReplication) || ($.eventName=DeleteBucketPolicy) || ($.eventName=DeleteBucketCors) || ($.eventName=DeleteBucketLifecycle) || ($.eventName=DeleteBucketReplication))}',
         "metric_name": "S3BucketPolicyChanges",
@@ -74,7 +74,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for S3BucketPolicyChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.9": {
+    "CloudWatch.9": {
         "filter_name": "AWSConfigChanges",
         "filter_pattern": '{($.eventSource=config.amazonaws.com) && (($.eventName=StopConfigurationRecorder) || ($.eventName=DeleteDeliveryChannel) || ($.eventName=PutDeliveryChannel) || ($.eventName=PutConfigurationRecorder))}',
         "metric_name": "AWSConfigChanges",
@@ -83,7 +83,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for AWSConfigChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.10": {
+    "CloudWatch.10": {
         "filter_name": "SecurityGroupChanges",
         "filter_pattern": '{($.eventName=AuthorizeSecurityGroupIngress) || ($.eventName=AuthorizeSecurityGroupEgress) || ($.eventName=RevokeSecurityGroupIngress) || ($.eventName=RevokeSecurityGroupEgress) || ($.eventName=CreateSecurityGroup) || ($.eventName=DeleteSecurityGroup)}',
         "metric_name": "SecurityGroupChanges",
@@ -92,7 +92,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for SecurityGroupChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.11": {
+    "CloudWatch.11": {
         "filter_name": "NetworkACLChanges",
         "filter_pattern": '{($.eventName=CreateNetworkAcl) || ($.eventName=CreateNetworkAclEntry) || ($.eventName=DeleteNetworkAcl) || ($.eventName=DeleteNetworkAclEntry) || ($.eventName=ReplaceNetworkAclEntry) || ($.eventName=ReplaceNetworkAclAssociation)}',
         "metric_name": "NetworkACLChanges",
@@ -101,7 +101,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for NetworkACLChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.12": {
+    "CloudWatch.12": {
         "filter_name": "NetworkGatewayChanges",
         "filter_pattern": '{($.eventName=CreateCustomerGateway) || ($.eventName=DeleteCustomerGateway) || ($.eventName=AttachInternetGateway) || ($.eventName=CreateInternetGateway) || ($.eventName=DeleteInternetGateway) || ($.eventName=DetachInternetGateway)}',
         "metric_name": "NetworkGatewayChanges",
@@ -110,7 +110,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for NetworkGatewayChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.13": {
+    "CloudWatch.13": {
         "filter_name": "RouteTableChanges",
         "filter_pattern": '{($.eventName=CreateRoute) || ($.eventName=CreateRouteTable) || ($.eventName=ReplaceRoute) || ($.eventName=ReplaceRouteTableAssociation) || ($.eventName=DeleteRouteTable) || ($.eventName=DeleteRoute) || ($.eventName=DisassociateRouteTable)}',
         "metric_name": "RouteTableChanges",
@@ -119,7 +119,7 @@ SC_mappings = {
         "alarm_desc": "Alarm for RouteTableChanges > 0",
         "alarm_threshold": 1
     },
-    "Cloudwatch.14": {
+    "CloudWatch.14": {
         "filter_name": "VPCChanges",
         "filter_pattern": '{($.eventName=CreateVpc) || ($.eventName=DeleteVpc) || ($.eventName=ModifyVpcAttribute) || ($.eventName=AcceptVpcPeeringConnection) || ($.eventName=CreateVpcPeeringConnection) || ($.eventName=DeleteVpcPeeringConnection) || ($.eventName=RejectVpcPeeringConnection) || ($.eventName=AttachClassicLinkVpc) || ($.eventName=DetachClassicLinkVpc) || ($.eventName=DisableVpcClassicLink) || ($.eventName=EnableVpcClassicLink)}',
         "metric_name": "VPCChanges",

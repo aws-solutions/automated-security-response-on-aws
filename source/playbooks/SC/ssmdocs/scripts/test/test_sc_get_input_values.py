@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import pytest
 
-from cis_get_input_values import verify
+from sc_get_input_values import verify
 
 def expected():
     return {
-        "filter_name": "RouteTableChanges",
+        "filter_name": "yondi",
         "filter_pattern": '{($.eventName=CreateRoute) || ($.eventName=CreateRouteTable) || ($.eventName=ReplaceRoute) || ($.eventName=ReplaceRouteTableAssociation) || ($.eventName=DeleteRouteTable) || ($.eventName=DeleteRoute) || ($.eventName=DisassociateRouteTable)}',
         "metric_name": "RouteTableChanges",
         "metric_value": 1,
@@ -16,4 +16,4 @@ def expected():
     }
 
 def test_verify():
-    assert verify({'ControlId': 'Cloudwatch.13'}, {}) == expected()
+    assert verify({'ControlId': 'CloudWatch.13'}, {}) == expected()
