@@ -6,7 +6,7 @@ from sc_get_input_values import verify
 
 def expected():
     return {
-        "filter_name": "yondi",
+        "filter_name": "RouteTableChanges",
         "filter_pattern": '{($.eventName=CreateRoute) || ($.eventName=CreateRouteTable) || ($.eventName=ReplaceRoute) || ($.eventName=ReplaceRouteTableAssociation) || ($.eventName=DeleteRouteTable) || ($.eventName=DeleteRoute) || ($.eventName=DisassociateRouteTable)}',
         "metric_name": "RouteTableChanges",
         "metric_value": 1,
