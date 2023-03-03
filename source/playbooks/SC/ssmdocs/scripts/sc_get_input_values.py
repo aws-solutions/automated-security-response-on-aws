@@ -3,6 +3,15 @@
 
 SC_mappings = {
     "CloudWatch.1": {
+        "filter_name": "RootAccountUsage",
+        "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
+        "metric_name": "RootAccountUsage",
+        "metric_value": 1,
+        "alarm_name": "RootAccountUsage",
+        "alarm_desc": "Alarm for RootAccountUsage > 0",
+        "alarm_threshold": 1
+    },
+    "CloudWatch.2": {
         "filter_name": "UnauthorizedAPICalls",
         "filter_pattern": '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}',
         "metric_name": "UnauthorizedAPICalls",
@@ -11,22 +20,13 @@ SC_mappings = {
         "alarm_desc": "Alarm for UnauthorizedAPICalls > 0",
         "alarm_threshold": 1
     },
-    "CloudWatch.2": {
+    "CloudWatch.3": {
         "filter_name": "ConsoleSigninWithoutMFA",
         "filter_pattern": '{($.eventName="ConsoleLogin") && ($.additionalEventData.MFAUsed !="Yes")}',
         "metric_name": "ConsoleSigninWithoutMFA",
         "metric_value": 1,
         "alarm_name": "ConsoleSigninWithoutMFA",
         "alarm_desc": "Alarm for ConsoleSigninWithoutMFA > 0",
-        "alarm_threshold": 1
-    },
-    "CloudWatch.3": {
-        "filter_name": "RootAccountUsage",
-        "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
-        "metric_name": "RootAccountUsage",
-        "metric_value": 1,
-        "alarm_name": "RootAccountUsage",
-        "alarm_desc": "Alarm for RootAccountUsage > 0",
         "alarm_threshold": 1
     },
     "CloudWatch.4": {
@@ -129,7 +129,6 @@ SC_mappings = {
         "alarm_threshold": 1
     }
 }
-
 
 def verify(event, _):
 
