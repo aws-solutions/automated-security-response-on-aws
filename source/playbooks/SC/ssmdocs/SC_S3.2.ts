@@ -3,7 +3,7 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { DataTypeEnum, HardCodedBoolean, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
+import { HardCodedBoolean, HardCodedString, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new ConfigureS3BucketPublicAccessBlockDocument(scope, id, {
@@ -27,24 +27,11 @@ export class ConfigureS3BucketPublicAccessBlockDocument extends ControlRunbookDo
   }
 
   /** @override */
-  protected getParseInputStepOutputs(): Output[] {
-    const outputs = super.getParseInputStepOutputs();
-
-    outputs.push({
-      name: 'RemediationAccount',
-      outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.account_id',
-    });
-
-    return outputs;
-  }
-
-  /** @override */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected getRemediationParams(): { [_: string]: any } {
     const params = super.getRemediationParams();
 
-    params.AccountId = StringVariable.of('ParseInput.RemediationAccount');
+    params.BucketName = StringVariable.of('ParseInput.BucketName');
     params.RestrictPublicBuckets = HardCodedBoolean.TRUE;
     params.BlockPublicAcls = HardCodedBoolean.TRUE;
     params.IgnorePublicAcls = HardCodedBoolean.TRUE;

@@ -91,9 +91,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
   protected getExtraSteps(): AutomationStep[] {
     const getMetricFilterAndAlarmInputValueStep = new ExecuteScriptStep(this, 'GetMetricFilterAndAlarmInputValue', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'verify'),
-      code: ScriptCode.fromFile(
-        fs.realpathSync(path.join(__dirname, '..', '..', 'CIS120', 'ssmdocs', 'scripts', 'cis_get_input_values.py'))
-      ),
+      code: ScriptCode.fromFile(fs.realpathSync(path.join(__dirname, 'scripts', 'sc_get_input_values.py'))),
       inputPayload: { ControlId: StringVariable.of('ParseInput.ControlId') },
       outputs: [
         {
@@ -151,7 +149,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     params.AlarmDesc = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmDesc');
     params.AlarmThreshold = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmThreshold');
     params.LogGroupName = StringVariable.of('LogGroupName');
-    params.SNSTopicName = getSNSTopicName(this.solutionId, this.solutionAcronym);
+    params.SNSTopicName = getSNSTopicName(this.solutionId, 'SHARR');
     params.KMSKeyArn = StringVariable.of('KMSKeyArn');
 
     return params;

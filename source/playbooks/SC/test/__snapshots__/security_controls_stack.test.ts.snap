@@ -4230,26 +4230,8 @@ def parse_event(event, _):
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-CIS_mappings = {
-    "3.1": {
-        "filter_name": "UnauthorizedAPICalls",
-        "filter_pattern": '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}',
-        "metric_name": "UnauthorizedAPICalls",
-        "metric_value": 1,
-        "alarm_name": "UnauthorizedAPICalls",
-        "alarm_desc": "Alarm for UnauthorizedAPICalls > 0",
-        "alarm_threshold": 1
-    },
-    "3.2": {
-        "filter_name": "ConsoleSigninWithoutMFA",
-        "filter_pattern": '{($.eventName="ConsoleLogin") && ($.additionalEventData.MFAUsed !="Yes")}',
-        "metric_name": "ConsoleSigninWithoutMFA",
-        "metric_value": 1,
-        "alarm_name": "ConsoleSigninWithoutMFA",
-        "alarm_desc": "Alarm for ConsoleSigninWithoutMFA > 0",
-        "alarm_threshold": 1
-    },
-    "3.3": {
+SC_mappings = {
+    "CloudWatch.1": {
         "filter_name": "RootAccountUsage",
         "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
         "metric_name": "RootAccountUsage",
@@ -4258,7 +4240,25 @@ CIS_mappings = {
         "alarm_desc": "Alarm for RootAccountUsage > 0",
         "alarm_threshold": 1
     },
-    "3.4": {
+    "CloudWatch.2": {
+        "filter_name": "UnauthorizedAPICalls",
+        "filter_pattern": '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}',
+        "metric_name": "UnauthorizedAPICalls",
+        "metric_value": 1,
+        "alarm_name": "UnauthorizedAPICalls",
+        "alarm_desc": "Alarm for UnauthorizedAPICalls > 0",
+        "alarm_threshold": 1
+    },
+    "CloudWatch.3": {
+        "filter_name": "ConsoleSigninWithoutMFA",
+        "filter_pattern": '{($.eventName="ConsoleLogin") && ($.additionalEventData.MFAUsed !="Yes")}',
+        "metric_name": "ConsoleSigninWithoutMFA",
+        "metric_value": 1,
+        "alarm_name": "ConsoleSigninWithoutMFA",
+        "alarm_desc": "Alarm for ConsoleSigninWithoutMFA > 0",
+        "alarm_threshold": 1
+    },
+    "CloudWatch.4": {
         "filter_name": "IAMPolicyChanges",
         "filter_pattern": '{($.eventName=DeleteGroupPolicy) || ($.eventName=DeleteRolePolicy) || ($.eventName=DeleteUserPolicy) || ($.eventName=PutGroupPolicy) || ($.eventName=PutRolePolicy) || ($.eventName=PutUserPolicy) || ($.eventName=CreatePolicy) || ($.eventName=DeletePolicy) || ($.eventName=CreatePolicyVersion) || ($.eventName=DeletePolicyVersion) || ($.eventName=AttachRolePolicy) || ($.eventName=DetachRolePolicy) || ($.eventName=AttachUserPolicy) || ($.eventName=DetachUserPolicy) || ($.eventName=AttachGroupPolicy) || ($.eventName=DetachGroupPolicy)}',
         "metric_name": "IAMPolicyChanges",
@@ -4267,7 +4267,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for IAMPolicyChanges > 0",
         "alarm_threshold": 1
     },
-    "3.5": {
+    "CloudWatch.5": {
         "filter_name": "CloudTrailChanges",
         "filter_pattern": '{($.eventName=CreateTrail) || ($.eventName=UpdateTrail) || ($.eventName=DeleteTrail) || ($.eventName=StartLogging) || ($.eventName=StopLogging)}',
         "metric_name": "CloudTrailChanges",
@@ -4276,7 +4276,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for CloudTrailChanges > 0",
         "alarm_threshold": 1
     },
-    "3.6": {
+    "CloudWatch.6": {
         "filter_name": "ConsoleAuthenticationFailure",
         "filter_pattern": '{($.eventName=ConsoleLogin) && ($.errorMessage="Failed authentication")}',
         "metric_name": "ConsoleAuthenticationFailure",
@@ -4285,7 +4285,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for ConsoleAuthenticationFailure > 0",
         "alarm_threshold": 1
     },
-    "3.7": {
+    "CloudWatch.7": {
         "filter_name": "DisableOrDeleteCMK",
         "filter_pattern": '{($.eventSource=kms.amazonaws.com) && (($.eventName=DisableKey) || ($.eventName=ScheduleKeyDeletion))}',
         "metric_name": "DisableOrDeleteCMK",
@@ -4294,7 +4294,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for DisableOrDeleteCMK > 0",
         "alarm_threshold": 1
     },
-    "3.8": {
+    "CloudWatch.8": {
         "filter_name": "S3BucketPolicyChanges",
         "filter_pattern": '{($.eventSource=s3.amazonaws.com) && (($.eventName=PutBucketAcl) || ($.eventName=PutBucketPolicy) || ($.eventName=PutBucketCors) || ($.eventName=PutBucketLifecycle) || ($.eventName=PutBucketReplication) || ($.eventName=DeleteBucketPolicy) || ($.eventName=DeleteBucketCors) || ($.eventName=DeleteBucketLifecycle) || ($.eventName=DeleteBucketReplication))}',
         "metric_name": "S3BucketPolicyChanges",
@@ -4303,7 +4303,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for S3BucketPolicyChanges > 0",
         "alarm_threshold": 1
     },
-    "3.9": {
+    "CloudWatch.9": {
         "filter_name": "AWSConfigChanges",
         "filter_pattern": '{($.eventSource=config.amazonaws.com) && (($.eventName=StopConfigurationRecorder) || ($.eventName=DeleteDeliveryChannel) || ($.eventName=PutDeliveryChannel) || ($.eventName=PutConfigurationRecorder))}',
         "metric_name": "AWSConfigChanges",
@@ -4312,7 +4312,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for AWSConfigChanges > 0",
         "alarm_threshold": 1
     },
-    "3.10": {
+    "CloudWatch.10": {
         "filter_name": "SecurityGroupChanges",
         "filter_pattern": '{($.eventName=AuthorizeSecurityGroupIngress) || ($.eventName=AuthorizeSecurityGroupEgress) || ($.eventName=RevokeSecurityGroupIngress) || ($.eventName=RevokeSecurityGroupEgress) || ($.eventName=CreateSecurityGroup) || ($.eventName=DeleteSecurityGroup)}',
         "metric_name": "SecurityGroupChanges",
@@ -4321,7 +4321,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for SecurityGroupChanges > 0",
         "alarm_threshold": 1
     },
-    "3.11": {
+    "CloudWatch.11": {
         "filter_name": "NetworkACLChanges",
         "filter_pattern": '{($.eventName=CreateNetworkAcl) || ($.eventName=CreateNetworkAclEntry) || ($.eventName=DeleteNetworkAcl) || ($.eventName=DeleteNetworkAclEntry) || ($.eventName=ReplaceNetworkAclEntry) || ($.eventName=ReplaceNetworkAclAssociation)}',
         "metric_name": "NetworkACLChanges",
@@ -4330,7 +4330,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for NetworkACLChanges > 0",
         "alarm_threshold": 1
     },
-    "3.12": {
+    "CloudWatch.12": {
         "filter_name": "NetworkGatewayChanges",
         "filter_pattern": '{($.eventName=CreateCustomerGateway) || ($.eventName=DeleteCustomerGateway) || ($.eventName=AttachInternetGateway) || ($.eventName=CreateInternetGateway) || ($.eventName=DeleteInternetGateway) || ($.eventName=DetachInternetGateway)}',
         "metric_name": "NetworkGatewayChanges",
@@ -4339,7 +4339,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for NetworkGatewayChanges > 0",
         "alarm_threshold": 1
     },
-    "3.13": {
+    "CloudWatch.13": {
         "filter_name": "RouteTableChanges",
         "filter_pattern": '{($.eventName=CreateRoute) || ($.eventName=CreateRouteTable) || ($.eventName=ReplaceRoute) || ($.eventName=ReplaceRouteTableAssociation) || ($.eventName=DeleteRouteTable) || ($.eventName=DeleteRoute) || ($.eventName=DisassociateRouteTable)}',
         "metric_name": "RouteTableChanges",
@@ -4348,7 +4348,7 @@ CIS_mappings = {
         "alarm_desc": "Alarm for RouteTableChanges > 0",
         "alarm_threshold": 1
     },
-    "3.14": {
+    "CloudWatch.14": {
         "filter_name": "VPCChanges",
         "filter_pattern": '{($.eventName=CreateVpc) || ($.eventName=DeleteVpc) || ($.eventName=ModifyVpcAttribute) || ($.eventName=AcceptVpcPeeringConnection) || ($.eventName=CreateVpcPeeringConnection) || ($.eventName=DeleteVpcPeeringConnection) || ($.eventName=RejectVpcPeeringConnection) || ($.eventName=AttachClassicLinkVpc) || ($.eventName=DetachClassicLinkVpc) || ($.eventName=DisableVpcClassicLink) || ($.eventName=EnableVpcClassicLink)}',
         "metric_name": "VPCChanges",
@@ -4359,10 +4359,9 @@ CIS_mappings = {
     }
 }
 
-
 def verify(event, _):
 
-    return CIS_mappings.get(event['ControlId'], None)
+    return SC_mappings.get(event['ControlId'], None)
 ",
               },
               "name": "GetMetricFilterAndAlarmInputValue",
@@ -4420,7 +4419,7 @@ def verify(event, _):
                   "MetricName": "{{ GetMetricFilterAndAlarmInputValue.MetricName }}",
                   "MetricNamespace": "{{ MetricNamespace }}",
                   "MetricValue": "{{ GetMetricFilterAndAlarmInputValue.MetricValue }}",
-                  "SNSTopicName": "SO0111-ASR-LocalAlarmNotification",
+                  "SNSTopicName": "SO0111-SHARR-LocalAlarmNotification",
                 },
               },
               "name": "Remediation",
@@ -10525,7 +10524,7 @@ This document encrypts an unencrypted RDS snapshot by calling another SSM docume
                   "expected_control_id": [
                     "RDS.4",
                   ],
-                  "parse_id_pattern": "^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:)?(?:(?:alias\\/[A-Za-z0-9/_-]+)|(?:key\\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$",
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$",
                   "resource_index": 2,
                 },
                 "Runtime": "python3.8",
@@ -14550,11 +14549,6 @@ def parse_event(event, _):
                   "Selector": "$.Payload.resource_id",
                   "Type": "String",
                 },
-                {
-                  "Name": "RemediationAccount",
-                  "Selector": "$.Payload.account_id",
-                  "Type": "String",
-                },
               ],
             },
             {
@@ -14562,7 +14556,6 @@ def parse_event(event, _):
               "inputs": {
                 "DocumentName": "ASR-ConfigureS3BucketPublicAccessBlock",
                 "RuntimeParameters": {
-                  "AccountId": "{{ ParseInput.RemediationAccount }}",
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
                   "BlockPublicAcls": true,
                   "BlockPublicPolicy": true,
