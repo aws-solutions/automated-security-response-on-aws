@@ -121,6 +121,35 @@ def test_bucket_already_exists(mocker):
         "CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.connect_to_s3",
         return_value=s3,
     )
+    with pytest.raises(SystemExit):
+        createcloudtrailbucket.create_encrypted_bucket(event, {})
+    s3_stubber.deactivate()
+
+
+def test_bucket_already_owned_by_you(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "region": get_region(),
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "account": "111111111111",
+        "logging_bucket": "mah-loggin-bukkit",
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
+
+    s3_stubber = Stubber(s3)
+    kwargs = {"Bucket": "so0111-aws-cloudtrail-111111111111", "ACL": "private"}
+    if get_region() != "us-east-1":
+        kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
+
+    s3_stubber.add_client_error("create_bucket", "BucketAlreadyOwnedByYou")
+
+    s3_stubber.activate()
+    mocker.patch(
+        "CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.connect_to_s3",
+        return_value=s3,
+    )
     assert createcloudtrailbucket.create_encrypted_bucket(event, {}) == {
         "cloudtrail_bucket": "so0111-aws-cloudtrail-111111111111"
     }

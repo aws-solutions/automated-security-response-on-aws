@@ -76,6 +76,30 @@ def test_bucket_already_exists(mocker):
     mocker.patch(
         "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
     )
+    with pytest.raises(SystemExit):
+        script.create_logging_bucket(event, {})
+    s3_stubber.assert_no_pending_responses()
+    s3_stubber.deactivate()
+
+
+def test_bucket_already_owned_by_you(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "BucketName": "mahbukkit",
+        "AWS_REGION": get_region(),
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
+
+    s3_stubber = Stubber(s3)
+
+    s3_stubber.add_client_error("create_bucket", "BucketAlreadyOwnedByYou")
+
+    s3_stubber.activate()
+    mocker.patch(
+        "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
+    )
     script.create_logging_bucket(event, {})
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()

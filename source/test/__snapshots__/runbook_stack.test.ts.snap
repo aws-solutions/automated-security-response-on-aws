@@ -779,55 +779,44 @@ import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
 
+
 def connect_to_s3(boto_config):
-    return boto3.client('s3', config=boto_config)
+    return boto3.client("s3", config=boto_config)
+
 
 def create_logging_bucket(event, _):
-    boto_config = Config(
-        retries ={
-          'mode': 'standard'
-        }
-    )
+    boto_config = Config(retries={"mode": "standard"})
     s3 = connect_to_s3(boto_config)
 
     try:
         kwargs = {
-            'Bucket': event['BucketName'],
-            'GrantWrite': 'uri=http://acs.amazonaws.com/groups/s3/LogDelivery',
-            'GrantReadACP': 'uri=http://acs.amazonaws.com/groups/s3/LogDelivery'
+            "Bucket": event["BucketName"],
+            "GrantWrite": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+            "GrantReadACP": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
         }
-        if event['AWS_REGION'] != 'us-east-1':
-            kwargs['CreateBucketConfiguration'] = {
-                'LocationConstraint': event['AWS_REGION']
+        if event["AWS_REGION"] != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {
+                "LocationConstraint": event["AWS_REGION"]
             }
 
         s3.create_bucket(**kwargs)
 
         s3.put_bucket_encryption(
-            Bucket=event['BucketName'],
+            Bucket=event["BucketName"],
             ServerSideEncryptionConfiguration={
-                'Rules': [
-                    {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'AES256'
-                        }
-                    }
+                "Rules": [
+                    {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
                 ]
-            }
+            },
         )
-        return {
-            "output": {
-                "Message": f'Bucket {event["BucketName"]} created'
-            }
-        }
+        return {"output": {"Message": f'Bucket {event["BucketName"]} created'}}
     except ClientError as error:
-        if error.response['Error']['Code'] != 'BucketAlreadyExists' and \\
-            error.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
+        if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
             exit(str(error))
         else:
             return {
                 "output": {
-                    "Message": f'Bucket {event["BucketName"]} already exists'
+                    "Message": f'Bucket {event["BucketName"]} already exists and is owned by you'
                 }
             }
     except Exception as e:
@@ -907,26 +896,23 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-ERROR_CREATING_BUCKET = 'Error creating bucket '
+ERROR_CREATING_BUCKET = "Error creating bucket "
+
 
 def connect_to_s3(boto_config):
-    return boto3.client('s3', config=boto_config)
+    return boto3.client("s3", config=boto_config)
+
 
 def create_logging_bucket(event, _):
-
-    boto_config = Config(
-        retries ={
-            'mode': 'standard'
-        }
-    )
+    boto_config = Config(retries={"mode": "standard"})
     s3 = connect_to_s3(boto_config)
 
-    kms_key_arn = event['kms_key_arn']
-    aws_account = event['account']
-    aws_region = event['region']
-    bucket_name = 'so0111-access-logs-' + aws_region + '-' + aws_account
+    kms_key_arn = event["kms_key_arn"]
+    aws_account = event["account"]
+    aws_region = event["region"]
+    bucket_name = "so0111-access-logs-" + aws_region + "-" + aws_account
 
-    if create_bucket(s3, bucket_name, aws_region) == 'bucket_exists':
+    if create_bucket(s3, bucket_name, aws_region) == "bucket_exists":
         return {"logging_bucket": bucket_name}
     encrypt_bucket(s3, bucket_name, kms_key_arn)
     put_access_block(s3, bucket_name)
@@ -934,25 +920,21 @@ def create_logging_bucket(event, _):
 
     return {"logging_bucket": bucket_name}
 
+
 def create_bucket(s3, bucket_name, aws_region):
     try:
-        kwargs = {
-            'Bucket': bucket_name,
-            'ACL': 'private'
-        }
-        if aws_region != 'us-east-1':
-            kwargs['CreateBucketConfiguration'] = {
-                'LocationConstraint': aws_region
-            }
+        kwargs = {"Bucket": bucket_name, "ACL": "private"}
+        if aws_region != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": aws_region}
 
         s3.create_bucket(**kwargs)
 
     except ClientError as ex:
-        exception_type = ex.response['Error']['Code']
+        exception_type = ex.response["Error"]["Code"]
         # bucket already exists - return
-        if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
-            print('Bucket ' + bucket_name + ' already exists')
-            return 'bucket_exists'
+        if exception_type == "BucketAlreadyOwnedByYou":
+            print("Bucket " + bucket_name + " already exists and is owned by you")
+            return "bucket_exists"
         else:
             print(ex)
             exit(ERROR_CREATING_BUCKET + bucket_name)
@@ -960,47 +942,55 @@ def create_bucket(s3, bucket_name, aws_region):
         print(e)
         exit(ERROR_CREATING_BUCKET + bucket_name)
 
+
 def encrypt_bucket(s3, bucket_name, kms_key_arn):
     try:
         s3.put_bucket_encryption(
             Bucket=bucket_name,
             ServerSideEncryptionConfiguration={
-                'Rules': [
+                "Rules": [
                     {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": kms_key_arn.split("key/")[1],
                         }
                     }
                 ]
-            }
+            },
         )
     except Exception as e:
-        exit('Error encrypting bucket ' + bucket_name + ': ' + str(e))
+        exit("Error encrypting bucket " + bucket_name + ": " + str(e))
+
 
 def put_access_block(s3, bucket_name):
     try:
         s3.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration={
-                'BlockPublicAcls': True,
-                'IgnorePublicAcls': True,
-                'BlockPublicPolicy': True,
-                'RestrictPublicBuckets': True
-            }
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
         )
     except Exception as e:
-        exit('Error setting public access block for bucket ' + bucket_name + ': ' + str(e))
+        exit(
+            "Error setting public access block for bucket "
+            + bucket_name
+            + ": "
+            + str(e)
+        )
+
 
 def put_bucket_acl(s3, bucket_name):
     try:
         s3.put_bucket_acl(
             Bucket=bucket_name,
-            GrantReadACP='uri=http://acs.amazonaws.com/groups/s3/LogDelivery',
-            GrantWrite='uri=http://acs.amazonaws.com/groups/s3/LogDelivery'
+            GrantReadACP="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+            GrantWrite="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
         )
     except Exception as e:
-        exit('Error setting ACL for bucket ' + bucket_name + ': ' + str(e))",
+        exit("Error setting ACL for bucket " + bucket_name + ": " + str(e))",
               },
               "isEnd": false,
               "name": "CreateLoggingBucket",
@@ -1029,25 +1019,22 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
+
 def connect_to_s3(boto_config):
-    return boto3.client('s3', config=boto_config)
+    return boto3.client("s3", config=boto_config)
+
 
 def create_encrypted_bucket(event, _):
-
-    boto_config = Config(
-        retries ={
-          'mode': 'standard'
-        }
-    )
+    boto_config = Config(retries={"mode": "standard"})
     s3 = connect_to_s3(boto_config)
 
-    kms_key_arn = event['kms_key_arn']
-    aws_account = event['account']
-    aws_region = event['region']
-    logging_bucket = event['logging_bucket']
-    bucket_name = 'so0111-aws-cloudtrail-' + aws_account
+    kms_key_arn = event["kms_key_arn"]
+    aws_account = event["account"]
+    aws_region = event["region"]
+    logging_bucket = event["logging_bucket"]
+    bucket_name = "so0111-aws-cloudtrail-" + aws_account
 
-    if create_s3_bucket(s3, bucket_name, aws_region) == 'bucket_exists':
+    if create_s3_bucket(s3, bucket_name, aws_region) == "bucket_exists":
         return {"cloudtrail_bucket": bucket_name}
     put_bucket_encryption(s3, bucket_name, kms_key_arn)
     put_public_access_block(s3, bucket_name)
@@ -1055,76 +1042,80 @@ def create_encrypted_bucket(event, _):
 
     return {"cloudtrail_bucket": bucket_name}
 
+
 def create_s3_bucket(s3, bucket_name, aws_region):
     try:
-        kwargs = {
-            'Bucket': bucket_name,
-            'ACL': 'private'
-        }
-        if aws_region != 'us-east-1':
-            kwargs['CreateBucketConfiguration'] = {
-                'LocationConstraint': aws_region
-            }
+        kwargs = {"Bucket": bucket_name, "ACL": "private"}
+        if aws_region != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": aws_region}
 
         s3.create_bucket(**kwargs)
 
     except ClientError as client_ex:
-        exception_type = client_ex.response['Error']['Code']
-        if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
-          print('Bucket ' + bucket_name + ' already exists')
-          return 'bucket_exists'
+        exception_type = client_ex.response["Error"]["Code"]
+        if exception_type == "BucketAlreadyOwnedByYou":
+            print("Bucket " + bucket_name + " already exists and is owned by you")
+            return "bucket_exists"
         else:
-            exit('Error creating bucket ' + bucket_name + ' ' + str(client_ex))
+            exit("Error creating bucket " + bucket_name + " " + str(client_ex))
     except Exception as e:
-        exit('Error creating bucket ' + bucket_name + ' ' + str(e))
+        exit("Error creating bucket " + bucket_name + " " + str(e))
+
 
 def put_bucket_encryption(s3, bucket_name, kms_key_arn):
     try:
         s3.put_bucket_encryption(
             Bucket=bucket_name,
             ServerSideEncryptionConfiguration={
-                'Rules': [
+                "Rules": [
                     {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": kms_key_arn.split("key/")[1],
                         }
                     }
                 ]
-            }
+            },
         )
     except Exception as e:
         print(e)
-        exit('Error applying encryption to bucket ' + bucket_name + ' with key ' + kms_key_arn)
+        exit(
+            "Error applying encryption to bucket "
+            + bucket_name
+            + " with key "
+            + kms_key_arn
+        )
+
 
 def put_public_access_block(s3, bucket_name):
     try:
         s3.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration={
-                'BlockPublicAcls': True,
-                'IgnorePublicAcls': True,
-                'BlockPublicPolicy': True,
-                'RestrictPublicBuckets': True
-            }
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
         )
     except Exception as e:
-        exit(f'Error setting public access block for bucket {bucket_name}: {str(e)}')
+        exit(f"Error setting public access block for bucket {bucket_name}: {str(e)}")
+
 
 def put_bucket_logging(s3, bucket_name, logging_bucket):
     try:
         s3.put_bucket_logging(
             Bucket=bucket_name,
             BucketLoggingStatus={
-                'LoggingEnabled': {
-                    'TargetBucket': logging_bucket,
-                    'TargetPrefix': 'cloudtrail-access-logs'
+                "LoggingEnabled": {
+                    "TargetBucket": logging_bucket,
+                    "TargetPrefix": "cloudtrail-access-logs",
                 }
-            }
+            },
         )
     except Exception as e:
         print(e)
-        exit('Error setting public access block for bucket ' + bucket_name)",
+        exit("Error setting public access block for bucket " + bucket_name)",
               },
               "isEnd": false,
               "name": "CreateCloudTrailBucket",
@@ -7610,7 +7601,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "c4540eed51da7f2ee15da83ea6579cdba6e6d11737e5a4d69cf30fa06597f65f",
+        "DocumentPropertiesHash": "719574aea3525db420a0be68782edf4dab8ea536d6223b758a5f774a63d050b8",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7627,7 +7618,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "57077238cf7b15b1b09b69243f44ed4d7ec5d86859b7421652492f5236865239",
+        "DocumentPropertiesHash": "6ab2b917f1465b034999281244e7b4c1611300ea4929b3896fc7615dd3ba7e1f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7767,7 +7758,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "c4540eed51da7f2ee15da83ea6579cdba6e6d11737e5a4d69cf30fa06597f65f",
+        "DocumentPropertiesHash": "719574aea3525db420a0be68782edf4dab8ea536d6223b758a5f774a63d050b8",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7789,7 +7780,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "57077238cf7b15b1b09b69243f44ed4d7ec5d86859b7421652492f5236865239",
+        "DocumentPropertiesHash": "6ab2b917f1465b034999281244e7b4c1611300ea4929b3896fc7615dd3ba7e1f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
