@@ -29,6 +29,7 @@ const remediations: IControl[] = [
   { control: '1.9', executes: '1.8' },
   { control: '1.12' },
   { control: '1.14' },
+  { control: '1.17' },
   { control: '2.1.1' },
   { control: '2.1.2' },
   { control: '2.1.5' },
