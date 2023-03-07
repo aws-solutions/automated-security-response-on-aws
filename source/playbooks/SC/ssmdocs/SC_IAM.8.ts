@@ -10,6 +10,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
 }
 
 export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocument {
+  maxCredentialUsageAge?: string = '90';
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const remediationName = 'RevokeUnusedIAMUserCredentials';
 
@@ -43,8 +44,13 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const params: { [_: string]: any } = super.getRemediationParams();
 
-    params.IAMResourceId = StringVariable.of('ParseInput.IAMResourceId');
+    // If this is CIS 1.4 1.12, the default maxCredentialUsageAge must be changed
+    if (this.controlId == '1.12') {
+      this.maxCredentialUsageAge = '45';
+    }
 
+    params.IAMResourceId = StringVariable.of('ParseInput.IAMResourceId');
+    params.MaxCredentialUsageAge = HardCodedString.of(this.maxCredentialUsageAge as string);
     return params;
   }
 }

@@ -6900,7 +6900,7 @@ This document revokes unused IAM passwords and active access keys. This document
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 * IAMResourceId: (Required) IAM resource unique identifier.
-* MaxCredentialUsageAge: (Required) Maximum number of days within which a credential must be used. The default value is 45 days.
+* MaxCredentialUsageAge: (Required) Maximum number of days within which a credential must be used. The default value is 90 days.
 
 ## Output Parameters
 * RevokeUnusedIAMUserCredentialsAndVerify.Output - Success message or failure Exception.
@@ -7037,8 +7037,8 @@ def unused_iam_credentials_handler(event, context):
             },
             "MaxCredentialUsageAge": {
               "allowedPattern": "^(\\b([0-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000)\\b)$",
-              "default": "45",
-              "description": "(Required) Maximum number of days within which a credential must be used. The default value is 45 days.",
+              "default": "90",
+              "description": "(Required) Maximum number of days within which a credential must be used. The default value is 90 days.",
               "type": "String",
             },
           },
@@ -7729,7 +7729,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "4525f7379f0ee0347ea0c5474d41d5357f6d1fc3ce62d19fa8f42bbebcd8d130",
+        "DocumentPropertiesHash": "971be703d38efdd2d75a17325953419f3244f959e839b5a0668b12146968ac0c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7921,7 +7921,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "4525f7379f0ee0347ea0c5474d41d5357f6d1fc3ce62d19fa8f42bbebcd8d130",
+        "DocumentPropertiesHash": "971be703d38efdd2d75a17325953419f3244f959e839b5a0668b12146968ac0c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
