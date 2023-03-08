@@ -8,7 +8,7 @@ from logging import basicConfig, getLevelName, getLogger
 from time import sleep
 import cfnresponse
 
-basicConfig(level=getLevelName(getenv("LOG_LEVEL", "WARNING")))
+basicConfig(level=getLevelName(getenv("LOG_LEVEL", "INFO")))
 logger = getLogger(__name__)
 
 

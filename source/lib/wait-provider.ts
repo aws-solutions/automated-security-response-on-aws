@@ -83,7 +83,7 @@ export class WaitProvider extends Construct {
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/wait_provider.zip'
       ),
       handler: 'wait_provider.lambda_handler',
-      environment: { LOG_LEVEL: 'WARNING' },
+      environment: { LOG_LEVEL: 'INFO' },
       timeout: Duration.minutes(15),
     });
 
