@@ -1357,6 +1357,12 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(snsPerms);
 
+      const remediationPolicy = new PolicyStatement();
+      remediationPolicy.addActions('servicecatalog:GetApplication');
+      remediationPolicy.effect = Effect.ALLOW;
+      remediationPolicy.addResources('*');
+      inlinePolicy.addStatements(remediationPolicy);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
