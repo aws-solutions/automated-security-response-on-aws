@@ -67,6 +67,7 @@ const remediations: IControl[] = [
   { control: 'IAM.15', executes: 'IAM.7' },
   { control: 'IAM.16', executes: 'IAM.7' },
   { control: 'IAM.17', executes: 'IAM.7' },
+  { control: 'IAM.18' },
   { control: 'KMS.4' },
   { control: 'Lambda.1' },
   { control: 'RDS.1' },

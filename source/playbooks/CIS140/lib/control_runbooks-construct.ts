@@ -8,6 +8,7 @@ import { CfnCondition, CfnParameter, Fn } from 'aws-cdk-lib';
 import * as cis_140_1_8 from '../ssmdocs/CIS140_1.8';
 import * as cis_140_1_12 from '../ssmdocs/CIS140_1.12';
 import * as cis_140_1_14 from '../ssmdocs/CIS140_1.14';
+import * as cis_140_1_17 from '../ssmdocs/CIS140_1.17';
 import * as cis_140_2_1_1 from '../ssmdocs/CIS140_2.1.1';
 import * as cis_140_2_1_2 from '../ssmdocs/CIS140_2.1.2';
 import * as cis_140_2_1_5 from '../ssmdocs/CIS140_2.1.5';
@@ -48,6 +49,7 @@ export class ControlRunbooks extends Construct {
     this.add(cis_140_1_8.createControlRunbook(this, '1.8', props));
     this.add(cis_140_1_12.createControlRunbook(this, '1.12', props));
     this.add(cis_140_1_14.createControlRunbook(this, '1.14', props));
+    this.add(cis_140_1_17.createControlRunbook(this, '1.17', props));
     this.add(cis_140_2_1_1.createControlRunbook(this, '2.1.1', props));
     this.add(cis_140_2_1_2.createControlRunbook(this, '2.1.2', props));
     this.add(cis_140_2_1_5.createControlRunbook(this, '2.1.5', props));
