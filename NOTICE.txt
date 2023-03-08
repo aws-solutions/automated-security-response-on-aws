@@ -11,7 +11,6 @@ THIRD PARTY COMPONENTS
 **********************
 This software includes third party software subject to the following copyrights:
 
-@aws-cdk/assert under the Apache License 2.0
 @aws-cdk/aws-servicecatalogappregistry-alpha under the Apache License 2.0
 @cdklabs/cdk-ssm-documents under the Apache License 2.0
 @types/jest under the MIT License
@@ -35,19 +34,13 @@ ts-jest under the MIT License
 ts-node under the MIT License
 typescript under the Apache License 2.0
 
-attrs under the MIT License
 boto3 under the Apache License 2.0
 botocore under the Apache License 2.0
 certifi under the Mozilla Public License 2.0
-charset-normalizer under the MIT License
 coverage under the Apache License 2.0
-exceptiongroup under the MIT License
 idna under the BSD 3-Clause "New" or "Revised" License
-iniconfig under the MIT License
 jmespath under the MIT License
-packaging under the Apache License 2.0
 pip under the MIT License
-pluggy under the MIT License
 pytest under the MIT License
 pytest-cov under the MIT License
 pytest-env under the MIT License
@@ -57,6 +50,5 @@ requests under the Apache License 2.0
 s3transfer under the Apache License 2.0
 setuptools under the MIT License
 six under the MIT License
-tomli under the MIT License
 urllib3 under the MIT License
 virtualenv under the MIT License
