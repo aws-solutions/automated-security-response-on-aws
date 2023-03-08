@@ -55,6 +55,13 @@ export interface ControlRunbookProps extends PlaybookProps {
   otherControlIds?: string[];
 }
 
+// Similar to ControlRunbookProps, but allows for a parameter to be passed for runbooks that vary from standard to standard.
+export interface ParameterRunbookProps extends PlaybookProps {
+  controlId: string;
+  otherControlIds?: string[];
+  parameterToPass?: string;
+}
+
 // Properties that relate to the remediation-specific but standard-agnostic behavior of the runbook
 export interface ControlRunbookDocumentProps extends AutomationDocumentProps, ControlRunbookProps {
   securityControlId: string;

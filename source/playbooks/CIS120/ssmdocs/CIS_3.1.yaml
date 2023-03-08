@@ -134,10 +134,12 @@ mainSteps:
     inputs:
       InputPayload:
         ControlId: '{{ParseInput.ControlId}}'
+        StandardLongName: 'cis-aws-foundations-benchmark'
+        StandardVersion: '1.2.0'
       Runtime: python3.8
       Handler: verify
       Script: |-
-        %%SCRIPT=cis_get_input_values.py%%
+        %%SCRIPT=common/cloudwatch_get_input_values.py%%
 
   - name: Remediation
     action: 'aws:executeAutomation'

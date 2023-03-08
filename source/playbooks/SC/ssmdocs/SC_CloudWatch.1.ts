@@ -40,6 +40,8 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
 }
 
 export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocument {
+  standardLongName: string;
+  standardVersion: string;
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const allowAnyRegex = String.raw`.*`;
     const docInputs: Input[] = [
@@ -72,6 +74,8 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
         `Added metric filter to the log group and notifications to SNS topic ${snsTopicName}.`
       ),
     });
+    this.standardLongName = props.standardLongName;
+    this.standardVersion = props.standardVersion;
   }
 
   /** @override */
@@ -91,8 +95,14 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
   protected getExtraSteps(): AutomationStep[] {
     const getMetricFilterAndAlarmInputValueStep = new ExecuteScriptStep(this, 'GetMetricFilterAndAlarmInputValue', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'verify'),
-      code: ScriptCode.fromFile(fs.realpathSync(path.join(__dirname, 'scripts', 'sc_get_input_values.py'))),
-      inputPayload: { ControlId: StringVariable.of('ParseInput.ControlId') },
+      code: ScriptCode.fromFile(
+        fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'cloudwatch_get_input_values.py'))
+      ),
+      inputPayload: {
+        ControlId: StringVariable.of('ParseInput.ControlId'),
+        StandardLongName: HardCodedString.of(this.standardLongName),
+        StandardVersion: HardCodedString.of(this.standardVersion),
+      },
       outputs: [
         {
           name: 'FilterName',

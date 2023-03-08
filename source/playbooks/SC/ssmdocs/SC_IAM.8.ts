@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { Construct } from 'constructs';
-import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
+import { ControlRunbookDocument, ParameterRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { DataTypeEnum, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
@@ -10,7 +10,8 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
 }
 
 export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocument {
-  constructor(scope: Construct, id: string, props: ControlRunbookProps) {
+  maxCredentialUsageAge?: string;
+  constructor(scope: Construct, id: string, props: ParameterRunbookProps) {
     const remediationName = 'RevokeUnusedIAMUserCredentials';
 
     super(scope, id, {
@@ -22,6 +23,7 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
         `Deactivated unused keys and expired logins using the ${props.solutionAcronym}-${remediationName} runbook.`
       ),
     });
+    this.maxCredentialUsageAge = props.parameterToPass ?? '90';
   }
 
   /** @override */
@@ -44,7 +46,7 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
     const params: { [_: string]: any } = super.getRemediationParams();
 
     params.IAMResourceId = StringVariable.of('ParseInput.IAMResourceId');
-
+    params.MaxCredentialUsageAge = HardCodedString.of(this.maxCredentialUsageAge as string);
     return params;
   }
 }
