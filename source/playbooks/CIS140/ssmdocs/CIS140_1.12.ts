@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { RevokeUnusedIAMUserCredentialsDocument } from '../../SC/ssmdocs/SC_IAM.8';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RevokeUnusedIAMUserCredentialsDocument(stage, id, { ...props, controlId: '1.12' });
+  return new RevokeUnusedIAMUserCredentialsDocument(stage, id, {
+    ...props,
+    controlId: '1.12',
+    parameterToPass: '45',
+  });
 }
