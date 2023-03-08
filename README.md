@@ -45,7 +45,8 @@ some cases using AWS Systems Manager, the playbooks execute steps to remediate
 security issues, such as unused keys, open security groups, password policies,
 VPC configurations and public S3 buckets. The solution contains the playbook
 remediations for some of the security standards defined as part of CIS AWS
-Foundations Benchmark v1.2.0, CIS AWS Foundations Benchmark v1.4.0,  Foundational Security Best Practices v1.0.0, and PCI-DSS v3.2.1.
+Foundations Benchmark v1.2.0, CIS AWS Foundations Benchmark v1.4.0, 
+AWS Foundational Security Best Practices v1.0.0, and PCI-DSS v3.2.1.
 
 <a name="architecture-diagram"></a>
 
