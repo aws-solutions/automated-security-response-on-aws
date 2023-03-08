@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new ConfigureS3PublicAccessBlockDocument(scope, id, { ...props, controlId: 'S3.1' });
 }
 
-class ConfigureS3PublicAccessBlockDocument extends ControlRunbookDocument {
+export class ConfigureS3PublicAccessBlockDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
