@@ -1,7 +1,7 @@
-# AWS Security Hub Automated Response and Remediation
+# Automated Security Response on AWS
 
 [🚀 Solution Landing
-Page](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/)
+Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/)
 \| [🚧 Feature
 request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
@@ -12,7 +12,7 @@ Solution Landing Page
 
 ## Table of contents
 
-- [AWS Security Hub Automated Response and Remediation](#aws-security-hub-automated-response-and-remediation)
+- [Automated Security Response on AWS](#automated-security-response-on-aws)
   - [Table of contents](#table-of-contents)
   - [Solution Overview](#solution-overview)
     - [Architecture Diagram](#architecture-diagram)
@@ -36,7 +36,7 @@ Solution Landing Page
 
 ## Solution Overview
 
-AWS Security Hub Automated Response and Remediation is an add-on solution that
+Automated Security Response on AWS is an add-on solution that
 enables AWS Security Hub customers to remediate security findings with a single
 click using predefined response and remediation actions called “Playbooks”.
 Alternately the playbooks can also be configured to remediate findings in AWS
@@ -45,8 +45,8 @@ some cases using AWS Systems Manager, the playbooks execute steps to remediate
 security issues, such as unused keys, open security groups, password policies,
 VPC configurations and public S3 buckets. The solution contains the playbook
 remediations for some of the security standards defined as part of CIS AWS
-Foundations Benchmark v1.2.0 and for AWS Foundational Security Best Practices
-v1.0.0.
+Foundations Benchmark v1.2.0, CIS AWS Foundations Benchmark v1.4.0, 
+AWS Foundational Security Best Practices v1.0.0, and PCI-DSS v3.2.1.
 
 <a name="architecture-diagram"></a>
 
@@ -64,7 +64,7 @@ v1.0.0.
 
 ## Customizing the Solution
 
-**Note**: If your goal is just to deploy the solution, please use the template on the [AWS Security Hub Automated Response and Remediation Landing Page](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/). *There is no need to build the solution from source.*
+**Note**: If your goal is just to deploy the solution, please use the template on the [Automated Security Response on AWS Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/). *There is no need to build the solution from source.*
 
 Detailed instructions for creating a new automated remediation in an existing Playbook can be found in the Implementation Guide. Instructions for creating an entirely new Playbook are below.
 
@@ -174,7 +174,9 @@ AWS Solutions use two buckets: a bucket for global access to templates, which is
 
 #### Build the solution
 
-From the *deployment* folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex. mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
+First ensure that you've run `npm install` in the *source* folder.
+
+Next from the *deployment* folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex. mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
 
 ```bash
 chmod +x build-s3-dist.sh
@@ -207,7 +209,7 @@ Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the
 
 ## Deploy
 
-See the [AWS Security Hub Automated Response and Remediation Implementation Guide](http://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for AWS Solutions. Ex. https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
+See the [Automated Security Response on AWS Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for AWS Solutions. Ex. https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
 
 <a name="file-structure"></a>
 # File structure
@@ -220,7 +222,9 @@ aws-security-hub-automated-response-and-remediation uses AWS CDK for generating 
   |-playbooks                    [ Playbooks CloudDevelopment Kit Code and lambda source code]
     |- AFSBP/                    [ AFSBP v1.0.0 playbook code ]
     |- CIS120/                   [ CIS v1.2.0 playbook code ]
+    |- CIS140/                   [ CIS v1.4.0 playbook code ]
     |- PCI321/                   [ PCI-DSS v3.2.1 playbook code ]
+    |- SC/                       [ SC v2.0.0 playbook code ]
   |-remediation_runbooks         [ Shared remediation runbooks ]
   |-solution_deploy              [ Solution Cloud Development Kit node module ]
   |-test                         [ CDK unit tests ]
@@ -232,7 +236,7 @@ aws-security-hub-automated-response-and-remediation uses AWS CDK for generating 
 This solution collects anonymous operational metrics to help AWS improve the
 quality of features of the solution. For more information, including how to disable
 this capability, please see the
-[Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/collection-of-operational-metrics.html)
+[Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/collection-of-operational-metrics.html)
 
 <a name="license"></a>
 # License

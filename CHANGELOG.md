@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2023-01-17
 
 ### Added
-- New remediations contributed by 6Pillars: AFSBP IAM.1/CIS v1.2.0 1.22/PCI.IAM.3, CIS v1.2.0 1.16, CIS v1.2.0 1.20
+- New remediations contributed by 6Pillars: CIS v1.2.0 1.20
+- New AFSBP remediations for CloudFormation.1, EC2.15, SNS.1, SNS.2, SQS.1
+- Service Catalog AppRegistry integration
+- New support for Security Controls, finding deduplication
+- New support for CIS v1.4.0 standard
 
 ### Changed
-- Added support for Security Controls, finding deduplication
+- Added protections to avoid deployment failure due to SSM document throttling
 
 ## [1.5.1] - 2022-12-22
 
