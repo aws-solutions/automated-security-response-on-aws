@@ -1037,7 +1037,7 @@ exports[`member stack snapshot matches 1`] = `
         },
         "Environment": {
           "Variables": {
-            "LOG_LEVEL": "WARNING",
+            "LOG_LEVEL": "INFO",
           },
         },
         "Handler": "wait_provider.lambda_handler",
