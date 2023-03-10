@@ -1358,10 +1358,18 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(snsPerms);
 
       const remediationPolicy = new PolicyStatement();
-      remediationPolicy.addActions('servicecatalog:GetApplication', 'iam:GetRole');
+      remediationPolicy.addActions('servicecatalog:GetApplication');
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources('*');
       inlinePolicy.addStatements(remediationPolicy);
+
+      const iamPerms = new PolicyStatement();
+      iamPerms.addActions('iam:GetRole');
+      iamPerms.effect = Effect.ALLOW;
+      iamPerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/${remediationRoleNameBase}${remediationName}`
+      );
+      inlinePolicy.addStatements(iamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
