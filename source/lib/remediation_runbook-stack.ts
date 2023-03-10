@@ -1358,7 +1358,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(snsPerms);
 
       const remediationPolicy = new PolicyStatement();
-      remediationPolicy.addActions('servicecatalog:GetApplication');
+      remediationPolicy.addActions('servicecatalog:GetApplication', 'iam:GetRole');
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources('*');
       inlinePolicy.addStatements(remediationPolicy);
