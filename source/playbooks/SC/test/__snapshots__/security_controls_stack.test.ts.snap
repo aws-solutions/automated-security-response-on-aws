@@ -1137,7 +1137,7 @@ Default: 30 seconds
                   "expected_control_id": [
                     "AutoScaling.1",
                   ],
-                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:autoScalingGroup:(?:[0-9a-fA-F]{11}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):autoScalingGroupName\\/(.*)$",
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:autoScalingGroup:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):autoScalingGroupName/(.{1,255})$",
                 },
                 "Runtime": "python3.8",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
