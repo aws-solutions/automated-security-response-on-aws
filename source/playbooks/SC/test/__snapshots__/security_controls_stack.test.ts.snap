@@ -50,7 +50,7 @@ exports[`admin stack 1`] = `
                 ],
               },
               "GeneratorId": [
-                "control/Example.1",
+                "security-control/Example.1",
               ],
               "RecordState": [
                 "ACTIVE",
@@ -143,7 +143,7 @@ exports[`admin stack 1`] = `
                 ],
               },
               "GeneratorId": [
-                "control/Example.3",
+                "security-control/Example.3",
               ],
               "RecordState": [
                 "ACTIVE",
@@ -236,7 +236,7 @@ exports[`admin stack 1`] = `
                 ],
               },
               "GeneratorId": [
-                "control/Example.5",
+                "security-control/Example.5",
               ],
               "RecordState": [
                 "ACTIVE",
