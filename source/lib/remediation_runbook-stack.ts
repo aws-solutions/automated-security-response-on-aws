@@ -1367,7 +1367,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       iamPerms.addActions('iam:GetRole');
       iamPerms.effect = Effect.ALLOW;
       iamPerms.addResources(
-        `arn:${this.partition}:iam::${this.account}:role/${remediationRoleNameBase}${remediationName}`
+        `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`
       );
       inlinePolicy.addStatements(iamPerms);
 
