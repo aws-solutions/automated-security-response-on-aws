@@ -65,7 +65,7 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
           stringValue: `${controlSpec.executes}`,
         });
       }
-      const generatorId = `control/${controlSpec.control}`;
+      const generatorId = `security-control/${controlSpec.control}`;
       new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {
         securityStandard: props.securityStandard,
         securityStandardVersion: props.securityStandardVersion,
