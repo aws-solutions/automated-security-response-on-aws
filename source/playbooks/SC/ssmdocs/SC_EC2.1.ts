@@ -42,6 +42,12 @@ class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
     const outputs: Output[] = super.getParseInputStepOutputs();
 
     outputs.push({
+      name: 'RemediationAccount',
+      outputType: DataTypeEnum.STRING,
+      selector: '$.Payload.account_id',
+    });
+
+    outputs.push({
       name: 'TestMode',
       outputType: DataTypeEnum.BOOLEAN,
       selector: '$.Payload.testmode',
