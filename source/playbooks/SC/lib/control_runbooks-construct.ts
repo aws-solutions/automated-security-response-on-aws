@@ -26,6 +26,7 @@ import * as iam_3 from '../ssmdocs/SC_IAM.3';
 import * as iam_7 from '../ssmdocs/SC_IAM.7';
 import * as iam_8 from '../ssmdocs/SC_IAM.8';
 import * as iam_18 from '../ssmdocs/SC_IAM.18';
+import * as iam_22 from '../ssmdocs/SC_IAM.22';
 import * as kms_4 from '../ssmdocs/SC_KMS.4';
 import * as lambda_1 from '../ssmdocs/SC_Lambda.1';
 import * as rds_1 from '../ssmdocs/SC_RDS.1';
@@ -92,6 +93,7 @@ export class ControlRunbooks extends Construct {
     this.add(iam_7.createControlRunbook(this, 'IAM.7', props));
     this.add(iam_8.createControlRunbook(this, 'IAM.8', props));
     this.add(iam_18.createControlRunbook(this, 'IAM.18', props));
+    this.add(iam_22.createControlRunbook(this, 'IAM.22', props));
     this.add(kms_4.createControlRunbook(this, 'KMS.4', props));
     this.add(lambda_1.createControlRunbook(this, 'Lambda.1', props));
     this.add(rds_1.createControlRunbook(this, 'RDS.1', props));
