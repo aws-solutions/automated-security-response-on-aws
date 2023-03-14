@@ -1851,6 +1851,7 @@ Note: this remediation will create a NEW trail.
                   "Finding": "{{ Finding }}",
                   "expected_control_id": [
                     "CloudTrail.1",
+                    "CloudTrail.3",
                   ],
                   "parse_id_pattern": "",
                 },
