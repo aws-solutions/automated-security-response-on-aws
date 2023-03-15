@@ -5915,6 +5915,11 @@ def parse_event(event, _):
                   "Type": "StringMap",
                 },
                 {
+                  "Name": "RemediationAccount",
+                  "Selector": "$.Payload.account_id",
+                  "Type": "String",
+                },
+                {
                   "Name": "TestMode",
                   "Selector": "$.Payload.testmode",
                   "Type": "Boolean",
