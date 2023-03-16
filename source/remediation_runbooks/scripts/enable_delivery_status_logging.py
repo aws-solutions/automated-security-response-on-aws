@@ -98,8 +98,9 @@ def reset_to_recognized_state(topic_arn):
     Used in case of error, will unset all delivery status logging parameters.
     """
     sns = connect_to_sns()
-
     for endpoint in endpointTypes:
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue='')
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue='')
-    
+        try:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue='')
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue='')
+        except Exception:
+            print(f'There was an error while resetting SNS Topic {topic_arn}, please manually turn off delivery status logging for protocol {endpoint}')

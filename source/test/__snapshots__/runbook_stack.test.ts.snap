@@ -3959,11 +3959,12 @@ def reset_to_recognized_state(topic_arn):
     Used in case of error, will unset all delivery status logging parameters.
     """
     sns = connect_to_sns()
-
     for endpoint in endpointTypes:
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue='')
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue='')
-    ",
+        try:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue='')
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue='')
+        except Exception:
+            print(f'There was an error while resetting SNS Topic {topic_arn}, please manually turn off delivery status logging for protocol {endpoint}')",
               },
               "isEnd": true,
               "name": "EnableDeliveryStatusLogging",
@@ -7751,7 +7752,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "b42ae5288be2b2fc9d51a65e9e550f73561d42ffcae96dd81b6c35f46fdf25fe",
+        "DocumentPropertiesHash": "dff26ffe5bc8a2eb7a84297f591aa46181b17efa8b7c977636db9cf3beeec61c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -7945,7 +7946,7 @@ def add_ssl_bucket_policy(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "b42ae5288be2b2fc9d51a65e9e550f73561d42ffcae96dd81b6c35f46fdf25fe",
+        "DocumentPropertiesHash": "dff26ffe5bc8a2eb7a84297f591aa46181b17efa8b7c977636db9cf3beeec61c",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

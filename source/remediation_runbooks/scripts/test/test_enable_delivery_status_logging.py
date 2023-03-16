@@ -27,22 +27,22 @@ def test_enables_delivery_status_logging(mocker):
     logging_arn = 'logging_arn'
     topic_arn = f'arn:aws:sns:{my_region}:111111111111:sharr-test'
 
-    response = { 'Attributes' : {
+    stub_response = { 'Attributes' : {
       "LambdaFailureFeedbackRoleArn": logging_arn,
       "LambdaSuccessFeedbackRoleArn": logging_arn,
-      "LambdaSuccessFeedbackSampleRate": logging_arn,
+      "LambdaSuccessFeedbackSampleRate": '0',
       "HTTPFailureFeedbackRoleArn": logging_arn,
       "HTTPSuccessFeedbackRoleArn": logging_arn,
-      "HTTPSuccessFeedbackSampleRate": logging_arn,
+      "HTTPSuccessFeedbackSampleRate": '0',
       "FirehoseFailureFeedbackRoleArn": logging_arn,
       "FirehoseSuccessFeedbackRoleArn": logging_arn,
-      "FirehoseSuccessFeedbackSampleRate": logging_arn,
+      "FirehoseSuccessFeedbackSampleRate": '0',
       "ApplicationFailureFeedbackRoleArn": logging_arn,
       "ApplicationSuccessFeedbackRoleArn": logging_arn,
-      "ApplicationSuccessFeedbackSampleRate": logging_arn,
+      "ApplicationSuccessFeedbackSampleRate": '0',
       "SQSFailureFeedbackRoleArn": logging_arn,
       "SQSSuccessFeedbackRoleArn": logging_arn,
-      "SQSSuccessFeedbackSampleRate": logging_arn
+      "SQSSuccessFeedbackSampleRate": '0'
     }}
     for endpoint in endpointTypes:
       stub_sns.add_response(
@@ -67,7 +67,7 @@ def test_enables_delivery_status_logging(mocker):
         'AttributeValue': '0'})
 
     stub_sns.add_response('get_topic_attributes',
-    response, 
+    stub_response, 
     { 'TopicArn': topic_arn })
 
     stub_sns.activate()
@@ -78,18 +78,18 @@ def test_enables_delivery_status_logging(mocker):
         assert response == { 
             "LambdaFailureFeedbackRoleArn": logging_arn,
             "LambdaSuccessFeedbackRoleArn": logging_arn,
-            "LambdaSuccessFeedbackSampleRate": logging_arn,
+            "LambdaSuccessFeedbackSampleRate": '0',
             "HTTPFailureFeedbackRoleArn": logging_arn,
             "HTTPSuccessFeedbackRoleArn": logging_arn,
-            "HTTPSuccessFeedbackSampleRate": logging_arn,
+            "HTTPSuccessFeedbackSampleRate": '0',
             "FirehoseFailureFeedbackRoleArn": logging_arn,
             "FirehoseSuccessFeedbackRoleArn": logging_arn,
-            "FirehoseSuccessFeedbackSampleRate": logging_arn,
+            "FirehoseSuccessFeedbackSampleRate": '0',
             "ApplicationFailureFeedbackRoleArn": logging_arn,
             "ApplicationSuccessFeedbackRoleArn": logging_arn,
-            "ApplicationSuccessFeedbackSampleRate": logging_arn,
+            "ApplicationSuccessFeedbackSampleRate": '0',
             "SQSFailureFeedbackRoleArn": logging_arn,
             "SQSSuccessFeedbackRoleArn": logging_arn,
-            "SQSSuccessFeedbackSampleRate": logging_arn }
+            "SQSSuccessFeedbackSampleRate": '0' }
     
 
