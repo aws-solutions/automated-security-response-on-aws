@@ -31,6 +31,7 @@ const remediations: IControl[] = [
   { control: 'AutoScaling.1' },
   { control: 'CloudTrail.1' },
   { control: 'CloudTrail.2' },
+  { control: 'CloudTrail.3', executes: 'CloudTrail.1' },
   { control: 'CloudTrail.4' },
   { control: 'CloudTrail.5' },
   { control: 'CloudTrail.6' },
