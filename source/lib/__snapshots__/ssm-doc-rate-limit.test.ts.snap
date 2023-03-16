@@ -1,0 +1,248 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SSM doc rate limit aspect configures dependencies for many documents 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "97f8546cc30d8ca122f75268f86704de82b2760257dd324937478bfa046400cf",
+        "ServiceToken": "my-token",
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "97f8546cc30d8ca122f75268f86704de82b2760257dd324937478bfa046400cf",
+        "ServiceToken": "my-token",
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "3758b126bf0cb781dcfd65289a956ffe11d35b5948f020cef3efad3937173f1d",
+        "ServiceToken": "my-token",
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "Document0",
+        "Document1",
+        "Document2",
+        "Document3",
+        "Document4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "97f8546cc30d8ca122f75268f86704de82b2760257dd324937478bfa046400cf",
+        "ServiceToken": "my-token",
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "DeletWait0",
+        "Document5",
+        "Document6",
+        "Document7",
+        "Document8",
+        "Document9",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "97f8546cc30d8ca122f75268f86704de82b2760257dd324937478bfa046400cf",
+        "ServiceToken": "my-token",
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "DeletWait1",
+        "Document10",
+        "Document11",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "3758b126bf0cb781dcfd65289a956ffe11d35b5948f020cef3efad3937173f1d",
+        "ServiceToken": "my-token",
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "Document0": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document1": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document10": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document11": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document2": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document3": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document4": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document5": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document6": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document7": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document8": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "Document9": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "Content": {},
+      },
+      "Type": "AWS::SSM::Document",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
