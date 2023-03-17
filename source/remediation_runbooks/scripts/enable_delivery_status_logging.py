@@ -11,9 +11,7 @@ boto_config = Config(
         }
     )
 
-failureFeedbackRoleValue = "LambdaFailureFeedbackRoleArn"
-successFeedbackRoleValue = "LambdaSuccessFeedbackRoleArn"
-successRateRoleValue = "LambdaSuccessFeedbackSampleRate"
+endpointTypes = ['HTTP', 'Firehose', 'Lambda', 'Application', 'SQS']
 
 def connect_to_sns():
     return boto3.client('sns', config=boto_config)
@@ -39,9 +37,21 @@ def lambda_handler(event, _):
     topic_attributes = get_topic_attributes(topic_arn)
 
     return {
-        "FailureFeedbackRole": topic_attributes["Attributes"][failureFeedbackRoleValue],
-        "SuccessFeedbackRole": topic_attributes["Attributes"][successFeedbackRoleValue],
-        "SuccessSampleRate": topic_attributes["Attributes"][successRateRoleValue]
+        "HTTPFailureFeedbackRoleArn": topic_attributes["Attributes"]["HTTPFailureFeedbackRoleArn"],
+        "HTTPSuccessFeedbackRoleArn": topic_attributes["Attributes"]["HTTPSuccessFeedbackRoleArn"],
+        "HTTPSuccessFeedbackSampleRate": topic_attributes["Attributes"]["HTTPSuccessFeedbackSampleRate"],
+        "FirehoseFailureFeedbackRoleArn": topic_attributes["Attributes"]["FirehoseFailureFeedbackRoleArn"],
+        "FirehoseSuccessFeedbackRoleArn": topic_attributes["Attributes"]["FirehoseSuccessFeedbackRoleArn"],
+        "FirehoseSuccessFeedbackSampleRate": topic_attributes["Attributes"]["FirehoseSuccessFeedbackSampleRate"],
+        "LambdaFailureFeedbackRoleArn": topic_attributes["Attributes"]["LambdaFailureFeedbackRoleArn"],
+        "LambdaSuccessFeedbackRoleArn": topic_attributes["Attributes"]["LambdaSuccessFeedbackRoleArn"],
+        "LambdaSuccessFeedbackSampleRate": topic_attributes["Attributes"]["LambdaSuccessFeedbackSampleRate"],
+        "ApplicationFailureFeedbackRoleArn": topic_attributes["Attributes"]["ApplicationFailureFeedbackRoleArn"],
+        "ApplicationSuccessFeedbackRoleArn": topic_attributes["Attributes"]["ApplicationSuccessFeedbackRoleArn"],
+        "ApplicationSuccessFeedbackSampleRate": topic_attributes["Attributes"]["ApplicationSuccessFeedbackSampleRate"],
+        "SQSFailureFeedbackRoleArn": topic_attributes["Attributes"]["SQSFailureFeedbackRoleArn"],
+        "SQSSuccessFeedbackRoleArn": topic_attributes["Attributes"]["SQSSuccessFeedbackRoleArn"],
+        "SQSSuccessFeedbackSampleRate": topic_attributes["Attributes"]["SQSSuccessFeedbackSampleRate"]
     }
 
 def add_roles_to_topic(logging_role, topic_arn):
@@ -50,12 +60,13 @@ def add_roles_to_topic(logging_role, topic_arn):
     """  
     sns = connect_to_sns()
     try:
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=successFeedbackRoleValue, AttributeValue=logging_role)
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=failureFeedbackRoleValue, AttributeValue=logging_role)
+        for endpoint in endpointTypes:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue=logging_role)
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue=logging_role)
 
     except Exception as e:
         reset_to_recognized_state(topic_arn)
-        exit(f'Failed to set success/failure role of topic '+topic_arn+': '+str(e))
+        exit(f'Failed to set success/failure role of topic {topic_arn}: {str(e)}')
 
 def add_sample_rate_to_topic(topic_arn, sample_rate):
     """
@@ -63,11 +74,12 @@ def add_sample_rate_to_topic(topic_arn, sample_rate):
     """    
     sns = connect_to_sns()
     try:
-        sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=successRateRoleValue, AttributeValue=sample_rate)
+        for endpoint in endpointTypes:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackSampleRate', AttributeValue=sample_rate)
 
     except Exception as e:
         reset_to_recognized_state(topic_arn)
-        exit(f'Failed to set success sample rate of SNS topic '+topic_arn+': '+str(e))
+        exit(f'Failed to set success sample rate of SNS topic {topic_arn}: {str(e)}')
 
 def get_topic_attributes(topic_arn):
     """
@@ -79,13 +91,16 @@ def get_topic_attributes(topic_arn):
         return topic_attributes
 
     except Exception as e:
-        exit(f'Failed to get attributes of SNS topic '+topic_arn+': '+str(e))
+        exit(f'Failed to get attributes of SNS topic {topic_arn}: {str(e)}')
 
 def reset_to_recognized_state(topic_arn):
     """
     Used in case of error, will unset all delivery status logging parameters.
     """
     sns = connect_to_sns()
-    
-    sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=successFeedbackRoleValue, AttributeValue='')
-    sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=failureFeedbackRoleValue, AttributeValue='')
+    for endpoint in endpointTypes:
+        try:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue='')
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue='')
+        except Exception:
+            print(f'There was an error while resetting SNS Topic {topic_arn}, please manually turn off delivery status logging for protocol {endpoint}')
