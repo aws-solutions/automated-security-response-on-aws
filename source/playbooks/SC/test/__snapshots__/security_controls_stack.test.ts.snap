@@ -17732,11 +17732,7 @@ def parse_event(event, _):
     "DeletWait0": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksAutoScaling1BA109277",
-        "ControlRunbooksCloudFormation12CB945DB",
-        "ControlRunbooksCloudTrail1B15F1A13",
-        "ControlRunbooksCloudTrail2979D0B5D",
-        "ControlRunbooksCloudTrail4057F669F",
+        "Gate0",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17753,12 +17749,8 @@ def parse_event(event, _):
     "DeletWait1": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksCloudTrail54F5ED8E4",
-        "ControlRunbooksCloudTrail6526C5643",
-        "ControlRunbooksCloudTrail7C6D85038",
-        "ControlRunbooksCloudWatch1A05F543A",
-        "ControlRunbooksCodeBuild2A2751671",
         "DeletWait0",
+        "Gate1",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17775,12 +17767,8 @@ def parse_event(event, _):
     "DeletWait2": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksConfig1512B566F",
-        "ControlRunbooksEC214D3BB404",
-        "ControlRunbooksEC22ED852ADF",
-        "ControlRunbooksEC267E3087AE",
-        "ControlRunbooksEC277719A4CD",
         "DeletWait1",
+        "Gate2",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17797,12 +17785,8 @@ def parse_event(event, _):
     "DeletWait3": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksEC213D7C9C1EB",
-        "ControlRunbooksEC2153B43E7A8",
-        "ControlRunbooksIAM3DC25477E",
-        "ControlRunbooksIAM70A808F7C",
-        "ControlRunbooksIAM8632E03ED",
         "DeletWait2",
+        "Gate3",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17819,12 +17803,8 @@ def parse_event(event, _):
     "DeletWait4": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksIAM18ACE62321",
-        "ControlRunbooksIAM2280FCB95D",
-        "ControlRunbooksKMS41A22BB8D",
-        "ControlRunbooksLambda1F6ECACF8",
-        "ControlRunbooksRDS1D73701E9",
         "DeletWait3",
+        "Gate4",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17841,12 +17821,8 @@ def parse_event(event, _):
     "DeletWait5": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksRDS2FBE04686",
-        "ControlRunbooksRDS4C82F2410",
-        "ControlRunbooksRDS5CECD9314",
-        "ControlRunbooksRDS6082B0D6B",
-        "ControlRunbooksRDS715C0A01A",
         "DeletWait4",
+        "Gate5",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17863,12 +17839,8 @@ def parse_event(event, _):
     "DeletWait6": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksRDS13FCEA51BD",
-        "ControlRunbooksRDS16EB04DCBF",
-        "ControlRunbooksRDS89256480A",
-        "ControlRunbooksRedshift1789871EB",
-        "ControlRunbooksRedshift3106C10FF",
         "DeletWait5",
+        "Gate6",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17885,12 +17857,8 @@ def parse_event(event, _):
     "DeletWait7": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksRedshift475A78168",
-        "ControlRunbooksRedshift658631424",
-        "ControlRunbooksS311C5AAD45",
-        "ControlRunbooksS3260D6E897",
-        "ControlRunbooksS34F82DA9F1",
         "DeletWait6",
+        "Gate7",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17907,12 +17875,8 @@ def parse_event(event, _):
     "DeletWait8": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlRunbooksS356959B795",
-        "ControlRunbooksS360762680A",
-        "ControlRunbooksSNS145784CBB",
-        "ControlRunbooksSNS2112179CC",
-        "ControlRunbooksSQS173AA7C81",
         "DeletWait7",
+        "Gate8",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -17925,6 +17889,456 @@ def parse_event(event, _):
       },
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
+    },
+    "Gate0": {
+      "Metadata": {
+        "ControlRunbooksAutoScaling1BA109277Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableAutoScaling1ConditionD5DF4981",
+            {
+              "Ref": "ControlRunbooksAutoScaling1BA109277",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudFormation12CB945DBReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudFormation1ConditionD8D32097",
+            {
+              "Ref": "ControlRunbooksCloudFormation12CB945DB",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudTrail1B15F1A13Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudTrail1ConditionB7EBAA86",
+            {
+              "Ref": "ControlRunbooksCloudTrail1B15F1A13",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudTrail2979D0B5DReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudTrail2ConditionC182A10F",
+            {
+              "Ref": "ControlRunbooksCloudTrail2979D0B5D",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudTrail4057F669FReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudTrail4Condition587734A2",
+            {
+              "Ref": "ControlRunbooksCloudTrail4057F669F",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate1": {
+      "Metadata": {
+        "ControlRunbooksCloudTrail54F5ED8E4Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudTrail5Condition17B6B536",
+            {
+              "Ref": "ControlRunbooksCloudTrail54F5ED8E4",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudTrail6526C5643Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudTrail6Condition486CC2C3",
+            {
+              "Ref": "ControlRunbooksCloudTrail6526C5643",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudTrail7C6D85038Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudTrail7ConditionA4FF88B2",
+            {
+              "Ref": "ControlRunbooksCloudTrail7C6D85038",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCloudWatch1A05F543AReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableCloudWatch1ConditionAB0DF2E5",
+            {
+              "Ref": "ControlRunbooksCloudWatch1A05F543A",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksCodeBuild2A2751671Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableCodeBuild2ConditionB01F473D",
+            {
+              "Ref": "ControlRunbooksCodeBuild2A2751671",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate2": {
+      "Metadata": {
+        "ControlRunbooksConfig1512B566FReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableConfig1Condition8CEB8627",
+            {
+              "Ref": "ControlRunbooksConfig1512B566F",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksEC214D3BB404Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableEC21ConditionD4F1277B",
+            {
+              "Ref": "ControlRunbooksEC214D3BB404",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksEC22ED852ADFReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableEC22ConditionB9E0D42E",
+            {
+              "Ref": "ControlRunbooksEC22ED852ADF",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksEC267E3087AEReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableEC26ConditionF1F880B0",
+            {
+              "Ref": "ControlRunbooksEC267E3087AE",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksEC277719A4CDReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableEC27ConditionC77CF056",
+            {
+              "Ref": "ControlRunbooksEC277719A4CD",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate3": {
+      "Metadata": {
+        "ControlRunbooksEC213D7C9C1EBReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableEC213Condition567EA275",
+            {
+              "Ref": "ControlRunbooksEC213D7C9C1EB",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksEC2153B43E7A8Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableEC215Condition52A7DE4B",
+            {
+              "Ref": "ControlRunbooksEC2153B43E7A8",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksIAM3DC25477EReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableIAM3Condition3AA0E892",
+            {
+              "Ref": "ControlRunbooksIAM3DC25477E",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksIAM70A808F7CReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableIAM7ConditionDF8E776B",
+            {
+              "Ref": "ControlRunbooksIAM70A808F7C",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksIAM8632E03EDReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableIAM8Condition9CA5CB4B",
+            {
+              "Ref": "ControlRunbooksIAM8632E03ED",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate4": {
+      "Metadata": {
+        "ControlRunbooksIAM18ACE62321Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableIAM18ConditionC6288150",
+            {
+              "Ref": "ControlRunbooksIAM18ACE62321",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksIAM2280FCB95DReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableIAM22Condition387158E7",
+            {
+              "Ref": "ControlRunbooksIAM2280FCB95D",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksKMS41A22BB8DReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableKMS4Condition710C0C5C",
+            {
+              "Ref": "ControlRunbooksKMS41A22BB8D",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksLambda1F6ECACF8Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableLambda1Condition077CECAF",
+            {
+              "Ref": "ControlRunbooksLambda1F6ECACF8",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS1D73701E9Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS1ConditionFAE5B7EA",
+            {
+              "Ref": "ControlRunbooksRDS1D73701E9",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate5": {
+      "Metadata": {
+        "ControlRunbooksRDS2FBE04686Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS2Condition4FD00FE6",
+            {
+              "Ref": "ControlRunbooksRDS2FBE04686",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS4C82F2410Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS4Condition2E89346E",
+            {
+              "Ref": "ControlRunbooksRDS4C82F2410",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS5CECD9314Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS5ConditionEC2574C3",
+            {
+              "Ref": "ControlRunbooksRDS5CECD9314",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS6082B0D6BReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS6Condition4A60A39B",
+            {
+              "Ref": "ControlRunbooksRDS6082B0D6B",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS715C0A01AReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS7ConditionE53509B0",
+            {
+              "Ref": "ControlRunbooksRDS715C0A01A",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate6": {
+      "Metadata": {
+        "ControlRunbooksRDS13FCEA51BDReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS13Condition0E8A44B3",
+            {
+              "Ref": "ControlRunbooksRDS13FCEA51BD",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS16EB04DCBFReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS16ConditionCB5C3E8F",
+            {
+              "Ref": "ControlRunbooksRDS16EB04DCBF",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRDS89256480AReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRDS8Condition8F460AB5",
+            {
+              "Ref": "ControlRunbooksRDS89256480A",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRedshift1789871EBReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRedshift1Condition3449D560",
+            {
+              "Ref": "ControlRunbooksRedshift1789871EB",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRedshift3106C10FFReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableRedshift3ConditionC65BAEF6",
+            {
+              "Ref": "ControlRunbooksRedshift3106C10FF",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate7": {
+      "Metadata": {
+        "ControlRunbooksRedshift475A78168Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableRedshift4Condition2377F6B5",
+            {
+              "Ref": "ControlRunbooksRedshift475A78168",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksRedshift658631424Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableRedshift6Condition5A51FC97",
+            {
+              "Ref": "ControlRunbooksRedshift658631424",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksS311C5AAD45Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableS31Condition25C33B3F",
+            {
+              "Ref": "ControlRunbooksS311C5AAD45",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksS3260D6E897Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableS32ConditionD6F8CCE9",
+            {
+              "Ref": "ControlRunbooksS3260D6E897",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksS34F82DA9F1Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableS34ConditionC23F6623",
+            {
+              "Ref": "ControlRunbooksS34F82DA9F1",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "Gate8": {
+      "Metadata": {
+        "ControlRunbooksS356959B795Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableS35ConditionD5E024B6",
+            {
+              "Ref": "ControlRunbooksS356959B795",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksS360762680AReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableS36ConditionD22273E2",
+            {
+              "Ref": "ControlRunbooksS360762680A",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksSNS145784CBBReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableSNS1Condition7720D1CC",
+            {
+              "Ref": "ControlRunbooksSNS145784CBB",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksSNS2112179CCReady": {
+          "Fn::If": [
+            "ControlRunbooksEnableSNS2Condition69621468",
+            {
+              "Ref": "ControlRunbooksSNS2112179CC",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooksSQS173AA7C81Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnableSQS1Condition3065B4F2",
+            {
+              "Ref": "ControlRunbooksSQS173AA7C81",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
   },
 }

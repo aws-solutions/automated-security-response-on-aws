@@ -769,7 +769,7 @@ def verify_remediation(event, context):
     "DeletWait0": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlNPBRDS6",
+        "Gate0",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -782,6 +782,20 @@ def verify_remediation(event, context):
       },
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
+    },
+    "Gate0": {
+      "Metadata": {
+        "ControlNPBRDS6Ready": {
+          "Fn::If": [
+            "EnableRDS6Condition",
+            {
+              "Ref": "ControlNPBRDS6",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
   },
 }
