@@ -28,7 +28,7 @@ Findings feature.
 
 ## Architecture Diagram
 
-![](./SHARR_v1.2.jpg)
+![](./docs/architecture_diagram.png)
 
 ## Customizing the Solution
 
