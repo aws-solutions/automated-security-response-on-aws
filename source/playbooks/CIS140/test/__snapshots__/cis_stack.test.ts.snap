@@ -1481,9 +1481,7 @@ def parse_event(event, _):
     "DeletWait0": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlCIS13",
-        "ControlCIS15",
-        "ControlCIS21",
+        "Gate0",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -1496,6 +1494,38 @@ def parse_event(event, _):
       },
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
+    },
+    "Gate0": {
+      "Metadata": {
+        "ControlCIS13Ready": {
+          "Fn::If": [
+            "Enable13Condition",
+            {
+              "Ref": "ControlCIS13",
+            },
+            "",
+          ],
+        },
+        "ControlCIS15Ready": {
+          "Fn::If": [
+            "Enable15Condition",
+            {
+              "Ref": "ControlCIS15",
+            },
+            "",
+          ],
+        },
+        "ControlCIS21Ready": {
+          "Fn::If": [
+            "Enable21Condition",
+            {
+              "Ref": "ControlCIS21",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
     "RemapCIS4245EB49A0": {
       "Properties": {

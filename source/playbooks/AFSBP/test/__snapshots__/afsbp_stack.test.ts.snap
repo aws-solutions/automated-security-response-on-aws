@@ -1131,9 +1131,7 @@ def parse_event(event, _):
     "DeletWait0": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlAFSBPEC21",
-        "ControlAFSBPLambda1",
-        "ControlAFSBPRDS1",
+        "Gate0",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -1146,6 +1144,38 @@ def parse_event(event, _):
       },
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
+    },
+    "Gate0": {
+      "Metadata": {
+        "ControlAFSBPEC21Ready": {
+          "Fn::If": [
+            "EnableEC21Condition",
+            {
+              "Ref": "ControlAFSBPEC21",
+            },
+            "",
+          ],
+        },
+        "ControlAFSBPLambda1Ready": {
+          "Fn::If": [
+            "EnableLambda1Condition",
+            {
+              "Ref": "ControlAFSBPLambda1",
+            },
+            "",
+          ],
+        },
+        "ControlAFSBPRDS1Ready": {
+          "Fn::If": [
+            "EnableRDS1Condition",
+            {
+              "Ref": "ControlAFSBPRDS1",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
   },
 }

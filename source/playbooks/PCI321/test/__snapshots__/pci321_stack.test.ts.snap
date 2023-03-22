@@ -1478,9 +1478,7 @@ def parse_event(event, _):
     "DeletWait0": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ControlPCIPCIAutoScaling1",
-        "ControlPCIPCIEC26",
-        "ControlPCIPCIIAM8",
+        "Gate0",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -1493,6 +1491,38 @@ def parse_event(event, _):
       },
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
+    },
+    "Gate0": {
+      "Metadata": {
+        "ControlPCIPCIAutoScaling1Ready": {
+          "Fn::If": [
+            "EnablePCIAutoScaling1Condition",
+            {
+              "Ref": "ControlPCIPCIAutoScaling1",
+            },
+            "",
+          ],
+        },
+        "ControlPCIPCIEC26Ready": {
+          "Fn::If": [
+            "EnablePCIEC26Condition",
+            {
+              "Ref": "ControlPCIPCIEC26",
+            },
+            "",
+          ],
+        },
+        "ControlPCIPCIIAM8Ready": {
+          "Fn::If": [
+            "EnablePCIIAM8Condition",
+            {
+              "Ref": "ControlPCIPCIIAM8",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
   },
 }

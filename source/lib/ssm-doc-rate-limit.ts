@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCustomResource, CustomResource, IAspect, Stack } from 'aws-cdk-lib';
+import { CfnCustomResource, CfnWaitConditionHandle, CustomResource, Fn, IAspect, Stack } from 'aws-cdk-lib';
 import { CfnDocument } from 'aws-cdk-lib/aws-ssm';
 import { Construct, IConstruct } from 'constructs';
 import { createHash, Hash } from 'crypto';
@@ -13,6 +13,7 @@ export default class SsmDocRateLimit implements IAspect {
   private previousCreateWaitResource: CustomResource | undefined;
   private currentDeleteWaitResource: CustomResource | undefined;
   private previousDeleteWaitResource: CustomResource | undefined;
+  private currentDummyResource: CfnWaitConditionHandle | undefined;
 
   private hash: Hash;
 
@@ -51,6 +52,12 @@ export default class SsmDocRateLimit implements IAspect {
     }
   }
 
+  initDummyResource(scope: Construct): void {
+    if (!this.currentDummyResource) {
+      this.currentDummyResource = new CfnWaitConditionHandle(scope, `Gate${this.waitResourceIndex - 1}`);
+    }
+  }
+
   visit(node: IConstruct): void {
     if (node instanceof CfnDocument) {
       const scope = Stack.of(node);
@@ -67,7 +74,20 @@ export default class SsmDocRateLimit implements IAspect {
       updateWaitResourceHash(this.currentDeleteWaitResource, digest);
 
       node.addDependency(this.currentCreateWaitResource.node.defaultChild as CfnCustomResource);
-      this.currentDeleteWaitResource.node.addDependency(node);
+
+      if (node.cfnOptions.condition) {
+        this.initDummyResource(scope);
+        if (!this.currentDummyResource) {
+          throw new Error('Dummy resource not initialized!');
+        }
+        this.currentDummyResource.addMetadata(
+          `${node.logicalId}Ready`,
+          Fn.conditionIf(node.cfnOptions.condition.logicalId, Fn.ref(node.logicalId), '')
+        );
+        this.currentDeleteWaitResource.node.addDependency(this.currentDummyResource);
+      } else {
+        this.currentDeleteWaitResource.node.addDependency(node);
+      }
 
       ++this.documentIndex;
 
@@ -77,6 +97,7 @@ export default class SsmDocRateLimit implements IAspect {
         this.previousDeleteWaitResource = this.currentDeleteWaitResource;
         this.currentCreateWaitResource = undefined;
         this.currentDeleteWaitResource = undefined;
+        this.currentDummyResource = undefined;
         this.hash = createHash('sha256');
       }
     }
