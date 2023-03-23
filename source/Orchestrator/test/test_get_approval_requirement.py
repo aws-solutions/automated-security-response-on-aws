@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """
 Unit Test: exec_ssm_doc.py
 Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
@@ -23,12 +9,16 @@ import os
 import pytest
 import boto3
 from botocore.stub import Stubber, ANY
-from get_approval_requirement import lambda_handler
+from get_approval_requirement import lambda_handler, get_running_account
 from awsapi_cached_client import AWSCachedClient
 from pytest_mock import mocker
 
-LOCAL_ACCOUNT = boto3.client('sts').get_caller_identity()['Account']
-REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+def get_region():
+    return os.getenv('AWS_DEFAULT_REGION')
+
+@pytest.fixture(autouse=True)
+def mock_get_running_account(mocker):
+    mocker.patch('get_approval_requirement.get_running_account', return_value='111111111111')
 
 def step_input():
     return {
@@ -125,8 +115,8 @@ def test_get_approval_req(mocker):
         }
     }
 
-    AWS = AWSCachedClient(REGION)
-    account = AWS.get_connection('sts').get_caller_identity()['Account']
+    AWS = AWSCachedClient(get_region())
+    account = '111111111111'
     step_input()['AutomationDocument']['AccountId'] = account
 
     ssm_c = AWS.get_connection('ssm')
@@ -135,16 +125,16 @@ def test_get_approval_req(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -234,8 +224,8 @@ def test_get_approval_req_no_fanout(mocker):
         }
     }
 
-    AWS = AWSCachedClient(REGION)
-    account = AWS.get_connection('sts').get_caller_identity()['Account']
+    AWS = AWSCachedClient(get_region())
+    account = '111111111111'
     step_input()['AutomationDocument']['AccountId'] = account
 
     ssm_c = AWS.get_connection('ssm')
@@ -244,16 +234,16 @@ def test_get_approval_req_no_fanout(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -339,7 +329,7 @@ def test_workflow_in_admin(mocker):
     os.environ['WORKFLOW_RUNBOOK_ROLE'] = 'someotheriamrole'
     expected_result = {
         'workflowdoc': "ASR-RunWorkflow",
-        'workflowaccount': LOCAL_ACCOUNT,
+        'workflowaccount': '111111111111',
         'workflowrole': 'someotheriamrole',
         'workflow_data': {
             'impact': 'nondestructive',
@@ -347,8 +337,8 @@ def test_workflow_in_admin(mocker):
         }
     }
 
-    AWS = AWSCachedClient(REGION)
-    account = AWS.get_connection('sts').get_caller_identity()['Account']
+    AWS = AWSCachedClient(get_region())
+    account = '111111111111'
     step_input()['AutomationDocument']['AccountId'] = account
 
     ssm_c = AWS.get_connection('ssm')
@@ -357,16 +347,16 @@ def test_workflow_in_admin(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(

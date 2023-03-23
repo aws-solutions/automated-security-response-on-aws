@@ -29,7 +29,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-DisablePublicAccessToRedshiftCluster'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'

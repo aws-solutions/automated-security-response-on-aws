@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 from json import dumps
 from boto3 import client
 from botocore.config import Config
@@ -33,7 +20,7 @@ def connect_to_iam(boto_config):
     return client('iam', config = boto_config)
 
 def is_clear_text_credential(env_var):
-    if not env_var.get('type') == 'PLAINTEXT':
+    if env_var.get('type') != 'PLAINTEXT':
         return False
     return any(env_var.get('name').upper() == credential_name for credential_name in CREDENTIAL_NAMES_UPPER)
 
@@ -48,7 +35,7 @@ def create_parameter(project_name, env_var):
     try:
         response = ssm_client.put_parameter(
             Name = parameter_name,
-            Description = 'Automatically created by SHARR',
+            Description = 'Automatically created by ASR',
             Value = env_var.get("value"),
             Type = 'SecureString',
             Overwrite = False,
@@ -86,7 +73,7 @@ def create_policy(region, account, partition, project_name):
     policy_name = f'CodeBuildSSMParameterPolicy-{ project_name }-{ region }'
     try:
         response = iam_client.create_policy(
-            Description = "Automatically created by SHARR",
+            Description = "Automatically created by ASR",
             PolicyDocument = dumps(policy_document),
             PolicyName = policy_name
         )
@@ -131,7 +118,7 @@ def parse_project_arn(arn):
     else:
         raise ValueError
 
-def replace_credentials(event, context):
+def replace_credentials(event, _):
     project_info = event.get('ProjectInfo')
     project_name = project_info.get('name')
     project_env = project_info.get('environment')

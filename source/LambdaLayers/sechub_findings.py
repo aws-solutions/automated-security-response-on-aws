@@ -1,20 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-#
-# Imports
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import re
 import json
 import inspect
@@ -26,7 +11,12 @@ from botocore.exceptions import ClientError
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
-securityhub = AWSCachedClient(os.getenv('AWS_DEFAULT_REGION', 'us-east-1')).get_connection('securityhub')
+securityhub = None
+def get_securityhub():
+    global securityhub
+    if securityhub == None:
+        securityhub = AWSCachedClient(os.getenv('AWS_DEFAULT_REGION', 'us-east-1')).get_connection('securityhub')
+    return securityhub
 UNHANDLED_CLIENT_ERROR = 'An unhandled client error occurred: '
 
 # Local functions
@@ -79,13 +69,21 @@ class Finding(object):
         self.description = self.details.get('Description', 'error')
         self.remediation_url = self.details.get('Remediation', {}).get('Recommendation', {}).get('Url', '')
 
-        self._get_security_standard_fields_from_arn(
-            self.details.get('ProductFields').get('StandardsControlArn')
-        )
+        if self.details.get('ProductFields').get('StandardsControlArn', None) is not None:
+            self._get_security_standard_fields_from_arn(
+                self.details.get('ProductFields').get('StandardsControlArn')
+            )
+        else:
+            self.standard_control = self.details.get('Compliance').get('SecurityControlId')
+            self.standard_version = '2.0.0'
+            self.standard_name = 'security-control'
+
+
+
         self._get_security_standard_abbreviation_from_ssm()
         self._get_control_remap()
         self._set_standard_version_supported()
-    
+
     def is_valid_finding_json(self):
         if self.generator_id == 'error':
             return False
@@ -125,7 +123,7 @@ class Finding(object):
             workflow_status = { 'Workflow': { 'Status': status } }
 
         try:
-            securityhub.batch_update_findings(
+            get_securityhub().batch_update_findings(
                 FindingIdentifiers=[
                     {
                         'Id': self.details.get('Id'),
@@ -175,7 +173,7 @@ class Finding(object):
         try:
             local_ssm = get_ssm_connection(self.aws_api_client)
             abbreviation = local_ssm.get_parameter(
-                Name=f'/Solutions/SO0111/{self.standard_name}/shortname'
+                Name=f'/Solutions/SO0111/{self.standard_name}/{self.standard_version}/shortname'
             ).get('Parameter').get('Value')
             self.standard_shortname = abbreviation
 
@@ -233,7 +231,7 @@ class SHARRNotification(object):
     logdata = []
     send_to_sns = False
     finding_info = {}
-    
+
     def __init__(self, security_standard, region, controlid=None):
         """
         Initialize the class
@@ -275,12 +273,12 @@ class SHARRNotification(object):
 
         if self.send_to_sns:
             sent_id = publish_to_sns(
-                'SO0111-SHARR_Topic', 
+                'SO0111-SHARR_Topic',
                 json.dumps(
-                    sns_notify_json, 
-                    indent=2, 
+                    sns_notify_json,
+                    indent=2,
                     default=str
-                ), 
+                ),
                 self.__region
             )
             print(f'Notification message ID {sent_id} sent.')

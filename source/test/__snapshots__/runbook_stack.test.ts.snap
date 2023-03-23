@@ -3,103 +3,9 @@
 exports[`Global Roles Stack 1`] = `
 {
   "Description": "test;",
-  "Mappings": {
-    "ServiceprincipalMap": {
-      "af-south-1": {
-        "ssm": "ssm.af-south-1.amazonaws.com",
-      },
-      "ap-east-1": {
-        "ssm": "ssm.ap-east-1.amazonaws.com",
-      },
-      "ap-northeast-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "ap-northeast-2": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "ap-northeast-3": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "ap-south-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "ap-southeast-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "ap-southeast-2": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "ap-southeast-3": {
-        "ssm": "ssm.ap-southeast-3.amazonaws.com",
-      },
-      "ca-central-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "cn-north-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "cn-northwest-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "eu-central-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "eu-north-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "eu-south-1": {
-        "ssm": "ssm.eu-south-1.amazonaws.com",
-      },
-      "eu-south-2": {
-        "ssm": "ssm.eu-south-2.amazonaws.com",
-      },
-      "eu-west-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "eu-west-2": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "eu-west-3": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "me-south-1": {
-        "ssm": "ssm.me-south-1.amazonaws.com",
-      },
-      "sa-east-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-east-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-east-2": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-gov-east-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-gov-west-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-iso-east-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-iso-west-1": {
-        "ssm": "ssm.us-iso-west-1.amazonaws.com",
-      },
-      "us-isob-east-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-west-1": {
-        "ssm": "ssm.amazonaws.com",
-      },
-      "us-west-2": {
-        "ssm": "ssm.amazonaws.com",
-      },
-    },
-  },
   "Parameters": {
     "SecHubAdminAccount": {
-      "AllowedPattern": "\\d{12}",
+      "AllowedPattern": "^\\d{12}$",
       "Description": "Admin account number",
       "Type": "String",
     },
@@ -149,15 +55,7 @@ exports[`Global Roles Stack 1`] = `
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": {
-                  "Fn::FindInMap": [
-                    "ServiceprincipalMap",
-                    {
-                      "Ref": "AWS::Region",
-                    },
-                    "ssm",
-                  ],
-                },
+                "Service": "ssm.amazonaws.com",
               },
             },
           ],
@@ -329,8 +227,16 @@ exports[`Global Roles Stack 1`] = `
 exports[`Regional Documents 1`] = `
 {
   "Description": "test;",
+  "Parameters": {
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
+  },
   "Resources": {
     "ASRConfigureS3BucketPublicAccessBlock": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -504,6 +410,9 @@ def validate_s3_bucket_publicaccessblock(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRConfigureS3PublicAccessBlock": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -668,7 +577,180 @@ def handler(event, context):
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRConfigureSNSTopicForStack": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-ConfigureSNSTopicForStack
+
+## What does this document do?
+This document creates an SNS topic if it does not already exist, then updates the stack to notify the topic on changes
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* StackArn: (Required)  The ARN of the stack.
+
+## Security Standards / Controls
+* AFSBP v1.0.0:   CloudFormation.1
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "stack_arn": "{{ StackArn }}",
+                  "topic_name": "SO0111-ASR-CloudFormationNotifications",
+                },
+                "Runtime": "python3.8",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""
+Configure a CloudFormation stack with an SNS topic for notifications, creating the topic if it does
+not already exist
+"""
+
+from time import time, sleep
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={ 'mode': 'standard' })
+
+def lambda_handler(event, _):
+    """
+    Configure a CloudFormation stack with an SNS topic for notifications,
+    creating the topic if it does not already exist
+
+    \`event\` should have the following keys and values:
+    \`stack_arn\`: the ARN of the CloudFormation stack to be updated
+    \`topic_name\`: the name of the SQS Queue to create and configure for notifications
+
+    \`context\` is ignored
+    """
+    stack_arn = event['stack_arn']
+    topic_name = event['topic_name']
+    topic_arn = get_or_create_topic(topic_name)
+    configure_notifications(stack_arn, topic_arn)
+    wait_for_update(stack_arn)
+    return assert_stack_configured(stack_arn, topic_arn)
+
+def get_or_create_topic(topic_name: str):
+    """Get the SQS topic arn for the given topic name, creating it if it does not already exist"""
+    sns = boto3.client('sns', config=boto_config)
+    response = sns.create_topic(Name=topic_name)
+    return response['TopicArn']
+
+def configure_notifications(stack_arn: str, topic_arn: str):
+    """Configure the stack with ARN \`stack_arn\` to notify the queue with ARN \`topic_arn\`"""
+    cloudformation = boto3.resource('cloudformation', config=boto_config)
+    stack = cloudformation.Stack(stack_arn)
+    kwargs = {
+        'UsePreviousTemplate': True,
+        'NotificationARNs': [topic_arn]}
+    if stack.parameters:
+        kwargs['Parameters'] = [{
+            'ParameterKey': param['ParameterKey'],
+            'UsePreviousValue': True
+        } for param in stack.parameters]
+    if stack.capabilities:
+        kwargs['Capabilities'] = stack.capabilities
+    stack.update(**kwargs)
+
+class UpdateTimeoutException(Exception):
+    """Timed out waiting for the CloudFormation stack to update"""
+
+def wait_for_update(stack_arn: str):
+    """Wait for the stack with ARN \`stack_arn\` to be in status \`UPDATE_COMPLETE\`"""
+    wait_interval_seconds = 10
+    timeout_seconds = 300
+    start = time()
+    while get_stack_status(stack_arn) != 'UPDATE_COMPLETE':
+        if time() - start > timeout_seconds:
+            raise UpdateTimeoutException('Timed out waiting for stack update')
+        wait_seconds(wait_interval_seconds)
+        wait_interval_seconds = wait_interval_seconds * 2
+
+def get_stack_status(stack_arn):
+    """Get the status of the CloudFormation stack with ARN \`stack_arn\`"""
+    cloudformation = boto3.client('cloudformation', config=boto_config)
+    response = cloudformation.describe_stacks(StackName=stack_arn)
+    return response['Stacks'][0]['StackStatus']
+
+def wait_seconds(seconds):
+    """Wait for \`seconds\` seconds"""
+    sleep(seconds)
+
+def assert_stack_configured(stack_arn, topic_arn):
+    """
+    Verify that the CloudFormation stack with ARN \`stack_arn\` is configured to update the SQS topic
+    with ARN \`topic_arn\`
+    """
+    cloudformation = boto3.resource('cloudformation', config=boto_config)
+    stack = cloudformation.Stack(stack_arn)
+    wait_interval_seconds = 10
+    timeout_seconds = 300
+    start = time()
+    while stack.notification_arns != [topic_arn]:
+        if time() - start > timeout_seconds:
+            raise StackConfigurationFailedException(
+                'Timed out waiting for stack configuration to take effect')
+        wait_seconds(wait_interval_seconds)
+        wait_interval_seconds = wait_interval_seconds * 2
+        stack.reload()
+    return { 'NotificationARNs': stack.notification_arns }
+
+class StackConfigurationFailedException(Exception):
+    """An error occurred updating the CloudFormation stack to notify the SQS topic"""",
+              },
+              "isEnd": true,
+              "name": "ConfigureSNSTopic",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.output",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "ConfigureSNSTopic.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "StackArn": {
+              "allowedPattern": "^(arn:(?:aws|aws-us-gov|aws-cn):cloudformation:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:stack/[a-zA-Z][a-zA-Z0-9-]{0,127}/[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12})$",
+              "description": "(Required) The ARN of the CloudFormation stack.",
+              "type": "String",
+            },
+            "TopicName": {
+              "allowedPattern": "^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$",
+              "default": "SO0111-ASR-CloudFormationNotifications",
+              "description": "(Optional) The name of the SNS topic to create and configure for notifications.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-ConfigureSNSTopicForStack",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRCreateAccessLoggingBucket": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -691,75 +773,50 @@ Creates an S3 bucket for access logging.
                   "BucketName": "{{BucketName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
 
-def connect_to_s3(boto_config):
-    return boto3.client('s3', config=boto_config)
 
-def create_logging_bucket(event, context):
-    boto_config = Config(
-        retries ={
-          'mode': 'standard'
-        }
-    )
+def connect_to_s3(boto_config):
+    return boto3.client("s3", config=boto_config)
+
+
+def create_logging_bucket(event, _):
+    boto_config = Config(retries={"mode": "standard"})
     s3 = connect_to_s3(boto_config)
 
     try:
         kwargs = {
-            'Bucket': event['BucketName'],
-            'GrantWrite': 'uri=http://acs.amazonaws.com/groups/s3/LogDelivery',
-            'GrantReadACP': 'uri=http://acs.amazonaws.com/groups/s3/LogDelivery'
+            "Bucket": event["BucketName"],
+            "GrantWrite": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+            "GrantReadACP": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
         }
-        if event['AWS_REGION'] != 'us-east-1':
-            kwargs['CreateBucketConfiguration'] = {
-                'LocationConstraint': event['AWS_REGION']
+        if event["AWS_REGION"] != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {
+                "LocationConstraint": event["AWS_REGION"]
             }
 
         s3.create_bucket(**kwargs)
 
         s3.put_bucket_encryption(
-            Bucket=event['BucketName'],
+            Bucket=event["BucketName"],
             ServerSideEncryptionConfiguration={
-                'Rules': [
-                    {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'AES256'
-                        }
-                    }
+                "Rules": [
+                    {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
                 ]
-            }
+            },
         )
-        return {
-            "output": {
-                "Message": f'Bucket {event["BucketName"]} created'
-            }
-        }
+        return {"output": {"Message": f'Bucket {event["BucketName"]} created'}}
     except ClientError as error:
-        if error.response['Error']['Code'] != 'BucketAlreadyExists' and \\
-            error.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
+        if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
             exit(str(error))
         else:
             return {
                 "output": {
-                    "Message": f'Bucket {event["BucketName"]} already exists'
+                    "Message": f'Bucket {event["BucketName"]} already exists and is owned by you'
                 }
             }
     except Exception as e:
@@ -802,6 +859,9 @@ def create_logging_bucket(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRCreateCloudTrailMultiRegionTrail": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -830,46 +890,29 @@ Note: this remediation will create a NEW trail.
                   "region": "{{global:REGION}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-ERROR_CREATING_BUCKET = 'Error creating bucket '
+ERROR_CREATING_BUCKET = "Error creating bucket "
+
 
 def connect_to_s3(boto_config):
-    return boto3.client('s3', config=boto_config)
+    return boto3.client("s3", config=boto_config)
 
-def create_logging_bucket(event, context):
 
-    boto_config = Config(
-        retries ={
-            'mode': 'standard'
-        }
-    )
+def create_logging_bucket(event, _):
+    boto_config = Config(retries={"mode": "standard"})
     s3 = connect_to_s3(boto_config)
 
-    kms_key_arn = event['kms_key_arn']
-    aws_account = event['account']
-    aws_region = event['region']
-    bucket_name = 'so0111-access-logs-' + aws_region + '-' + aws_account
+    kms_key_arn = event["kms_key_arn"]
+    aws_account = event["account"]
+    aws_region = event["region"]
+    bucket_name = "so0111-access-logs-" + aws_region + "-" + aws_account
 
-    if create_bucket(s3, bucket_name, aws_region) == 'bucket_exists':
+    if create_bucket(s3, bucket_name, aws_region) == "bucket_exists":
         return {"logging_bucket": bucket_name}
     encrypt_bucket(s3, bucket_name, kms_key_arn)
     put_access_block(s3, bucket_name)
@@ -877,25 +920,21 @@ def create_logging_bucket(event, context):
 
     return {"logging_bucket": bucket_name}
 
+
 def create_bucket(s3, bucket_name, aws_region):
     try:
-        kwargs = {
-            'Bucket': bucket_name,
-            'ACL': 'private'
-        }
-        if aws_region != 'us-east-1':
-            kwargs['CreateBucketConfiguration'] = {
-                'LocationConstraint': aws_region
-            }
+        kwargs = {"Bucket": bucket_name, "ACL": "private"}
+        if aws_region != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": aws_region}
 
         s3.create_bucket(**kwargs)
 
     except ClientError as ex:
-        exception_type = ex.response['Error']['Code']
+        exception_type = ex.response["Error"]["Code"]
         # bucket already exists - return
-        if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
-            print('Bucket ' + bucket_name + ' already exists')
-            return 'bucket_exists'
+        if exception_type == "BucketAlreadyOwnedByYou":
+            print("Bucket " + bucket_name + " already exists and is owned by you")
+            return "bucket_exists"
         else:
             print(ex)
             exit(ERROR_CREATING_BUCKET + bucket_name)
@@ -903,47 +942,55 @@ def create_bucket(s3, bucket_name, aws_region):
         print(e)
         exit(ERROR_CREATING_BUCKET + bucket_name)
 
+
 def encrypt_bucket(s3, bucket_name, kms_key_arn):
     try:
         s3.put_bucket_encryption(
             Bucket=bucket_name,
             ServerSideEncryptionConfiguration={
-                'Rules': [
+                "Rules": [
                     {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": kms_key_arn.split("key/")[1],
                         }
                     }
                 ]
-            }
+            },
         )
     except Exception as e:
-        exit('Error encrypting bucket ' + bucket_name + ': ' + str(e))
+        exit("Error encrypting bucket " + bucket_name + ": " + str(e))
+
 
 def put_access_block(s3, bucket_name):
     try:
         s3.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration={
-                'BlockPublicAcls': True,
-                'IgnorePublicAcls': True,
-                'BlockPublicPolicy': True,
-                'RestrictPublicBuckets': True
-            }
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
         )
     except Exception as e:
-        exit('Error setting public access block for bucket ' + bucket_name + ': ' + str(e))
+        exit(
+            "Error setting public access block for bucket "
+            + bucket_name
+            + ": "
+            + str(e)
+        )
+
 
 def put_bucket_acl(s3, bucket_name):
     try:
         s3.put_bucket_acl(
             Bucket=bucket_name,
-            GrantReadACP='uri=http://acs.amazonaws.com/groups/s3/LogDelivery',
-            GrantWrite='uri=http://acs.amazonaws.com/groups/s3/LogDelivery'
+            GrantReadACP="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+            GrantWrite="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
         )
     except Exception as e:
-        exit('Error setting ACL for bucket ' + bucket_name + ': ' + str(e))",
+        exit("Error setting ACL for bucket " + bucket_name + ": " + str(e))",
               },
               "isEnd": false,
               "name": "CreateLoggingBucket",
@@ -966,45 +1013,28 @@ def put_bucket_acl(s3, bucket_name):
                   "region": "{{global:REGION}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0                                     #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
+
 def connect_to_s3(boto_config):
-    return boto3.client('s3', config=boto_config)
+    return boto3.client("s3", config=boto_config)
 
-def create_encrypted_bucket(event, context):
 
-    boto_config = Config(
-        retries ={
-          'mode': 'standard'
-        }
-    )
+def create_encrypted_bucket(event, _):
+    boto_config = Config(retries={"mode": "standard"})
     s3 = connect_to_s3(boto_config)
 
-    kms_key_arn = event['kms_key_arn']
-    aws_account = event['account']
-    aws_region = event['region']
-    logging_bucket = event['logging_bucket']
-    bucket_name = 'so0111-aws-cloudtrail-' + aws_account
+    kms_key_arn = event["kms_key_arn"]
+    aws_account = event["account"]
+    aws_region = event["region"]
+    logging_bucket = event["logging_bucket"]
+    bucket_name = "so0111-aws-cloudtrail-" + aws_account
 
-    if create_s3_bucket(s3, bucket_name, aws_region) == 'bucket_exists':
+    if create_s3_bucket(s3, bucket_name, aws_region) == "bucket_exists":
         return {"cloudtrail_bucket": bucket_name}
     put_bucket_encryption(s3, bucket_name, kms_key_arn)
     put_public_access_block(s3, bucket_name)
@@ -1012,76 +1042,80 @@ def create_encrypted_bucket(event, context):
 
     return {"cloudtrail_bucket": bucket_name}
 
+
 def create_s3_bucket(s3, bucket_name, aws_region):
     try:
-        kwargs = {
-            'Bucket': bucket_name,
-            'ACL': 'private'
-        }
-        if aws_region != 'us-east-1':
-            kwargs['CreateBucketConfiguration'] = {
-                'LocationConstraint': aws_region
-            }
+        kwargs = {"Bucket": bucket_name, "ACL": "private"}
+        if aws_region != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": aws_region}
 
         s3.create_bucket(**kwargs)
 
     except ClientError as client_ex:
-        exception_type = client_ex.response['Error']['Code']
-        if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
-          print('Bucket ' + bucket_name + ' already exists')
-          return 'bucket_exists'
+        exception_type = client_ex.response["Error"]["Code"]
+        if exception_type == "BucketAlreadyOwnedByYou":
+            print("Bucket " + bucket_name + " already exists and is owned by you")
+            return "bucket_exists"
         else:
-            exit('Error creating bucket ' + bucket_name + ' ' + str(client_ex))
+            exit("Error creating bucket " + bucket_name + " " + str(client_ex))
     except Exception as e:
-        exit('Error creating bucket ' + bucket_name + ' ' + str(e))
+        exit("Error creating bucket " + bucket_name + " " + str(e))
+
 
 def put_bucket_encryption(s3, bucket_name, kms_key_arn):
     try:
         s3.put_bucket_encryption(
             Bucket=bucket_name,
             ServerSideEncryptionConfiguration={
-                'Rules': [
+                "Rules": [
                     {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': kms_key_arn.split('key/')[1]
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": kms_key_arn.split("key/")[1],
                         }
                     }
                 ]
-            }
+            },
         )
     except Exception as e:
         print(e)
-        exit('Error applying encryption to bucket ' + bucket_name + ' with key ' + kms_key_arn)
+        exit(
+            "Error applying encryption to bucket "
+            + bucket_name
+            + " with key "
+            + kms_key_arn
+        )
+
 
 def put_public_access_block(s3, bucket_name):
     try:
         s3.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration={
-                'BlockPublicAcls': True,
-                'IgnorePublicAcls': True,
-                'BlockPublicPolicy': True,
-                'RestrictPublicBuckets': True
-            }
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
         )
     except Exception as e:
-        exit(f'Error setting public access block for bucket {bucket_name}: {str(e)}')
+        exit(f"Error setting public access block for bucket {bucket_name}: {str(e)}")
+
 
 def put_bucket_logging(s3, bucket_name, logging_bucket):
     try:
         s3.put_bucket_logging(
             Bucket=bucket_name,
             BucketLoggingStatus={
-                'LoggingEnabled': {
-                    'TargetBucket': logging_bucket,
-                    'TargetPrefix': 'cloudtrail-access-logs'
+                "LoggingEnabled": {
+                    "TargetBucket": logging_bucket,
+                    "TargetPrefix": "cloudtrail-access-logs",
                 }
-            }
+            },
         )
     except Exception as e:
         print(e)
-        exit('Error setting public access block for bucket ' + bucket_name)",
+        exit("Error setting public access block for bucket " + bucket_name)",
               },
               "isEnd": false,
               "name": "CreateCloudTrailBucket",
@@ -1103,22 +1137,8 @@ def put_bucket_logging(s3, bucket_name, logging_bucket):
                   "partition": "{{AWSPartition}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -1127,7 +1147,7 @@ from botocore.exceptions import ClientError
 def connect_to_s3(boto_config):
     return boto3.client('s3', config=boto_config)
 
-def create_bucket_policy(event, context):
+def create_bucket_policy(event, _):
 
     boto_config = Config(
         retries ={
@@ -1164,9 +1184,21 @@ def create_bucket_policy(event, context):
                     },
                     "Action": "s3:PutObject",
                     "Resource": "arn:" + aws_partition + ":s3:::" + cloudtrail_bucket + "/AWSLogs/" + aws_account + "/*",
-                    "Condition": { 
-                        "StringEquals": { 
+                    "Condition": {
+                        "StringEquals": {
                             "s3:x-amz-acl": "bucket-owner-full-control"
+                        },
+                    }
+                },
+                {
+                    "Sid": "AllowSSLRequestsOnly",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "s3:*",
+                    "Resource": ["arn:" + aws_partition + ":s3:::" + cloudtrail_bucket ,"arn:" + aws_partition + ":s3:::" + cloudtrail_bucket + "/*"],
+                    "Condition": {
+                        "Bool": {
+                            "aws:SecureTransport": "false"
                         }
                     }
                 }
@@ -1197,22 +1229,8 @@ def create_bucket_policy(event, context):
                   "kms_key_arn": "{{KMSKeyArn}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -1220,7 +1238,7 @@ from botocore.exceptions import ClientError
 def connect_to_cloudtrail(boto_config):
     return boto3.client('cloudtrail', config=boto_config)
 
-def enable_cloudtrail(event, context):
+def enable_cloudtrail(event, _):
 
     boto_config = Config(
         retries ={
@@ -1247,8 +1265,7 @@ def enable_cloudtrail(event, context):
             }
         }
     except Exception as e:
-        exit('Error enabling AWS Config: ' + str(e))
-        ",
+        exit('Error enabling AWS Config: ' + str(e))",
               },
               "isEnd": false,
               "name": "EnableCloudTrail",
@@ -1269,23 +1286,9 @@ def enable_cloudtrail(event, context):
                   "logging_bucket": "{{CreateLoggingBucket.LoggingBucketName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
-def process_results(event, context):
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+def process_results(event, _):
   print(f'Created encrypted CloudTrail bucket {event["cloudtrail_bucket"]}')
   print(f'Created access logging for CloudTrail bucket in bucket {event["logging_bucket"]}')
   print('Enabled multi-region AWS CloudTrail')
@@ -1342,7 +1345,159 @@ def process_results(event, context):
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRCreateIAMSupportRole": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-CreateIAMSupportRole
+
+## What does this document do?
+This document creates a role to allow AWS Support access.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* CreateIAMRole.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## CreateIAMSupportRole
+
+This step deactivates IAM user access keys that have not been rotated in more than MaxCredentialUsageAge days
+## Outputs
+* Output: Success message or failure Exception.
+",
+              "inputs": {
+                "Handler": "create_iam_role",
+                "Runtime": "python3.8",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import json
+from botocore.config import Config
+import boto3
+
+BOTO_CONFIG = Config(retries={"mode": "standard"})
+
+responses = {}
+responses["CreateIAMRoleResponse"] = []
+
+
+def connect_to_iam(boto_config):
+    return boto3.client("iam", config=boto_config)
+
+
+def get_account(boto_config):
+    return boto3.client('sts', config=boto_config).get_caller_identity()['Account']
+
+
+def get_partition(boto_config):
+    return boto3.client('sts', config=boto_config).get_caller_identity()['Arn'].split(':')[1]
+
+
+def create_iam_role(_, __):
+    account = get_account(BOTO_CONFIG)
+    partition = get_partition(BOTO_CONFIG)
+
+    aws_support_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole",
+                "Principal": {"AWS": f"arn:{partition}:iam::{account}:root"},
+            }
+        ],
+    }
+
+    role_name = "aws_incident_support_role"
+    iam = connect_to_iam(BOTO_CONFIG)
+    if not does_role_exist(iam, role_name):
+        iam.create_role(
+            RoleName=role_name,
+            AssumeRolePolicyDocument=json.dumps(aws_support_policy),
+            Description="Created by ASR security hub remediation 1.20 rule",
+            Tags=[
+                {"Key": "Name", "Value": "CIS 1.20 aws support access role"},
+            ],
+        )
+
+    iam.attach_role_policy(
+        RoleName=role_name,
+        PolicyArn=f"arn:{partition}:iam::aws:policy/AWSSupportAccess",
+    )
+
+    responses["CreateIAMRoleResponse"].append(
+        {"Account": account, "RoleName": role_name}
+    )
+
+    return {"output": "IAM role creation is successful.", "http_responses": responses}
+
+
+def does_role_exist(iam, role_name):
+    """Check if the role name exists.
+
+    Parameters
+    ----------
+    iam: iam client, required
+    role_name: string, required
+
+    Returns
+    ------
+        bool: returns if the role exists
+    """
+    role_exists = False
+
+    try:
+        response = iam.get_role(RoleName=role_name)
+
+        if "Role" in response:
+            role_exists = True
+
+    except iam.exceptions.NoSuchEntityException:
+        role_exists = False
+
+    return role_exists",
+              },
+              "isEnd": true,
+              "name": "CreateIAMSupportRole",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 300,
+            },
+          ],
+          "outputs": [
+            "CreateIAMSupportRole.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-CreateIAMSupportRole",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRCreateLogMetricFilterAndAlarm": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1368,22 +1523,8 @@ Creates a metric filter for a given log group and also creates and alarm for the
                   "topic_name": "{{SNSTopicName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0                             #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    # 
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -1401,7 +1542,7 @@ def connect_to_sns():
 def connect_to_ssm():
     return boto3.client('ssm', config=boto_config)
 
-def create_encrypted_topic(event, context):
+def create_encrypted_topic(event, _):
 
     kms_key_arn = event['kms_key_arn']
     new_topic = False
@@ -1428,7 +1569,7 @@ def create_encrypted_topic(event, context):
             )['TopicArn']
         else:
             exit(f'ERROR: Unhandled client exception: {client_exception}')
-      
+
     except Exception as e:
         exit(f'ERROR: could not create SNS Topic {topic_name}: {str(e)}')
 
@@ -1441,13 +1582,13 @@ def create_encrypted_topic(event, context):
                 Type='String',
                 Overwrite=True,
                 Value=topic_arn
-            )               
+            )
         except Exception as e:
             exit(f'ERROR: could not create SNS Topic {topic_name}: {str(e)}')
 
     create_topic_policy(topic_arn)
-    
-    return {"topic_arn": topic_arn} 
+
+    return {"topic_arn": topic_arn}
 
 def create_topic_policy(topic_arn):
     sns = connect_to_sns()
@@ -1465,7 +1606,7 @@ def create_topic_policy(topic_arn):
                 "Resource": topic_arn,
             }]
         }
-            
+
         sns.set_topic_attributes(
             TopicArn=topic_arn,
             AttributeName='Policy',
@@ -1500,22 +1641,8 @@ def create_topic_policy(topic_arn):
                   "TopicArn": "{{CreateTopic.TopicArn}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import logging
 import os
@@ -1614,7 +1741,7 @@ def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metri
     log.debug("Successfully added metric alarm.")
 
 
-def verify(event, context):
+def verify(event, _):
     log.info("Begin handler")
     log.debug("====Print Event====")
     log.debug(event)
@@ -1718,6 +1845,9 @@ def verify(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRDisablePublicAccessToRDSInstance": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1733,6 +1863,10 @@ the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference
 
 ## Output Parameters
 * DisablePubliclyAccessibleOnRDS.Response: The standard HTTP response from the ModifyDBInstance API.
+
+## Troubleshooting
+* ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
+ - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API.
 ",
           "mainSteps": [
             {
@@ -1887,6 +2021,9 @@ Confirms public accessibility is disabled on the DB instance.
       "Type": "AWS::SSM::Document",
     },
     "ASRDisablePublicAccessToRedshiftCluster": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -1989,7 +2126,143 @@ Confirms the public accessibility setting is disabled on the cluster.
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRDisablePublicIPAutoAssign": {
+      "DependsOn": [
+        "CreateWait8",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-DisablePublicIPAutoAssign
+
+## What does this document do?
+  This document disables public IP auto assignment on given subnet using
+  [ModifySubnetAttribute](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifySubnetAttribute.html) API.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* SubnetARN: (Required)  The ARN of the Amazon EC2 Subnet.
+
+## Security Standards / Controls
+* AFSBP v1.0.0:  EC2.15
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "subnet_arn": "{{ SubnetARN }}",
+                },
+                "Runtime": "python3.8",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+ 
+boto_config = Config(
+     retries = {
+             'mode': 'standard',
+             'max_attempts': 10
+         }
+     )
+ 
+
+ 
+def connect_to_ec2():
+    return boto3.client('ec2', config=boto_config)
+ 
+def lambda_handler(event, _):
+     """
+      Disable public IP auto assignment on a subnet.
+
+      \`event\` should have the following keys and values:
+      \`subnet_arn\`: the ARN of the subnet that has public IP auto assignment enabled.
+  
+      \`context\` is ignored
+     """
+ 
+     subnet_arn = event['subnet_arn']
+
+     subnet_id = subnet_arn.split('/')[1]
+ 
+     disable_publicip_auto_assign(subnet_id)
+ 
+     subnet_attributes = describe_subnet(subnet_id)
+
+     public_ip_on_launch = subnet_attributes['Subnets'][0]['MapPublicIpOnLaunch']
+ 
+     if public_ip_on_launch == False:  
+        return {
+                "MapPublicIpOnLaunch": public_ip_on_launch
+            }
+
+     raise RuntimeError(f'ASR Remediation failed - {subnet_id} did not have public IP auto assignment turned off.')
+    
+ 
+def disable_publicip_auto_assign(subnet_id):
+     """
+     Disables public IP Auto Assign on the subnet \`subnet_id\`
+     """  
+     ec2 = connect_to_ec2()
+     try:
+        ec2.modify_subnet_attribute(MapPublicIpOnLaunch={'Value':False},SubnetId=subnet_id)
+ 
+     except Exception as e:
+        exit(f'There was an error turning off public IP auto assignment: '+str(e))
+ 
+def describe_subnet(subnet_id):
+    """
+    Grabs Subnet Attributes to verify subnet values were set as expected.
+    """
+    ec2 = connect_to_ec2()
+    try:
+        subnet_attributes = ec2.describe_subnets(SubnetIds=[subnet_id])
+        return subnet_attributes
+ 
+    except Exception as e:
+        exit(f'Failed to get attributes of subnet: '+str(e))",
+              },
+              "name": "DisablePublicIPAutoAssign",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "DisablePublicIPAutoAssign.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "SubnetARN": {
+              "allowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:subnet\\/(subnet-[0-9a-f]*)$",
+              "description": "(Required) The ARN of the Amazon EC2 Subnet.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-DisablePublicIPAutoAssign",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASREnableAWSConfig": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2022,22 +2295,8 @@ Enables AWS Config:
                   "topic_name": "{{SNSTopicName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0                             #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    # 
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -2055,7 +2314,7 @@ def connect_to_sns():
 def connect_to_ssm():
     return boto3.client('ssm', config=boto_config)
 
-def create_encrypted_topic(event, context):
+def create_encrypted_topic(event, _):
 
     kms_key_arn = event['kms_key_arn']
     new_topic = False
@@ -2082,7 +2341,7 @@ def create_encrypted_topic(event, context):
             )['TopicArn']
         else:
             exit(f'ERROR: Unhandled client exception: {client_exception}')
-      
+
     except Exception as e:
         exit(f'ERROR: could not create SNS Topic {topic_name}: {str(e)}')
 
@@ -2095,13 +2354,13 @@ def create_encrypted_topic(event, context):
                 Type='String',
                 Overwrite=True,
                 Value=topic_arn
-            )               
+            )
         except Exception as e:
             exit(f'ERROR: could not create SNS Topic {topic_name}: {str(e)}')
 
     create_topic_policy(topic_arn)
-    
-    return {"topic_arn": topic_arn} 
+
+    return {"topic_arn": topic_arn}
 
 def create_topic_policy(topic_arn):
     sns = connect_to_sns()
@@ -2119,7 +2378,7 @@ def create_topic_policy(topic_arn):
                 "Resource": topic_arn,
             }]
         }
-            
+
         sns.set_topic_attributes(
             TopicArn=topic_arn,
             AttributeName='Policy',
@@ -2162,22 +2421,8 @@ def create_topic_policy(topic_arn):
                   "region": "{{global:REGION}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -2271,8 +2516,8 @@ def enable_access_logging(bucket_name, logging_bucket):
     except Exception as e:
         exit(f'Error setting access logging for bucket {bucket_name}: {str(e)}')
 
-def create_bucket_policy(config_bucket, aws_partition):  
-    s3 = connect_to_s3(boto_config)   
+def create_bucket_policy(config_bucket, aws_partition):
+    s3 = connect_to_s3(boto_config)
     try:
         bucket_policy = {
             "Version": "2012-10-17",
@@ -2304,13 +2549,13 @@ def create_bucket_policy(config_bucket, aws_partition):
                 "Effect": "Allow",
                 "Principal": {
                     "Service": [
-                        "config.amazonaws.com"    
+                        "config.amazonaws.com"
                     ]
                 },
                 "Action": "s3:PutObject",
                 "Resource": "arn:" + aws_partition + ":s3:::" + config_bucket + "/*",
-                "Condition": { 
-                    "StringEquals": { 
+                "Condition": {
+                    "StringEquals": {
                         "s3:x-amz-acl": "bucket-owner-full-control"
                     }
                 }
@@ -2324,8 +2569,8 @@ def create_bucket_policy(config_bucket, aws_partition):
     except Exception as e:
         exit(f'ERROR: PutBucketPolicy failed for {config_bucket}: {str(e)}')
 
-def create_encrypted_bucket(event, context):
-    
+def create_encrypted_bucket(event, _):
+
     kms_key_arn = event['kms_key_arn']
     aws_partition = event['partition']
     aws_account = event['account']
@@ -2366,22 +2611,8 @@ def create_encrypted_bucket(event, context):
                   "topic_arn": "{{CreateTopic.TopicArn}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
- 
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -2450,9 +2681,9 @@ def start_recorder():
             ConfigurationRecorderName='default'
         )
     except Exception as e:
-        exit(f'ERROR enabling AWS Config: {str(e)}')          
+        exit(f'ERROR enabling AWS Config: {str(e)}')
 
-def enable_config(event, context):
+def enable_config(event, _):
     aws_account = event['account']
     aws_partition = event['partition']
     aws_service_role = event['aws_service_role']
@@ -2483,23 +2714,9 @@ def enable_config(event, context):
                   "sns_topic_arn": "{{CreateTopic.TopicArn}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
- 
-def process_results(event, context):
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+def process_results(event, _):
     print(f'Created encrypted SNS topic {event["sns_topic_arn"]}')
     print(f'Created encrypted Config bucket {event["config_bucket"]}')
     print(f'Created access logging for Config bucket in bucket {event["logging_bucket"]}')
@@ -2556,6 +2773,9 @@ def process_results(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAutoScalingGroupELBHealthCheck": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -2606,22 +2826,8 @@ This runbook enables health checks for the Amazon EC2 Auto Scaling (Auto Scaling
                   "AsgName": "{{AutoScalingGroupName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -2630,7 +2836,7 @@ from botocore.exceptions import ClientError
 def connect_to_autoscaling(boto_config):
     return boto3.client('autoscaling', config=boto_config)
 
-def verify(event, context):
+def verify(event, _):
 
     boto_config = Config(
         retries ={
@@ -2645,7 +2851,7 @@ def verify(event, context):
         )
         if len(desc_asg['AutoScalingGroups']) < 1:
             exit(f'No AutoScaling Group found matching {asg_name}')
-            
+
         health_check = desc_asg['AutoScalingGroups'][0]['HealthCheckType']
         print(json.dumps(desc_asg['AutoScalingGroups'][0], default=str))
         if (health_check == 'ELB'):
@@ -2706,6 +2912,9 @@ def verify(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAutomaticSnapshotsOnRedshiftCluster": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{AutomationAssumeRole}}",
@@ -2887,6 +3096,9 @@ The runbook enables automatic snapshots on a Redshift cluster.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableAutomaticVersionUpgradeOnRedshiftCluster": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{AutomationAssumeRole}}",
@@ -3001,6 +3213,9 @@ The runbook enables automatic version upgrade on a Redshift cluster.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCloudTrailEncryption": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3032,22 +3247,8 @@ Enables encryption on a CloudTrail using the provided KMS CMK
                   "trail_region": "{{TrailRegion}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -3055,7 +3256,7 @@ from botocore.exceptions import ClientError
 def connect_to_cloudtrail(region, boto_config):
     return boto3.client('cloudtrail', region_name=region, config=boto_config)
 
-def enable_trail_encryption(event, context):
+def enable_trail_encryption(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map
@@ -3066,12 +3267,12 @@ def enable_trail_encryption(event, context):
           'mode': 'standard'
         }
     )
-  
+
     if event['trail_region'] != event['exec_region']:
         exit('ERROR: cross-region remediation is not yet supported')
 
     ctrail_client = connect_to_cloudtrail(event['trail_region'], boto_config)
-    kms_key_arn = event['kms_key_arn'] 
+    kms_key_arn = event['kms_key_arn']
 
     try:
         ctrail_client.update_trail(
@@ -3134,6 +3335,9 @@ def enable_trail_encryption(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCloudTrailLogFileValidation": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3220,6 +3424,9 @@ Verifies log file validation is enabled for your trail.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCloudTrailToCloudWatchLogging": {
+      "DependsOn": [
+        "CreateWait0",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3262,30 +3469,19 @@ Creates a CloudWatch logs group for CloudTrail data.
                   "LogGroup": "{{LogGroupName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import time
 import boto3
 from botocore.config import Config
-import time
 
 def connect_to_logs(boto_config):
     return boto3.client('logs', config=boto_config)
 
-def wait_for_loggroup(event, context):
+def sleep_between_attempts():
+    time.sleep(2)
+
+def wait_for_loggroup(event, _):
     boto_config = Config(
         retries ={
           'mode': 'standard'
@@ -3303,11 +3499,11 @@ def wait_for_loggroup(event, context):
                 if group['logGroupName'] == event['LogGroup']:
                     return str(group['arn'])
             # no match - wait and retry
-            time.sleep(2)
+            sleep_between_attempts()
             attempts += 1
 
-        except Exception as e:
-            exit(f'Failed to create Log Group {event["LogGroup"]}: {str(e)}')
+        except Exception as err:
+            exit(f'Failed to create Log Group {event["LogGroup"]}: {str(err)}')
 
     exit(f'Failed to create Log Group {event["LogGroup"]}: Timed out')",
               },
@@ -3376,6 +3572,9 @@ def wait_for_loggroup(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableCopyTagsToSnapshotOnRDSCluster": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3512,6 +3711,9 @@ Verifies that \`CopyTagsToSnapshot\` has been enabled on the target resource.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableDefaultEncryptionS3": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3625,7 +3827,195 @@ This document configures default encryption for an Amazon S3 Bucket.
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASREnableDeliveryStatusLoggingForSNSTopic": {
+      "DependsOn": [
+        "CreateWait8",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-EnableDeliveryStatusLoggingForSNSTopic
+
+## What does this document do?
+ This document enables delivery status logging on given Amazon Simple Notification Service (Amazon SNS) topic using
+ [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* LoggingRole: (Required) The ARN of the IAM Role used to log successful and failed deliveries.
+* SNSTopicArn: (Required)  The ARN of the Amazon SNS Topic.
+
+ ## Security Standards / Controls
+ * AFSBP v1.0.0:   SNS.2
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "logging_role": "{{ LoggingRole }}",
+                  "sample_rate": "{{ SampleRate }}",
+                  "topic_arn": "{{ SNSTopicArn }}",
+                },
+                "Runtime": "python3.8",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+boto_config = Config(
+    retries = {
+            'mode': 'standard',
+            'max_attempts': 10
+        }
+    )
+
+endpointTypes = ['HTTP', 'Firehose', 'Lambda', 'Application', 'SQS']
+
+def connect_to_sns():
+    return boto3.client('sns', config=boto_config)
+
+def lambda_handler(event, _):
+    """
+     Enable delivery status logging on a SNS topic
+ 
+     \`event\` should have the following keys and values:
+     \`logging_role\`: the ARN of the IAM Role used to log successful and failed deliveries
+     \`topic_arn\`: the arn of the SNS Topic to enable delivery status logging on
+ 
+     \`context\` is ignored
+    """
+
+    logging_role = event["logging_role"]
+    topic_arn = event["topic_arn"]
+    sample_rate = event["sample_rate"]
+
+    add_roles_to_topic(logging_role, topic_arn)
+    add_sample_rate_to_topic(topic_arn, sample_rate)
+
+    topic_attributes = get_topic_attributes(topic_arn)
+
+    return {
+        "HTTPFailureFeedbackRoleArn": topic_attributes["Attributes"]["HTTPFailureFeedbackRoleArn"],
+        "HTTPSuccessFeedbackRoleArn": topic_attributes["Attributes"]["HTTPSuccessFeedbackRoleArn"],
+        "HTTPSuccessFeedbackSampleRate": topic_attributes["Attributes"]["HTTPSuccessFeedbackSampleRate"],
+        "FirehoseFailureFeedbackRoleArn": topic_attributes["Attributes"]["FirehoseFailureFeedbackRoleArn"],
+        "FirehoseSuccessFeedbackRoleArn": topic_attributes["Attributes"]["FirehoseSuccessFeedbackRoleArn"],
+        "FirehoseSuccessFeedbackSampleRate": topic_attributes["Attributes"]["FirehoseSuccessFeedbackSampleRate"],
+        "LambdaFailureFeedbackRoleArn": topic_attributes["Attributes"]["LambdaFailureFeedbackRoleArn"],
+        "LambdaSuccessFeedbackRoleArn": topic_attributes["Attributes"]["LambdaSuccessFeedbackRoleArn"],
+        "LambdaSuccessFeedbackSampleRate": topic_attributes["Attributes"]["LambdaSuccessFeedbackSampleRate"],
+        "ApplicationFailureFeedbackRoleArn": topic_attributes["Attributes"]["ApplicationFailureFeedbackRoleArn"],
+        "ApplicationSuccessFeedbackRoleArn": topic_attributes["Attributes"]["ApplicationSuccessFeedbackRoleArn"],
+        "ApplicationSuccessFeedbackSampleRate": topic_attributes["Attributes"]["ApplicationSuccessFeedbackSampleRate"],
+        "SQSFailureFeedbackRoleArn": topic_attributes["Attributes"]["SQSFailureFeedbackRoleArn"],
+        "SQSSuccessFeedbackRoleArn": topic_attributes["Attributes"]["SQSSuccessFeedbackRoleArn"],
+        "SQSSuccessFeedbackSampleRate": topic_attributes["Attributes"]["SQSSuccessFeedbackSampleRate"]
+    }
+
+def add_roles_to_topic(logging_role, topic_arn):
+    """
+    Configures the IAM role \`logging_role\` that will log successful and failed deliveries to SNS Topic \`topic_arn\`
+    """  
+    sns = connect_to_sns()
+    try:
+        for endpoint in endpointTypes:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue=logging_role)
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue=logging_role)
+
+    except Exception as e:
+        reset_to_recognized_state(topic_arn)
+        exit(f'Failed to set success/failure role of topic {topic_arn}: {str(e)}')
+
+def add_sample_rate_to_topic(topic_arn, sample_rate):
+    """
+    Configures the Success sample rate, the percentage of successful messages for which you want to receive CloudWatch Logs.
+    """    
+    sns = connect_to_sns()
+    try:
+        for endpoint in endpointTypes:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackSampleRate', AttributeValue=sample_rate)
+
+    except Exception as e:
+        reset_to_recognized_state(topic_arn)
+        exit(f'Failed to set success sample rate of SNS topic {topic_arn}: {str(e)}')
+
+def get_topic_attributes(topic_arn):
+    """
+    Grabs Topic Attributes to verify topic values were set as expected.
+    """
+    sns = connect_to_sns()
+    try:
+        topic_attributes = sns.get_topic_attributes(TopicArn=topic_arn)
+        return topic_attributes
+
+    except Exception as e:
+        exit(f'Failed to get attributes of SNS topic {topic_arn}: {str(e)}')
+
+def reset_to_recognized_state(topic_arn):
+    """
+    Used in case of error, will unset all delivery status logging parameters.
+    """
+    sns = connect_to_sns()
+    for endpoint in endpointTypes:
+        try:
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}SuccessFeedbackRoleArn', AttributeValue='')
+            sns.set_topic_attributes(TopicArn=topic_arn, AttributeName=f'{endpoint}FailureFeedbackRoleArn', AttributeValue='')
+        except Exception:
+            print(f'There was an error while resetting SNS Topic {topic_arn}, please manually turn off delivery status logging for protocol {endpoint}')",
+              },
+              "isEnd": true,
+              "name": "EnableDeliveryStatusLogging",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EnableDeliveryStatusLogging.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "LoggingRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Delivery Status Logging.",
+              "type": "String",
+            },
+            "SNSTopicArn": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):sns:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:([a-zA-Z0-9_-]{1,80}(?:\\.fifo)?)$",
+              "description": "(Required) The ARN of the Amazon SNS Topic.",
+              "type": "String",
+            },
+            "SampleRate": {
+              "allowedPattern": "^(?:[0-9]|[1-9][0-9]|100)$",
+              "default": "0",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableDeliveryStatusLoggingForSNSTopic",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASREnableEbsEncryptionByDefault": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3700,7 +4090,218 @@ Checks if EbsEncryptionByDefault is enabled correctly from the previous step.
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASREnableEncryptionForSNSTopic": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-EnableEncryptionForSNSTopic
+
+## What does this document do?
+ This document enables encryption on given Amazon Simple Notification Service (Amazon SNS) topic using
+ [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
+
+ This document must only be used as a baseline to ensure that your Amazon SNS topics are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
+ Based on your data policy, Amazon SNS topic should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* TopicArn: (Required)  The ARN of the Amazon SNS Topic.
+* KmsKeyArn: (Required) The ARN of AWS KMS Key.
+
+ ## Security Standards / Controls
+ * AFSBP v1.0.0:   SNS.1
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "description": "## EncryptSNSTopic
+Makes SetTopicAttributes API call using the Amazon SNS Topic ARN to enables encyption.
+## Outputs
+* Response: The standard HTTP response from the SetTopicAttributes API call.
+",
+              "inputs": {
+                "Api": "SetTopicAttributes",
+                "AttributeName": "KmsMasterKeyId",
+                "AttributeValue": "{{KmsKeyArn}}",
+                "Service": "sns",
+                "TopicArn": "{{TopicArn}}",
+              },
+              "isEnd": false,
+              "name": "EncryptSNSTopic",
+              "outputs": [
+                {
+                  "Name": "Response",
+                  "Selector": "$",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:assertAwsResourceProperty",
+              "description": "## VerifyTopicEncryption
+Verifies the given Amazon SNS Topic is encrypted with AWS KMS Key ARN.
+",
+              "inputs": {
+                "Api": "GetTopicAttributes",
+                "DesiredValues": [
+                  "{{ KmsKeyArn }}",
+                ],
+                "PropertySelector": "Attributes.KmsMasterKeyId",
+                "Service": "sns",
+                "TopicArn": "{{TopicArn}}",
+              },
+              "isEnd": true,
+              "name": "VerifyTopicEncryption",
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EncryptSNSTopic.Response",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "KmsKeyArn": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
+              "description": "The ARN of the KMS key created by ASR for this remediation",
+              "type": "String",
+            },
+            "TopicArn": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):sns:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:([a-zA-Z0-9_-]{1,80}(?:\\.fifo)?)$",
+              "description": "(Required) The ARN of the Amazon SNS Topic.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableEncryptionForSNSTopic",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableEncryptionForSQSQueue": {
+      "DependsOn": [
+        "CreateWait4",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-EnableEncryptionForSQSQueue
+
+## What does this document do?
+This document enables encryption on given Amazon Simple Queue Service (Amazon SQS) queue using
+[SetQueueAttributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SetQueueAttributes.html) API.
+
+This document must only be used as a baseline to ensure that your Amazon SQS queues are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
+Based on your data policy, Amazon SQS queues should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* SQSQueueName: (Required)  The name of the Amazon SQS Queue.
+* KmsKeyArn: (Required) The ARN of AWS KMS Key.
+
+## Security Standards / Controls
+* AFSBP v1.0.0:   SQS.1
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "GetQueueUrl",
+                "QueueName": "{{ SQSQueueName }}",
+                "Service": "sqs",
+              },
+              "name": "GetQueueUrl",
+              "outputs": [
+                {
+                  "Name": "QueueUrl",
+                  "Selector": "$.QueueUrl",
+                  "Type": "String",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "SetQueueAttributes",
+                "Attributes": {
+                  "KmsMasterKeyId": "{{ KmsKeyArn }}",
+                },
+                "QueueUrl": "{{ GetQueueUrl.QueueUrl }}",
+                "Service": "sqs",
+              },
+              "name": "EncryptSQSQueue",
+              "outputs": [
+                {
+                  "Name": "Response",
+                  "Selector": "$",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:waitForAwsResourceProperty",
+              "inputs": {
+                "Api": "GetQueueAttributes",
+                "AttributeNames": [
+                  "KmsMasterKeyId",
+                ],
+                "DesiredValues": [
+                  "{{ KmsKeyArn }}",
+                ],
+                "PropertySelector": "$.Attributes.KmsMasterKeyId",
+                "QueueUrl": "{{ GetQueueUrl.QueueUrl }}",
+                "Service": "sqs",
+              },
+              "isEnd": true,
+              "name": "VerifyQueueEncryption",
+              "timeoutSeconds": 300,
+            },
+          ],
+          "outputs": [
+            "EncryptSQSQueue.Response",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "KmsKeyArn": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
+              "description": "The ARN of the KMS key created by ASR for this remediation",
+              "type": "String",
+            },
+            "SQSQueueName": {
+              "allowedPattern": "^[a-zA-Z0-9_-]{1,80}(?:\\.fifo)?$",
+              "description": "(Required) The name of the Amazon SQS Queue.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableEncryptionForSQSQueue",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASREnableEnhancedMonitoringOnRDSInstance": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3896,6 +4497,9 @@ def handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREnableKeyRotation": {
+      "DependsOn": [
+        "CreateWait5",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3979,6 +4583,9 @@ Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableMinorVersionUpgradeOnRDSDBInstance": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -3996,94 +4603,141 @@ This document enables AutoMinorVersionUpgrade on the Amazon Relational Database 
 ",
           "mainSteps": [
             {
-              "action": "aws:executeAwsApi",
-              "description": "## GetRDSInstanceIdentifier
-Makes DescribeDBInstances API call using the database instance resource identifier to get DBInstanceIdentifier.
-## Outputs
-* DBInstanceIdentifier: DBInstance identifier of the Amazon RDS instance.
-",
+              "action": "aws:executeScript",
               "inputs": {
-                "Api": "DescribeDBInstances",
-                "Filters": [
-                  {
-                    "Name": "dbi-resource-id",
-                    "Values": [
-                      "{{ DbiResourceId }}",
-                    ],
-                  },
-                ],
-                "Service": "rds",
-              },
-              "isEnd": false,
-              "name": "GetRDSInstanceIdentifier",
-              "outputs": [
-                {
-                  "Name": "DBInstanceIdentifier",
-                  "Selector": "$.DBInstances[0].DBInstanceIdentifier",
-                  "Type": "String",
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "DBInstanceIdentifier": "{{DBInstanceIdentifier}}",
                 },
-              ],
-              "timeoutSeconds": 600,
-            },
-            {
-              "action": "aws:assertAwsResourceProperty",
-              "description": "## VerifyDBInstanceStatus
-Verifies whether AWS RDS DBInstance status is available before enabling AutoMiniorVersionUpgrade.
-",
-              "inputs": {
-                "Api": "DescribeDBInstances",
-                "DBInstanceIdentifier": "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}",
-                "DesiredValues": [
-                  "available",
-                ],
-                "PropertySelector": "$.DBInstances[0].DBInstanceStatus",
-                "Service": "rds",
+                "Runtime": "python3.8",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import boto3
+from botocore.config import Config
+
+boto_config = Config(
+    retries = {
+            'mode': 'standard',
+            'max_attempts': 10
+        }
+    )
+
+multi_az_cluster_engines = ["mysql","postgres"]
+
+def connect_to_rds():
+    return boto3.client('rds', config=boto_config)
+
+def lambda_handler(event, _):
+    """
+     Enable auto minor version upgrades on an instance or a Multi-AZ Cluster
+ 
+     \`event\` should have the following keys and values:
+     \`DBInstanceIdentifier\`: The identifier of the database instance that is to be modified.
+ 
+     \`context\` is ignored
+    """
+    db_instance_id = event["DBInstanceIdentifier"]
+
+    rds = connect_to_rds()
+
+    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_id)
+
+    instance_info = found_instance['DBInstances'][0]
+
+    response = False
+
+    if ("DBClusterIdentifier" in instance_info.keys()):
+        if (multi_az_check(instance_info["DBClusterIdentifier"])):
+            cluster_id = instance_info["DBClusterIdentifier"]
+            enable_minor_version_upgrade_cluster(cluster_id)
+            response = verify_cluster_changes(cluster_id)
+        else:
+            enable_minor_version_upgrade_instance(db_instance_id)
+            response = verify_instance_changes(db_instance_id)
+    else:
+        enable_minor_version_upgrade_instance(db_instance_id)
+        response = verify_instance_changes(db_instance_id)
+        
+    if response == True:
+        return {
+            "AutoMinorVersionUpgrade": response
+        }
+    
+    raise RuntimeError(f'ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled.')
+
+def multi_az_check(cluster_id):
+    """
+    Checks to see if the cluster is Multi-AZ. Instances within clusters that match this check are not able to be modified.
+    """  
+
+    rds = connect_to_rds()
+    try:
+        found_cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_id)
+        cluster_info = found_cluster['DBClusters'][0]
+    except Exception as e:
+        exit(f'Failed to get information about the cluster: {cluster_id}.  Error: {e}')
+
+    return ((cluster_info["MultiAZ"] == True) and (cluster_info["Engine"] in multi_az_cluster_engines))
+
+
+def enable_minor_version_upgrade_cluster(cluster_id):
+    """
+    Enables automatic minor version upgrade for a Multi-AZ Cluster.
+    """ 
+
+    rds = connect_to_rds()
+    try:
+        rds.modify_db_cluster(DBClusterIdentifier=cluster_id,AutoMinorVersionUpgrade=True)
+    except Exception as e:
+        exit(f'Failed to modify the cluster: {cluster_id}. Error: {e}')
+
+def enable_minor_version_upgrade_instance(instance_id):
+    """
+    Enables automatic minor version upgrade for an instance.
+    """ 
+
+    rds = connect_to_rds()
+    try:
+        rds.modify_db_instance(DBInstanceIdentifier=instance_id,AutoMinorVersionUpgrade=True)
+    except Exception as e:
+        exit(f'Failed to modify the instance: {instance_id}. Error: {e}')
+
+def verify_cluster_changes(cluster_id):
+    """
+    Verifies automatic minor version upgrade for a Multi-AZ cluster.
+    """ 
+    rds = connect_to_rds()
+    try:
+        found_cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_id, MaxRecords=100)
+        cluster_info = found_cluster['DBClusters'][0]
+
+    except Exception as e:
+        exit(f'Failed to verify cluster changes: {cluster_id}. Error: {e}')
+
+    return cluster_info['AutoMinorVersionUpgrade']
+        
+def verify_instance_changes(instance_id):
+    """
+    Verifies automatic minor version upgrade for an instance.
+    """ 
+    rds = connect_to_rds()
+    try:
+        found_instance = rds.describe_db_instances(DBInstanceIdentifier=instance_id, MaxRecords=100)
+        instance_info = found_instance['DBInstances'][0]
+    except Exception as e:
+
+        exit(f'Failed to verify instance changes: {instance_id}. Error: {e}')
+
+    return instance_info['AutoMinorVersionUpgrade'] ",
               },
-              "isEnd": false,
-              "name": "VerifyDBInstanceStatus",
-              "timeoutSeconds": 600,
-            },
-            {
-              "action": "aws:executeAwsApi",
-              "description": "## ModifyDBInstance
-Makes ModifyDBInstance API call to enable AutoMinorVersionUpgrade on the Amazon RDS instance using the DBInstanceIdentifier.
-## Outputs
-* Output: The standard HTTP response from the ModifyDBInstance API.
-",
-              "inputs": {
-                "Api": "ModifyDBInstance",
-                "AutoMinorVersionUpgrade": true,
-                "DBInstanceIdentifier": "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}",
-                "Service": "rds",
-              },
-              "isEnd": false,
               "name": "ModifyDBInstance",
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$",
+                  "Selector": "$.Payload.response",
                   "Type": "StringMap",
                 },
               ],
-              "timeoutSeconds": 600,
-            },
-            {
-              "action": "aws:assertAwsResourceProperty",
-              "description": "## VerifyDBInstanceState
-Verifies the Amazon RDS Instance's "AutoMinorVersionUpgrade" property is set to "True".
-",
-              "inputs": {
-                "Api": "DescribeDBInstances",
-                "DBInstanceIdentifier": "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}",
-                "DesiredValues": [
-                  "True",
-                ],
-                "PropertySelector": "$.DBInstances[0].AutoMinorVersionUpgrade",
-                "Service": "rds",
-              },
-              "isEnd": true,
-              "name": "VerifyDBInstanceState",
-              "timeoutSeconds": 600,
             },
           ],
           "outputs": [
@@ -4095,9 +4749,9 @@ Verifies the Amazon RDS Instance's "AutoMinorVersionUpgrade" property is set to 
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "DbiResourceId": {
-              "allowedPattern": "^db-[A-Z0-9]{26}$",
-              "description": "(Required) Resource ID of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.",
+            "DBInstanceIdentifier": {
+              "allowedPattern": "^(?!.*--)[a-zA-Z][a-zA-Z0-9.,$;-]{0,58}[^-]$",
+              "description": "(Required) Identifier of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.",
               "type": "String",
             },
           },
@@ -4111,6 +4765,9 @@ Verifies the Amazon RDS Instance's "AutoMinorVersionUpgrade" property is set to 
       "Type": "AWS::SSM::Document",
     },
     "ASREnableMultiAZOnRDSInstance": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4277,6 +4934,9 @@ Verifies that the RDS Instance's \`PendingModifiedValues.MultiAZ\` value is \`Tr
       "Type": "AWS::SSM::Document",
     },
     "ASREnableRDSClusterDeletionProtection": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4405,6 +5065,9 @@ Verifies that deletion protection has been enabled for the given Amazon RDS data
       "Type": "AWS::SSM::Document",
     },
     "ASREnableRDSInstanceDeletionProtection": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4528,19 +5191,22 @@ Checks whether deletion protection is enabled on Amazon RDS Instance.
       "Type": "AWS::SSM::Document",
     },
     "ASREnableRedshiftClusterAuditLogging": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
-          "description": "### Document name - AWSConfigRemediation-EnableRedshiftClusterAuditLogging 
+          "description": "### Document name - AWSConfigRemediation-EnableRedshiftClusterAuditLogging
 
 ## What does this document do?
-This automation document enables audit logging on the Amazon Redshift cluster using [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API call with given bucket name and s3 key prefix. 
+This automation document enables audit logging on the Amazon Redshift cluster using [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API call with given bucket name and s3 key prefix.
 
 ## Input Parameters
 * ClusterIdentifier: (Required) The unique identifier of the Amazon Redshift cluster on which logging to be started.
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 * BucketName: (Required) The name of an existing Amazon S3 bucket where the log files are to be stored.
-* S3KeyPrefix: (Optional) The prefix applied to the log file names.  
+* S3KeyPrefix: (Optional) The prefix applied to the log file names.
 
 ## Output Parameters
 * EnableLoggingWithPrefix.Response: Standard HTTP response of the EnableLogging API.
@@ -4550,7 +5216,7 @@ This automation document enables audit logging on the Amazon Redshift cluster us
             {
               "action": "aws:branch",
               "description": "## CheckS3KeyPrefix
-Checks whether S3KeyPrefix provided in the input parameters. 
+Checks whether S3KeyPrefix provided in the input parameters.
 ",
               "inputs": {
                 "Choices": [
@@ -4567,10 +5233,10 @@ Checks whether S3KeyPrefix provided in the input parameters.
             },
             {
               "action": "aws:executeAwsApi",
-              "description": "## EnableLoggingWithoutPrefix 
+              "description": "## EnableLoggingWithoutPrefix
 Enables logging on the given Amazon Redshift cluster using the [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API with given bucket name in input parameters.
 ## Outputs
-* Response: Standard HTTP response of the EnableLogging API. 
+* Response: Standard HTTP response of the EnableLogging API.
 ",
               "inputs": {
                 "Api": "EnableLogging",
@@ -4698,6 +5364,9 @@ Checks whether the value of the "BucketName" parameter is used for the audit log
       "Type": "AWS::SSM::Document",
     },
     "ASREnableVPCFlowLogs": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -4727,22 +5396,8 @@ Enables VPC Flow Logs for a given VPC
                   "vpc": "{{VPC}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import time
 from botocore.config import Config
@@ -4768,10 +5423,13 @@ def log_group_exists(client, group):
     except Exception as e:
         exit(f'EnableVPCFlowLogs failed - unhandled exception {str(e)}')
 
+def wait_for_seconds(wait_interval):
+    time.sleep(wait_interval)
+
 def wait_for_loggroup(client, wait_interval, max_retries, loggroup):
     attempts = 1
     while not log_group_exists(client, loggroup):
-        time.sleep(wait_interval)
+        wait_for_seconds(wait_interval)
         attempts += 1
         if attempts > max_retries:
             exit(f'Timeout waiting for log group {loggroup} to become active')
@@ -4799,12 +5457,12 @@ def flowlogs_active(client, loggroup):
 def wait_for_flowlogs(client, wait_interval, max_retries, loggroup):
     attempts = 1
     while not flowlogs_active(client, loggroup):
-        time.sleep(wait_interval)
+        wait_for_seconds(wait_interval)
         attempts += 1
         if attempts > max_retries:
             exit(f'Timeout waiting for flowlogs to log group {loggroup} to become active')
 
-def enable_flow_logs(event, context):
+def enable_flow_logs(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map
@@ -4826,11 +5484,11 @@ def enable_flow_logs(event, context):
 
     logs_client = connect_to_logs(boto_config)
     ec2_client = connect_to_ec2(boto_config)
-    
+
     kms_key_arn = event['kms_key_arn'] # for logs encryption at rest
-    
+
     # set dynamic variable for CW Log Group for VPC Flow Logs
-    vpc_flow_loggroup = "VPCFlowLogs/" + event['vpc']        
+    vpc_flow_loggroup = "VPCFlowLogs/" + event['vpc']
     # create cloudwatch log group
     try:
         logs_client.create_log_group(
@@ -4844,7 +5502,7 @@ def enable_flow_logs(event, context):
             print(f'CloudWatch Logs group {vpc_flow_loggroup} already exists')
         else:
             exit(f'ERROR CREATING LOGGROUP {vpc_flow_loggroup}: {str(exception_type)}')
-            
+
     except Exception as e:
         exit(f'ERROR CREATING LOGGROUP {vpc_flow_loggroup}: {str(e)}')
 
@@ -4935,6 +5593,9 @@ def enable_flow_logs(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASREncryptRDSSnapshot": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{AutomationAssumeRole}}",
@@ -5140,6 +5801,9 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
       "Type": "AWS::SSM::Document",
     },
     "ASRMakeEBSSnapshotsPrivate": {
+      "DependsOn": [
+        "CreateWait1",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5171,22 +5835,8 @@ This runbook works an the account level to remove public share on all EBS snapsh
                   "testmode": "{{TestMode}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -5202,7 +5852,7 @@ boto_config = Config(
 def connect_to_ec2(boto_config):
     return boto3.client('ec2', config=boto_config)
 
-def get_public_snapshots(event, context):
+def get_public_snapshots(event, _):
     account_id = event['account_id']
 
     if 'testmode' in event and event['testmode']:
@@ -5229,17 +5879,17 @@ def list_public_snapshots(account_id):
                 control_token = ''
 
             kwargs = {
-                'MaxResults': 100, 
+                'MaxResults': 100,
                 'OwnerIds': [ account_id ],
                 'RestorableByUserIds': [ 'all' ]
             }
             if control_token:
                 kwargs['NextToken'] = control_token
-                
+
             response = ec2.describe_snapshots(
                         **kwargs
                 )
-        
+
             for snapshot in response['Snapshots']:
                 public_snapshot_ids.append(snapshot['SnapshotId'])
 
@@ -5249,7 +5899,7 @@ def list_public_snapshots(account_id):
                 control_token = ''
 
         return public_snapshot_ids
-        
+
     except Exception as e:
         print(e)
         exit('Failed to describe_snapshots')",
@@ -5272,22 +5922,8 @@ def list_public_snapshots(account_id):
                   "snapshots": "{{GetPublicSnapshotIds.Snapshots}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -5296,7 +5932,7 @@ from botocore.exceptions import ClientError
 def connect_to_ec2(boto_config):
     return boto3.client('ec2', config=boto_config)
 
-def make_snapshots_private(event, context):
+def make_snapshots_private(event, _):
     boto_config = Config(
         retries = {
                 'mode': 'standard',
@@ -5309,7 +5945,7 @@ def make_snapshots_private(event, context):
     snapshots = event['snapshots']
 
     success_count = 0
-    
+
     for snapshot_id in snapshots:
         try:
             ec2.modify_snapshot_attribute(
@@ -5379,6 +6015,9 @@ def make_snapshots_private(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRMakeRDSSnapshotPrivate": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5411,22 +6050,8 @@ This runbook removes public access to an RDS Snapshot
                   "DBSnapshotType": "{{DBSnapshotType}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -5440,7 +6065,7 @@ def connect_to_rds():
     )
     return boto3.client('rds', config=boto_config)
 
-def make_snapshot_private(event, context):
+def make_snapshot_private(event, _):
 
     rds_client = connect_to_rds()
     snapshot_id = event['DBSnapshotId']
@@ -5512,6 +6137,9 @@ def make_snapshot_private(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRRemoveLambdaPublicAccess": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5544,22 +6172,8 @@ function. The remediation is to remove the SID of the public policy.
                   "FunctionName": "{{FunctionName}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -5579,6 +6193,20 @@ def print_policy_before(policy):
     print('Resource Policy to be deleted:')
     print(json.dumps(policy, indent=2, default=str))
 
+def public_s3_statement_check(statement, principal):
+    """
+    This function checks if the user has given access to an S3 bucket without providing an AWS account.
+    """
+    try:
+        empty_source_account_check = False
+        if ("StringEquals" in statement["Condition"]):
+            empty_source_account_check = ("AWS:SourceAccount" not in statement["Condition"]["StringEquals"])
+        else:
+            empty_source_account_check = True
+        return principal.get("Service", "") == "s3.amazonaws.com" and empty_source_account_check
+    except KeyError:
+        return principal.get("Service", "") == "s3.amazonaws.com"
+
 def remove_resource_policy(functionname, sid, client):
     try:
         client.remove_permission(
@@ -5589,14 +6217,12 @@ def remove_resource_policy(functionname, sid, client):
     except Exception as e:
         exit(f'FAILED: SID {sid} was NOT removed from Lambda function {functionname} - {str(e)}')
 
-def remove_public_statement(client, functionname, statement, principal_source):
-    for principal in list(principal_source):
-        if principal == "*" or (isinstance(principal, dict) and principal.get("AWS","") == "*"):
-            print_policy_before(statement)
-            remove_resource_policy(functionname, statement['Sid'], client)
-            break # there will only be one that matches
+def remove_public_statement(client, functionname, statement, principal):
+    if principal == "*" or (isinstance(principal, dict) and (principal.get("AWS","") == "*" or public_s3_statement_check(statement, principal))):
+        print_policy_before(statement)
+        remove_resource_policy(functionname, statement['Sid'], client)
 
-def remove_lambda_public_access(event, context):
+def remove_lambda_public_access(event, _):
 
     client = connect_to_lambda(boto_config)
 
@@ -5610,7 +6236,7 @@ def remove_lambda_public_access(event, context):
         print('Scanning for public resource policies in ' + functionname)
 
         for statement in statements:
-            remove_public_statement(client, functionname, statement, list(statement['Principal']))
+            remove_public_statement(client, functionname, statement, statement['Principal'])
 
         client.get_policy(FunctionName=functionname)
 
@@ -5633,7 +6259,7 @@ def verify(function_name_to_check):
 
         print("Remediation executed successfully. Policy after:")
         print(json.dumps(response, indent=2, default=str))
-        
+
     except ClientError as ex:
         exception_type = ex.response['Error']['Code']
         if exception_type in ['ResourceNotFoundException']:
@@ -5677,6 +6303,9 @@ def verify(function_name_to_check):
       "Type": "AWS::SSM::Document",
     },
     "ASRRemoveVPCDefaultSecurityGroupRules": {
+      "DependsOn": [
+        "CreateWait6",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5799,6 +6428,9 @@ def handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRReplaceCodeBuildClearTextCredentials": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -5855,21 +6487,8 @@ Returns new project environment variables and SSM parameter information (without
                   "ProjectInfo": "{{ BatchGetProjects.ProjectInfo }}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 from json import dumps
 from boto3 import client
 from botocore.config import Config
@@ -5890,7 +6509,7 @@ def connect_to_iam(boto_config):
     return client('iam', config = boto_config)
 
 def is_clear_text_credential(env_var):
-    if not env_var.get('type') == 'PLAINTEXT':
+    if env_var.get('type') != 'PLAINTEXT':
         return False
     return any(env_var.get('name').upper() == credential_name for credential_name in CREDENTIAL_NAMES_UPPER)
 
@@ -5905,7 +6524,7 @@ def create_parameter(project_name, env_var):
     try:
         response = ssm_client.put_parameter(
             Name = parameter_name,
-            Description = 'Automatically created by SHARR',
+            Description = 'Automatically created by ASR',
             Value = env_var.get("value"),
             Type = 'SecureString',
             Overwrite = False,
@@ -5943,7 +6562,7 @@ def create_policy(region, account, partition, project_name):
     policy_name = f'CodeBuildSSMParameterPolicy-{ project_name }-{ region }'
     try:
         response = iam_client.create_policy(
-            Description = "Automatically created by SHARR",
+            Description = "Automatically created by ASR",
             PolicyDocument = dumps(policy_document),
             PolicyName = policy_name
         )
@@ -5988,7 +6607,7 @@ def parse_project_arn(arn):
     else:
         raise ValueError
 
-def replace_credentials(event, context):
+def replace_credentials(event, _):
     project_info = event.get('ProjectInfo')
     project_name = project_info.get('name')
     project_env = project_info.get('environment')
@@ -6110,6 +6729,9 @@ Changes the settings of a build project.
       "Type": "AWS::SSM::Document",
     },
     "ASRRevokeUnrotatedKeys": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6142,21 +6764,8 @@ This step deactivates IAM user access keys that have not been rotated in more th
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timezone, timedelta
 import boto3
 from botocore.config import Config
@@ -6226,14 +6835,14 @@ def verify_expired_credentials_revoked(responses, user_name):
             key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True)))
             if key_data.get("Status") != "Inactive":
                 error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
-                raise Exception(error_message)
+                raise RuntimeError(error_message)
 
     return {
         "output": "Verification of unrotated access keys is successful.",
         "http_responses": responses
     }
 
-def unrotated_key_handler(event, context):
+def unrotated_key_handler(event, _):
     user_name = get_user_name(event.get("IAMResourceId"))
     max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
     access_keys = list_access_keys(user_name)
@@ -6267,7 +6876,7 @@ def unrotated_key_handler(event, context):
               "type": "String",
             },
             "MaxCredentialUsageAge": {
-              "allowedPattern": "^[1-9][0-9]{0,3}|10000$",
+              "allowedPattern": "^(?:[1-9]\\d{0,3}|10000)$",
               "default": "90",
               "description": "(Required) Maximum number of days within which a credential must be used. The default value is 90 days.",
               "type": "String",
@@ -6283,6 +6892,9 @@ def unrotated_key_handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRRevokeUnusedIAMUserCredentials": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6446,6 +7058,9 @@ def unused_iam_credentials_handler(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRS3BlockDenylist": {
+      "DependsOn": [
+        "CreateWait3",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6476,8 +7091,7 @@ Adds an explicit deny to the bucket policy for specific restricted permissions.
                   "denylist": "{{DenyList}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 '''
 Given a bucket name and list of "sensitive" IAM permissions that shall not be
@@ -6508,8 +7122,8 @@ def get_partition():
     return boto3.client('sts', config=BOTO_CONFIG).get_caller_identity().get('Arn').split(':')[1]
 
 class BucketToRemediate:
-    def __init__(self, bucketName):
-        self.bucket_name = bucketName
+    def __init__(self, bucket_name):
+        self.bucket_name = bucket_name
         self.get_partition_where_running()
         self.initialize_bucket_policy_to_none()
 
@@ -6606,14 +7220,14 @@ class DenyStatement:
         self.add_next_principal_to_deny(principals_to_deny, bucket_account)
 
     def add_deny_principal(self, principal_arn):
-        if not principal_arn in self.deny_statement_json["Principal"]["AWS"]:
+        if principal_arn not in self.deny_statement_json["Principal"]["AWS"]:
             self.deny_statement_json["Principal"]["AWS"].append(principal_arn)
 
     def add_deny_resource(self, resource_arn):
-        if self.deny_statement_json["Resource"] and not resource_arn in self.deny_statement_json.Resource:
+        if self.deny_statement_json["Resource"] and resource_arn not in self.deny_statement_json.Resource:
             self.deny_statement_json["Resource"].append(resource_arn)
 
-def update_bucket_policy(event, context):
+def update_bucket_policy(event, _):
     def __get_bucket_from_event(event):
         bucket = event.get('bucket') or exit('Bucket not specified')
         return bucket
@@ -6668,6 +7282,9 @@ def update_bucket_policy(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRSetIAMPasswordPolicy": {
+      "DependsOn": [
+        "CreateWait7",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6838,6 +7455,9 @@ def update_and_verify_iam_user_password_policy(event, context):
       "Type": "AWS::SSM::Document",
     },
     "ASRSetSSLBucketPolicy": {
+      "DependsOn": [
+        "CreateWait2",
+      ],
       "Properties": {
         "Content": {
           "assumeRole": "{{ AutomationAssumeRole }}",
@@ -6868,24 +7488,11 @@ This document adds a bucket policy to require transmission over HTTPS for the gi
                 "InputPayload": {
                   "accountid": "{{AccountId}}",
                   "bucket": "{{BucketName}}",
+                  "partition": "{{global:AWS_PARTITION}}",
                 },
                 "Runtime": "python3.8",
-                "Script": "#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -6901,14 +7508,14 @@ boto_config = Config(
 def connect_to_s3():
     return boto3.client('s3', config=boto_config)
 
-def policy_to_add(bucket):
+def policy_to_add(bucket, partition):
     return {
         "Sid": "AllowSSLRequestsOnly",
         "Action": "s3:*",
         "Effect": "Deny",
         "Resource": [
-            f'arn:aws:s3:::{bucket}',
-            f'arn:aws:s3:::{bucket}/*'
+            f'arn:{partition}:s3:::{bucket}',
+            f'arn:{partition}:s3:::{bucket}/*'
         ],
         "Condition": {
             "Bool": {
@@ -6924,9 +7531,10 @@ def new_policy():
         "Statement": []
     }
 
-def add_ssl_bucket_policy(event, context):
+def add_ssl_bucket_policy(event, _):
     bucket_name = event['bucket']
     account_id = event['accountid']
+    aws_partition = event['partition']
     s3 = connect_to_s3()
     bucket_policy = {}
     try:
@@ -6947,7 +7555,7 @@ def add_ssl_bucket_policy(event, context):
         bucket_policy = new_policy()
 
     print(f'Existing policy: {bucket_policy}')
-    bucket_policy['Statement'].append(policy_to_add(bucket_name))
+    bucket_policy['Statement'].append(policy_to_add(bucket_name, aws_partition))
 
     try:
         result = s3.put_bucket_policy(
@@ -7002,6 +7610,350 @@ def add_ssl_bucket_policy(event, context):
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
+    },
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "719574aea3525db420a0be68782edf4dab8ea536d6223b758a5f774a63d050b8",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "6ab2b917f1465b034999281244e7b4c1611300ea4929b3896fc7615dd3ba7e1f",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "d9d70554583f2debde0daaee77134a4f27f295524be0a9fbc1f5896899b12862",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait2",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "d8cb9fbe52d6cb8d12cf3f418251ea9ecf2a823155b7aeceaefc304e2999d008",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait3",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "cbb21589711741582f016da0204b949e6bb393744d53b01dcc5383669d106dea",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait5": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait6": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait7": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait6",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "971be703d38efdd2d75a17325953419f3244f959e839b5a0668b12146968ac0c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait7",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "dff26ffe5bc8a2eb7a84297f591aa46181b17efa8b7c977636db9cf3beeec61c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRCreateCloudTrailMultiRegionTrail",
+        "ASRCreateLogMetricFilterAndAlarm",
+        "ASREnableAutoScalingGroupELBHealthCheck",
+        "ASREnableAWSConfig",
+        "ASREnableCloudTrailToCloudWatchLogging",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "719574aea3525db420a0be68782edf4dab8ea536d6223b758a5f774a63d050b8",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRCreateAccessLoggingBucket",
+        "ASREnableCloudTrailEncryption",
+        "ASREnableDefaultEncryptionS3",
+        "ASREnableVPCFlowLogs",
+        "ASRMakeEBSSnapshotsPrivate",
+        "DeletWait0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "6ab2b917f1465b034999281244e7b4c1611300ea4929b3896fc7615dd3ba7e1f",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRMakeRDSSnapshotPrivate",
+        "ASRRemoveLambdaPublicAccess",
+        "ASRReplaceCodeBuildClearTextCredentials",
+        "ASRRevokeUnrotatedKeys",
+        "ASRSetSSLBucketPolicy",
+        "DeletWait1",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "d9d70554583f2debde0daaee77134a4f27f295524be0a9fbc1f5896899b12862",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRDisablePublicAccessToRedshiftCluster",
+        "ASREnableAutomaticVersionUpgradeOnRedshiftCluster",
+        "ASREnableRedshiftClusterAuditLogging",
+        "ASREncryptRDSSnapshot",
+        "ASRS3BlockDenylist",
+        "DeletWait2",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "d8cb9fbe52d6cb8d12cf3f418251ea9ecf2a823155b7aeceaefc304e2999d008",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRConfigureS3BucketPublicAccessBlock",
+        "ASRConfigureSNSTopicForStack",
+        "ASRCreateIAMSupportRole",
+        "ASREnableAutomaticSnapshotsOnRedshiftCluster",
+        "ASREnableEncryptionForSQSQueue",
+        "DeletWait3",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "cbb21589711741582f016da0204b949e6bb393744d53b01dcc5383669d106dea",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait5": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRConfigureS3PublicAccessBlock",
+        "ASREnableCloudTrailLogFileValidation",
+        "ASREnableEbsEncryptionByDefault",
+        "ASREnableEnhancedMonitoringOnRDSInstance",
+        "ASREnableKeyRotation",
+        "DeletWait4",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait6": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASREnableCopyTagsToSnapshotOnRDSCluster",
+        "ASREnableMultiAZOnRDSInstance",
+        "ASREnableRDSClusterDeletionProtection",
+        "ASREnableRDSInstanceDeletionProtection",
+        "ASRRemoveVPCDefaultSecurityGroupRules",
+        "DeletWait5",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait7": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRDisablePublicAccessToRDSInstance",
+        "ASREnableEncryptionForSNSTopic",
+        "ASREnableMinorVersionUpgradeOnRDSDBInstance",
+        "ASRRevokeUnusedIAMUserCredentials",
+        "ASRSetIAMPasswordPolicy",
+        "DeletWait6",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "971be703d38efdd2d75a17325953419f3244f959e839b5a0668b12146968ac0c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRDisablePublicIPAutoAssign",
+        "ASREnableDeliveryStatusLoggingForSNSTopic",
+        "DeletWait7",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "dff26ffe5bc8a2eb7a84297f591aa46181b17efa8b7c977636db9cf3beeec61c",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }

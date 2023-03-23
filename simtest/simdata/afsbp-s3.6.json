@@ -1,0 +1,75 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.6/finding/0c3abd72-f4bd-49d5-b5cb-07da40033328",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/S3.6",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2022-02-22T19:39:00.837Z",
+    "LastObservedAt": "2022-02-22T19:39:12.438Z",
+    "CreatedAt": "2022-02-22T19:39:00.837Z",
+    "UpdatedAt": "2022-02-22T19:39:00.837Z",
+    "Severity": {
+      "Product": 70,
+      "Label": "HIGH",
+      "Normalized": 70,
+      "Original": "HIGH"
+    },
+    "Title": "S3.6 S3 permissions granted to other AWS accounts in bucket policies should be restricted",
+    "Description": "This control checks whether the S3 bucket policy allows sensitive bucket-level or object-level actions from a principal in another AWS account. The control fails if any of the following actions are allowed in the S3 bucket policy for a principal in another AWS account: s3:DeleteBucketPolicy, s3:PutBucketAcl, s3:PutBucketPolicy, s3:PutObjectAcl, and s3:PutEncryptionConfiguration.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/S3.6/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "S3.6",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/S3.6/remediation",
+      "RelatedAWSResources:0/name": "securityhub-s3-bucket-blacklisted-actions-prohibited-08917baf",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/S3.6",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:s3:::example",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.6/finding/0c3abd72-f4bd-49d5-b5cb-07da40033328"
+    },
+    "Resources": [
+      {
+        "Type": "AwsS3Bucket",
+        "Id": "arn:aws:s3:::example",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsS3Bucket": {
+            "OwnerId": "03d32dc0915b7f36d274d1a92ecb8620952a94f5f084f3e5a682812a2184aaaa",
+            "CreatedAt": "2020-09-09T19:47:57.000Z"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "HIGH",
+        "Original": "HIGH"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

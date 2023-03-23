@@ -1,0 +1,85 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.CloudTrail.4/finding/9e82b70e-89a3-45ad-a2f2-c11159dcd02f",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.CloudTrail.4",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+  ],
+  "FirstObservedAt": "2021-06-08T21:38:47.792Z",
+  "LastObservedAt": "2021-07-21T10:21:54.900Z",
+  "CreatedAt": "2021-06-08T21:38:47.792Z",
+  "UpdatedAt": "2021-07-21T10:21:51.024Z",
+  "Severity": {
+    "Product": 1,
+    "Label": "LOW",
+    "Normalized": 1,
+    "Original": "LOW"
+  },
+  "Title": "PCI.CloudTrail.4 CloudTrail trails should be integrated with Amazon CloudWatch Logs",
+  "Description": "This AWS control checks whether AWS CloudTrail trails are configured to send logs to Amazon CloudWatch Logs.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.CloudTrail.4/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.CloudTrail.4",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.CloudTrail.4/remediation",
+    "RelatedAWSResources:0/name": "securityhub-cloud-trail-cloud-watch-logs-enabled-36913b24",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.CloudTrail.4",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/annotation": "The CloudTrail trail is not associated with any CloudWatch Logs log group ARN.",
+    "Resources:0/Id": "arn:aws:cloudtrail:us-east-1:111111111111:trail/sharr-test",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.CloudTrail.4/finding/9e82b70e-89a3-45ad-a2f2-c11159dcd02f"
+  },
+  "Resources": [
+    {
+      "Type": "AwsCloudTrailTrail",
+      "Id": "arn:aws:cloudtrail:us-east-1:111111111111:trail/sharr-test",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsCloudTrailTrail": {
+          "HasCustomEventSelectors": false,
+          "HomeRegion": "us-east-1",
+          "IncludeGlobalServiceEvents": true,
+          "IsMultiRegionTrail": true,
+          "IsOrganizationTrail": false,
+          "LogFileValidationEnabled": true,
+          "Name": "sharr-test",
+          "S3BucketName": "miobukkit-east"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 10.5.3"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "LOW",
+      "Original": "LOW"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ]
+  }
+}

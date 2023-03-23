@@ -1,23 +1,36 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "module": "commonjs",
-    "lib": ["es2018"],
-    "declaration": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noImplicitThis": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "alwaysStrict": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false, // not possible with CDK
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": false, // TODO: enable
     "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": false,
+    "noImplicitThis": true,
+    "noPropertyAccessFromIndexSignature": false, // TODO: enable
+    "noUncheckedIndexedAccess": false, // TODO: enable
+    "noUnusedLocals": true,
+    "noUnusedParameters": false, // TODO: enable
+    "strict": true,
+    "allowUmdGlobalAccess": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "importsNotUsedAsValues": "remove",
     "inlineSourceMap": true,
     "inlineSources": true,
-    "experimentalDecorators": true,
-    "strictPropertyInitialization": false,
-    "typeRoots": ["./node_modules/@types"]
+    "outDir": "dist",
+    "allowJs": false,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2022"],
+    "target": "es2022",
   },
-  "exclude": ["cdk.out"]
+  "exclude": [
+    "cdk.out",
+    "dist",
+    "**/*.spec.ts"
+  ]
 }

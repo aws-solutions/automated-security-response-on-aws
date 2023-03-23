@@ -1,0 +1,69 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.10/finding/9d44acd7-65cc-4332-8189-820358c30fbe",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.10",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+  ],
+  "FirstObservedAt": "2022-02-18T22:44:44.627Z",
+  "LastObservedAt": "2022-04-19T10:20:58.067Z",
+  "CreatedAt": "2022-02-18T22:44:44.627Z",
+  "UpdatedAt": "2022-04-19T10:20:51.835Z",
+  "Severity": {
+    "Product": 39,
+    "Label": "LOW",
+    "Normalized": 39,
+    "Original": "LOW"
+  },
+  "Title": "1.10 Ensure IAM password policy prevents password reuse",
+  "Description": "IAM password policies can prevent the reuse of a given password by the same user. It is recommended that the password policy prevent the reuse of passwords.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub CIS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.10/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+    "RuleId": "1.10",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-1.10/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-password-policy-prevent-reuse-check-3908d5a0",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/1.10",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:root",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/1.10/finding/9d44acd7-65cc-4332-8189-820358c30fbe"
+  },
+  "Resources": [
+    {
+      "Type": "AwsAccount",
+      "Id": "AWS::::Account:111111111111",
+      "Partition": "aws",
+      "Region": "us-east-1"
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "LOW",
+      "Original": "LOW"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+name: Unit Test
+on:
+  push:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+jobs:
+  unit-test:
+    name: Unit Test
+    if: ${{ (github.repository_owner != 'aws-solutions' && github.event_name == 'push') || (github.repository_owner == 'aws-solutions' && github.event_name == 'pull_request') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: source
+    strategy:
+      matrix:
+        node-version: [16]
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: npm
+        cache-dependency-path: source/package-lock.json
+    - run: npm ci
+    - run: cd ../deployment && DEBUG=true ./run-unit-tests.sh

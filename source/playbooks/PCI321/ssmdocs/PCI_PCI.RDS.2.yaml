@@ -12,6 +12,10 @@ description: |
 
   ## Documentation Links
   * [PCI RDS.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-pci-controls.html#pcidss-rds-2)
+
+  ## Troubleshooting
+  * ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
+    - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API. 
 schemaVersion: '0.3'
 assumeRole: '{{AutomationAssumeRole}}'
 outputs:
@@ -28,7 +32,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-DisablePublicAccessToRDSInstance'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'

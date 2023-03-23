@@ -1,0 +1,77 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+   ### Document name - ASR-EnableEncryptionForSNSTopic
+
+   ## What does this document do?
+    This document enables encryption on given Amazon Simple Notification Service (Amazon SNS) topic using
+    [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
+
+    This document must only be used as a baseline to ensure that your Amazon SNS topics are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
+    Based on your data policy, Amazon SNS topic should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+
+   ## Input Parameters
+   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+   * TopicArn: (Required)  The ARN of the Amazon SNS Topic.
+   * KmsKeyArn: (Required) The ARN of AWS KMS Key.
+
+    ## Security Standards / Controls
+    * AFSBP v1.0.0:   SNS.1
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  KmsKeyArn:
+    type: String
+    default: >-
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
+    description: The ARN of the KMS key created by ASR for this remediation
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  TopicArn:
+    type: String
+    description: (Required) The ARN of the Amazon SNS Topic.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):sns:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:([a-zA-Z0-9_-]{1,80}(?:\.fifo)?)$'
+
+outputs:
+  - EncryptSNSTopic.Response
+mainSteps:
+  -
+    name: EncryptSNSTopic
+    action: "aws:executeAwsApi"
+    description: |
+      ## EncryptSNSTopic
+      Makes SetTopicAttributes API call using the Amazon SNS Topic ARN to enables encyption.
+      ## Outputs
+      * Response: The standard HTTP response from the SetTopicAttributes API call.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: sns
+      Api: SetTopicAttributes
+      TopicArn: "{{TopicArn}}"
+      AttributeName: KmsMasterKeyId
+      AttributeValue: "{{KmsKeyArn}}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+  -
+    name: VerifyTopicEncryption
+    action: aws:assertAwsResourceProperty
+    description: |
+      ## VerifyTopicEncryption
+      Verifies the given Amazon SNS Topic is encrypted with AWS KMS Key ARN.
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Service: sns
+      Api: GetTopicAttributes
+      TopicArn: "{{TopicArn}}"
+      PropertySelector: Attributes.KmsMasterKeyId
+      DesiredValues:
+      - "{{ KmsKeyArn }}"

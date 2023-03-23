@@ -1,0 +1,19 @@
+name: Viperlight
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+jobs:
+  viperlight:
+    name: Viperlight
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - run: curl https://viperlight-scanner.s3.amazonaws.com/latest/viperlight.zip -o ./viperlight.zip
+    - run: unzip -q ./viperlight.zip -d ../viperlight && rm ./viperlight.zip
+    - run: |
+        ../viperlight/bin/viperlight scan \
+          -m files-contents \
+          -m files-aws \
+          -m files-binary \
+          -m files-entropy \
+          -m files-secrets

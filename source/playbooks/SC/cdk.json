@@ -1,0 +1,7 @@
+{
+  "app": "npx ts-node bin/security_controls.ts",
+  "versionReporting": false,
+  "context": {
+    "aws-cdk:enableDiffNoFail": "true"
+  }
+}

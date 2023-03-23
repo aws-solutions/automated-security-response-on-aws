@@ -31,7 +31,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-EncryptRDSSnapshot'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
   KMSKeyId:
     type: 'String'
     default: 'alias/aws/rds'

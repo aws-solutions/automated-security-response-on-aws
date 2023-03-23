@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """
 Unit Test: check_ssm_doc_state.py
 Run from /deployment/build/Orchestrator after running build-s3-dist.sh
@@ -29,14 +15,14 @@ from check_ssm_doc_state import lambda_handler
 from awsapi_cached_client import AWSCachedClient
 import sechub_findings
 
-my_session = boto3.session.Session()
-my_region = my_session.region_name
+def get_region():
+    return os.getenv('AWS_DEFAULT_REGION')
 
 BOTO_CONFIG = Config(
     retries ={
         'mode': 'standard'
     },
-    region_name=my_region
+    region_name=get_region()
 )
 
 def workflow_doc():
@@ -131,25 +117,24 @@ def test_sunny_day(mocker):
         'status': 'ACTIVE'
     }
     # use AWSCachedClient as it will us the same stub for any calls
-    AWS = AWSCachedClient(my_region)
+    AWS = AWSCachedClient(get_region())
     ssm_c = AWS.get_connection('ssm')
 
-    testing_account = boto3.client('sts').get_caller_identity()['Account']
     ssmc_stub = Stubber(ssm_c)
     ssmc_stub.add_response(
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -290,25 +275,24 @@ def test_doc_not_active(mocker):
         'status': 'NOTFOUND'
     }
     # use AWSCachedClient as it will us the same stub for any calls
-    AWS = AWSCachedClient(my_region)
+    AWS = AWSCachedClient(get_region())
     ssm_c = AWS.get_connection('ssm')
 
-    testing_account = boto3.client('sts').get_caller_identity()['Account']
     ssmc_stub = Stubber(ssm_c)
     ssmc_stub.add_response(
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -385,25 +369,24 @@ def test_client_error(mocker):
         'status': 'CLIENTERROR'
     }
     # use AWSCachedClient as it will us the same stub for any calls
-    AWS = AWSCachedClient(my_region)
+    AWS = AWSCachedClient(get_region())
     ssm_c = AWS.get_connection('ssm')
 
-    testing_account = boto3.client('sts').get_caller_identity()['Account']
     ssmc_stub = Stubber(ssm_c)
     ssmc_stub.add_response(
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "Type": "String",
                 "Value": "AFSBP",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/shortname"
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
         }
     )
     ssmc_stub.add_client_error(
@@ -478,25 +461,24 @@ def test_control_remap(mocker):
         'standardsupported': 'True',
         'status': 'ACTIVE'
     }
-    AWS = AWSCachedClient(my_region)
+    AWS = AWSCachedClient(get_region())
     ssm_c = AWS.get_connection('ssm')
 
-    testing_account = boto3.client('sts').get_caller_identity()['Account']
     ssmc_stub = Stubber(ssm_c)
     ssmc_stub.add_response(
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "Type": "String",
                 "Value": "CIS",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname"
+            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname"
         }
     )
     ssmc_stub.add_response(
@@ -649,16 +631,16 @@ def test_alt_workflow_with_role(mocker):
         'get_parameter',
         {
             "Parameter": {
-                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname",
+                "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname",
                 "Type": "String",
                 "Value": "CIS",
                 "Version": 1,
                 "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
-                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/shortname",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.2.0/shortname",
                 "DataType": "text"
             }
         },{
-            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/shortname"
+            "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.2.0/shortname"
         }
     )
 

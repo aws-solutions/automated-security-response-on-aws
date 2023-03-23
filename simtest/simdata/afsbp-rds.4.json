@@ -1,0 +1,93 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.4/finding/e33c0850-705e-4664-9aad-a80b7d112dad",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.4",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2022-03-19T19:11:00.786Z",
+  "LastObservedAt": "2022-03-21T08:06:37.442Z",
+  "CreatedAt": "2022-03-19T19:11:00.786Z",
+  "UpdatedAt": "2022-03-21T08:06:26.077Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "RDS.4 RDS cluster snapshots and database snapshots should be encrypted at rest",
+  "Description": "This control checks whether Amazon RDS cluster snapshots and database snapshots are encrypted.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.4/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "RDS.4",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.4/remediation",
+    "RelatedAWSResources:0/name": "securityhub-rds-snapshot-encrypted-2790479f",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.4",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:rds:us-east-1:111111111111:snapshot:rds:database-1-2022-03-19-08-12",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.4/finding/e33c0850-705e-4664-9aad-a80b7d112dad"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRdsDbSnapshot",
+      "Id": "arn:aws:rds:us-east-1:111111111111:snapshot:rds:database-1-2022-03-19-08-12",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRdsDbSnapshot": {
+          "DbSnapshotIdentifier": "rds:database-1-2022-03-19-08-12",
+          "DbInstanceIdentifier": "database-1",
+          "SnapshotCreateTime": "2022-03-19T08:12:45.179Z",
+          "Engine": "mariadb",
+          "AllocatedStorage": 20,
+          "Status": "available",
+          "Port": 3306,
+          "AvailabilityZone": "us-east-1d",
+          "VpcId": "vpc-0b5142403461ff931",
+          "InstanceCreateTime": "2022-03-17T18:21:02.527Z",
+          "MasterUsername": "admin",
+          "EngineVersion": "10.6.7",
+          "LicenseModel": "general-public-license",
+          "SnapshotType": "automated",
+          "OptionGroupName": "default:mariadb-10-6",
+          "PercentProgress": 100,
+          "StorageType": "gp2",
+          "Encrypted": false,
+          "IamDatabaseAuthenticationEnabled": false,
+          "DbiResourceId": "db-U2ZDYPBQO3624IBNRFMEXAMPLE"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ]
+  }
+}

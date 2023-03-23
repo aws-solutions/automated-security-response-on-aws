@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`admin account param stack matches snapshot 1`] = `
+{
+  "Parameters": {
+    "SecHubAdminAccount": {
+      "AllowedPattern": "^\\d{12}$",
+      "Description": "Admin account number",
+      "Type": "String",
+    },
+  },
+}
+`;

@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
    ### Document name - AWSConfigRemediation-DisablePublicAccessToRDSInstance
@@ -13,6 +16,9 @@ description: |
    ## Output Parameters
    * DisablePubliclyAccessibleOnRDS.Response: The standard HTTP response from the ModifyDBInstance API.
 
+   ## Troubleshooting
+   * ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
+    - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API.
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:

@@ -1,0 +1,136 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.Redshift.1/finding/04a9d5bb-83af-4179-913e-2b92e66254d9",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.Redshift.1",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Effects/Data Exposure/PCI-DSS"
+  ],
+  "FirstObservedAt": "2022-04-11T17:26:49.079Z",
+  "LastObservedAt": "2022-04-11T17:27:04.676Z",
+  "CreatedAt": "2022-04-11T17:26:49.079Z",
+  "UpdatedAt": "2022-04-11T17:26:49.079Z",
+  "Severity": {
+    "Product": 90,
+    "Label": "CRITICAL",
+    "Normalized": 90,
+    "Original": "CRITICAL"
+  },
+  "Title": "PCI.Redshift.1 Amazon Redshift clusters should prohibit public access",
+  "Description": "This control checks whether Amazon Redshift clusters are publicly accessible. It evaluates the publiclyAccessible field in the cluster configuration item.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.Redshift.1/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.Redshift.1",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.Redshift.1/remediation",
+    "RelatedAWSResources:0/name": "securityhub-redshift-cluster-public-access-check-d04e0aee",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.Redshift.1",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/annotation": "This Amazon Redshift Cluster has the publiclyAccessible field set to True.",
+    "Resources:0/Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.Redshift.1/finding/04a9d5bb-83af-4179-913e-2b92e66254d9"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRedshiftCluster",
+      "Id": "arn:aws:redshift:us-east-1:111111111111:cluster:redshift-cluster-1",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRedshiftCluster": {
+          "AllowVersionUpgrade": true,
+          "AutomatedSnapshotRetentionPeriod": 1,
+          "AvailabilityZone": "us-east-1b",
+          "ClusterAvailabilityStatus": "Modifying",
+          "ClusterIdentifier": "redshift-cluster-1",
+          "ClusterNodes": [
+            {
+              "NodeRole": "LEADER",
+              "PrivateIpAddress": "10.0.0.162",
+              "PublicIpAddress": "201.170.128.244"
+            },
+            {
+              "NodeRole": "COMPUTE-0",
+              "PrivateIpAddress": "10.0.0.213",
+              "PublicIpAddress": "218.237.206.46"
+            },
+            {
+              "NodeRole": "COMPUTE-1",
+              "PrivateIpAddress": "10.0.0.242",
+              "PublicIpAddress": "119.139.129.224"
+            }
+          ],
+          "ClusterParameterGroups": [
+            {
+              "ParameterApplyStatus": "in-sync",
+              "ParameterGroupName": "default.redshift-1.0"
+            }
+          ],
+          "ClusterPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDaxRc615bCx0qUXUkjq82/s/GYS0FqGvzY/E7JHLb6enqWtOfeoihsLxx1cdnFDuGj372qfUK2z1Dt3+rXPwHy7CPwQrbYA8b1ai+bRcx7jtqpSGkxF5LmlKveklp5JjiecLUlu6ffMLlFNlMH2Y+1K8TpYc4aKOYgkYiObFaS+XrP0qqF/4QrNgO7RwFuGljTLIKS0xLGFjNsrSLii2b9QkjT7KOJkQnA25i+Iz/ax3ZRh/swPfbfgR2nq/zs7ENn4KRZiJIgUm+PYUDyqyhOuYD9CMdRx8cvwKiA6LpVBHQ0anxnWURWMVjK/E4g/br/U8qETJduy52P/wJgFcJH Amazon-Redshift\n",
+          "ClusterRevisionNumber": "37176",
+          "ClusterStatus": "creating",
+          "ClusterSubnetGroupName": "cluster-subnet-group-1",
+          "ClusterVersion": "1.0",
+          "DBName": "dev",
+          "ElasticResizeNumberOfNodeOptions": "[4]",
+          "Encrypted": false,
+          "EnhancedVpcRouting": false,
+          "MaintenanceTrackName": "current",
+          "ManualSnapshotRetentionPeriod": -1,
+          "MasterUsername": "awsuser",
+          "NextMaintenanceWindowStartTime": "2022-04-16T03:30:00.000Z",
+          "NodeType": "dc2.large",
+          "NumberOfNodes": 2,
+          "PendingModifiedValues": {
+            "MasterUserPassword": "****"
+          },
+          "PreferredMaintenanceWindow": "sat:03:30-sat:04:00",
+          "PubliclyAccessible": true,
+          "VpcId": "vpc-bb69141401d51beba",
+          "VpcSecurityGroups": [
+            {
+              "Status": "active",
+              "VpcSecurityGroupId": "sg-2744ec6956620ef1d6"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 1.2.1",
+      "PCI DSS 1.3.1",
+      "PCI DSS 1.3.2",
+      "PCI DSS 1.3.4",
+      "PCI DSS 1.3.6"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "CRITICAL",
+      "Original": "CRITICAL"
+    },
+    "Types": [
+      "Effects/Data Exposure/PCI-DSS"
+    ]
+  }
+}

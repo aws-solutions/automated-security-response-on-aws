@@ -1,24 +1,11 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """
 Check the value of the Lambda Environmental variable RUN_WORKFLOW. If set,
-send the remediation input to the member account runbook named in the 
+send the remediation input to the member account runbook named in the
 RUN_WORKFLOW variable.
 
-This Lambda can be further modified by the customer to gather additional 
+This Lambda can be further modified by the customer to gather additional
 information to determine when to inject RUN_WORKFLOW. Methods are defined
 and stubbed out to support this: _is_remediation_destructive(), etc.
 """
@@ -56,10 +43,10 @@ def _get_ssm_client(account, role, region=''):
 
     return sess.client('ssm', **kwargs)
 
-def _is_remediation_destructive(standard, version, control):
+def _is_remediation_destructive(_, __, ___):
     return False
 
-def _is_account_sensitive(accountid):
+def _is_account_sensitive(_):
     return False
 
 def _is_automatic_trigger(event_type):
@@ -74,13 +61,16 @@ def _is_custom_action_trigger(event_type):
     else:
         return False
 
+def get_running_account():
+    return boto3.client('sts').get_caller_identity()['Account']
+
 def _get_alternate_workflow(accountid):
     """
     Get the alt workflow based on environmental variables for this lambda
     and whether the alt runbook is active. Note that alt workflow must run
     in the same region as the Step Function.
     """
-    running_account = boto3.client('sts').get_caller_identity()['Account']
+    running_account = get_running_account()
 
     # Is an alternate workflow defined?
     WORKFLOW_RUNBOOK = os.getenv('WORKFLOW_RUNBOOK', '')
@@ -101,7 +91,7 @@ def _get_alternate_workflow(accountid):
         return (None, None, None)
 
     # Make sure it exists and is active
-    if _doc_is_active(WORKFLOW_RUNBOOK, WORKFLOW_RUNBOOK_ACCOUNT):  
+    if _doc_is_active(WORKFLOW_RUNBOOK, WORKFLOW_RUNBOOK_ACCOUNT):
         return(WORKFLOW_RUNBOOK, WORKFLOW_RUNBOOK_ACCOUNT, WORKFLOW_RUNBOOK_ROLE)
     else:
         return(None, None, None)
@@ -112,7 +102,7 @@ def _doc_is_active(doc, account):
         docinfo = ssm.describe_document(
             Name=doc
             )['Document']
-        
+
         doctype = docinfo.get('DocumentType', 'unknown')
         docstate = docinfo.get('Status', 'unknown')
 
@@ -134,7 +124,7 @@ def _doc_is_active(doc, account):
         LOGGER.error('An unhandled error occurred: ' + str(e))
         return False
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     answer.update({
         'workflowdoc': '',
@@ -181,7 +171,7 @@ def lambda_handler(event, context):
 
     # If so, update workflow_data
     # ---------------------------
-    # workflow_data can be modified to suit your needs. This data is passed to the 
+    # workflow_data can be modified to suit your needs. This data is passed to the
     # alt_workflow. Using the alt_workflow redirects the remediation to your workflow
     # only! The normal SHARR workflow will not be executed.
     #----------------------------------------------------------------------------------

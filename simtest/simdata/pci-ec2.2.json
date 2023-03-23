@@ -1,0 +1,82 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.EC2.2/finding/8841e75c-2828-4b65-bd3d-452de76c64f4",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.EC2.2",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-06-02T10:22:22.747Z",
+    "LastObservedAt": "2021-07-22T16:11:24.117Z",
+    "CreatedAt": "2021-06-02T10:22:22.747Z",
+    "UpdatedAt": "2021-07-22T16:11:20.386Z",
+    "Severity": {
+      "Product": 0,
+      "Label": "INFORMATIONAL",
+      "Normalized": 0,
+      "Original": "INFORMATIONAL"
+    },
+    "Title": "PCI.EC2.2 VPC default security group should prohibit inbound and outbound traffic",
+    "Description": "This AWS control checks that the default security group of a VPC does not allow inbound or outbound traffic.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.EC2.2/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.EC2.2",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.EC2.2/remediation",
+      "RelatedAWSResources:0/name": "securityhub-vpc-default-security-group-closed-089d8733",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.EC2.2",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-f519eb8a",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.EC2.2/finding/8841e75c-2828-4b65-bd3d-452de76c64f4"
+    },
+    "Resources": [
+      {
+        "Type": "AwsEc2SecurityGroup",
+        "Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-f519eb8a",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsEc2SecurityGroup": {
+            "GroupName": "default",
+            "GroupId": "sg-f519eb8a",
+            "OwnerId": "111111111111",
+            "VpcId": "vpc-e5b8f483"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "RelatedRequirements": [
+        "PCI DSS 1.2.1",
+        "PCI DSS 1.3.4",
+        "PCI DSS 2.1"
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "INFORMATIONAL",
+        "Original": "INFORMATIONAL"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+      ]
+    }
+  }

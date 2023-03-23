@@ -1,0 +1,82 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-CIS_1.2.0_1.20
+
+  ## What does this document do?
+  Creates a support role to allow AWS Support access.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output - Output of CREATEROLE API.
+
+  ## Documentation Links
+  * [CIS v1.2.0 1.20](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.20)
+
+
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for the 1.20 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: Account
+        Selector: $.Payload.account_id
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: ''
+        expected_control_id: ['1.20']
+      Runtime: python3.8
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=common/parse_input.py%%
+    isEnd: false
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: ASR-CreateIAMSupportRole
+      RuntimeParameters:
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateIAMSupportRole'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'AWS Support Role created for {{ global:ACCOUNT_ID }}.'
+        UpdatedBy: 'ASR-CIS_1.2.0_1.20'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

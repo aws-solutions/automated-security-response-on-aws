@@ -1,69 +1,39 @@
+# build
+/deployment/global-s3-assets/
+/deployment/open-source/
+/deployment/regional-s3-assets/
+/deployment/setenv.sh
+/deployment/temp/
 
-.DS_Store
-inputs.md/*
-source/example*
-**/__pycache__/*
-source/playbooks/**/_description.txt
-deployment/temp/*
-deployment/test/*
+# test
+/deployment/test/coverage-reports/
 
-**/build
-**/package
-**/global-s3-assets
-**/regional-s3-assets
-**/open-source
-**/.zip
-**/tmp
-**/out-tsc
-
-# dependencies
-**/node_modules
-
-# coverage
-**/coverage
-**/package
-**/.coverage
-
-# misc
-**/npm-debug.log
-**/testem.log
-**/.vscode/settings.json
-**/*.zip
-**/*local-runner*
-**/*create-stack.sh
-
-
-# System Files
-**/.DS_Store
-**/.vscode
-
-# CDK files
-*.js
-!jest.config.js
+# Typescript
+/source/dist/
 *.d.ts
-node_modules
+*.js
 
-# CDK asset staging directory
-.cdk.staging
-cdk.out
+# config
+!.eslintrc.js
 
-# Python modules
-*.dist-info
-source/solution_deploy/source/certifi
-source/solution_deploy/source/chardet
-source/solution_deploy/source/idna
-source/solution_deploy/source/requests
-source/solution_deploy/source/urllib3
+# Node
+node_modules/
 
-# Parcel build directories
-.cache
-.build
+# CDK
+cdk.out/
 
-*.idea
+# Jest
+coverage/
 
-# Build files
-source/playbooks/*/template
-deployment/setenv.sh
-source/solution_deploy/source/bin
-source/playbooks/*/source/lib/*
-deployment/temp
+# Python
+.venv/
+__pycache__/
+
+# pytest
+.coverage
+
+# IDE
+.vscode/
+
+# system
+.DS_Store

@@ -1,0 +1,26 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+      python: 3.10
+    commands:
+    - python3 -m pip install -U pip setuptools virtualenv
+    - npm install --location=global npm@latest
+  build:
+    commands:
+    - cd source
+    - npm ci
+    - cd ../deployment
+    - ./build-s3-dist.sh -b $DIST_OUTPUT_BUCKET -v $VERSION
+    - ./build-open-source-dist.sh $SOLUTION_NAME
+    - ./run-unit-tests.sh
+artifacts:
+  files:
+  - .gitignore
+  - deployment/**/*
+  - source/**/*
+  - CHANGELOG.md
+  - buildspec.yml
+  - NOTICE.txt
+  - sonar-project.properties

@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -107,8 +93,8 @@ def enable_access_logging(bucket_name, logging_bucket):
     except Exception as e:
         exit(f'Error setting access logging for bucket {bucket_name}: {str(e)}')
 
-def create_bucket_policy(config_bucket, aws_partition):  
-    s3 = connect_to_s3(boto_config)   
+def create_bucket_policy(config_bucket, aws_partition):
+    s3 = connect_to_s3(boto_config)
     try:
         bucket_policy = {
             "Version": "2012-10-17",
@@ -140,13 +126,13 @@ def create_bucket_policy(config_bucket, aws_partition):
                 "Effect": "Allow",
                 "Principal": {
                     "Service": [
-                        "config.amazonaws.com"    
+                        "config.amazonaws.com"
                     ]
                 },
                 "Action": "s3:PutObject",
                 "Resource": "arn:" + aws_partition + ":s3:::" + config_bucket + "/*",
-                "Condition": { 
-                    "StringEquals": { 
+                "Condition": {
+                    "StringEquals": {
                         "s3:x-amz-acl": "bucket-owner-full-control"
                     }
                 }
@@ -160,8 +146,8 @@ def create_bucket_policy(config_bucket, aws_partition):
     except Exception as e:
         exit(f'ERROR: PutBucketPolicy failed for {config_bucket}: {str(e)}')
 
-def create_encrypted_bucket(event, context):
-    
+def create_encrypted_bucket(event, _):
+
     kms_key_arn = event['kms_key_arn']
     aws_partition = event['partition']
     aws_account = event['account']

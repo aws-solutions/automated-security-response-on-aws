@@ -1,0 +1,75 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.8/finding/e0182181-9218-420f-bef2-ed09ed230c59",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/S3.8",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2021-07-14T17:06:07.284Z",
+    "LastObservedAt": "2022-02-21T09:49:14.792Z",
+    "CreatedAt": "2021-07-14T17:06:07.284Z",
+    "UpdatedAt": "2022-02-21T09:49:08.504Z",
+    "Severity": {
+      "Product": 70,
+      "Label": "HIGH",
+      "Normalized": 70,
+      "Original": "HIGH"
+    },
+    "Title": "S3.8 S3 Block Public Access setting should be enabled at the bucket-level",
+    "Description": "This control checks if Amazon S3 buckets have bucket level public access blocks applied. This control fails if any of the bucket level settings are set to \"false\" public: ignorePublicAcls, blockPublicPolicy, blockPublicAcls, restrictPublicBuckets.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/S3.8/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "S3.8",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/S3.8/remediation",
+      "RelatedAWSResources:0/name": "securityhub-s3-bucket-level-public-access-prohibited-727dd3b1",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/S3.8",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:s3:::example",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.8/finding/e0182181-9218-420f-bef2-ed09ed230c59"
+    },
+    "Resources": [
+      {
+        "Type": "AwsS3Bucket",
+        "Id": "arn:aws:s3:::example",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsS3Bucket": {
+            "OwnerId": "03d32dc0915b7f36d274d1a92ecb8620952a94f5f084f3e5a682812a2184aaaa",
+            "CreatedAt": "2015-06-16T20:12:38.000Z"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "HIGH",
+        "Original": "HIGH"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

@@ -11,8 +11,22 @@ THIRD PARTY COMPONENTS
 **********************
 This software includes third party software subject to the following copyrights:
 
+@aws-cdk/aws-servicecatalogappregistry-alpha under the Apache License 2.0
+@cdklabs/cdk-ssm-documents under the Apache License 2.0
+@types/jest under the MIT License
+@types/js-yaml under the MIT License
+@types/node under the MIT License
+@types/prettier under the MIT License
+@typescript-eslint/eslint-plugin under the MIT License
 aws-cdk under the Apache License 2.0
-cdk under the Apache License 2.0
+aws-cdk-lib under the Apache License 2.0
+cdk-nag under the Apache License 2.0
+constructs under the Apache License 2.0
+eslint under the MIT License
+eslint-config-prettier under the MIT License
+eslint-plugin-header under the MIT License
+eslint-plugin-import under the MIT License
+eslint-plugin-prettier under the MIT License
 jest under the MIT License
 js-yaml under the MIT License
 source-map-support under the MIT License
@@ -20,35 +34,21 @@ ts-jest under the MIT License
 ts-node under the MIT License
 typescript under the Apache License 2.0
 
-attrs under the MIT License
-bandit under the Apache License 2.0
 boto3 under the Apache License 2.0
 botocore under the Apache License 2.0
 certifi under the Mozilla Public License 2.0
-charset-normalizer under the MIT License
 coverage under the Apache License 2.0
-exceptiongroup under the MIT License
-gitdb under the BSD 3-Clause "New" or "Revised" License
-GitPython under the BSD 3-Clause "New" or "Revised" License
 idna under the BSD 3-Clause "New" or "Revised" License
-iniconfig under the MIT License
 jmespath under the MIT License
-packaging under the Apache License 2.0
-pbr under the Apache License 2.0
 pip under the MIT License
-pluggy under the MIT License
 pytest under the MIT License
 pytest-cov under the MIT License
 pytest-env under the MIT License
 pytest-mock under the MIT License
 python-dateutil under the Apache License 2.0 and the BSD 3-Clause "New" or "Revised" License
-PyYAML under the MIT License
 requests under the Apache License 2.0
 s3transfer under the Apache License 2.0
 setuptools under the MIT License
 six under the MIT License
-smmap under the BSD 3-Clause "New" or "Revised" License
-stevedore under the Apache License 2.0
-tomli under the MIT License
 urllib3 under the MIT License
 virtualenv under the MIT License

@@ -1,0 +1,8 @@
+[run]
+include = ./*
+omit = 
+    ./applogger.py
+    ./awsapi_cached_client.py
+    ./logger.py
+    ./metrics.py
+    ./utils.py

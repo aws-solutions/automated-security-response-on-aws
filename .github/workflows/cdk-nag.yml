@@ -1,0 +1,33 @@
+name: CDK Nag
+on:
+  push:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+jobs:
+  cdk-nag:
+    name: CDK Nag
+    if: ${{ (github.repository_owner != 'aws-solutions' && github.event_name == 'push') || (github.repository_owner == 'aws-solutions' && github.event_name == 'pull_request') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: source
+    strategy:
+      matrix:
+        node-version: [16]
+        working-directory:
+        - solution_deploy
+        - playbooks/AFSBP
+        - playbooks/CIS120
+        - playbooks/CIS140
+        - playbooks/NEWPLAYBOOK
+        - playbooks/PCI321
+        - playbooks/SC
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: npm
+        cache-dependency-path: source/package-lock.json
+    - run: npm ci
+    - run: cd ${{ matrix.working-directory }} && npx cdk synth

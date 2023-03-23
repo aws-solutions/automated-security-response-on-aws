@@ -1,0 +1,73 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Lambda.1/finding/bb04d4d9-375b-46c9-a35a-6dc9c29259eb",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/Lambda.1",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2020-05-29T12:57:03.061Z",
+  "LastObservedAt": "2021-02-17T14:56:18.713Z",
+  "CreatedAt": "2020-05-29T12:57:03.061Z",
+  "UpdatedAt": "2021-02-17T14:56:17.071Z",
+  "Severity": {
+    "Product": 0,
+    "Label": "INFORMATIONAL",
+    "Normalized": 0,
+    "Original": "INFORMATIONAL"
+  },
+  "Title": "Lambda.1 Lambda function policies should prohibit public access",
+  "Description": "This control checks whether the AWS Lambda function policy attached to the Lambda resource prohibits public access. If the Lambda function policy allows public access, the control fails.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/Lambda.1/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "Lambda.1",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/Lambda.1/remediation",
+    "RelatedAWSResources:0/name": "securityhub-lambda-function-public-access-prohibited-1feb796c",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/Lambda.1",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/Lambda.1/finding/bb04d4d9-375b-46c9-a35a-6dc9c29259eb"
+  },
+  "Resources": [
+    {
+      "Type": "AwsLambdaFunction",
+      "Id": "arn:aws:lambda:us-east-1:111111111111:function:TAEBSVolumeSnapDelete",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsLambdaFunction": {
+          "CodeSha256": "Jdz1hSaDmb7WTjJ8hfglddzQTKXqAhdnb2iWM+HnxG+VKjQA=",
+          "FunctionName": "TAEBSVolumeSnapDelete",
+          "Handler": "TAEBSVolDel.lambda_handler",
+          "LastModified": "2021-02-16T12:39:44.421Z",
+          "MemorySize": 128,
+          "RevisionId": "54436d9a-9f33-4105-a112-3d66c31d893c",
+          "Role": "arn:aws:iam::111111111111:role/TAEBSVolumeSnapDelRole",
+          "Runtime": "python3.7",
+          "Timeout": 120,
+          "TracingConfig": {
+            "Mode": "PassThrough"
+          },
+          "Version": "$LATEST"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE"
+}

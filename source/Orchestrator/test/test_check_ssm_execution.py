@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """
 Unit Test: check_ssm_execution.py
 Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
@@ -27,7 +13,8 @@ from check_ssm_execution import lambda_handler, AutomationExecution
 from awsapi_cached_client import AWSCachedClient
 from pytest_mock import mocker
 
-REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+def get_region():
+    return os.getenv('AWS_DEFAULT_REGION')
 
 test_event = {
     "EventType": "Security Hub Findings - Custom Action",
@@ -184,8 +171,8 @@ def test_failed_remediation(mocker):
     """
     Verifies correct operation when a child remediation fails
     """
-    AWS = AWSCachedClient(REGION)
-    account = AWS.get_connection('sts').get_caller_identity()['Account']
+    AWS = AWSCachedClient(get_region())
+    account = '111111111111'
     test_event['AutomationDocument']['AccountId'] = account
     ssm_c = AWS.get_connection('ssm')
 
@@ -220,7 +207,7 @@ def test_successful_remediation(mocker):
     Verifies correct operation for successful remediation
     """
     ssm_c = boto3.client('ssm')
-    account = boto3.client('sts').get_caller_identity()['Account']
+    account = '111111111111'
     test_event['AutomationDocument']['AccountId'] = account
     test_event['SSMExecution']['ExecId'] = '5f12697a-70a5-4a64-83e6-b7d429ec2b17'
 
@@ -257,7 +244,7 @@ def test_execid_parsing_nonsharr(mocker):
     Verifies correct operation for successful remediation
     """
     ssm_c = boto3.client('ssm')
-    account = boto3.client('sts').get_caller_identity()['Account']
+    account = '111111111111'
     test_event['AutomationDocument']['AccountId'] = account
     test_event['SSMExecution']['ExecId'] = '5f12697a-70a5-4a64-83e6-b7d429ec2b17'
 
@@ -323,7 +310,7 @@ def test_execid_parsing_sharr(mocker):
         "AutomationType": "Local"
     }
     ssm_c = boto3.client('ssm')
-    account = boto3.client('sts').get_caller_identity()['Account']
+    account = '111111111111'
     test_event['AutomationDocument']['AccountId'] = account
     test_event['SSMExecution']['ExecId'] = '795cf453-c41a-48df-aace-fd68fdace188'
 
@@ -362,4 +349,60 @@ def test_execid_parsing_sharr(mocker):
     ssmc_stub.deactivate()
     ssmc_stub.deactivate()
 
-      
+def test_missing_account_id(mocker):
+    """
+    Verifies that system exit occurs when an account ID is missing from event
+    """
+    ssm_c = boto3.client('ssm')
+    test_event['SSMExecution']['ExecId'] = '5f12697a-70a5-4a64-83e6-b7d429ec2b17'
+    test_event['SSMExecution']['Account'] = None
+
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        'describe_automation_executions',
+        ssm_mocked_good_response,
+        {'Filters': [{'Key': 'ExecutionId', 'Values': ['5f12697a-70a5-4a64-83e6-b7d429ec2b17']}]}
+    )
+    ssmc_stub.activate()
+
+    mocker.patch('check_ssm_execution._get_ssm_client', return_value=ssm_c)
+    mocker.patch('check_ssm_execution.Metrics.send_metrics', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.get_metrics_from_finding', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.__init__', return_value=None)
+
+    with pytest.raises(SystemExit) as response:
+        lambda_handler(test_event, {})
+
+    assert response.value.code == 'ERROR: missing remediation account information. SSMExecution missing region or account.'
+
+    ssmc_stub.deactivate()
+
+def test_missing_region(mocker):
+    """
+    Verifies that system exit occurs when region is missing
+    """
+    ssm_c = boto3.client('ssm')
+    test_event['SSMExecution']['ExecId'] = '5f12697a-70a5-4a64-83e6-b7d429ec2b17'
+    test_event['SSMExecution']['Region'] = None
+
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        'describe_automation_executions',
+        ssm_mocked_good_response,
+        {'Filters': [{'Key': 'ExecutionId', 'Values': ['5f12697a-70a5-4a64-83e6-b7d429ec2b17']}]}
+    )
+    ssmc_stub.activate()
+
+    mocker.patch('check_ssm_execution._get_ssm_client', return_value=ssm_c)
+    mocker.patch('check_ssm_execution.Metrics.send_metrics', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.get_metrics_from_finding', return_value=False)
+    mocker.patch('check_ssm_execution.Metrics.__init__', return_value=None)
+
+    with pytest.raises(SystemExit) as response:
+        lambda_handler(test_event, {})
+
+    assert response.value.code == 'ERROR: missing remediation account information. SSMExecution missing region or account.'
+
+    ssmc_stub.deactivate()

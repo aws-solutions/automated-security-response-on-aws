@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
   ### Document Name - ASR-AFSBP_1.0.0_IAM.3
 
@@ -30,12 +33,12 @@ parameters:
   MaxCredentialUsageAge:
     type: String
     description: (Required) Maximum number of days a key can be unrotated. The default value is 90 days.
-    allowedPattern: ^[1-9][0-9]{0,3}|10000$
+    allowedPattern: ^(?:[1-9]\d{0,3}|10000)$
     default: "90"
   RemediationRoleName:
     type: String
     default: "SO0111-RevokeUnrotatedKeys"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'

@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import botocore.session
 from botocore.stub import Stubber
@@ -24,6 +11,10 @@ import EnableVPCFlowLogs as validate
 
 my_session = boto3.session.Session()
 my_region = my_session.region_name
+
+@pytest.fixture(autouse=True)
+def patch_wait_for_seconds(mocker):
+    mocker.patch('EnableVPCFlowLogs.wait_for_seconds')
 
 #=====================================================================================
 # EnableVPCFlowLogging_enable_flow_logs SUCCESS
@@ -141,7 +132,7 @@ def test_EnableVPCFlowLogs_success(mocker):
             "status": "Success"
         }
     }
-    
+
     logs_stubber.deactivate()
     ec2_stubber.deactivate()
 
@@ -257,7 +248,7 @@ def test_EnableVPCFlowLogs_loggroup_exists(mocker):
             "status": "Success"
         }
     }
-    
+
     logs_stubber.deactivate()
     ec2_stubber.deactivate()
 
@@ -300,7 +291,7 @@ def test_EnableVPCFlowLogs_loggroup_fails(mocker):
             'kmsKeyId': 'arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab'
         }
     )
-    
+
     for x in range(retries):
         logs_stubber.add_response(
             'describe_log_groups',
@@ -316,7 +307,7 @@ def test_EnableVPCFlowLogs_loggroup_fails(mocker):
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         validate.enable_flow_logs(event, {})
     assert pytest_wrapped_e.value.code == 'Timeout waiting for log group VPCFlowLogs/vpc-123412341234abcde to become active'
-    
+
     logs_stubber.deactivate()
 
 #=====================================================================================
@@ -420,6 +411,6 @@ def test_EnableVPCFlowLogs_flowlogs_failed(mocker):
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         validate.enable_flow_logs(event, {})
     assert pytest_wrapped_e.value.code == 'Timeout waiting for flowlogs to log group VPCFlowLogs/vpc-123412341234abcde to become active'
-    
+
     logs_stubber.deactivate()
     ec2_stubber.deactivate()

@@ -22,6 +22,9 @@ exports[`test App Orchestrator Construct 1`] = `
       "ap-south-1": {
         "states": "states.ap-south-1.amazonaws.com",
       },
+      "ap-south-2": {
+        "states": "states.ap-south-2.amazonaws.com",
+      },
       "ap-southeast-1": {
         "states": "states.ap-southeast-1.amazonaws.com",
       },
@@ -43,6 +46,9 @@ exports[`test App Orchestrator Construct 1`] = `
       "eu-central-1": {
         "states": "states.eu-central-1.amazonaws.com",
       },
+      "eu-central-2": {
+        "states": "states.eu-central-2.amazonaws.com",
+      },
       "eu-north-1": {
         "states": "states.eu-north-1.amazonaws.com",
       },
@@ -60,6 +66,9 @@ exports[`test App Orchestrator Construct 1`] = `
       },
       "eu-west-3": {
         "states": "states.eu-west-3.amazonaws.com",
+      },
+      "me-central-1": {
+        "states": "states.me-central-1.amazonaws.com",
       },
       "me-south-1": {
         "states": "states.me-south-1.amazonaws.com",
@@ -108,7 +117,8 @@ exports[`test App Orchestrator Construct 1`] = `
     },
   },
   "Resources": {
-    "OrchestratorNestedLogStack5F778DA0": {
+    "OrchestratorNestedLogStackNestedStackNestedLogStackNestedStackResource91223B3E": {
+      "DeletionPolicy": "Delete",
       "Properties": {
         "Parameters": {
           "KmsKeyArn": {
@@ -147,6 +157,7 @@ exports[`test App Orchestrator Construct 1`] = `
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
     },
     "OrchestratorRole9CF251DB": {
       "DeletionPolicy": "Retain",
@@ -210,28 +221,26 @@ exports[`test App Orchestrator Construct 1`] = `
                 {
                   "Action": "lambda:InvokeFunction",
                   "Effect": "Allow",
-                  "Resource": [
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":lambda:",
-                          {
-                            "Ref": "AWS::Region",
-                          },
-                          ":",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":function:undefined",
-                        ],
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":lambda:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":function:undefined",
                       ],
-                    },
-                  ],
+                    ],
+                  },
                 },
                 {
                   "Action": [
@@ -283,8 +292,9 @@ exports[`test App Orchestrator Construct 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "OrchestratorStateMachine1E795392": {
+      "DeletionPolicy": "Delete",
       "DependsOn": [
-        "OrchestratorNestedLogStack5F778DA0",
+        "OrchestratorNestedLogStackNestedStackNestedLogStackNestedStackResource91223B3E",
         "OrchestratorRole9CF251DB",
       ],
       "Metadata": {
@@ -373,6 +383,7 @@ exports[`test App Orchestrator Construct 1`] = `
         "StateMachineName": "bbb-SHARR-Orchestrator",
       },
       "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
     },
     "SHARRKeyC551FE02": {
       "Properties": {
@@ -435,45 +446,6 @@ exports[`test App Orchestrator Construct 1`] = `
             },
             {
               "Action": "kms:*",
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::",
-                      {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":root",
-                    ],
-                  ],
-                },
-              },
-              "Resource": "*",
-            },
-            {
-              "Action": [
-                "kms:Create*",
-                "kms:Describe*",
-                "kms:Enable*",
-                "kms:List*",
-                "kms:Put*",
-                "kms:Update*",
-                "kms:Revoke*",
-                "kms:Disable*",
-                "kms:Get*",
-                "kms:Delete*",
-                "kms:ScheduleKeyDeletion",
-                "kms:CancelKeyDeletion",
-                "kms:GenerateDataKey",
-                "kms:TagResource",
-                "kms:UntagResource",
-              ],
               "Effect": "Allow",
               "Principal": {
                 "AWS": {

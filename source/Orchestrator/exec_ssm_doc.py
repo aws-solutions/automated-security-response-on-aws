@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import os
 import re
@@ -25,8 +11,8 @@ from applogger import LogHandler
 from sechub_findings import Finding, SHARRNotification
 import utils
 
-AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')    
-AWS_REGION = os.getenv('AWS_REGION', 'aws')   
+AWS_PARTITION = os.getenv('AWS_PARTITION', 'aws')
+AWS_REGION = os.getenv('AWS_REGION', 'aws')
 SOLUTION_ID = os.getenv('SOLUTION_ID', 'SO0111')
 SOLUTION_ID = re.sub(r'^DEV-', '', SOLUTION_ID)
 
@@ -59,7 +45,7 @@ def _get_iam_client(accountid, role):
 
 def lambda_role_exists(account, rolename):
     iam = _get_iam_client(
-        account, 
+        account,
         SOLUTION_ID + '-SHARR-Orchestrator-Member'
     )
     try:
@@ -76,7 +62,7 @@ def lambda_role_exists(account, rolename):
     except Exception as e:
         exit('An unhandled error occurred: ' + str(e))
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     # Expected:
     # {
     #   Finding: {
@@ -103,14 +89,11 @@ def lambda_handler(event, context):
         })
         LOGGER.error(answer.message)
         return answer.json()
-    
-    finding = Finding(event['Finding'])
 
     automation_doc = event['AutomationDocument']
     alt_workflow_doc = event.get('Workflow',{}).get('WorkflowDocument', None)
     alt_workflow_account = event.get('Workflow',{}).get('WorkflowAccount', None)
     alt_workflow_role = event.get('Workflow',{}).get('WorkflowRole', None)
-    alt_workflow_config = event.get('Workflow',{}).get('WorkflowConfig', None)
 
     remote_workflow_doc = alt_workflow_doc if alt_workflow_doc else event['AutomationDocument']['AutomationDocId']
 
@@ -144,7 +127,7 @@ def lambda_handler(event, context):
 
     remediation_role_arn = f'arn:{AWS_PARTITION}:iam::{execution_account}:role/{remediation_role}'
     print(f'ARN: {remediation_role_arn}')
-    
+
     ssm = _get_ssm_client(execution_account, remediation_role, execution_region)
 
     ssm_parameters = {
@@ -158,7 +141,7 @@ def lambda_handler(event, context):
     if remote_workflow_doc != automation_doc['AutomationDocId']:
         ssm_parameters["RemediationDoc"] = [automation_doc['AutomationDocId']]
         ssm_parameters["Workflow"] = [json.dumps(event.get('Workflow', {}))]
-  
+
     exec_id = ssm.start_automation_execution(
         # Launch SSM Doc via Automation
         DocumentName=remote_workflow_doc,
@@ -174,5 +157,5 @@ def lambda_handler(event, context):
     })
 
     LOGGER.info(answer.message)
-        
+
     return answer.json()

@@ -1,0 +1,88 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.EC2.6/finding/bf8dce5e-0ef6-4085-b0f6-1e69682bc9b1",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.EC2.6",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-06-01T22:22:21.588Z",
+    "LastObservedAt": "2021-07-22T10:22:23.684Z",
+    "CreatedAt": "2021-06-01T22:22:21.588Z",
+    "UpdatedAt": "2021-07-22T10:22:22.290Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "PCI.EC2.6 VPC flow logging should be enabled in all VPCs",
+    "Description": "This control checks whether Amazon Virtual Private Cloud flow logs are found and enabled for Amazon VPCs. The traffic type is set to 'Reject'.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.EC2.6/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.EC2.6",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.EC2.6/remediation",
+      "RelatedAWSResources:0/name": "securityhub-vpc-flow-logs-enabled-c269db4b",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.EC2.6",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:ec2:us-east-1:111111111111:vpc/vpc-2554ef5d",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.EC2.6/finding/bf8dce5e-0ef6-4085-b0f6-1e69682bc9b1"
+    },
+    "Resources": [
+      {
+        "Type": "AwsEc2Vpc",
+        "Id": "arn:aws:ec2:us-east-1:111111111111:vpc/vpc-2554ef5d",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsEc2Vpc": {
+            "CidrBlockAssociationSet": [
+              {
+                "AssociationId": "vpc-cidr-assoc-dc6dd2b6",
+                "CidrBlock": "10.250.0.0/16",
+                "CidrBlockState": "associated"
+              }
+            ],
+            "DhcpOptionsId": "dopt-5829c23d",
+            "State": "available"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "RelatedRequirements": [
+        "PCI DSS 10.3.3",
+        "PCI DSS 10.3.4",
+        "PCI DSS 10.3.5",
+        "PCI DSS 10.3.6"
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+      ]
+    }
+  }
