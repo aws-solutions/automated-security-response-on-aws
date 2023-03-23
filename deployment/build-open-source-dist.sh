@@ -113,7 +113,6 @@ do_cmd cp ${deploy_root}/../README.md $dist_dir
 do_cmd cp ${deploy_root}/../CODE_OF_CONDUCT.md $dist_dir
 do_cmd cp ${deploy_root}/../CONTRIBUTING.md $dist_dir
 do_cmd cp ${deploy_root}/../CHANGELOG.md $dist_dir
-do_cmd cp ${deploy_root}/../SHARR_v1.2.jpg $dist_dir
 do_cmd cp ${deploy_root}/../.gitignore $dist_dir
 do_cmd cp -r ${deploy_root}/../.github $dist_dir
 
