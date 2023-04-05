@@ -16,7 +16,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new MakeRDSSnapshotPrivateDocument(scope, id, { ...props, controlId: 'RDS.1' });
 }
 
-class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
+export class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

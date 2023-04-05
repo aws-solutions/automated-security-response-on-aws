@@ -18,7 +18,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EncryptRDSSnapshotDocument(scope, id, { ...props, controlId: 'RDS.4' });
 }
 
-class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
+export class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs: Input[] = [
       Input.ofTypeString('KMSKeyId', {

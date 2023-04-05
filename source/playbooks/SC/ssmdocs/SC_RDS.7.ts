@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableRDSClusterDeletionProtectionDocument(scope, id, { ...props, controlId: 'RDS.7' });
 }
 
-class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDocument {
+export class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

@@ -17,7 +17,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableEnhancedMonitoringOnRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.6' });
 }
 
-class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocument {
+export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
