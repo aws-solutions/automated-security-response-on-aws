@@ -1,4 +1,4 @@
-# Automated Security Response on AWS
+d # Automated Security Response on AWS
 
 [🚀 Solution Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/) \| [🚧
 Feature
@@ -19,6 +19,7 @@ standards:
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0
 - Payment Card Industry (PCI) Data Security Standard (DSS) v3.2.1
+- National Institute of Standards and Technology (NIST) Special Publication 800-53 Revision 5
 
 A Playbook called Security Control is included that allows operation with AWS Security Hub's Consolidated Control
 Findings feature.
@@ -156,11 +157,9 @@ access. Use KMS encryption. And verify bucket ownership before uploading.
 
 #### Build the solution
 
-First ensure that you've run `npm install` in the _source_ folder.
+1. Run `npm install` in the _source_ folder.
 
-Next from the _deployment_ folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex.
-mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version
-downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
+2. Next from the _deployment_ folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex. mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
 
 ```bash
 chmod +x build-s3-dist.sh
@@ -188,8 +187,7 @@ Confirm that all unit tests pass.
 By default, the templates created by build-s3-dist.sh expect the software to be stored in
 **aws-security-hub-automated-response-and-remediation/v\<version\>**. If in doubt, view the template.
 
-Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the
-regional bucket.
+Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the regional bucket.
 
 ## Deploy
 

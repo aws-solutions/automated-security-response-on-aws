@@ -1,7 +1,0 @@
-{
-  "app": "npx ts-node bin/newplaybook.ts",
-  "versionReporting": false,
-  "context": {
-    "aws-cdk:enableDiffNoFail": "true"
-  }
-}
