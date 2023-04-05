@@ -1,4 +1,4 @@
-d # Automated Security Response on AWS
+# Automated Security Response on AWS
 
 [🚀 Solution Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/) \| [🚧
 Feature
