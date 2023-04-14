@@ -19,8 +19,8 @@ artifacts:
   files:
   - '**/*'
   exclude-paths:
-  - '**/.pytest_cache/'
-  - '**/__pycache__/'
-  - source/node_modules/
-  - deployment/.venv/
-  - deployment/temp/
+  - '**/.pytest_cache/**/*'
+  - '**/__pycache__/**/*'
+  - source/node_modules/**/*
+  - deployment/.venv/**/*
+  - deployment/temp/**/*
