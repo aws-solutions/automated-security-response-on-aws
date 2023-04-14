@@ -17,10 +17,10 @@ phases:
     - ./run-unit-tests.sh
 artifacts:
   files:
-  - .gitignore
-  - deployment/**/*
-  - source/**/*
-  - CHANGELOG.md
-  - buildspec.yml
-  - NOTICE.txt
-  - sonar-project.properties
+  - '**/*'
+  exclude-paths:
+  - '**/.pytest_cache/**/*'
+  - '**/__pycache__/**/*'
+  - source/node_modules/**/*
+  - deployment/.venv/**/*
+  - deployment/temp/**/*
