@@ -11,7 +11,7 @@ import { IControl } from '../../../lib/sharrplaybook-construct';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
 
-export interface SecurityControlsPlaybookProps extends StackProps {
+export interface NIST80053PlaybookProps extends StackProps {
   solutionId: string;
   solutionVersion: string;
   solutionDistBucket: string;
@@ -22,8 +22,8 @@ export interface SecurityControlsPlaybookProps extends StackProps {
   securityStandardVersion: string;
 }
 
-export class SecurityControlsPlaybookPrimaryStack extends Stack {
-  constructor(scope: Construct, id: string, props: SecurityControlsPlaybookProps) {
+export class NIST80053PlaybookPrimaryStack extends Stack {
+  constructor(scope: Construct, id: string, props: NIST80053PlaybookProps) {
     super(scope, id, props);
 
     const stack = Stack.of(this);
@@ -79,7 +79,7 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
   }
 }
 
-export interface SecurityControlsPlaybookMemberStackProps extends StackProps {
+export interface NIST80053PlaybookMemberStackProps extends StackProps {
   solutionId: string;
   solutionVersion: string;
   solutionDistBucket: string;
@@ -91,8 +91,8 @@ export interface SecurityControlsPlaybookMemberStackProps extends StackProps {
   remediations: IControl[];
 }
 
-export class SecurityControlsPlaybookMemberStack extends Stack {
-  constructor(scope: App, id: string, props: SecurityControlsPlaybookMemberStackProps) {
+export class NIST80053PlaybookMemberStack extends Stack {
+  constructor(scope: App, id: string, props: NIST80053PlaybookMemberStackProps) {
     super(scope, id, props);
 
     // Not used, but required by top-level member stack

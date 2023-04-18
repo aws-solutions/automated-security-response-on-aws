@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import {
-  SecurityControlsPlaybookPrimaryStack,
-  SecurityControlsPlaybookMemberStack,
-} from '../lib/security_controls_playbook-construct';
+  NIST80053PlaybookPrimaryStack,
+  NIST80053PlaybookMemberStack,
+} from '../lib/NIST80053_playbook-construct';
 import { App, Aspects, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import 'source-map-support/register';
@@ -29,6 +29,7 @@ Aspects.of(app).add(new AwsSolutionsChecks());
 // Security Standard and Control Id. See cis-member-stack
 const remediations: IControl[] = [
   { control: 'AutoScaling.1' },
+  { control: 'CloudFormation.1' },
   { control: 'CloudTrail.1' },
   { control: 'CloudTrail.2' },
   { control: 'CloudTrail.4' },
@@ -40,6 +41,7 @@ const remediations: IControl[] = [
   { control: 'EC2.6' },
   { control: 'EC2.7' },
   { control: 'EC2.13' },
+  { control: 'EC2.15' },
   { control: 'IAM.3' },
   { control: 'IAM.7' },
   { control: 'IAM.8' },
@@ -70,7 +72,7 @@ const remediations: IControl[] = [
   { control: 'SQS.1'}
 ];
 
-const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {
+const adminStack = new NIST80053PlaybookPrimaryStack(app, 'NIST80053Stack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
@@ -84,7 +86,7 @@ const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {
   securityStandardVersion: standardVersion,
 });
 
-const memberStack = new SecurityControlsPlaybookMemberStack(app, 'SCMemberStack', {
+const memberStack = new NIST80053PlaybookMemberStack(app, 'NIST80053MemberStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}M) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,

@@ -22,6 +22,7 @@ jobs:
         - playbooks/NEWPLAYBOOK
         - playbooks/PCI321
         - playbooks/SC
+        - playbooks/NIST80053
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-node@v3

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
-import { ControlRunbookDocument } from '../ssmdocs/control_runbook';
+import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { CfnCondition, CfnParameter, Fn } from 'aws-cdk-lib';
 
 import * as autoscaling_1 from '../ssmdocs/NIST80053_AutoScaling.1';
@@ -11,9 +11,6 @@ import * as cloudtrail_1 from '../ssmdocs/NIST80053_CloudTrail.1';
 import * as cloudtrail_2 from '../ssmdocs/NIST80053_CloudTrail.2';
 import * as cloudtrail_4 from '../ssmdocs/NIST80053_CloudTrail.4';
 import * as cloudtrail_5 from '../ssmdocs/NIST80053_CloudTrail.5';
-import * as cloudtrail_6 from '../ssmdocs/NIST80053_CloudTrail.6';
-import * as cloudtrail_7 from '../ssmdocs/NIST80053_CloudTrail.7';
-import * as cloudwatch_1 from '../ssmdocs/NIST80053_CloudWatch.1';
 import * as codebuild_2 from '../ssmdocs/NIST80053_CodeBuild.2';
 import * as config_1 from '../ssmdocs/NIST80053_Config.1';
 import * as ec2_1 from '../ssmdocs/NIST80053_EC2.1';
@@ -25,8 +22,6 @@ import * as ec2_15 from '../ssmdocs/NIST80053_EC2.15';
 import * as iam_3 from '../ssmdocs/NIST80053_IAM.3';
 import * as iam_7 from '../ssmdocs/NIST80053_IAM.7';
 import * as iam_8 from '../ssmdocs/NIST80053_IAM.8';
-import * as iam_18 from '../ssmdocs/NIST80053_IAM.18';
-import * as iam_22 from '../ssmdocs/NIST80053_IAM.22';
 import * as kms_4 from '../ssmdocs/NIST80053_KMS.4';
 import * as lambda_1 from '../ssmdocs/NIST80053_Lambda.1';
 import * as rds_1 from '../ssmdocs/NIST80053_RDS.1';
@@ -78,9 +73,6 @@ export class ControlRunbooks extends Construct {
     this.add(cloudtrail_2.createControlRunbook(this, 'CloudTrail.2', props));
     this.add(cloudtrail_4.createControlRunbook(this, 'CloudTrail.4', props));
     this.add(cloudtrail_5.createControlRunbook(this, 'CloudTrail.5', props));
-    this.add(cloudtrail_6.createControlRunbook(this, 'CloudTrail.6', props));
-    this.add(cloudtrail_7.createControlRunbook(this, 'CloudTrail.7', props));
-    this.add(cloudwatch_1.createControlRunbook(this, 'CloudWatch.1', props));
     this.add(codebuild_2.createControlRunbook(this, 'CodeBuild.2', props));
     this.add(config_1.createControlRunbook(this, 'Config.1', props));
     this.add(ec2_1.createControlRunbook(this, 'EC2.1', props));
@@ -92,8 +84,6 @@ export class ControlRunbooks extends Construct {
     this.add(iam_3.createControlRunbook(this, 'IAM.3', props));
     this.add(iam_7.createControlRunbook(this, 'IAM.7', props));
     this.add(iam_8.createControlRunbook(this, 'IAM.8', props));
-    this.add(iam_18.createControlRunbook(this, 'IAM.18', props));
-    this.add(iam_22.createControlRunbook(this, 'IAM.22', props));
     this.add(kms_4.createControlRunbook(this, 'KMS.4', props));
     this.add(lambda_1.createControlRunbook(this, 'Lambda.1', props));
     this.add(rds_1.createControlRunbook(this, 'RDS.1', props));

@@ -18,3 +18,5 @@ cloudformation_templates:
   - template: playbooks/PCI321Stack.template
   - template: playbooks/SCMemberStack.template
   - template: playbooks/SCStack.template
+  - template: playbooks/NIST80053Stack.template
+  - template: playbooks/NIST80053MemberStack.template
