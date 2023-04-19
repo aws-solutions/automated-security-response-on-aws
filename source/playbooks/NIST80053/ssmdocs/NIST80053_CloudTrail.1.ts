@@ -6,5 +6,8 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { CreateCloudTrailMultiRegionTrailDocument } from '../../SC/ssmdocs/SC_CloudTrail.1';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new CreateCloudTrailMultiRegionTrailDocument(stage, id, { ...props, controlId: 'CloudTrail.1', otherControlIds: ['CloudTrail.3'] });
+  return new CreateCloudTrailMultiRegionTrailDocument(stage, id, { ...props,
+    controlId: 'CloudTrail.1',
+    otherControlIds: ['CloudTrail.3'],
+    });
 }

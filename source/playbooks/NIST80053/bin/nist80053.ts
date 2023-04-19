@@ -2,8 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import {
-  NIST80053PlaybookPrimaryStack,
-  NIST80053PlaybookMemberStack,
+  NIST80053PlaybookPrimaryStack, NIST80053PlaybookMemberStack,
 } from '../lib/NIST80053_playbook-construct';
 import { App, Aspects, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
@@ -69,7 +68,7 @@ const remediations: IControl[] = [
   { control: 'S3.8', executes: 'S3.2' },
   { control: 'SNS.1' },
   { control: 'SNS.2'},
-  { control: 'SQS.1'}
+  { control: 'SQS.1'},
 ];
 
 const adminStack = new NIST80053PlaybookPrimaryStack(app, 'NIST80053Stack', {
