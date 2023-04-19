@@ -84,42 +84,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
       ],
     },
   },
-  "Outputs": {
-    "AppRegistryApplicationManagerUrl775D5C3D": {
-      "Description": "Application manager url for the application created.",
-      "Value": {
-        "Fn::Join": [
-          "",
-          [
-            "https://eu-west-1.console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
-            {
-              "Fn::Join": [
-                "-",
-                [
-                  {
-                    "Fn::FindInMap": [
-                      "Solution",
-                      "Data",
-                      "AppRegistryApplicationName",
-                    ],
-                  },
-                  {
-                    "Ref": "AWS::StackName",
-                  },
-                  {
-                    "Ref": "AWS::Region",
-                  },
-                  {
-                    "Ref": "AWS::AccountId",
-                  },
-                ],
-              ],
-            },
-          ],
-        ],
-      },
-    },
-  },
   "Parameters": {
     "LoadAFSBPAdminStack": {
       "AllowedValues": [
