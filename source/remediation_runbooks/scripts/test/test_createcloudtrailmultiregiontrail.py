@@ -261,6 +261,7 @@ def test_create_logging_bucket(mocker):
     kwargs = {
         "Bucket": "so0111-access-logs-" + get_region() + "-111111111111",
         "ACL": "private",
+        "ObjectOwnership": "ObjectWriter",
     }
     if get_region() != "us-east-1":
         kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
