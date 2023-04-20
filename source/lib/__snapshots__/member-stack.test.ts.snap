@@ -101,46 +101,6 @@ exports[`member stack snapshot matches 1`] = `
       },
     },
   },
-  "Outputs": {
-    "AppRegistryApplicationManagerUrl775D5C3D": {
-      "Description": "Application manager url for the application created.",
-      "Value": {
-        "Fn::Join": [
-          "",
-          [
-            "https://",
-            {
-              "Ref": "AWS::Region",
-            },
-            ".console.aws.amazon.com/systems-manager/appmanager/application/AWS_AppRegistry_Application-",
-            {
-              "Fn::Join": [
-                "-",
-                [
-                  {
-                    "Fn::FindInMap": [
-                      "Solution",
-                      "Data",
-                      "AppRegistryApplicationName",
-                    ],
-                  },
-                  {
-                    "Ref": "AWS::StackName",
-                  },
-                  {
-                    "Ref": "AWS::Region",
-                  },
-                  {
-                    "Ref": "AWS::AccountId",
-                  },
-                ],
-              ],
-            },
-          ],
-        ],
-      },
-    },
-  },
   "Parameters": {
     "CreateS3BucketForRedshiftAuditLogging": {
       "AllowedValues": [
