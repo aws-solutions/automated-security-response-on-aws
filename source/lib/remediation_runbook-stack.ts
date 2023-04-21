@@ -108,7 +108,8 @@ export class RemediationRunbookStack extends cdk.Stack {
         's3:PutBucketPublicAccessBlock',
         's3:PutBucketLogging',
         's3:PutBucketAcl',
-        's3:PutBucketPolicy'
+        's3:PutBucketPolicy',
+        's3:PutBucketOwnershipControls'
       );
       s3Perms.effect = Effect.ALLOW;
       s3Perms.addResources(`arn:${this.partition}:s3:::so0111-*`);
@@ -638,7 +639,12 @@ export class RemediationRunbookStack extends cdk.Stack {
       const remediationName = 'CreateAccessLoggingBucket';
       const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
       const s3Perms = new PolicyStatement();
-      s3Perms.addActions('s3:CreateBucket', 's3:PutEncryptionConfiguration', 's3:PutBucketAcl');
+      s3Perms.addActions(
+        's3:CreateBucket',
+        's3:PutEncryptionConfiguration',
+        's3:PutBucketAcl',
+        's3:PutBucketOwnershipControls'
+      );
       s3Perms.effect = Effect.ALLOW;
       s3Perms.addResources('*');
 

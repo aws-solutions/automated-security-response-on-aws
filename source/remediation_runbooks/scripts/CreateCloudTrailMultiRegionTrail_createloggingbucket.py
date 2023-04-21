@@ -3,21 +3,26 @@
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+from typing import TYPE_CHECKING, Dict
 
-ERROR_CREATING_BUCKET = "Error creating bucket "
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+    from aws_lambda_powertools.utilities.typing import LambdaContext
+else:
+    S3Client = object
+    LambdaContext = object
 
 
-def connect_to_s3(boto_config):
-    return boto3.client("s3", config=boto_config)
+def connect_to_s3() -> S3Client:
+    return boto3.client("s3", config=Config(retries={"mode": "standard"}))
 
 
-def create_logging_bucket(event, _):
-    boto_config = Config(retries={"mode": "standard"})
-    s3 = connect_to_s3(boto_config)
+def create_logging_bucket(event: Dict, _: LambdaContext) -> Dict:
+    s3 = connect_to_s3()
 
-    kms_key_arn = event["kms_key_arn"]
-    aws_account = event["account"]
-    aws_region = event["region"]
+    kms_key_arn: str = event["kms_key_arn"]
+    aws_account: str = event["account"]
+    aws_region: str = event["region"]
     bucket_name = "so0111-access-logs-" + aws_region + "-" + aws_account
 
     if create_bucket(s3, bucket_name, aws_region) == "bucket_exists":
@@ -29,14 +34,18 @@ def create_logging_bucket(event, _):
     return {"logging_bucket": bucket_name}
 
 
-def create_bucket(s3, bucket_name, aws_region):
+def create_bucket(s3: S3Client, bucket_name: str, aws_region: str) -> str:
     try:
-        kwargs = {"Bucket": bucket_name, "ACL": "private"}
+        kwargs = {
+            "Bucket": bucket_name,
+            "ACL": "private",
+            "ObjectOwnership": "ObjectWriter",
+        }
         if aws_region != "us-east-1":
             kwargs["CreateBucketConfiguration"] = {"LocationConstraint": aws_region}
 
         s3.create_bucket(**kwargs)
-
+        return "success"
     except ClientError as ex:
         exception_type = ex.response["Error"]["Code"]
         # bucket already exists - return
@@ -45,13 +54,13 @@ def create_bucket(s3, bucket_name, aws_region):
             return "bucket_exists"
         else:
             print(ex)
-            exit(ERROR_CREATING_BUCKET + bucket_name)
+            exit("Error creating bucket " + bucket_name)
     except Exception as e:
         print(e)
-        exit(ERROR_CREATING_BUCKET + bucket_name)
+        exit("Error creating bucket " + bucket_name)
 
 
-def encrypt_bucket(s3, bucket_name, kms_key_arn):
+def encrypt_bucket(s3: S3Client, bucket_name: str, kms_key_arn: str) -> None:
     try:
         s3.put_bucket_encryption(
             Bucket=bucket_name,
@@ -70,7 +79,7 @@ def encrypt_bucket(s3, bucket_name, kms_key_arn):
         exit("Error encrypting bucket " + bucket_name + ": " + str(e))
 
 
-def put_access_block(s3, bucket_name):
+def put_access_block(s3: S3Client, bucket_name: str) -> None:
     try:
         s3.put_public_access_block(
             Bucket=bucket_name,
@@ -90,7 +99,7 @@ def put_access_block(s3, bucket_name):
         )
 
 
-def put_bucket_acl(s3, bucket_name):
+def put_bucket_acl(s3: S3Client, bucket_name: str) -> None:
     try:
         s3.put_bucket_acl(
             Bucket=bucket_name,
