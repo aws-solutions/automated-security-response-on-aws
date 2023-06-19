@@ -1,0 +1,82 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1/PCI.KMS.1/finding/ecd08c9e-8bab-4423-af0f-c640653fb559",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.KMS.1",
+    "AwsAccountId": "111122223333",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-06-08T21:38:56.486Z",
+    "LastObservedAt": "2021-10-25T09:48:46.277Z",
+    "CreatedAt": "2021-06-08T21:38:56.486Z",
+    "UpdatedAt": "2021-10-25T09:48:41.606Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "PCI.KMS.1 Customer master key (CMK) rotation should be enabled",
+    "Description": "This AWS control checks that key rotation is enabled for each customer master key (CMK). It does not check CMKs that have imported key material.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.KMS.1/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.KMS.1",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.KMS.1/remediation",
+      "RelatedAWSResources:0/name": "securityhub-cmk-backing-key-rotation-enabled-4cb07cb2",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111122223333:control/pci-dss/v/3.2.1/PCI.KMS.1",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:kms:us-east-1:111122223333:key/b2cadc72-654c-4ef0-bd97-07c7ed85e0ab",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111122223333:subscription/pci-dss/v/3.2.1/PCI.KMS.1/finding/ecd08c9e-8bab-4423-af0f-c640653fb559"
+    },
+    "Resources": [
+      {
+        "Type": "AwsKmsKey",
+        "Id": "arn:aws:kms:us-east-1:111122223333:key/b2cadc72-654c-4ef0-bd97-07c7ed85e0ab",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsKmsKey": {
+            "AWSAccountId": "111122223333",
+            "CreationDate": 1623159807972,
+            "KeyId": "b2cadc72-654c-4ef0-bd97-07c7ed85e0ab",
+            "KeyManager": "CUSTOMER",
+            "KeyState": "Enabled",
+            "Origin": "AWS_KMS"
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "RelatedRequirements": [
+        "PCI DSS 3.6.4"
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+      ]
+    }
+  }

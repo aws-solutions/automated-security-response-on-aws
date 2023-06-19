@@ -1,7 +1,16 @@
-pytest-mock>=3.1.0
-pytest>=4.2.1
+moto[s3]
+aws-lambda-powertools
+boto3-stubs-lite[s3]
+pytest
 pytest-cov
 pytest-env
-bandit
-boto3==1.23.9
-requests==2.27.1
+pytest-mock
+## boto3 and botocore should match Lambda runtime: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
+boto3==1.20.32
+botocore==1.23.32
+## jmespath, python-dateutil, s3transfer, six, and urllib3 should match Lambda runtime
+jmespath==0.10.0
+python-dateutil==2.8.2
+s3transfer==0.5.2
+six==1.16.0
+urllib3==1.26.11

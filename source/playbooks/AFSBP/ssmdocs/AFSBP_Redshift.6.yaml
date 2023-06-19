@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_Redshift.6
+  ### Document Name - ASR-AFSBP_1.0.0_Redshift.6
 
   ## What does this document do?
   This document enables automatic version upgrade on a Redshift cluster by calling another SSM document
@@ -30,7 +30,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-EnableAutomaticVersionUpgradeOnRedshiftCluster'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'
@@ -82,7 +82,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-EnableAutomaticVersionUpgradeOnRedshiftCluster'
+    DocumentName: 'ASR-EnableAutomaticVersionUpgradeOnRedshiftCluster'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -103,7 +103,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Enabled automatic version upgrade on Redshift cluster'
-      UpdatedBy: 'SHARR-AFSBP_1.0.0_Redshift.6'
+      UpdatedBy: 'ASR-AFSBP_1.0.0_Redshift.6'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'

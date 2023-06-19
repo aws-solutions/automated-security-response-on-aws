@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document name - SHARR-SetSSLBucketPolicy
+  ### Document name - ASR-SetSSLBucketPolicy
 
   ## What does this document do?
   This document adds a bucket policy to require transmission over HTTPS for the given S3 bucket by adding a policy statement to the bucket policy.
@@ -47,6 +50,7 @@ mainSteps:
       InputPayload:
         accountid: '{{AccountId}}'
         bucket: '{{BucketName}}'
+        partition: '{{global:AWS_PARTITION}}' 
       Runtime: python3.8
       Handler: add_ssl_bucket_policy
       Script: |-

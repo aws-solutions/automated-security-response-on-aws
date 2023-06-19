@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.RDS.5
+  ### Document Name - ASR-AFSBP_1.0.RDS.5
 
   ## What does this document do?
   This document configures an RDS DB instance for multiple Availability Zones by calling another SSM document.
@@ -30,7 +30,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-EnableMultiAZOnRDSInstance'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'
@@ -66,7 +66,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-EnableMultiAZOnRDSInstance'
+    DocumentName: 'ASR-EnableMultiAZOnRDSInstance'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -87,7 +87,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Configured RDS cluster for multiple Availability Zones'
-      UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.5'
+      UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.5'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'

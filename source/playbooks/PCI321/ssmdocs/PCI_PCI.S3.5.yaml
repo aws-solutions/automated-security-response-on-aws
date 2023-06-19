@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_PCI.S3.5
+  ### Document Name - ASR-PCI_3.2.1_PCI.S3.5
 
   ## What does this document do?
   This document adds a bucket policy to restrict internet access to https only.
@@ -63,12 +66,12 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-SetSSLBucketPolicy
+      DocumentName: ASR-SetSSLBucketPolicy
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
         AccountId: '{{ParseInput.AccountId}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetSSLBucketPolicy'
-
+        
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:
@@ -79,7 +82,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Added SSL-only access policy to S3 bucket.'
-        UpdatedBy: 'SHARR-PCI_3.2.1_PCI.S3.5'
+        UpdatedBy: 'ASR-PCI_3.2.1_PCI.S3.5'
       Workflow:
         Status: RESOLVED
     description: Update finding

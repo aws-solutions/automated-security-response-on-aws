@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document Name - SHARR-RevokeUnrotatedKeys
+  ### Document Name - ASR-RevokeUnrotatedKeys
 
   ## What does this document do?
   This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
@@ -26,7 +29,7 @@ parameters:
   MaxCredentialUsageAge:
     type: String
     description: (Required) Maximum number of days within which a credential must be used. The default value is 90 days.
-    allowedPattern: ^[1-9][0-9]{0,3}|10000$
+    allowedPattern: ^(?:[1-9]\d{0,3}|10000)$
     default: "90"
 outputs:
   - RevokeUnrotatedKeys.Output

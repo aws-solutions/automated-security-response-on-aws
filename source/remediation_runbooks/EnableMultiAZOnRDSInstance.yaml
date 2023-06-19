@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-   ### Document name - SHARR-EnableMultiAZOnRDSInstance
+   ### Document name - ASR-EnableMultiAZOnRDSInstance
 
    ## What does this document do?
    This document enables MultiAZ on an RDS instance.

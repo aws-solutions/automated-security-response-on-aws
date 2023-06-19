@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timezone, timedelta
 import boto3
 from botocore.config import Config
@@ -82,14 +69,14 @@ def verify_expired_credentials_revoked(responses, user_name):
             key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True)))
             if key_data.get("Status") != "Inactive":
                 error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
-                raise Exception(error_message)
+                raise RuntimeError(error_message)
 
     return {
         "output": "Verification of unrotated access keys is successful.",
         "http_responses": responses
     }
 
-def unrotated_key_handler(event, context):
+def unrotated_key_handler(event, _):
     user_name = get_user_name(event.get("IAMResourceId"))
     max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
     access_keys = list_access_keys(user_name)

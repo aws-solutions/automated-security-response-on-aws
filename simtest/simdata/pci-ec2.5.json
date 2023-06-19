@@ -1,0 +1,104 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.EC2.5/finding/d8b8a474-f12e-4c58-959f-ddbab0c4f4f1",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.EC2.5",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-06-01T22:22:21.956Z",
+    "LastObservedAt": "2022-01-24T15:49:06.571Z",
+    "CreatedAt": "2021-06-01T22:22:21.956Z",
+    "UpdatedAt": "2022-01-24T15:49:02.018Z",
+    "Severity": {
+      "Product": 70,
+      "Label": "HIGH",
+      "Normalized": 70,
+      "Original": "HIGH"
+    },
+    "Title": "PCI.EC2.5 Security groups should not allow ingress from 0.0.0.0/0 to port 22",
+    "Description": "This AWS control checks that security groups in use disallow unrestricted incoming SSH traffic.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.EC2.5/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.EC2.5",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.EC2.5/remediation",
+      "RelatedAWSResources:0/name": "securityhub-restricted-ssh-33f8347e",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.EC2.5",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-8ff7e2c6",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.EC2.5/finding/d8b8a474-f12e-4c58-959f-ddbab0c4f4f1"
+    },
+    "Resources": [
+      {
+        "Type": "AwsEc2SecurityGroup",
+        "Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-8ff7e2c6",
+        "Partition": "aws",
+        "Region": "us-east-1",
+        "Details": {
+          "AwsEc2SecurityGroup": {
+            "GroupName": "launch-wizard-12",
+            "GroupId": "sg-8ff7e2c6",
+            "OwnerId": "111111111111",
+            "VpcId": "vpc-5f53633a",
+            "IpPermissions": [
+              {
+                "IpProtocol": "tcp",
+                "FromPort": 22,
+                "ToPort": 22,
+                "IpRanges": [
+                  {
+                    "CidrIp": "0.0.0.0/0"
+                  }
+                ]
+              }
+            ],
+            "IpPermissionsEgress": [
+              {
+                "IpProtocol": "-1",
+                "IpRanges": [
+                  {
+                    "CidrIp": "0.0.0.0/0"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "RelatedRequirements": [
+        "PCI DSS 1.2.1",
+        "PCI DSS 1.3.1",
+        "PCI DSS 2.2.2"
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "HIGH",
+        "Original": "HIGH"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+      ]
+    }
+  }

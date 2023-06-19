@@ -1,18 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 # Environmental Variables:
 # SOLUTION_LOGGROUP: CW Logs group to log to. Default SO0111-SHARR
@@ -97,18 +84,18 @@ class LogHandler(object):
             self.flush()
 
         # put the timestamped message in the buffer
-        self._buffer.append((timestamp, message))     
+        self._buffer.append((timestamp, message))
         self._buffer_size += (len(message) + LOG_ENTRY_ADDITIONAL) # calculate new buffer size
 
     def flush(self):
         """Write the buffer to the CW Logs stream"""
         # _create_log_stream will create the dated stream if it does not exist.
-        # It returns the name of the current stream. This way we always write to a 
+        # It returns the name of the current stream. This way we always write to a
         # date-stamped stream. Ex CIS_1-3-2020-06-02 for CIS_1-3
 
         if self._buffer_size == 0:
             return
-            
+
         log_stream = self._create_log_stream(log_stream=self.stream_name)
 
         put_event_args = {

@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_2.8
+  ### Document Name - ASR-CIS_1.2.0_2.8
 
   ## What does this document do?
   Enables rotation for customer-managed KMS keys.
@@ -29,7 +32,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableKeyRotation"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -67,7 +70,7 @@ mainSteps:
   - name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-EnableKeyRotation
+      DocumentName: ASR-EnableKeyRotation
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -86,7 +89,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled KMS Customer Managed Key rotation for {{ParseInput.KMSKeyId}}'
-        UpdatedBy: 'SHARR-CIS_1.2.0_2.8'
+        UpdatedBy: 'ASR-CIS_1.2.0_2.8'
       Workflow:
         Status: RESOLVED
     description: Update finding

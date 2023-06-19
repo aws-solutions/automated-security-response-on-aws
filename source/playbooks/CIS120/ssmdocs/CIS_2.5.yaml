@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_2.5
+  ### Document Name - ASR-CIS_1.2.0_2.5
   ## What does this document do?
   Enables AWS Config:
   * Turns on recording for all resources.
@@ -29,7 +32,7 @@ parameters:
     type: String
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
-    description: The ARN of the KMS key created by SHARR for remediations
+    description: The ARN of the KMS key created by ASR for remediations
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 
 outputs:
@@ -66,7 +69,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableAWSConfig
+      DocumentName: ASR-EnableAWSConfig
       RuntimeParameters:
         SNSTopicName: 'SO0111-SHARR-AWSConfigNotification'
         KMSKeyArn: '{{KMSKeyArn}}'
@@ -83,7 +86,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'AWS Config enabled'
-        UpdatedBy: 'SHARR-CIS_1.2.0_2.5'
+        UpdatedBy: 'ASR-CIS_1.2.0_2.5'
       Workflow:
         Status: RESOLVED
     description: Update finding

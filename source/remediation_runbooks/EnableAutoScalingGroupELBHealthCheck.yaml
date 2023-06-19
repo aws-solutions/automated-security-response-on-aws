@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document name - SHARR-EnableAutoScalingGroupELBHealthCheck
+  ### Document name - ASR-EnableAutoScalingGroupELBHealthCheck
 
   ## What does this document do?
   This runbook enables health checks for the Amazon EC2 Auto Scaling (Auto Scaling) group you specify using the [UpdateAutoScalingGroup](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_UpdateAutoScalingGroup.html) API.
@@ -28,7 +31,7 @@ parameters:
   AutoScalingGroupName:
     type: String
     description: (Required) The Amazon Resource Name (ARN) of the auto scaling group that you want to enable health checks on.
-    allowedPattern: ^[\u0020-\uD7FF\uE000-\uFFFD\uD800\uDC00-\uDBFF\uDFFF]{1,255}$
+    allowedPattern: '^.{1,255}$'
   HealthCheckGracePeriod:
     type: Integer
     description: (Optional) The amount of time, in seconds, that Auto Scaling waits before checking the health status of an Amazon Elastic Compute Cloud (Amazon EC2) instance that has come into service.

@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document Name - SHARR-EnableRDSInstanceDeletionProtection
+  ### Document Name - ASR-EnableRDSInstanceDeletionProtection
 
   ## What does this document do?
   This document enables `Deletion Protection` on a given Amazon RDS instance using the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.

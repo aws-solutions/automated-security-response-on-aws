@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_CloudTrail.5
+  ### Document Name - ASR-AFSBP_1.0.0_CloudTrail.5
 
   ## What does this document do?
   This document configures CloudTrail to log to CloudWatch Logs.
@@ -30,7 +33,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableCloudTrailToCloudWatchLogging"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -70,7 +73,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableCloudTrailToCloudWatchLogging
+      DocumentName: ASR-EnableCloudTrailToCloudWatchLogging
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -91,7 +94,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Configured CloudTrail logging to CloudWatch Logs Group CloudTrail/{{ParseInput.TrailName}}'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_CloudTrail.5'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_CloudTrail.5'
       Workflow:
         Status: RESOLVED
     description: Update finding

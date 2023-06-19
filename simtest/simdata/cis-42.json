@@ -1,0 +1,99 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/4.2/finding/89b052cd-dd2d-4319-9cee-7a73f5f55ba8",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/4.2",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+  ],
+  "FirstObservedAt": "2022-04-19T15:22:14.447Z",
+  "LastObservedAt": "2022-04-19T15:22:22.014Z",
+  "CreatedAt": "2022-04-19T15:22:14.447Z",
+  "UpdatedAt": "2022-04-19T15:22:14.447Z",
+  "Severity": {
+    "Product": 70,
+    "Label": "HIGH",
+    "Normalized": 70,
+    "Original": "HIGH"
+  },
+  "Title": "4.2 Ensure no security groups allow ingress from 0.0.0.0/0 to port 3389",
+  "Description": "Security groups provide stateful filtering of ingress/egress network traffic to AWS resources. It is recommended that no security group allows unrestricted ingress access to port 3389.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, consult the AWS Security Hub CIS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-4.2/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+    "RuleId": "4.2",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-4.2/remediation",
+    "RelatedAWSResources:0/name": "securityhub-restricted-rdp-fc082d4d",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/4.2",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-3d10bb58e8b1355ed",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/4.2/finding/89b052cd-dd2d-4319-9cee-7a73f5f55ba8"
+  },
+  "Resources": [
+    {
+      "Type": "AwsEc2SecurityGroup",
+      "Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-3d10bb58e8b1355ed",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsEc2SecurityGroup": {
+          "GroupName": "my-insecure-group",
+          "GroupId": "sg-3d10bb58e8b1355ed",
+          "OwnerId": "111111111111",
+          "VpcId": "vpc-217fe4c7e602802d4",
+          "IpPermissions": [
+            {
+              "IpProtocol": "tcp",
+              "FromPort": 3389,
+              "ToPort": 3389,
+              "IpRanges": [
+                {
+                  "CidrIp": "0.0.0.0/0"
+                }
+              ]
+            }
+          ],
+          "IpPermissionsEgress": [
+            {
+              "IpProtocol": "-1",
+              "IpRanges": [
+                {
+                  "CidrIp": "0.0.0.0/0"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "HIGH",
+      "Original": "HIGH"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+    ]
+  }
+}

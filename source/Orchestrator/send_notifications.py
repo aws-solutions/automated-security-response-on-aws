@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 from json.decoder import JSONDecodeError
 import boto3
@@ -51,7 +37,16 @@ def format_details_for_output(details):
 
     return details_formatted
 
-def lambda_handler(event, context):
+def set_message_prefix_and_suffix(event):
+    message_prefix = event['Notification'].get('ExecId','')
+    message_suffix = event['Notification'].get('AffectedObject', '')
+    if message_prefix:
+        message_prefix += ': '
+    if message_suffix:
+        message_suffix = f' ({message_suffix})'
+    return message_prefix, message_suffix
+
+def lambda_handler(event, _):
     # Expected input:
     # Notification:
     #   Message: string
@@ -64,12 +59,7 @@ def lambda_handler(event, context):
     #   SecurityStandard?: string
     #   EventType?: string
 
-    message_prefix = event['Notification'].get('ExecId','')
-    if message_prefix:
-        message_prefix += ': '
-    message_suffix = event['Notification'].get('AffectedObject', '')
-    if message_suffix:
-        message_suffix = f' ({message_suffix})'
+    message_prefix, message_suffix = set_message_prefix_and_suffix(event)
 
     # Get finding status
     finding_status = 'FAILED' # default state
@@ -121,11 +111,7 @@ def lambda_handler(event, context):
         notification.severity = 'ERROR'
         notification.send_to_sns = True
 
-    elif event['Notification']['State'].upper() == 'WRONGSTANDARD':
-        notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
-        notification.severity = 'ERROR'
-        
-    elif event['Notification']['State'].upper() == 'LAMBDAERROR':
+    elif event['Notification']['State'].upper() in {'WRONGSTANDARD', 'LAMBDAERROR'}:
         notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
         notification.severity = 'ERROR'
 
@@ -138,7 +124,7 @@ def lambda_handler(event, context):
         notification.severity = 'ERROR'
         if finding:
             finding.flag(event['Notification']['Message'])
- 
+
     notification.message = message_prefix + event['Notification']['Message'] + message_suffix
     if 'Details' in event['Notification'] and event['Notification']['Details'] != 'MISSING':
         notification.logdata = format_details_for_output(event['Notification']['Details'])

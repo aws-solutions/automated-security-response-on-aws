@@ -1,9 +1,8 @@
-#!/usr/bin/python
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
 
-def runbook_handler(event, context):
+def runbook_handler(event, _):
     try:
         deserialized = json.loads(event['SerializedList'])
         if 'blacklistedActionPattern' in deserialized:

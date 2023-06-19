@@ -1,7 +1,10 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_CloudTrail.2
+  ### Document Name - ASR-AFSBP_1.0.0_CloudTrail.2
   ## What does this document do?
-  This document enables SSE KMS encryption for log files using the SHARR remediation KMS CMK
+  This document enables SSE KMS encryption for log files using the ASR remediation KMS CMK
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
@@ -65,7 +68,7 @@ mainSteps:
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-EnableCloudTrailEncryption
+      DocumentName: ASR-EnableCloudTrailEncryption
       RuntimeParameters:
         TrailRegion: '{{ParseInput.TrailRegion}}'
         TrailArn: '{{ParseInput.TrailArn}}'
@@ -82,7 +85,7 @@ mainSteps:
           ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: Encryption enabled on CloudTrail
-        UpdatedBy: SHARR-AFSBP_1.0.0_CloudTrail.2
+        UpdatedBy: ASR-AFSBP_1.0.0_CloudTrail.2
       Workflow:
         Status: RESOLVED
     description: Update finding

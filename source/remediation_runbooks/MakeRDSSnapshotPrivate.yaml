@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document name - SHARR-MakeRDSSnapshotPrivate
+  ### Document name - ASR-MakeRDSSnapshotPrivate
 
   ## What does this document do?
   This runbook removes public access to an RDS Snapshot

@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.         #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                            #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 from botocore.config import Config
@@ -29,14 +15,14 @@ boto_config = Config(
 def connect_to_s3():
     return boto3.client('s3', config=boto_config)
 
-def policy_to_add(bucket):
+def policy_to_add(bucket, partition):
     return {
         "Sid": "AllowSSLRequestsOnly",
         "Action": "s3:*",
         "Effect": "Deny",
         "Resource": [
-            f'arn:aws:s3:::{bucket}',
-            f'arn:aws:s3:::{bucket}/*'
+            f'arn:{partition}:s3:::{bucket}',
+            f'arn:{partition}:s3:::{bucket}/*'
         ],
         "Condition": {
             "Bool": {
@@ -52,9 +38,10 @@ def new_policy():
         "Statement": []
     }
 
-def add_ssl_bucket_policy(event, context):
+def add_ssl_bucket_policy(event, _):
     bucket_name = event['bucket']
     account_id = event['accountid']
+    aws_partition = event['partition']
     s3 = connect_to_s3()
     bucket_policy = {}
     try:
@@ -75,7 +62,7 @@ def add_ssl_bucket_policy(event, context):
         bucket_policy = new_policy()
 
     print(f'Existing policy: {bucket_policy}')
-    bucket_policy['Statement'].append(policy_to_add(bucket_name))
+    bucket_policy['Statement'].append(policy_to_add(bucket_name, aws_partition))
 
     try:
         result = s3.put_bucket_policy(

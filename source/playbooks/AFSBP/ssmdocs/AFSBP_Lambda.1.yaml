@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_Lambda.1
+  ### Document Name - ASR-AFSBP_1.0.0_Lambda.1
 
   ## What does this document do?
   This document removes the public resource policy. A public resource policy
@@ -29,7 +32,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-RemoveLambdaPublicAccess"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -68,7 +71,7 @@ mainSteps:
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-RemoveLambdaPublicAccess
+      DocumentName: ASR-RemoveLambdaPublicAccess
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -88,7 +91,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Lamdba {{ParseInput.FunctionName}} policy updated to remove public access'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_Lambda.1'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_Lambda.1'
       Workflow:
         Status: RESOLVED
     description: Update finding

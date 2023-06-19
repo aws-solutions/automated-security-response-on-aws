@@ -1,0 +1,86 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.IAM.7/finding/89556a83-cef8-403b-88d6-9f945e46a2ae",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "ProductName": "Security Hub",
+  "CompanyName": "AWS",
+  "Region": "us-east-1",
+  "GeneratorId": "pci-dss/v/3.2.1/PCI.IAM.7",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+  ],
+  "FirstObservedAt": "2021-06-01T22:22:13.403Z",
+  "LastObservedAt": "2021-07-21T10:22:14.102Z",
+  "CreatedAt": "2021-06-01T22:22:13.403Z",
+  "UpdatedAt": "2021-07-21T10:22:11.306Z",
+  "Severity": {
+    "Product": 40,
+    "Label": "MEDIUM",
+    "Normalized": 40,
+    "Original": "MEDIUM"
+  },
+  "Title": "PCI.IAM.7 IAM user credentials should be disabled if not used within a pre-defined number days",
+  "Description": "This AWS control checks whether your AWS Identity and Access Management (IAM) users have passwords or active access keys that have not been used within a specified number of days. The default is 90 days.\n\nWe highly recommend that you do not generate and remove all access keys in your account. Instead, the recommended best practice is to either create one or more IAM roles, or to use federation (https://aws.amazon.com/identity/federation/)to allow your users to use their existing corporate credentials to log into the AWS console and CLI. If you already have an access key, we recommend that you remove or deactivate unused user credentials that are inactive for 90 days or longer.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.IAM.7/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+    "ControlId": "PCI.IAM.7",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.IAM.7/remediation",
+    "RelatedAWSResources:0/name": "securityhub-iam-user-unused-credentials-check-8ee5d61b",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.IAM.7",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "Resources:0/Id": "arn:aws:iam::111111111111:user/sharrtest",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.IAM.7/finding/89556a83-cef8-403b-88d6-9f945e46a2ae"
+  },
+  "Resources": [
+    {
+      "Type": "AwsIamUser",
+      "Id": "arn:aws:iam::111111111111:user/sharrtest",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsIamUser": {
+          "AttachedManagedPolicies": [
+            {
+              "PolicyName": "IAMFullAccess",
+              "PolicyArn": "arn:aws:iam::aws:policy/IAMFullAccess"
+            }
+          ],
+          "CreateDate": "2015-05-19T16:05:11.000Z",
+          "Path": "/",
+          "UserId": "AIDACKCEVSQ6C2EXAMPLE",
+          "UserName": "sharrtest"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED",
+    "RelatedRequirements": [
+      "PCI DSS 8.1.4"
+    ]
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE",
+  "FindingProviderFields": {
+    "Severity": {
+      "Label": "MEDIUM",
+      "Original": "MEDIUM"
+    },
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ]
+  }
+}

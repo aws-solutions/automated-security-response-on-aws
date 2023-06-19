@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import time
 from botocore.config import Config
@@ -39,10 +25,13 @@ def log_group_exists(client, group):
     except Exception as e:
         exit(f'EnableVPCFlowLogs failed - unhandled exception {str(e)}')
 
+def wait_for_seconds(wait_interval):
+    time.sleep(wait_interval)
+
 def wait_for_loggroup(client, wait_interval, max_retries, loggroup):
     attempts = 1
     while not log_group_exists(client, loggroup):
-        time.sleep(wait_interval)
+        wait_for_seconds(wait_interval)
         attempts += 1
         if attempts > max_retries:
             exit(f'Timeout waiting for log group {loggroup} to become active')
@@ -70,12 +59,12 @@ def flowlogs_active(client, loggroup):
 def wait_for_flowlogs(client, wait_interval, max_retries, loggroup):
     attempts = 1
     while not flowlogs_active(client, loggroup):
-        time.sleep(wait_interval)
+        wait_for_seconds(wait_interval)
         attempts += 1
         if attempts > max_retries:
             exit(f'Timeout waiting for flowlogs to log group {loggroup} to become active')
 
-def enable_flow_logs(event, context):
+def enable_flow_logs(event, _):
     """
     remediates CloudTrail.2 by enabling SSE-KMS
     On success returns a string map
@@ -97,11 +86,11 @@ def enable_flow_logs(event, context):
 
     logs_client = connect_to_logs(boto_config)
     ec2_client = connect_to_ec2(boto_config)
-    
+
     kms_key_arn = event['kms_key_arn'] # for logs encryption at rest
-    
+
     # set dynamic variable for CW Log Group for VPC Flow Logs
-    vpc_flow_loggroup = "VPCFlowLogs/" + event['vpc']        
+    vpc_flow_loggroup = "VPCFlowLogs/" + event['vpc']
     # create cloudwatch log group
     try:
         logs_client.create_log_group(
@@ -115,7 +104,7 @@ def enable_flow_logs(event, context):
             print(f'CloudWatch Logs group {vpc_flow_loggroup} already exists')
         else:
             exit(f'ERROR CREATING LOGGROUP {vpc_flow_loggroup}: {str(exception_type)}')
-            
+
     except Exception as e:
         exit(f'ERROR CREATING LOGGROUP {vpc_flow_loggroup}: {str(e)}')
 

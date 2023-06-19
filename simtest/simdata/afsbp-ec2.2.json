@@ -1,0 +1,64 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.2/finding/835974e0-d335-49a1-af89-e47a5954d46b",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/EC2.2",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-02-11T22:06:16.378Z",
+  "LastObservedAt": "2021-02-17T08:56:24.497Z",
+  "CreatedAt": "2021-02-11T22:06:16.378Z",
+  "UpdatedAt": "2021-02-17T08:56:22.772Z",
+  "Severity": {
+    "Product": 0,
+    "Label": "INFORMATIONAL",
+    "Normalized": 0,
+    "Original": "INFORMATIONAL"
+  },
+  "Title": "EC2.2 The VPC default security group should not allow inbound and outbound traffic",
+  "Description": "This AWS control checks that the default security group of a VPC does not allow inbound or outbound traffic.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/EC2.2/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "EC2.2",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/EC2.2/remediation",
+    "RelatedAWSResources:0/name": "securityhub-vpc-default-security-group-closed-089d8733",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/EC2.2",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/EC2.2/finding/835974e0-d335-49a1-af89-e47a5954d46b"
+  },
+  "Resources": [
+    {
+      "Type": "AwsEc2SecurityGroup",
+      "Id": "arn:aws:ec2:us-east-1:111111111111:security-group/sg-1234123f",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsEc2SecurityGroup": {
+          "GroupName": "default",
+          "GroupId": "sg-1234123f",
+          "OwnerId": "111111111111",
+          "VpcId": "vpc-aaaaaaaa"
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE"
+}

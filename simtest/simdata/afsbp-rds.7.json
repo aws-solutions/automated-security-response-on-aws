@@ -1,0 +1,97 @@
+{
+  "SchemaVersion": "2018-10-08",
+  "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.7/finding/c579c188-2e81-412e-896d-5237e3d32432",
+  "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+  "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/RDS.7",
+  "AwsAccountId": "111111111111",
+  "Types": [
+    "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+  ],
+  "FirstObservedAt": "2021-02-18T13:02:23.077Z",
+  "LastObservedAt": "2021-02-18T13:02:26.191Z",
+  "CreatedAt": "2021-02-18T13:02:23.077Z",
+  "UpdatedAt": "2021-02-18T13:02:23.077Z",
+  "Severity": {
+    "Product": 20,
+    "Label": "LOW",
+    "Normalized": 20,
+    "Original": "LOW"
+  },
+  "Title": "RDS.7 RDS clusters should have deletion protection enabled",
+  "Description": "This control checks whether RDS clusters have deletion protection enabled.",
+  "Remediation": {
+    "Recommendation": {
+      "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
+      "Url": "https://docs.aws.amazon.com/console/securityhub/RDS.7/remediation"
+    }
+  },
+  "ProductFields": {
+    "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+    "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+    "ControlId": "RDS.7",
+    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/RDS.7/remediation",
+    "RelatedAWSResources:0/name": "securityhub-rds-cluster-deletion-protection-enabled-46bf1f4f",
+    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+    "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.7",
+    "aws/securityhub/ProductName": "Security Hub",
+    "aws/securityhub/CompanyName": "AWS",
+    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.7/finding/c579c188-2e81-412e-896d-5237e3d32432"
+  },
+  "Resources": [
+    {
+      "Type": "AwsRdsDbCluster",
+      "Id": "arn:aws:rds:us-east-1:111111111111:cluster:zva",
+      "Partition": "aws",
+      "Region": "us-east-1",
+      "Details": {
+        "AwsRdsDbCluster": {
+          "AllocatedStorage": 1,
+          "AvailabilityZones": [
+            "us-east-1b",
+            "us-east-1c",
+            "us-east-1d"
+          ],
+          "BackupRetentionPeriod": 1,
+          "Status": "available",
+          "Endpoint": "zva.cluster-ctq0nvrbkqzg.us-east-1.rds.amazonaws.com",
+          "MultiAz": false,
+          "Engine": "aurora",
+          "EngineVersion": "5.6.10a",
+          "Port": 3306,
+          "MasterUsername": "zichy",
+          "PreferredBackupWindow": "09:55-10:25",
+          "PreferredMaintenanceWindow": "fri:06:11-fri:06:41",
+          "VpcSecurityGroups": [
+            {
+              "VpcSecurityGroupId": "sg-0e7939cba104ab2df",
+              "Status": "active"
+            }
+          ],
+          "HostedZoneId": "Z2R2ITUGPM61AM",
+          "StorageEncrypted": true,
+          "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/3d248866-7cc7-41e6-b2fe-812b89a232d9",
+          "DbClusterResourceId": "cluster-BPOVHMXECZHGQZGFCIJJ7C64CI",
+          "ClusterCreateTime": "2019-10-20T13:37:11.014Z",
+          "EngineMode": "serverless",
+          "DeletionProtection": false,
+          "HttpEndpointEnabled": true,
+          "ActivityStreamStatus": "stopped",
+          "CopyTagsToSnapshot": true,
+          "CrossAccountClone": false,
+          "DbClusterParameterGroup": "default.aurora5.6",
+          "DbSubnetGroup": "sandbox-db-subnets",
+          "DbClusterIdentifier": "zva",
+          "IamDatabaseAuthenticationEnabled": false
+        }
+      }
+    }
+  ],
+  "Compliance": {
+    "Status": "FAILED"
+  },
+  "WorkflowState": "NEW",
+  "Workflow": {
+    "Status": "NEW"
+  },
+  "RecordState": "ACTIVE"
+}

@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_RDS.6
+  ### Document Name - ASR-AFSBP_1.0.0_RDS.6
 
   ## What does this document do?
   This document enables `Enhanced Monitoring` on a given Amazon RDS instance by calling another SSM document.
@@ -26,7 +29,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableEnhancedMonitoringOnRDSInstance"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
   - Remediation.Output
@@ -87,7 +90,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableEnhancedMonitoringOnRDSInstance
+      DocumentName: ASR-EnableEnhancedMonitoringOnRDSInstance
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -108,7 +111,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enhanced Monitoring enabled on RDS DB cluster'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.6'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.6'
       Workflow:
         Status: 'RESOLVED'
     description: Update finding

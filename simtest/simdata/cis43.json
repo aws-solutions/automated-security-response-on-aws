@@ -1,0 +1,105 @@
+{
+    "version": "0",
+    "id": "2436f24f-17ab-7e1e-6882-fd3ce4fef284",
+    "detail-type": "Security Hub Findings - Custom Action",
+    "source": "aws.securityhub",
+    "account": "111111111111",
+    "time": "2020-06-17T16:03:52Z",
+    "region": "us-east-2",
+    "resources": [
+        "arn:aws:securityhub:us-east-2:111111111111:action/custom/CIS43"
+    ],
+    "detail": {
+        "actionName": "CIS 4.3",
+        "actionDescription": "Remediates CIS 4.3 by removing all rules from a default security group",
+        "findings": [
+            {
+                "ProductArn": "arn:aws:securityhub:us-east-2::product/aws/securityhub",
+                "Types": [
+                    "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark"
+                ],
+                "Description": "A VPC comes with a default security group whose initial settings deny all inbound traffic, allow all outbound traffic, and allow all traffic between instances assigned to the security group. If you don't specify a security group when you launch an instance, the instance is automatically assigned to this default security group. It is recommended that the default security group restrict all traffic.",
+                "SchemaVersion": "2018-10-08",
+                "Compliance": {
+                    "Status": "FAILED"
+                },
+                "GeneratorId": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/4.3",
+                "FirstObservedAt": "2020-05-19T23:57:13.226Z",
+                "CreatedAt": "2020-05-19T23:57:13.226Z",
+                "RecordState": "ACTIVE",
+                "Title": "4.3 Ensure the default security group of every VPC restricts all traffic",
+                "Workflow": {
+                    "Status": "NEW"
+                },
+                "LastObservedAt": "2020-06-17T11:56:59.908Z",
+                "Severity": {
+                    "Normalized": 40,
+                    "Label": "MEDIUM",
+                    "Product": 40,
+                    "Original": "MEDIUM"
+                },
+                "UpdatedAt": "2020-06-17T11:56:58.088Z",
+                "WorkflowState": "NEW",
+                "ProductFields": {
+                    "StandardsGuideArn": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0",
+                    "StandardsGuideSubscriptionArn": "arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0",
+                    "RuleId": "4.3",
+                    "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/standards-cis-4.3/remediation",
+                    "RelatedAWSResources:0/name": "securityhub-vpc-default-security-group-closed-e615c3e4",
+                    "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+                    "StandardsControlArn": "arn:aws:securityhub:us-east-2:111111111111:control/cis-aws-foundations-benchmark/v/1.2.0/4.3",
+                    "aws/securityhub/SeverityLabel": "MEDIUM",
+                    "aws/securityhub/ProductName": "Security Hub",
+                    "aws/securityhub/CompanyName": "AWS",
+                    "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-2::product/aws/securityhub/arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/4.3/finding/c2d5792e-aef4-47c6-a5fc-38fcc2f2b0a1"
+                },
+                "AwsAccountId": "111111111111",
+                "Id": "arn:aws:securityhub:us-east-2:111111111111:subscription/cis-aws-foundations-benchmark/v/1.2.0/4.3/finding/c2d5792e-aef4-47c6-a5fc-38fcc2f2b0a1",
+                "Remediation": {
+                    "Recommendation": {
+                        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub CIS documentation.",
+                        "Url": "https://docs.aws.amazon.com/console/securityhub/standards-cis-4.3/remediation"
+                    }
+                },
+                "Resources": [
+                    {
+                        "Partition": "aws",
+                        "Type": "AwsEc2SecurityGroup",
+                        "Details": {
+                            "AwsEc2SecurityGroup": {
+                                "GroupName": "launch-wizard-1",
+                                "OwnerId": "111111111111",
+                                "VpcId": "vpc-9826f1f3",
+                                "IpPermissions": [
+                                    {
+                                        "FromPort": 22,
+                                        "ToPort": 22,
+                                        "IpProtocol": "tcp",
+                                        "IpRanges": [
+                                            {
+                                                "CidrIp": "0.0.0.0/0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "IpPermissionsEgress": [
+                                    {
+                                        "IpProtocol": "-1",
+                                        "IpRanges": [
+                                            {
+                                                "CidrIp": "0.0.0.0/0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "GroupId": "sg-02cfbecbc814a3c24"
+                            }
+                        },
+                        "Region": "us-east-2",
+                        "Id": "arn:aws:ec2:us-east-2:111111111111:security-group/sg-02cfbecbc814a3c24"
+                    }
+                ]
+            }
+        ]
+    }
+}

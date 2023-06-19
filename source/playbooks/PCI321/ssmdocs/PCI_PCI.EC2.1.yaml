@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_EC2.1
+  ### Document Name - ASR-PCI_3.2.1_EC2.1
   ## What does this document do?
   This document changes all public EC2 snapshots to private
 
@@ -63,7 +66,7 @@ mainSteps:
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-MakeEBSSnapshotsPrivate
+      DocumentName: ASR-MakeEBSSnapshotsPrivate
       RuntimeParameters:
         AccountId: '{{ParseInput.AccountId}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-MakeEBSSnapshotsPrivate'
@@ -81,7 +84,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'EBS Snapshot modified to private'
-        UpdatedBy: 'SHARR-PCI_3.2.1_EC2.1'
+        UpdatedBy: 'ASR-PCI_3.2.1_EC2.1'
       Workflow:
         Status: 'RESOLVED'
     description: Update finding

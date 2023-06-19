@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_3.x
+  ### Document Name - ASR-CIS_1.2.0_3.x
 
   ## What does this document do?
   Remediates the following CIS findings:
@@ -72,7 +75,7 @@ parameters:
     type: String
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
-    description: The ARN of the KMS key created by SHARR for remediations
+    description: The ARN of the KMS key created by ASR for remediations
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 
 mainSteps:
@@ -132,16 +135,18 @@ mainSteps:
     inputs:
       InputPayload:
         ControlId: '{{ParseInput.ControlId}}'
+        StandardLongName: 'cis-aws-foundations-benchmark'
+        StandardVersion: '1.2.0'
       Runtime: python3.8
       Handler: verify
       Script: |-
-        %%SCRIPT=cis_get_input_values.py%%
+        %%SCRIPT=common/cloudwatch_get_input_values.py%%
 
   - name: Remediation
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-CreateLogMetricFilterAndAlarm
+      DocumentName: ASR-CreateLogMetricFilterAndAlarm
       RuntimeParameters:
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateLogMetricFilterAndAlarm'
         FilterName: '{{ GetMetricFilterAndAlarmInputValue.FilterName }}'
@@ -166,7 +171,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Added metric filter to the log group and notifications to SNS topic SO0111-SHARR-LocalAlarmNotification.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_3.1'
+        UpdatedBy: 'ASR-CIS_1.2.0_3.1'
       Workflow:
         Status: RESOLVED
     description: Update finding

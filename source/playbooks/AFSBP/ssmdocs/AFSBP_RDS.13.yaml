@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_RDS.13
+  ### Document Name - ASR-AFSBP_1.0.0_RDS.13
 
   ## What does this document do?
   This document enables `Auto minor version upgrade` on a given Amazon RDS instance by calling another SSM document.
@@ -27,7 +30,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableMinorVersionUpgradeOnRDSDBInstance"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
   - Remediation.Output
@@ -36,8 +39,8 @@ mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'
     outputs:
-      - Name: 'DbiResourceId'
-        Selector: '$.Payload.resource.Details.AwsRdsDbInstance.DbiResourceId'
+      - Name: 'DBInstanceIdentifier'
+        Selector: '$.Payload.resource.Details.AwsRdsDbInstance.DBInstanceIdentifier'
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -67,13 +70,13 @@ mainSteps:
   - name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-EnableMinorVersionUpgradeOnRDSDBInstance
+      DocumentName: ASR-EnableMinorVersionUpgradeOnRDSDBInstance
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
           ExecutionRoleName: '{{RemediationRoleName}}'
       RuntimeParameters:
-        DbiResourceId: '{{ ParseInput.DbiResourceId }}'
+        DBInstanceIdentifier: '{{ ParseInput.DBInstanceIdentifier }}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
@@ -85,7 +88,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Minor Version enabled on the RDS Instance.'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.13'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.13'
       Workflow:
         Status: 'RESOLVED'
     description: Update finding

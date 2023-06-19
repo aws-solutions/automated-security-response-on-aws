@@ -1,10 +1,39 @@
-deployment/temp/*
-source/test/*
-source/node_modules/
-deployment/global-s3-assets
-deployment/regional-s3-assets
-**/*.js
-**/*.d.ts
-**/cdk.out
-setenv.sh
-.venv
+# build
+/deployment/global-s3-assets/
+/deployment/open-source/
+/deployment/regional-s3-assets/
+/deployment/setenv.sh
+/deployment/temp/
+
+# test
+/deployment/test/coverage-reports/
+
+# Typescript
+/source/dist/
+*.d.ts
+*.js
+
+# config
+!.eslintrc.js
+
+# Node
+node_modules/
+
+# CDK
+cdk.out/
+
+# Jest
+coverage/
+
+# Python
+.venv/
+__pycache__/
+
+# pytest
+.coverage
+
+# IDE
+.vscode/
+
+# system
+.DS_Store

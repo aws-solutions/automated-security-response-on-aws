@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_EC2.7
+  ### Document Name - ASR-AFSBP_1.0.0_EC2.7
   ## What does this document do?
   This document enables `EBS Encryption by default` for an AWS account in the current region by calling another SSM document
   ## Input Parameters
@@ -23,7 +26,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableEbsEncryptionByDefault"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
   - ExecRemediation.Output
@@ -59,7 +62,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableEbsEncryptionByDefault
+      DocumentName: ASR-EnableEbsEncryptionByDefault
       RuntimeParameters:
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
 
@@ -74,7 +77,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled EBS encryption by default'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_EC2.7'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_EC2.7'
       Workflow:
         Status: RESOLVED
     description: Update finding

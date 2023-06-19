@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-S3BlockDenyList
+  ### Document Name - ASR-S3BlockDenyList
 
   ## What does this document do?
   This document adds an explicit DENY to the bucket policy to prevent cross-account access to specific sensitive API calls. By default these are s3:DeleteBucketPolicy, s3:PutBucketAcl, s3:PutBucketPolicy, s3:PutEncryptionConfiguration, and s3:PutObjectAcl.

@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_RDS.4
+  ### Document Name - ASR-AFSBP_1.0.0_RDS.4
 
   ## What does this document do?
   This document encrypts an unencrypted RDS snapshot by calling another SSM document
@@ -31,7 +31,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-EncryptRDSSnapshot'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
   KMSKeyId:
     type: 'String'
     default: 'alias/aws/rds'
@@ -79,7 +79,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-EncryptRDSSnapshot'
+    DocumentName: 'ASR-EncryptRDSSnapshot'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -102,7 +102,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Encrypted RDS snapshot'
-      UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.4'
+      UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.4'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'

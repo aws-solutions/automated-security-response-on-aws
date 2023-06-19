@@ -1,9 +1,12 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CreateAccessLoggingBucket
-  
+  ### Document Name - ASR-CreateAccessLoggingBucket
+
   ## What does this document do?
   Creates an S3 bucket for access logging.
-  
+
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * BucketName: (Required) Name of the bucket to create
@@ -23,11 +26,11 @@ outputs:
   - CreateAccessLoggingBucket.Output
 
 mainSteps:
-  - 
+  -
     name: CreateAccessLoggingBucket
     action: 'aws:executeScript'
     inputs:
-      InputPayload:       
+      InputPayload:
         BucketName: '{{BucketName}}'
         AWS_REGION: '{{global:REGION}}'
       Runtime: python3.8

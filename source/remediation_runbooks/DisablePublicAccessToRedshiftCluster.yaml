@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document name - SHARR-DisablePublicAccessToRedshiftCluster
+  ### Document name - ASR-DisablePublicAccessToRedshiftCluster
 
   ## What does this document do?
   The runbook disables public accessibility for the Amazon Redshift cluster you specify using the [ModifyCluster]

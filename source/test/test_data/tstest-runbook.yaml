@@ -1,8 +1,11 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-EnableCloudTrailToCloudWatchLogging
+  ### Document Name - ASR-EnableCloudTrailToCloudWatchLogging
   ## What does this document do?
   Creates a CloudWatch logs group for CloudTrail data.
-  
+
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
@@ -26,16 +29,16 @@ parameters:
   CloudWatchLogsRole:
     type: String
     description: (Required) The ARN of the role that allows CloudTrail to log to CloudWatch.
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$' 
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   LogGroupName:
     type: String
     description: (Required) The name of the Log Group for CloudTrail logs.
-    allowedPattern: '^[A-Za-z0-9_-\/.]{1,512}$' 
+    allowedPattern: '^[A-Za-z0-9_-\/.]{1,512}$'
 outputs:
   - UpdateTrailToCWLogs.Output
 
 mainSteps:
-  - 
+  -
     name: CreateLogGroup
     action: 'aws:executeAPI'
     inputs:
@@ -47,11 +50,11 @@ mainSteps:
       - Name: Output
         Selector: $
         Type: StringMap
-  - 
+  -
     name: WaitForCreation
     action: 'aws:executeScript'
     inputs:
-      InputPayload:       
+      InputPayload:
         LogGroup: '{{LogGroupName}}'
       Runtime: python3.8
       Handler: wait_for_loggroup
@@ -64,7 +67,7 @@ mainSteps:
 
     isEnd: false
 
-  - 
+  -
     name: UpdateTrailToCWLogs
     action: 'aws:executeAPI'
     inputs:
@@ -78,4 +81,3 @@ mainSteps:
       - Name: Output
         Selector: $
         Type: StringMap
-  

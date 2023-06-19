@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_2.6
+  ### Document Name - ASR-CIS_1.2.0_2.6
 
   ## What does this document do?
   Configures access logging for a CloudTrail S3 bucket.
@@ -60,7 +63,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-CreateAccessLoggingBucket
+      DocumentName: ASR-CreateAccessLoggingBucket
       RuntimeParameters:
         BucketName: 'so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket'
@@ -90,7 +93,7 @@ mainSteps:
       Note:
         Text: 'Created S3 bucket so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}
           for logging access to {{ParseInput.CloudTrailBucket}}'
-        UpdatedBy: 'SHARR-CIS_1.2.0_2.6'
+        UpdatedBy: 'ASR-CIS_1.2.0_2.6'
       Workflow:
         Status: RESOLVED
     description: Update finding

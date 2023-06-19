@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import json
 import boto3
 import os
@@ -47,8 +33,8 @@ def _get_ssm_client(account, role, region=''):
 def _add_doc_state_to_answer(doc, account, region, answer):
     # Connect to APIs
     ssm = _get_ssm_client(
-        account, 
-        ORCH_ROLE_NAME, 
+        account,
+        ORCH_ROLE_NAME,
         region
     )
     # Validate input
@@ -100,7 +86,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
         })
         LOGGER.error(answer.message)
 
-def lambda_handler(event, context):
+def lambda_handler(event, _):
 
     answer = utils.StepFunctionLambdaAnswer() # holds the response to the step function
     LOGGER.info(event)
@@ -122,7 +108,7 @@ def lambda_handler(event, context):
         'standardsupported': finding.standard_version_supported,
         'accountid': finding.account_id,
         'resourceregion': finding.resource_region
-    })  
+    })
 
     if finding.standard_version_supported != 'True':
         answer.update({
@@ -133,10 +119,10 @@ def lambda_handler(event, context):
 
     # Is there alt workflow configuration?
     alt_workflow_doc = event.get('Workflow',{}).get('WorkflowDocument', None)
-    
-    automation_docid = f'SHARR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
+
+    automation_docid = f'ASR-{finding.standard_shortname}_{finding.standard_version}_{finding.remediation_control}'
     remediation_role = f'SO0111-Remediate-{finding.standard_shortname}-{finding.standard_version}-{finding.remediation_control}'
-    
+
     answer.update({
         'automationdocid': automation_docid,
         'remediationrole': remediation_role
@@ -150,9 +136,9 @@ def lambda_handler(event, context):
         })
     else:
         _add_doc_state_to_answer(
-            automation_docid, 
-            finding.account_id, 
-            finding.resource_region, 
+            automation_docid,
+            finding.account_id,
+            finding.resource_region,
             answer
         )
 

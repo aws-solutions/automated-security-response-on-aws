@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_EC2.2
+  ### Document Name - ASR-PCI_3.2.1_EC2.2
 
   ## What does this document do?
   This document deletes ingress and egress rules from default security
@@ -31,7 +34,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-RemoveVPCDefaultSecurityGroupRules"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -71,7 +74,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-RemoveVPCDefaultSecurityGroupRules
+      DocumentName: ASR-RemoveVPCDefaultSecurityGroupRules
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -90,7 +93,7 @@ mainSteps:
           ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: Removed rules on default security group
-        UpdatedBy: SHARR-PCI_3.2.1_EC2.2
+        UpdatedBy: ASR-PCI_3.2.1_EC2.2
       Workflow:
         Status: RESOLVED
     description: Update finding

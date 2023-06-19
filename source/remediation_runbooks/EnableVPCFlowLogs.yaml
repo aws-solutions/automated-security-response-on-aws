@@ -1,8 +1,11 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-EnableVPCFlowLogs
+  ### Document Name - ASR-EnableVPCFlowLogs
   ## What does this document do?
   Enables VPC Flow Logs for a given VPC
-  
+
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * VPC: VPC Id of the VPC for which logs are to be enabled
@@ -33,14 +36,14 @@ parameters:
     type: String
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
-    description: The ARN of the KMS key created by SHARR for remediations requiring encryption
+    description: The ARN of the KMS key created by ASR for remediations requiring encryption
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 
 outputs:
   - Remediation.Output
 
 mainSteps:
-  - 
+  -
     name: Remediation
     action: 'aws:executeScript'
     outputs:
@@ -48,10 +51,10 @@ mainSteps:
         Selector: $.Payload.response
         Type: StringMap
     inputs:
-      InputPayload: 
+      InputPayload:
         vpc: '{{VPC}}'
-        remediation_role: '{{RemediationRole}}'   
-        kms_key_arn: '{{KMSKeyArn}}'      
+        remediation_role: '{{RemediationRole}}'
+        kms_key_arn: '{{KMSKeyArn}}'
       Runtime: python3.8
       Handler: enable_flow_logs
       Script: |-

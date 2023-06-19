@@ -1,19 +1,5 @@
-#!/usr/bin/python
-###############################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.    #
-#                                                                             #
-#  Licensed under the Apache License Version 2.0 (the "License"). You may not #
-#  use this file except in compliance with the License. A copy of the License #
-#  is located at                                                              #
-#                                                                             #
-#      http://www.apache.org/licenses/LICENSE-2.0/                                        #
-#                                                                             #
-#  or in the "license" file accompanying this file. This file is distributed  #
-#  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express #
-#  or implied. See the License for the specific language governing permis-    #
-#  sions and limitations under the License.                                   #
-###############################################################################
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """
 Unit Test: exec_ssm_doc.py
 Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
@@ -26,9 +12,6 @@ from botocore.stub import Stubber, ANY
 from exec_ssm_doc import lambda_handler
 from pytest_mock import mocker
 
-my_session = boto3.session.Session()
-my_region = my_session.region_name
-os.environ['AWS_REGION'] = my_region
 
 def test_exec_runbook(mocker):
     """
@@ -53,14 +36,14 @@ def test_exec_runbook(mocker):
                 "Product": 0,
                 "Label": "INFORMATIONAL",
                 "Normalized": 0,
-                "Original": "INFORMATIONAL"
+                "Original": "INFORMATIONAL",
             },
             "Title": "AutoScaling.1 Auto scaling groups associated with a load balancer should use load balancer health checks",
             "Description": "This control checks whether your Auto Scaling groups that are associated with a load balancer are using Elastic Load Balancing health checks.",
             "Remediation": {
                 "Recommendation": {
                     "Text": "For directions on how to fix this issue, please consult the AWS Security Hub Foundational Security Best Practices documentation.",
-                    "Url": "https://docs.aws.amazon.com/console/securityhub/AutoScaling.1/remediation"
+                    "Url": "https://docs.aws.amazon.com/console/securityhub/AutoScaling.1/remediation",
                 }
             },
             "ProductFields": {
@@ -74,14 +57,14 @@ def test_exec_runbook(mocker):
                 "aws/securityhub/ProductName": "Security Hub",
                 "aws/securityhub/CompanyName": "AWS",
                 "aws/securityhub/annotation": "AWS Config evaluated your resources against the rule. The rule did not apply to the AWS resources in its scope, the specified resources were deleted, or the evaluation results were deleted.",
-                "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1/finding/635ceb5d-3dfd-4458-804e-48a42cd723e4"
+                "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1/finding/635ceb5d-3dfd-4458-804e-48a42cd723e4",
             },
             "Resources": [
                 {
                     "Type": "AwsAccount",
                     "Id": "arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:785df3481e1-cd66-435d-96de-d6ed5416defd:autoScalingGroupName/sharr-test-autoscaling-1",
                     "Partition": "aws",
-                    "Region": "us-east-1"
+                    "Region": "us-east-1",
                 }
             ],
             "Compliance": {
@@ -89,80 +72,64 @@ def test_exec_runbook(mocker):
                 "StatusReasons": [
                     {
                         "ReasonCode": "CONFIG_EVALUATIONS_EMPTY",
-                        "Description": "AWS Config evaluated your resources against the rule. The rule did not apply to the AWS resources in its scope, the specified resources were deleted, or the evaluation results were deleted."
+                        "Description": "AWS Config evaluated your resources against the rule. The rule did not apply to the AWS resources in its scope, the specified resources were deleted, or the evaluation results were deleted.",
                     }
-                ]
+                ],
             },
             "WorkflowState": "NEW",
-            "Workflow": {
-                "Status": "NEW"
-            },
-            "RecordState": "ACTIVE"
+            "Workflow": {"Status": "NEW"},
+            "RecordState": "ACTIVE",
         },
         "AutomationDocument": {
             "DocState": "ACTIVE",
             "SecurityStandardVersion": "1.0.0",
             "AccountId": "111111111111",
-            "Message": "Document Status is not \"Active\": unknown",
+            "Message": 'Document Status is not "Active": unknown',
             "AutomationDocId": "SHARR-AFSBP_1.0.0_AutoScaling.1",
             "RemediationRole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
             "ControlId": "AutoScaling.1",
             "SecurityStandard": "AFSBP",
-            "SecurityStandardSupported": "True"
+            "SecurityStandardSupported": "True",
         },
         "SSMExecution": {
-            "workflow_data": {
-                "impact": "nondestructive",
-                "approvalrequired": "false"
-            }
-        }
+            "workflow_data": {"impact": "nondestructive", "approvalrequired": "false"}
+        },
     }
 
     expected_result = {
-        'executionid': '43374019-a309-4627-b8a2-c641e0140262',
-        'logdata': [],
-        'message': 'AutoScaling.1 remediation was successfully invoked via AWS Systems Manager in account 111111111111: 43374019-a309-4627-b8a2-c641e0140262',
-        'remediation_status': '',
-        'status': 'QUEUED'
+        "executionid": "43374019-a309-4627-b8a2-c641e0140262",
+        "logdata": [],
+        "message": "AutoScaling.1 remediation was successfully invoked via AWS Systems Manager in account 111111111111: 43374019-a309-4627-b8a2-c641e0140262",
+        "remediation_status": "",
+        "status": "QUEUED",
     }
 
-    account = boto3.client('sts').get_caller_identity()['Account']
-    step_input['AutomationDocument']['AccountId'] = account
-    iam_c = boto3.client('iam')
+    account = "111111111111"
+    step_input["AutomationDocument"]["AccountId"] = account
+    iam_c = boto3.client("iam")
     iamc_stub = Stubber(iam_c)
-    iamc_stub.add_client_error(
-        'get_role',
-        'NoSuchEntity'
-    )
+    iamc_stub.add_client_error("get_role", "NoSuchEntity")
     iamc_stub.activate()
 
-    ssm_c = boto3.client('ssm')
+    ssm_c = boto3.client("ssm")
     ssmc_stub = Stubber(ssm_c)
     ssmc_stub.add_response(
-        'start_automation_execution',
+        "start_automation_execution",
+        {"AutomationExecutionId": "43374019-a309-4627-b8a2-c641e0140262"},
         {
-            'AutomationExecutionId': '43374019-a309-4627-b8a2-c641e0140262'
+            "DocumentName": "SHARR-AFSBP_1.0.0_AutoScaling.1",
+            "Parameters": {"Finding": [ANY], "AutomationAssumeRole": [ANY]},
         },
-        {
-            'DocumentName': 'SHARR-AFSBP_1.0.0_AutoScaling.1',
-            'Parameters': {
-                "Finding": [
-                    ANY
-                ],
-                "AutomationAssumeRole": [
-                    ANY
-                ]
-            }
-        })
+    )
 
     ssmc_stub.activate()
-    mocker.patch('exec_ssm_doc._get_ssm_client', return_value=ssm_c)
-    mocker.patch('exec_ssm_doc._get_iam_client', return_value=iam_c)
-    mocker.patch('sechub_findings.SHARRNotification.notify')
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_c)
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_c)
+    mocker.patch("sechub_findings.SHARRNotification.notify")
 
     response = lambda_handler(step_input, {})
-    assert response['executionid'] == expected_result['executionid']
-    assert response['remediation_status'] == expected_result['remediation_status']
-    assert response['status'] == expected_result['status']
+    assert response["executionid"] == expected_result["executionid"]
+    assert response["remediation_status"] == expected_result["remediation_status"]
+    assert response["status"] == expected_result["status"]
     ssmc_stub.deactivate()
     iamc_stub.deactivate()

@@ -1,13 +1,9 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import {
-  PlaybookPrimaryStack,
-  PlaybookMemberStack,
-  IControl
-} from '../../../lib/sharrplaybook-construct';
+import { PlaybookPrimaryStack, PlaybookMemberStack, IControl } from '../../../lib/sharrplaybook-construct';
 import * as cdk_nag from 'cdk-nag';
-import * as cdk from '@aws-cdk/core';
+import * as cdk from 'aws-cdk-lib';
 import 'source-map-support/register';
 
 // SOLUTION_* - set by solution_env.sh
@@ -28,51 +24,58 @@ cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 // Creates one rule per control Id. The Step Function determines what document to run based on
 // Security Standard and Control Id. See afsbp-member-stack
 const remediations: IControl[] = [
-  { "control": 'AutoScaling.1' },
-  { "control": 'CloudTrail.1' },
-  { "control": 'CloudTrail.2' },
-  { "control": 'CloudTrail.4' },
-  { "control": 'CloudTrail.5' },
-  { "control": 'CodeBuild.2' },
-  { "control": 'Config.1' },
-  { "control": 'EC2.1' },
-  { "control": 'EC2.2' },
-  { "control": 'EC2.6' },
-  { "control": 'EC2.7' },
-  { "control": 'IAM.1' },
-  { "control": 'IAM.3' },
-  { "control": 'IAM.7' },
-  { "control": 'IAM.8' },
-  { "control": 'Lambda.1' },
-  { "control": 'RDS.1' },
-  { "control": 'RDS.2' },
-  { "control": 'RDS.4' },
-  { "control": 'RDS.5' },
-  { "control": 'RDS.6' },
-  { "control": 'RDS.7' },
-  { "control": 'RDS.8' },
-  { "control": 'RDS.13' },
-  { "control": 'RDS.16' },
-  { "control": 'Redshift.1' },
-  { "control": 'Redshift.3' },
-  { "control": 'Redshift.4' },
-  { "control": 'Redshift.6' },
-  { "control": 'S3.1' },
-  { "control": 'S3.2' },
+  { control: 'AutoScaling.1' },
+  { control: 'CloudFormation.1' },
+  { control: 'CloudTrail.1' },
+  { control: 'CloudTrail.2' },
+  { control: 'CloudTrail.4' },
+  { control: 'CloudTrail.5' },
+  { control: 'CodeBuild.2' },
+  { control: 'Config.1' },
+  { control: 'EC2.1' },
+  { control: 'EC2.2' },
+  { control: 'EC2.6' },
+  { control: 'EC2.7' },
+  { control: 'EC2.15' },
+  { control: 'IAM.1' },
+  { control: 'IAM.3' },
+  { control: 'IAM.7' },
+  { control: 'IAM.8' },
+  { control: 'Lambda.1' },
+  { control: 'RDS.1' },
+  { control: 'RDS.2' },
+  { control: 'RDS.4' },
+  { control: 'RDS.5' },
+  { control: 'RDS.6' },
+  { control: 'RDS.7' },
+  { control: 'RDS.8' },
+  { control: 'RDS.13' },
+  { control: 'RDS.16' },
+  { control: 'Redshift.1' },
+  { control: 'Redshift.3' },
+  { control: 'Redshift.4' },
+  { control: 'Redshift.6' },
+  { control: 'S3.1' },
+  { control: 'S3.2' },
   {
-    "control": 'S3.3',
-    "executes": 'S3.2'
+    control: 'S3.3',
+    executes: 'S3.2',
   },
-  { "control": 'S3.4' },
-  { "control": 'S3.5' },
-  { "control": 'S3.6' },
+  { control: 'S3.4' },
+  { control: 'S3.5' },
+  { control: 'S3.6' },
   {
-    "control": 'S3.8',
-    "executes": 'S3.2'
-  }
+    control: 'S3.8',
+    executes: 'S3.2',
+  },
+  { control: 'SNS.1' },
+  { control: 'SNS.2' },
+  { control: 'SQS.1' },
 ];
 
 const adminStack = new PlaybookPrimaryStack(app, 'AFSBPStack', {
+  analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
+  synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
   solutionId: SOLUTION_ID,
   solutionVersion: DIST_VERSION,
@@ -81,10 +84,12 @@ const adminStack = new PlaybookPrimaryStack(app, 'AFSBPStack', {
   remediations: remediations,
   securityStandardLongName: standardLongName,
   securityStandard: standardShortName,
-  securityStandardVersion: standardVersion
+  securityStandardVersion: standardVersion,
 });
 
 const memberStack = new PlaybookMemberStack(app, 'AFSBPMemberStack', {
+  analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
+  synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}C) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,
   solutionId: SOLUTION_ID,
   solutionVersion: DIST_VERSION,
@@ -92,8 +97,8 @@ const memberStack = new PlaybookMemberStack(app, 'AFSBPMemberStack', {
   securityStandard: standardShortName,
   securityStandardVersion: standardVersion,
   securityStandardLongName: standardLongName,
-  remediations: remediations
+  remediations: remediations,
 });
 
-adminStack.templateOptions.templateFormatVersion = "2010-09-09";
-memberStack.templateOptions.templateFormatVersion = "2010-09-09";
+adminStack.templateOptions.templateFormatVersion = '2010-09-09';
+memberStack.templateOptions.templateFormatVersion = '2010-09-09';

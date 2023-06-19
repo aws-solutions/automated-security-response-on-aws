@@ -1,14 +1,17 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document name - AWSConfigRemediation-EnableRedshiftClusterAuditLogging 
+  ### Document name - AWSConfigRemediation-EnableRedshiftClusterAuditLogging
 
   ## What does this document do?
-  This automation document enables audit logging on the Amazon Redshift cluster using [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API call with given bucket name and s3 key prefix. 
+  This automation document enables audit logging on the Amazon Redshift cluster using [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API call with given bucket name and s3 key prefix.
 
   ## Input Parameters
   * ClusterIdentifier: (Required) The unique identifier of the Amazon Redshift cluster on which logging to be started.
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * BucketName: (Required) The name of an existing Amazon S3 bucket where the log files are to be stored.
-  * S3KeyPrefix: (Optional) The prefix applied to the log file names.  
+  * S3KeyPrefix: (Optional) The prefix applied to the log file names.
 
   ## Output Parameters
   * EnableLoggingWithPrefix.Response: Standard HTTP response of the EnableLogging API.
@@ -40,7 +43,7 @@ mainSteps:
   - name: CheckS3KeyPrefix
     description: |
       ## CheckS3KeyPrefix
-      Checks whether S3KeyPrefix provided in the input parameters. 
+      Checks whether S3KeyPrefix provided in the input parameters.
     action: "aws:branch"
     inputs:
       Choices:
@@ -53,10 +56,10 @@ mainSteps:
     nextStep: AssertClusterLoggingEnabled
     action: "aws:executeAwsApi"
     description: |
-      ## EnableLoggingWithoutPrefix 
+      ## EnableLoggingWithoutPrefix
       Enables logging on the given Amazon Redshift cluster using the [EnableLogging](https://docs.aws.amazon.com/redshift/latest/APIReference/API_EnableLogging.html) API with given bucket name in input parameters.
       ## Outputs
-      * Response: Standard HTTP response of the EnableLogging API. 
+      * Response: Standard HTTP response of the EnableLogging API.
     inputs:
       Service: redshift
       Api: EnableLogging

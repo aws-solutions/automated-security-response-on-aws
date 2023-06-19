@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_PCI.IAM.8
+  ### Document Name - ASR-PCI_3.2.1_PCI.IAM.8
 
   ## What does this document do?
   This document establishes a default password policy.
@@ -58,7 +61,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-SetIAMPasswordPolicy
+      DocumentName: ASR-SetIAMPasswordPolicy
       RuntimeParameters:
         AllowUsersToChangePassword: True
         HardExpiry: True
@@ -81,7 +84,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Established a baseline password policy using the AWSConfigRemediation-SetIAMPasswordPolicy runbook.'
-        UpdatedBy: 'SHARR-PCI_3.2.1_IAM.8'
+        UpdatedBy: 'ASR-PCI_3.2.1_IAM.8'
       Workflow:
         Status: RESOLVED
     description: Update finding

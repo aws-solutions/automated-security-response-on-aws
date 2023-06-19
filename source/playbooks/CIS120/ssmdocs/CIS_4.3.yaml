@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_4.3
+  ### Document Name - ASR-CIS_1.2.0_4.3
 
   ## What does this document do?
   Removes all access from an EC2 Default Security Group to restrict all traffic.
@@ -30,7 +33,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-RemoveVPCDefaultSecurityGroupRules"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -70,7 +73,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-RemoveVPCDefaultSecurityGroupRules
+      DocumentName: ASR-RemoveVPCDefaultSecurityGroupRules
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -89,7 +92,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Removed all access to the default security group {{ ParseInput.GroupId }}.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_4.3'
+        UpdatedBy: 'ASR-CIS_1.2.0_4.3'
       Workflow:
         Status: RESOLVED
     description: Update finding

@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_CloudTrail.3
+  ### Document Name - ASR-PCI_3.2.1_CloudTrail.3
 
   ## What does this document do?
   This document enables CloudTrail log file validation.
@@ -30,7 +33,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-EnableCloudTrailLogFileValidation"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   -
@@ -71,7 +74,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableCloudTrailLogFileValidation
+      DocumentName: ASR-EnableCloudTrailLogFileValidation
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -90,7 +93,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled CloudTrail log file validation.'
-        UpdatedBy: 'SHARR-PCI_3.2.1_CloudTrail.3'
+        UpdatedBy: 'ASR-PCI_3.2.1_CloudTrail.3'
       Workflow:
         Status: RESOLVED
     description: Update finding

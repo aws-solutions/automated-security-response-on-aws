@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 ---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_RDS.2
+  ### Document Name - ASR-PCI_3.2.1_RDS.2
   ## What does this document do?
   This document disables public access to RDS instances by calling another SSM document
 
@@ -12,6 +12,10 @@ description: |
 
   ## Documentation Links
   * [PCI RDS.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-pci-controls.html#pcidss-rds-2)
+
+  ## Troubleshooting
+  * ModifyDBInstance isn't supported for a DB instance in a Multi-AZ DB Cluster.
+    - This remediation will not work on an instance within a MySQL or PostgreSQL Multi-AZ Cluster due to limitations with the RDS API. 
 schemaVersion: '0.3'
 assumeRole: '{{AutomationAssumeRole}}'
 outputs:
@@ -28,7 +32,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-DisablePublicAccessToRDSInstance'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'
@@ -64,7 +68,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-DisablePublicAccessToRDSInstance'
+    DocumentName: 'ASR-DisablePublicAccessToRDSInstance'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -84,7 +88,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Disabled public access to RDS instance'
-      UpdatedBy: 'SHARR-PCI_3.2.1_RDS.2'
+      UpdatedBy: 'ASR-PCI_3.2.1_RDS.2'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'

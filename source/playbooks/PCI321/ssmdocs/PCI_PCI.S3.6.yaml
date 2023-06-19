@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_S3.6
+  ### Document Name - ASR-PCI_3.2.1_S3.6
 
   ## What does this document do?
   This document blocks public access to all buckets by default at the account level.
@@ -60,7 +63,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-ConfigureS3PublicAccessBlock
+      DocumentName: ASR-ConfigureS3PublicAccessBlock
       RuntimeParameters:
         AccountId: '{{ParseInput.AccountId}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3PublicAccessBlock'
@@ -79,7 +82,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Configured the account to block public S3 access.'
-        UpdatedBy: 'SHARR-PCI_3.2.1_S3.6'
+        UpdatedBy: 'ASR-PCI_3.2.1_S3.6'
       Workflow:
         Status: RESOLVED
     description: Update finding

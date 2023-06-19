@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_4.1
+  ### Document Name - ASR-CIS_1.2.0_4.1
 
   ## What does this document do?
   Removes public access from an EC2 Security Group for controls CIS 4.1 and CIS 4.2
@@ -31,7 +34,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-DisablePublicAccessForSecurityGroup"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -87,7 +90,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Disabled public access to the security group {{ ParseInput.GroupId }}.'
-        UpdatedBy: 'SHARR-CIS_1.2.0_4.1'
+        UpdatedBy: 'ASR-CIS_1.2.0_4.1'
       Workflow:
         Status: RESOLVED
     description: Update finding

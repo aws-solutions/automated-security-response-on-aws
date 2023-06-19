@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_EC2.5
+  ### Document Name - ASR-PCI_3.2.1_EC2.5
 
   ## What does this document do?
   Removes public access to remove server administrative ports from an EC2 Security Group
@@ -73,7 +76,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Disabled public access to administrative ports in the security group {{ ParseInput.GroupId }}.'
-        UpdatedBy: 'SHARR-PCI_3.2.1_EC2.5'
+        UpdatedBy: 'ASR-PCI_3.2.1_EC2.5'
       Workflow:
         Status: RESOLVED
     description: Update finding

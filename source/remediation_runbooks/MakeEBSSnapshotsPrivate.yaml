@@ -1,6 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 schemaVersion: "0.3"
 description: |
-  ### Document name - SHARR-MakeEBSSnapshotPrivate
+  ### Document name - ASR-MakeEBSSnapshotPrivate
 
   ## What does this document do?
   This runbook works an the account level to remove public share on all EBS snapshots

@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.RDS.8
+  ### Document Name - ASR-AFSBP_1.0.RDS.8
 
   ## What does this document do?
   This document enables `Deletion Protection` on a given Amazon RDS cluster by calling another SSM document.
@@ -30,7 +30,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-EnableRDSInstanceDeletionProtection'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'
@@ -66,7 +66,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-EnableRDSInstanceDeletionProtection'
+    DocumentName: 'ASR-EnableRDSInstanceDeletionProtection'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -87,7 +87,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Enabled deletion protection on RDS instance'
-      UpdatedBy: 'SHARR-AFSBP_1.0.0_RDS.8'
+      UpdatedBy: 'ASR-AFSBP_1.0.0_RDS.8'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'

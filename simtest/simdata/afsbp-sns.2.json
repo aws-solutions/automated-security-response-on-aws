@@ -1,0 +1,69 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/SNS.2/finding/9418de6f-0653-4e20-8b0e-e87e7434cb9f",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/SNS.2",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2022-12-20T23:33:02.111Z",
+    "LastObservedAt": "2022-12-29T21:41:06.338Z",
+    "CreatedAt": "2022-12-20T23:33:02.111Z",
+    "UpdatedAt": "2022-12-29T21:40:55.166Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "SNS.2 Logging of delivery status should be enabled for notification messages sent to a topic",
+    "Description": "This control checks whether logging is enabled for the delivery status of notification messages sent to a topic for the endpoints. This control fails if the delivery status notification for messages is not enabled.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, consult the AWS Security Hub Foundational Security Best Practices documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/SNS.2/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "SNS.2",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/SNS.2/remediation",
+      "RelatedAWSResources:0/name": "securityhub-sns-topic-message-delivery-notification-enabled-f8c29319",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/SNS.2",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:sns:us-east-1:111111111111:SO0111-SHARR_Topic",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/SNS.2/finding/9418de6f-0653-4e20-8b0e-e87e7434cb9f"
+    },
+    "Resources": [
+      {
+        "Type": "AwsSnsTopic",
+        "Id": "arn:aws:sns:us-east-1:111111111111:SO0111-SHARR_Topic",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED"
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    }
+  }

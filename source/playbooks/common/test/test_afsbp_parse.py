@@ -1,7 +1,5 @@
-#!/usr/bin/python
-## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-## SPDX-License-Identifier: Apache-2.0
-
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 import boto3
 import json
 import botocore.session

@@ -1,7 +1,7 @@
-AWS Security Hub Automated Response and Remediation Solution
+Automated Security Response on AWS
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
-in compliance with the License. A copy of the License is located at http://www.apache.org/licenses/LICENSE-2.0/
+in compliance with the License. A copy of the License is located at http://www.apache.org/licenses/
 or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the
 specific language governing permissions and limitations under the License.
@@ -11,15 +11,43 @@ THIRD PARTY COMPONENTS
 **********************
 This software includes third party software subject to the following copyrights:
 
-aws-cdk under the Apache License Version 2.0
-aws-sdk under the Apache License Version 2.0
-bandit under the Apache License Version 2.0
-pytest under the MIT License (MIT)
-request under the Apache License Version 2.0
-@types/jest under the Massachusetts Institute of Technology (MIT) license
-@types/node under the Massachusetts Institute of Technology (MIT) license
-@typescript-eslint/eslint-plugin under the Massachusetts Institute of Technology (MIT) license
-@typescript-eslint/parser under the BSD-2-Clause license
-jest under the Massachusetts Institute of Technology (MIT) license
-typescript under the Apache License Version 2.0
+@aws-cdk/aws-servicecatalogappregistry-alpha under the Apache License 2.0
+@cdklabs/cdk-ssm-documents under the Apache License 2.0
+@types/jest under the MIT License
+@types/js-yaml under the MIT License
+@types/node under the MIT License
+@types/prettier under the MIT License
+@typescript-eslint/eslint-plugin under the MIT License
+aws-cdk under the Apache License 2.0
+aws-cdk-lib under the Apache License 2.0
+cdk-nag under the Apache License 2.0
+constructs under the Apache License 2.0
+eslint under the MIT License
+eslint-config-prettier under the MIT License
+eslint-plugin-header under the MIT License
+eslint-plugin-import under the MIT License
+eslint-plugin-prettier under the MIT License
+jest under the MIT License
+js-yaml under the MIT License
+source-map-support under the MIT License
+ts-jest under the MIT License
+ts-node under the MIT License
+typescript under the Apache License 2.0
 
+aws-lambda-powertools under the MIT License
+boto3 under the Apache License 2.0
+boto3-stubs-lite under the MIT License
+botocore under the Apache License 2.0
+jmespath under the MIT License
+moto under the Apache License 2.0
+pip under the MIT License
+pytest under the MIT License
+pytest-cov under the MIT License
+pytest-env under the MIT License
+pytest-mock under the MIT License
+python-dateutil under the Apache License 2.0 and the BSD 3-Clause "New" or "Revised" License
+s3transfer under the Apache License 2.0
+setuptools under the MIT License
+six under the MIT License
+urllib3 under the MIT License
+virtualenv under the MIT License

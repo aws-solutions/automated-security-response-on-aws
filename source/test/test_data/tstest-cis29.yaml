@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CIS_1.2.0_2.9
+  ### Document Name - ASR-CIS_1.2.0_2.9
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
@@ -12,4 +15,3 @@ parameters:
     type: String
     description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
     default: ''
-    

@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_IAM.8
+  ### Document Name - ASR-AFSBP_1.0.0_IAM.8
 
   ## What does this document do?
   This document ensures that credentials unused for 90 days or greater are disabled.
@@ -62,7 +65,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-RevokeUnusedIAMUserCredentials
+      DocumentName: ASR-RevokeUnusedIAMUserCredentials
       RuntimeParameters:
         IAMResourceId: '{{ ParseInput.IAMResourceId }}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials'
@@ -77,7 +80,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Deactivated unused keys and expired logins using the AWSConfigRemediation-RevokeUnusedIAMUserCredentials runbook.'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_IAM.8'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_IAM.8'
       Workflow:
         Status: RESOLVED
     description: Update finding

@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_PCI.S3.4
+  ### Document Name - ASR-PCI_3.2.1_PCI.S3.4
 
   ## What does this document do?
   This document enables AES-256 as the default encryption for an S3 bucket.
@@ -30,7 +33,7 @@ parameters:
   RemediationRoleName:
       type: String
       default: "SO0111-EnableDefaultEncryptionS3"
-      allowedPattern: '^[\w+=,.@-]+'
+      allowedPattern: '^[\w+=,.@-]+$'
   KmsKeyAlias:
       type: String
       description: (Required) KMS Customer-Managed Key (CMK) alias or the default value which is created in the SSM parameter at solution deployment (default-s3-encryption) is used to identify that the s3 bucket encryption value should be set to AES-256.
@@ -71,7 +74,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-EnableDefaultEncryptionS3
+      DocumentName: ASR-EnableDefaultEncryptionS3
       RuntimeParameters:
         AccountId: '{{ParseInput.AccountId}}'
         BucketName: '{{ParseInput.BucketName}}'
@@ -88,7 +91,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Enabled default encryption for {{ParseInput.BucketName}}'
-        UpdatedBy: 'SHARR-PCI_3.2.1_PCI.S3.4'
+        UpdatedBy: 'ASR-PCI_3.2.1_PCI.S3.4'
       Workflow:
         Status: RESOLVED
     description: Update finding

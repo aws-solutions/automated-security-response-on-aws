@@ -1,19 +1,18 @@
-#!/bin/bash
-#
-# This assumes all of the OS-level configuration has been completed and git repo has already been cloned
-#
-# This script should be run from the repo's deployment directory
-# cd deployment
-# ./run-unit-tests.sh
-#
+#!/usr/bin/env bash
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 maxrc=0
 rc=0
 export overrideWarningsEnabled=false
 
 [[ $1 == 'update' ]] && {
-    update="true" 
+    update="true"
     echo "UPDATE MODE: CDK Snapshots will be updated. CDK UNIT TESTS WILL BE SKIPPED"
 } || update="false"
+
+[[ ! -d .venv ]] && python3 -m venv .venv
+source ./.venv/bin/activate
+python3 -m pip install -U pip setuptools
 
 echo 'Installing required Python testing modules'
 pip install -r ./testing_requirements.txt
@@ -71,7 +70,7 @@ fi
 if [[ -z "$SOLUTION_TRADEMARKEDNAME" ]]; then
     echo "SOLUTION_TRADEMARKEDNAME is missing from ../solution_env.sh"
     exit 1
-else 
+else
     export SOLUTION_TRADEMARKEDNAME
 fi
 
@@ -97,12 +96,12 @@ cd $source_dir
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - Orchestrator Lambdas"
 echo "------------------------------------------------------------------------------"
-run_pytest "${temp_source_dir}/Orchestrator" "Orchestrator"
+run_pytest "${source_dir}/Orchestrator" "Orchestrator"
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - SolutionDeploy"
 echo "------------------------------------------------------------------------------"
-run_pytest "${temp_source_dir}/solution_deploy/source" "SolutionDeploy"
+run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - LambdaLayers"

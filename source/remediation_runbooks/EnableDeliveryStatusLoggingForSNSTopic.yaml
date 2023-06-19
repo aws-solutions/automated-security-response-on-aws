@@ -1,0 +1,58 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+   ### Document name - ASR-EnableDeliveryStatusLoggingForSNSTopic
+
+   ## What does this document do?
+    This document enables delivery status logging on given Amazon Simple Notification Service (Amazon SNS) topic using
+    [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
+
+   ## Input Parameters
+   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+   * LoggingRole: (Required) The ARN of the IAM Role used to log successful and failed deliveries.
+   * SNSTopicArn: (Required)  The ARN of the Amazon SNS Topic.
+
+    ## Security Standards / Controls
+    * AFSBP v1.0.0:   SNS.2
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  LoggingRole:
+    type: String
+    description: (Required) The ARN of the role that allows Delivery Status Logging.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  SNSTopicArn:
+    type: String
+    description: (Required) The ARN of the Amazon SNS Topic.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):sns:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:([a-zA-Z0-9_-]{1,80}(?:\.fifo)?)$'
+  SampleRate:
+    type: String
+    default: '0'    
+    allowedPattern: '^(?:[0-9]|[1-9][0-9]|100)$'
+
+outputs:
+  - EnableDeliveryStatusLogging.Output
+mainSteps:
+ - name: 'EnableDeliveryStatusLogging'
+   action: 'aws:executeScript'
+   timeoutSeconds: 600
+   inputs:
+     InputPayload:
+       logging_role: '{{ LoggingRole }}'
+       topic_arn: '{{ SNSTopicArn }}'
+       sample_rate: '{{ SampleRate }}'
+     Runtime: 'python3.8'
+     Handler: 'lambda_handler'
+     Script: |-
+       %%SCRIPT=enable_delivery_status_logging.py%%
+   outputs:
+   - Name: 'Output'
+     Selector: '$.Payload'
+     Type: 'StringMap'
+   isEnd: true

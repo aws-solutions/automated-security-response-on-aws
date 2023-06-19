@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 ---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_Redshift.1
+  ### Document Name - ASR-PCI_3.2.1_Redshift.1
   ## What does this document do?
   This document disables public access to a Redshift cluster by calling another SSM document
 
@@ -29,7 +29,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-DisablePublicAccessToRedshiftCluster'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'
@@ -65,7 +65,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-DisablePublicAccessToRedshiftCluster'
+    DocumentName: 'ASR-DisablePublicAccessToRedshiftCluster'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -85,7 +85,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Disabled public access to Redshift cluster'
-      UpdatedBy: 'SHARR-PCI_3.2.1_Redshift.1'
+      UpdatedBy: 'ASR-PCI_3.2.1_Redshift.1'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'

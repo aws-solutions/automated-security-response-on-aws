@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_RDS.1
+  ### Document Name - ASR-AFSBP_1.0.0_RDS.1
   ## What does this document do?
   This document changes public RDS snapshot to private
 
@@ -25,7 +28,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-MakeRDSSnapshotPrivate"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   - name: ParseInput
@@ -58,7 +61,7 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
-        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(cluster-snapshot|snapshot):([a-zA-Z](?:[0-9a-zA-Z]+[-]{1})*[0-9a-zA-Z]{1,})$'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(cluster-snapshot|snapshot):([a-zA-Z](?:[0-9a-zA-Z]+-)*[0-9a-zA-Z]+)$'
         resource_index: 2
         expected_control_id:
         - 'RDS.1'
@@ -71,7 +74,7 @@ mainSteps:
   - name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-MakeRDSSnapshotPrivate
+      DocumentName: ASR-MakeRDSSnapshotPrivate
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
@@ -92,7 +95,7 @@ mainSteps:
           ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: RDS DB Snapshot modified to private
-        UpdatedBy: SHARR-AFSBP_1.0.0_RDS.1
+        UpdatedBy: ASR-AFSBP_1.0.0_RDS.1
       Workflow:
         Status: RESOLVED
     description: Update finding

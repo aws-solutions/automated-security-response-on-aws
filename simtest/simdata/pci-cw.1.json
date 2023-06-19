@@ -1,0 +1,77 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.CW.1/finding/8879a1dd-6fc2-4995-b6ba-2ac657cb8679",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "pci-dss/v/3.2.1/PCI.CW.1",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+    ],
+    "FirstObservedAt": "2021-06-01T19:25:41.445Z",
+    "LastObservedAt": "2021-07-22T07:36:21.839Z",
+    "CreatedAt": "2021-06-01T19:25:41.445Z",
+    "UpdatedAt": "2021-07-22T07:36:19.652Z",
+    "Severity": {
+      "Product": 40,
+      "Label": "MEDIUM",
+      "Normalized": 40,
+      "Original": "MEDIUM"
+    },
+    "Title": "PCI.CW.1 A log metric filter and alarm should exist for usage of the \"root\" user",
+    "Description": "This control checks for the CloudWatch metric filters using the following pattern { $.userIdentity.type = \"Root\" && $.userIdentity.invokedBy NOT EXISTS && $.eventType != \"AwsServiceEvent\" } It checks that the log group name is configured for use with active multi-region CloudTrail, that there is at least one Event Selector for a Trail with IncludeManagementEvents set to true and ReadWriteType set to All, and that there is at least one active subscriber to an SNS topic associated with the alarm.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For directions on how to fix this issue, please consult the AWS Security Hub PCI DSS documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/PCI.CW.1/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/pci-dss/v/3.2.1",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1",
+      "ControlId": "PCI.CW.1",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/PCI.CW.1/remediation",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/pci-dss/v/3.2.1/PCI.CW.1",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "aws/securityhub/annotation": "Multi region CloudTrail with the required configuration does not exist in the account",
+      "Resources:0/Id": "arn:aws:iam::111111111111:root",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/pci-dss/v/3.2.1/PCI.CW.1/finding/8879a1dd-6fc2-4995-b6ba-2ac657cb8679"
+    },
+    "Resources": [
+      {
+        "Type": "AwsAccount",
+        "Id": "AWS::::Account:111111111111",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "RelatedRequirements": [
+        "PCI DSS 7.2.1"
+      ],
+      "StatusReasons": [
+        {
+          "ReasonCode": "CLOUDTRAIL_MULTI_REGION_NOT_PRESENT",
+          "Description": "Multi region CloudTrail with the required configuration does not exist in the account"
+        }
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "MEDIUM",
+        "Original": "MEDIUM"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/PCI-DSS"
+      ]
+    }
+  }

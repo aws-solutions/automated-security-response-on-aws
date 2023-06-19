@@ -1,9 +1,12 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-CreateCloudTrailMultiRegionTrail
+  ### Document Name - ASR-CreateCloudTrailMultiRegionTrail
   ## What does this document do?
   Creates a multi-region trail with KMS encryption and enables CloudTrail
   Note: this remediation will create a NEW trail.
-  
+
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
@@ -24,7 +27,7 @@ parameters:
     type: String
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
-    description: The ARN of the KMS key created by SHARR for this remediation
+    description: The ARN of the KMS key created by ASR for this remediation
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
   AWSPartition:
     type: String
@@ -39,7 +42,7 @@ outputs:
   - Remediation.Output
 
 mainSteps:
-  - 
+  -
     name: CreateLoggingBucket
     action: 'aws:executeScript'
     outputs:
@@ -47,10 +50,10 @@ mainSteps:
         Selector: $.Payload.logging_bucket
         Type: String
     inputs:
-      InputPayload: 
+      InputPayload:
         account: '{{global:ACCOUNT_ID}}'
         region: '{{global:REGION}}'
-        kms_key_arn: '{{KMSKeyArn}}'        
+        kms_key_arn: '{{KMSKeyArn}}'
       Runtime: python3.8
       Handler: create_logging_bucket
       Script: |-
@@ -58,7 +61,7 @@ mainSteps:
 
     isEnd: false
 
-  - 
+  -
     name: CreateCloudTrailBucket
     action: 'aws:executeScript'
     outputs:
@@ -66,7 +69,7 @@ mainSteps:
         Selector: $.Payload.cloudtrail_bucket
         Type: String
     inputs:
-      InputPayload: 
+      InputPayload:
         account: '{{global:ACCOUNT_ID}}'
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'
@@ -75,14 +78,14 @@ mainSteps:
       Handler: create_encrypted_bucket
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.py%%
-        
+
     isEnd: false
 
-  - 
+  -
     name: CreateCloudTrailBucketPolicy
     action: 'aws:executeScript'
     inputs:
-      InputPayload: 
+      InputPayload:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         partition: '{{AWSPartition}}'
         account: '{{global:ACCOUNT_ID}}'
@@ -100,7 +103,7 @@ mainSteps:
         Selector: $.Payload.cloudtrail_bucket
         Type: String
     inputs:
-      InputPayload: 
+      InputPayload:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         kms_key_arn: '{{KMSKeyArn}}'
       Runtime: python3.8

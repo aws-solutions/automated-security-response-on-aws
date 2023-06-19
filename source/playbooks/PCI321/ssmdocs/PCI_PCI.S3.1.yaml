@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-PCI_3.2.1_S3.1
+  ### Document Name - ASR-PCI_3.2.1_S3.1
 
   ## What does this document do?
   This document blocks public access to an S3 bucket.
@@ -61,7 +64,7 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: SHARR-ConfigureS3BucketPublicAccessBlock
+      DocumentName: ASR-ConfigureS3BucketPublicAccessBlock
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketPublicAccessBlock'
@@ -80,7 +83,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Disabled public access to S3 bucket.'
-        UpdatedBy: 'SHARR-PCI_3.2.1_S3.1'
+        UpdatedBy: 'ASR-PCI_3.2.1_S3.1'
       Workflow:
         Status: RESOLVED
     description: Update finding

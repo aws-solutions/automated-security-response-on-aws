@@ -1,76 +1,41 @@
-# AWS Security Hub Automated Response and Remediation
+# Automated Security Response on AWS
 
-[🚀 Solution Landing
-Page](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/)
-\| [🚧 Feature
+[🚀 Solution Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/) \| [🚧
+Feature
 request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
 Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation%3E/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
 
-Note: If you want to use the solution without building from source, navigate to
-Solution Landing Page
+Automated Security Response (ASR) on AWS is a solution that enables AWS Security Hub customers to remediate findings
+with a single click using sets of predefined response and remediation actions called Playbooks. The remediations are
+implemented as AWS Systems Manager automation documents. The solution includes remediations for issues such as unused
+access keys, open security groups, weak account password policies, VPC flow logging configurations, and public S3
+buckets. Remediations can also be configured to trigger automatically when findings appear in AWS Security Hub.
 
-## Table of contents
+The solution includes the playbook remediations for some of the security controls defined as part of the following
+standards:
 
-- [AWS Security Hub Automated Response and Remediation](#aws-security-hub-automated-response-and-remediation)
-  - [Table of contents](#table-of-contents)
-  - [Solution Overview](#solution-overview)
-    - [Architecture Diagram](#architecture-diagram)
-  - [AWS Solutions Constructs](#aws-solutions-constructs)
-  - [Customizing the Solution](#customizing-the-solution)
-    - [Prerequisites for Customization](#prerequisites-for-customization)
-      - [Obtaining Source Code](#obtaining-source-code)
-    - [Custom Playbooks](#custom-playbooks)
-      - [Configure the Playbook](#configure-the-playbook)
-      - [Create the Remediations](#create-the-remediations)
-    - [Build and Deploy](#build-and-deploy)
-      - [Build the solution](#build-the-solution)
-      - [Run Unit Tests](#run-unit-tests)
-    - [Upload to your buckets](#upload-to-your-buckets)
-  - [Deploy](#deploy)
-- [File structure](#file-structure)
-- [Collection of operational metrics](#collection-of-operational-metrics)
-- [License](#license)
+- AWS Foundational Security Best Practices (FSBP) v1.0.0
+- Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0
+- Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0
+- Payment Card Industry (PCI) Data Security Standard (DSS) v3.2.1
 
-<a name="solution-overview"></a>
+A Playbook called Security Control is included that allows operation with AWS Security Hub's Consolidated Control
+Findings feature.
 
-## Solution Overview
+**Note**: To deploy the solution without building from the source code, use the CloudFormation templates linked from the
+[Solution Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/).
 
-AWS Security Hub Automated Response and Remediation is an add-on solution that
-enables AWS Security Hub customers to remediate security findings with a single
-click using predefined response and remediation actions called “Playbooks”.
-Alternately the playbooks can also be configured to remediate findings in AWS
-Security Hub automatically. The remediation is performed using AWS Lambda and in
-some cases using AWS Systems Manager, the playbooks execute steps to remediate
-security issues, such as unused keys, open security groups, password policies,
-VPC configurations and public S3 buckets. The solution contains the playbook
-remediations for some of the security standards defined as part of CIS AWS
-Foundations Benchmark v1.2.0 and for AWS Foundational Security Best Practices
-v1.0.0.
+## Architecture Diagram
 
-<a name="architecture-diagram"></a>
-
-### Architecture Diagram
-
-![](./SHARR_v1.2.jpg)
-
-<a name="aws-solutions-constructs"></a>
-
-## AWS Solutions Constructs
-
-- aws-events-rule-lambda - creates event rules that trigger the appropriate remediation, as well as any necessary permissions.
-
-<a name="customizing-the-solution"></a>
+![](./docs/architecture_diagram.png)
 
 ## Customizing the Solution
 
-**Note**: If your goal is just to deploy the solution, please use the template on the [AWS Security Hub Automated Response and Remediation Landing Page](https://aws.amazon.com/solutions/implementations/aws-security-hub-automated-response-and-remediation/). *There is no need to build the solution from source.*
-
-Detailed instructions for creating a new automated remediation in an existing Playbook can be found in the Implementation Guide. Instructions for creating an entirely new Playbook are below.
+Detailed instructions for creating a new automated remediation in an existing Playbook can be found in the
+Implementation Guide. Instructions for creating an entirely new Playbook are below.
 
 **Note**: If you choose to continue, please be aware that reading and adjusting the source code will be necessary.
-
-<a name="prerequisites-for-customization"></a>
 
 ### Prerequisites for Customization
 
@@ -86,9 +51,13 @@ Detailed instructions for creating a new automated remediation in an existing Pl
 
 #### Obtaining Source Code
 
-Building from GitHub source will allow you to modify the solution to suit your specific needs. The process consists of downloading the source from GitHub, creating buckets to be used for deployment, building the solution, and uploading the artifacts needed for deployment.
+Building from GitHub source will allow you to modify the solution to suit your specific needs. The process consists of
+downloading the source from GitHub, creating buckets to be used for deployment, building the solution, and uploading the
+artifacts needed for deployment.
 
-Clone or download the repository to a local directory on your linux client. Note: if you intend to modify the solution you may wish to create your own fork of the GitHub repo and work from that. This allows you to check in any changes you make to your private copy of the solution.
+Clone or download the repository to a local directory on your linux client. Note: if you intend to modify the solution
+you may wish to create your own fork of the GitHub repo and work from that. This allows you to check in any changes you
+make to your private copy of the solution.
 
 **Git Clone example:**
 
@@ -104,7 +73,10 @@ wget https://github.com/aws-solutions/aws-security-hub-automated-response-and-re
 
 ### Custom Playbooks
 
-Go to source/playbooks in the solution source downloaded above. In this folder is a Playbook skeleton, **NEWPLAYBOOK**. Copy this entire folder and its contents as a new folder under source/playbooks. The naming convention is the security standard abbreviation followed by the version number, as they appear in the StandardsControlArn in the AWS Standard Finding Format for the security control.
+Go to source/playbooks in the solution source downloaded above. In this folder is a Playbook skeleton, **NEWPLAYBOOK**.
+Copy this entire folder and its contents as a new folder under source/playbooks. The naming convention is the security
+standard abbreviation followed by the version number, as they appear in the StandardsControlArn in the AWS Standard
+Finding Format for the security control.
 
 **Example**
 
@@ -126,55 +98,69 @@ Unless noted, all of the following changes are within the folder you just create
 2. Update cdk.json with the new file name
 3. Rename the test typescript in the **test** subfolder similarly. Ex. **pci321_stack.test.ts**
 4. Update the description.txt, README.md, and support.txt, following the example within.
-5. Rename ssmdocs/scripts/newplaybook_parse_input.py as desired. This script parses the finding data. You will likely not need to modify it, as it's fairly robust. See other Playbooks for examples of its use.
+5. Rename ssmdocs/scripts/newplaybook_parse_input.py as desired. This script parses the finding data. You will likely
+   not need to modify it, as it's fairly robust. See other Playbooks for examples of its use.
 
 #### Configure the Playbook
 
-Edit **bin/\<standard\>.ts**. The following 3 lines are critical to definition of the Playbook. These values enable SHARR to map from the StandardsControlArn in a finding to your remediations.
+Edit **bin/\<standard\>.ts**. The following 3 lines are critical to definition of the Playbook. These values enable ASR
+to map from the StandardsControlArn in a finding to your remediations.
 
 ```typescript
-const standardShortName = 'NPB'
-const standardLongName = 'New Playbook'
-const standardVersion = '1.1.1' // DO NOT INCLUDE 'V'
+const standardShortName = "NPB";
+const standardLongName = "New Playbook";
+const standardVersion = "1.1.1"; // DO NOT INCLUDE 'V'
 ```
 
-**standardShortName** can be as you wish. General recommendation is to make it short and meaningful. Ex. PCI, CIS, AFSBP. This is the name used in many labels throughout the solution.
-**standardLongName** must match the StandardsControlArn, as *pci-dss* in the above example.
-**standardVersion** must match the StandardsControlArn version, as *.../v/3.2.1/...* in the above example.
+**standardShortName** can be as you wish. General recommendation is to make it short and meaningful. Ex. PCI, CIS,
+AFSBP. This is the name used in many labels throughout the solution. **standardLongName** must match the
+StandardsControlArn, as _pci-dss_ in the above example. **standardVersion** must match the StandardsControlArn version,
+as _.../v/3.2.1/..._ in the above example.
 
 Having established these values, your runbooks in **/ssmdocs** will be named: <standardShortName>-<control>.yaml
 
-As you write your SSM runbooks, you will add them to the stack in the following code, where control must match the field from the StandardsControlArn:
+As you write your SSM runbooks, you will add them to the stack in the following code, where control must match the field
+from the StandardsControlArn:
 
 ```typescript
-const remediations: IControl[] = [
-    { "control": "RDS.6" }
-]
+const remediations: IControl[] = [{ control: "RDS.6" }];
 ```
 
 #### Create the Remediations
 
-Remediations are executed using SSM Automation Runbooks. Each control has a specific runbook. SHARR Runbooks must follow the naming convention in the **/ssmdocs** folder:
+Remediations are executed using SSM Automation Runbooks. Each control has a specific runbook. ASR Runbooks must follow
+the naming convention in the **/ssmdocs** folder:
 
 <standardShortName>-<control>.yaml
 
-Follow examples from other Playbooks. Your SHARR runbook must parse the finding data, extract the fields needed for remediation, and execute a remediation runbook, passing the role name.
+Follow examples from other Playbooks. Your ASR runbook must parse the finding data, extract the fields needed for
+remediation, and execute a remediation runbook, passing the role name.
 
-Remediation runbooks are defined in the /source/remediation_runbooks and /source/solution_deploy/remediation_runbooks-stack.ts. The remediation examples provided with the solution are fairly robust and self-documenting. Each definition creates an IAM role and an SSM runbook that is called by the SHARR runbook.
+Remediation runbooks are defined in the /source/remediation_runbooks and
+/source/solution_deploy/remediation_runbooks-stack.ts. The remediation examples provided with the solution are fairly
+robust and self-documenting. Each definition creates an IAM role and an SSM runbook that is called by the ASR runbook.
 
 ### Build and Deploy
 
-AWS Solutions use two buckets: a bucket for global access to templates, which is accessed via HTTPS, and regional buckets for access to assets within the region, such as Lambda code. You will need:
+AWS Solutions use two buckets: a bucket for global access to templates, which is accessed via HTTPS, and regional
+buckets for access to assets within the region, such as Lambda code. You will need:
 
-- One global bucket that is access via the http end point. AWS CloudFormation templates are stored here. It must end with "-reference. Ex. "mybucket-reference"
-- One regional bucket for each region where you plan to deploy using the name of the global bucket as the root, and suffixed with the region name. Ex. "mybucket-us-east-1"
+- One global bucket that is access via the http end point. AWS CloudFormation templates are stored here. It must end
+  with "-reference. Ex. "mybucket-reference"
+- One regional bucket for each region where you plan to deploy using the name of the global bucket as the root, and
+  suffixed with the region name. Ex. "mybucket-us-east-1"
 - Your buckets should be encrypted and disallow public access
 
-**Note**: When creating your buckets, ensure they are not publicly accessible. Use random bucket names. Disable public access. Use KMS encryption. And verify bucket ownership before uploading.
+**Note**: When creating your buckets, ensure they are not publicly accessible. Use random bucket names. Disable public
+access. Use KMS encryption. And verify bucket ownership before uploading.
 
 #### Build the solution
 
-From the *deployment* folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex. mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
+First ensure that you've run `npm install` in the _source_ folder.
+
+Next from the _deployment_ folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex.
+mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version
+downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
 
 ```bash
 chmod +x build-s3-dist.sh
@@ -199,43 +185,58 @@ Confirm that all unit tests pass.
 
 **Note**: Verify bucket ownership before uploading.
 
-By default, the templates created by build-s3-dist.sh expect the software to be stored in **aws-security-hub-automated-response-and-remediation/v\<version\>**. If in doubt, view the template.
+By default, the templates created by build-s3-dist.sh expect the software to be stored in
+**aws-security-hub-automated-response-and-remediation/v\<version\>**. If in doubt, view the template.
 
-Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the regional bucket.
-
-<a name="deploy"></a>
+Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the
+regional bucket.
 
 ## Deploy
 
-See the [AWS Security Hub Automated Response and Remediation Implementation Guide](http://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for AWS Solutions. Ex. https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
+See the [Automated Security Response on AWS Implementation
+Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for
+deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for
+AWS Solutions. Ex.
+https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
 
-<a name="file-structure"></a>
-# File structure
+## Directory structure
 
-aws-security-hub-automated-response-and-remediation uses AWS CDK for generating the cloudformation templates.
 <pre>
-|-source/
-  |-Lambdalayer                  [ Common functions loaded as an AWS Lambda Layer for Orchestrator lambdas ]
-  |-Orchestrator                 [ AWS Step Function and supporting lambdas ]
-  |-playbooks                    [ Playbooks CloudDevelopment Kit Code and lambda source code]
-    |- AFSBP/                    [ AFSBP v1.0.0 playbook code ]
-    |- CIS120/                   [ CIS v1.2.0 playbook code ]
-    |- PCI321/                   [ PCI-DSS v3.2.1 playbook code ]
-  |-remediation_runbooks         [ Shared remediation runbooks ]
-  |-solution_deploy              [ Solution Cloud Development Kit node module ]
-  |-test                         [ CDK unit tests ]
+|-.github/                [ GitHub pull request template, issue templates, and workflows ]
+|-deployment/             [ Scripts used to build, test, and upload templates for the solution ]
+|-simtest/                [ Tool and sample data used to simulate findings for testing ]
+|-source/                 [ Solution source code and tests ]
+  |-LambdaLayers/         [ Common functions used by the Orchestrator and custom resource providers ]
+  |-lib/                  [ Solution CDK ]
+    |-appregistry/        [ Resources for integration with Service Catalog AppRegistry ]
+    |-cdk-helper/         [ CDK helper functions ]
+    |-member/             [ Member stack helper functions ]
+    |-tags/               [ Resource tagging helper functions ]
+  |-Orchestrator/         [ Orchestrator Step Function Lambda Functions ]
+  |-playbooks/            [ Playbooks ]
+    |-AFSBP/              [ AWS FSBP v1.0.0 playbook ]
+    |-CIS120/             [ CIS v1.2.0 playbook ]
+    |-CIS140/             [ CIS v1.4.0 playbook ]
+    |-common/             [ Common scripts used by multiple playbooks ]
+    |-NEWPLAYBOOK/        [ Example playbook ]
+      |-bin/              [ Playbook CDK App ]
+      |-ssmdocs/          [ Control runbooks ]
+    |-PCI321/             [ PCI-DSS v3.2.1 playbook ]
+    |-SC/                 [ Security Control playbook ]
+  |-remediation_runbooks/ [ Shared remediation runbooks ]
+    |-scripts/            [ Scripts used by remediation runbooks ]
+  |-solution_deploy/      [ Solution CDK App and custom resource providers ]
+    |-bin/                [ Solution CDK App ]
+    |-source/             [ Custom resource providers ]
+  |-test/                 [ CDK and SSM document unit tests ]
 </pre>
 
-<a name="collection-of-operational-metrics"></a>
-# Collection of operational metrics
+## Collection of operational metrics
 
-This solution collects anonymous operational metrics to help AWS improve the
-quality of features of the solution. For more information, including how to disable
-this capability, please see the
-[Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/collection-of-operational-metrics.html)
+This solution collects anonymous operational metrics to help AWS improve the quality of features of the solution. For
+more information, including how to disable this capability, please see the [Implementation
+Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/collection-of-operational-metrics.html)
 
-<a name="license"></a>
-# License
+## License
 
-See license
-[here](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/blob/main/LICENSE.txt)
+Distributed under the Apache License Version 2.0. For more information, see [LICENSE.txt](LICENSE.txt).

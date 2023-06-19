@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import {
-  PlaybookPrimaryStack,
-  PlaybookMemberStack,
-  IControl
-} from '../../../lib/sharrplaybook-construct';
-import * as cdk from '@aws-cdk/core';
+import { PlaybookPrimaryStack, PlaybookMemberStack, IControl } from '../../../lib/sharrplaybook-construct';
+import * as cdk from 'aws-cdk-lib';
 import * as cdk_nag from 'cdk-nag';
 import 'source-map-support/register';
 
@@ -19,7 +15,7 @@ const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
 const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
 
 const standardShortName = 'NPB';
-const standardLongName = 'New Playbook';
+const standardLongName = 'NewPlaybook';
 const standardVersion = '1.1.1'; // DO NOT INCLUDE 'V'
 
 const app = new cdk.App();
@@ -27,11 +23,11 @@ cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 
 // Creates one rule per control Id. The Step Function determines what document to run based on
 // Security Standard and Control Id. See cis-member-stack
-const remediations: IControl[] = [
-  { "control": "RDS.6" }
-];
+const remediations: IControl[] = [{ control: 'RDS.6' }];
 
 const adminStack = new PlaybookPrimaryStack(app, 'NPBStack', {
+  analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
+  synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
   solutionId: SOLUTION_ID,
   solutionVersion: DIST_VERSION,
@@ -40,10 +36,12 @@ const adminStack = new PlaybookPrimaryStack(app, 'NPBStack', {
   remediations: remediations,
   securityStandardLongName: standardLongName,
   securityStandard: standardShortName,
-  securityStandardVersion: standardVersion
+  securityStandardVersion: standardVersion,
 });
 
 const memberStack = new PlaybookMemberStack(app, 'NPBMemberStack', {
+  analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
+  synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}M) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,
   solutionId: SOLUTION_ID,
   solutionVersion: DIST_VERSION,
@@ -51,8 +49,8 @@ const memberStack = new PlaybookMemberStack(app, 'NPBMemberStack', {
   securityStandard: standardShortName,
   securityStandardVersion: standardVersion,
   securityStandardLongName: standardLongName,
-  remediations: remediations
+  remediations: remediations,
 });
 
-adminStack.templateOptions.templateFormatVersion = "2010-09-09";
-memberStack.templateOptions.templateFormatVersion = "2010-09-09";
+adminStack.templateOptions.templateFormatVersion = '2010-09-09';
+memberStack.templateOptions.templateFormatVersion = '2010-09-09';

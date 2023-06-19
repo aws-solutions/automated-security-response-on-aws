@@ -3,7 +3,7 @@
 ---
 schemaVersion: '0.3'
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_Redshift.4
+  ### Document Name - ASR-AFSBP_1.0.0_Redshift.4
 
   ## What does this document do?
   This document disables public access to a Redshift cluster by calling another SSM document
@@ -30,7 +30,7 @@ parameters:
   RemediationRoleName:
     type: 'String'
     default: 'SO0111-EnableRedshiftClusterAuditLogging'
-    allowedPattern: '^[\w+=,.@/-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'
@@ -143,7 +143,7 @@ mainSteps:
 - name: 'Remediation'
   action: 'aws:executeAutomation'
   inputs:
-    DocumentName: 'SHARR-EnableRedshiftClusterAuditLogging'
+    DocumentName: 'ASR-EnableRedshiftClusterAuditLogging'
     TargetLocations:
       - Accounts:
         - '{{ParseInput.RemediationAccount}}'
@@ -164,7 +164,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Enabled Audit logging for the Redshift cluster.'
-      UpdatedBy: 'SHARR-AFSBP_1.0.0_Redshift.4'
+      UpdatedBy: 'ASR-AFSBP_1.0.0_Redshift.4'
     Workflow:
       Status: 'RESOLVED'
   description: 'Update finding'
@@ -179,7 +179,7 @@ mainSteps:
       ProductArn: '{{ParseInput.ProductArn}}'
     Note:
       Text: 'Remediation failed the s3 bucket name is not available, review the cloudformation template and select the option Yes for create redshift.4 s3 bucket cloudformation parameter.'
-      UpdatedBy: 'SHARR-AFSBP_1.0.0_Redshift.4'
+      UpdatedBy: 'ASR-AFSBP_1.0.0_Redshift.4'
     Workflow:
       Status: 'NOTIFIED'
   description: 'Abort remediation as s3 bucket name is unavailable.'

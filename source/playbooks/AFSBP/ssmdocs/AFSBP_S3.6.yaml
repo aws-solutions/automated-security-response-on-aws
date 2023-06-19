@@ -1,5 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
 description: |
-  ### Document Name - SHARR-AFSBP_1.0.0_S3.6
+  ### Document Name - ASR-AFSBP_1.0.0_S3.6
 
   ## What does this document do?
   This document restricts cross-account access to a bucket in the local account.
@@ -30,7 +33,7 @@ parameters:
   RemediationRoleName:
     type: String
     default: "SO0111-S3BlockDenylist"
-    allowedPattern: '^[\w+=,.@-]+'
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   -
@@ -84,7 +87,7 @@ mainSteps:
     name: Remediation
     action: 'aws:executeAutomation'
     inputs:
-      DocumentName: SHARR-S3BlockDenylist
+      DocumentName: ASR-S3BlockDenylist
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
@@ -101,7 +104,7 @@ mainSteps:
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
         Text: 'Added explicit deny for sensitive bucket access from another account.'
-        UpdatedBy: 'SHARR-AFSBP_1.0.0_S3.6'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_S3.6'
       Workflow:
         Status: RESOLVED
     description: Update finding
