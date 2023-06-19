@@ -10,6 +10,7 @@ description: |
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
   ## Output Parameters
   * Remediation.Output - Output of CREATEROLE API.
 

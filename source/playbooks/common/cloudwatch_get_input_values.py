@@ -1,16 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
- 
-rootAccountUsage = {
-        "filter_name": "RootAccountUsage",
-        "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
-        "metric_name": "RootAccountUsage",
-        "metric_value": 1,
-        "alarm_name": "RootAccountUsage",
-        "alarm_desc": "Alarm for RootAccountUsage > 0",
-        "alarm_threshold": 1
-}
-    
+
 unauthorizedAPICallsFilter = {
         "filter_name": "UnauthorizedAPICalls",
         "filter_pattern": '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}',
@@ -154,7 +144,6 @@ vpcChangesFilter = {
 Cloudwatch_mappings = {
     'cis-aws-foundations-benchmark': {
         '1.2.0': {
-            "1.1" : rootAccountUsage,
             '3.1': unauthorizedAPICallsFilter,
             '3.2': consoleSignInWithoutMFAFilter,
             '3.3': rootAccountUsageFilter,
