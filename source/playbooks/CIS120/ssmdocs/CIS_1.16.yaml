@@ -1,31 +1,29 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
----
 description: |
-  ### Document Name - ASR-CIS_1.2.0_1.20
+  ### Document Name - SHARR-CIS_1.2.0_1.16
 
   ## What does this document do?
-  Creates a support role to allow AWS Support access.
+  This document ensures that IAM policies are attached only to groups or roles.
 
   ## Input Parameters
   * Finding: (Required) Security Hub finding details JSON
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  
   ## Output Parameters
-  * Remediation.Output - Output of CREATEROLE API.
+  * Remediation.Output - Output of IAMRole API.
 
   ## Documentation Links
-  * [CIS v1.2.0 1.20](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.20)
-
-
+  * [CIS v1.2.0 1.16](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.16)
+  
+  
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 outputs:
   - ParseInput.AffectedObject
-  - Remediation.Output
+  - Remediation.Output 
 parameters:
   Finding:
     type: StringMap
-    description: The input from the Orchestrator Step function for the 1.20 finding
+    description: The input from the Orchestrator Step function for the 1.16 finding
   AutomationAssumeRole:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
@@ -34,6 +32,12 @@ mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'
     outputs:
+      - Name: IAMUser
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: IAMResourceId
+        Selector: $.Payload.details.AwsIamUser.UserId
+        Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
         Type: String
@@ -43,14 +47,14 @@ mainSteps:
       - Name: AffectedObject
         Selector: $.Payload.object
         Type: StringMap
-      - Name: Account
-        Selector: $.Payload.account_id
-        Type: String
+      - Name: Details
+        Selector: $.Payload.details
+        Type: StringMap
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
-        expected_control_id: ['1.20']
+        expected_control_id: ['1.16']
       Runtime: python3.8
       Handler: parse_event
       Script: |-
@@ -60,9 +64,10 @@ mainSteps:
     action: 'aws:executeAutomation'
     isEnd: false
     inputs:
-      DocumentName: ASR-CreateIAMSupportRole
+      DocumentName: SHARR-CreateIAMGroupToAttachUserPolicy
       RuntimeParameters:
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateIAMSupportRole'
+        Details: '{{ ParseInput.Details }}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateIAMGroupToAttachUserPolicy'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
@@ -73,8 +78,8 @@ mainSteps:
       - Id: '{{ParseInput.FindingId}}'
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
-        Text: 'AWS Support Role created for {{ global:ACCOUNT_ID }}.'
-        UpdatedBy: 'ASR-CIS_1.2.0_1.20'
+        Text: 'Move IAM policies to group level.'
+        UpdatedBy: 'SHARR-CIS_1.2.0_1.16'
       Workflow:
         Status: RESOLVED
     description: Update finding
