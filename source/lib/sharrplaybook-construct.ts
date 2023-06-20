@@ -7,7 +7,7 @@
 // Orchestrator lambdas are common to all Playbooks and deployed in the main stack
 //
 import * as cdk from 'aws-cdk-lib';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { StringParameter, CfnDocument } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from './ssmplaybook';
 import AdminAccountParam from './admin-account-param';
 import { RunbookFactory } from './runbook_factory';
@@ -131,21 +131,26 @@ export class PlaybookMemberStack extends cdk.Stack {
     );
 
     Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
-
+    let prevBook: CfnDocument | null = null;
     const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control
       if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
-        RunbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
-          securityStandard: props.securityStandard,
-          securityStandardVersion: props.securityStandardVersion,
-          controlId: controlSpec.control,
-          ssmDocPath: ssmdocs,
-          ssmDocFileName: `${props.securityStandard}_${controlSpec.control}.yaml`,
-          solutionVersion: props.solutionVersion,
-          solutionDistBucket: props.solutionDistBucket,
-          solutionId: props.solutionId,
-          commonScripts: props.commonScripts,
-        });
+        prevBook = RunbookFactory.createControlRunbook(
+          stack,
+          `${props.securityStandard} ${controlSpec.control}`,
+          {
+            securityStandard: props.securityStandard,
+            securityStandardVersion: props.securityStandardVersion,
+            controlId: controlSpec.control,
+            ssmDocPath: ssmdocs,
+            ssmDocFileName: `${props.securityStandard}_${controlSpec.control}.yaml`,
+            solutionVersion: props.solutionVersion,
+            solutionDistBucket: props.solutionDistBucket,
+            solutionId: props.solutionId,
+            commonScripts: props.commonScripts,
+          },
+          prevBook
+        );
       }
     };
 

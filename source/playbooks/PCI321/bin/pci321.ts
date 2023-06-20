@@ -50,6 +50,7 @@ const remediations: IControl[] = [
   { control: 'PCI.S3.4' },
   { control: 'PCI.S3.5' },
   { control: 'PCI.S3.6' },
+  { control: "PCI.IAM.3" },
   { control: 'PCI.EC2.5' },
 ];
 

@@ -1,0 +1,43 @@
+schemaVersion: '0.3'
+description: |
+  ### Document Name - ASR-CreateIAMGroupToAttachUserPolicy
+  ## What does this document do?
+  This document ensures that IAM policies are attached only to groups or roles.
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * CreateIAMGroupToAttachUserPolicy.Output
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  Details:
+    type: StringMap
+    description: (Required) Finding Details object.
+outputs:
+  - CreateIAMGroupToAttachUserPolicy.Output
+mainSteps:
+  - name: CreateIAMGroupToAttachUserPolicy
+    action: aws:executeScript
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## CreateIAMGroupToAttachUserPolicy
+      This step moves user level policies to group level.
+      ## Outputs
+      * Output: Success message or failure Exception.
+    inputs:
+      Runtime: python3.8
+      Handler: create_iam_group_to_attach_user_policy
+      InputPayload:
+        Details: '{{ Details }}'
+      Script: |-
+        %%SCRIPT=CreateIAMGroupToAttachUserPolicy.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
