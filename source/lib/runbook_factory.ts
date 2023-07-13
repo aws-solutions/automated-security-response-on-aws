@@ -148,7 +148,7 @@ export class RunbookFactory extends Construct {
     });
 
     if (prevBook != null) {
-      runbook.node.addDependency(prevBook);
+      //runbook.node.addDependency(prevBook);
     }
 
     return runbook;
