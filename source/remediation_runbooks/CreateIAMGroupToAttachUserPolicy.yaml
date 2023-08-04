@@ -15,9 +15,9 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  Details:
+  IAMUser:
     type: StringMap
-    description: (Required) Finding Details object.
+    description: IAMUser info.
 outputs:
   - CreateIAMGroupToAttachUserPolicy.Output
 mainSteps:
@@ -34,7 +34,7 @@ mainSteps:
       Runtime: python3.8
       Handler: create_iam_group_to_attach_user_policy
       InputPayload:
-        Details: '{{ Details }}'
+        IAMUser: '{{ IAMUser }}'
       Script: |-
         %%SCRIPT=CreateIAMGroupToAttachUserPolicy.py%%
     outputs:
