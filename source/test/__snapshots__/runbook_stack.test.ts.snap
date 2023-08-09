@@ -5627,7 +5627,7 @@ This document encrypts an RDS snapshot or cluster snapshot.
 * TargetDBSnapshotIdentifier: (Required) The name of the encrypted RDS snapshot to create.
 * DBSnapshotType: (Required) The type of snapshot (DB or cluster).
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* KmsKeyId: (Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use. If no key is specified, the default encryption key for snapshots (\`alias/aws/rds\`) will be used.
+* KmsKeyId: (Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use. If no key is specified, the default encryption key for snapshots (\`aws/rds\`) will be used.
 
 ## Output Parameters
 * CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId: The ID of the encrypted RDS snapshot.
@@ -5794,7 +5794,7 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
             },
             "KmsKeyId": {
               "allowedPattern": "^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
-              "default": "alias/aws/rds",
+              "default": "aws/rds",
               "description": "(Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.",
               "type": "String",
             },
