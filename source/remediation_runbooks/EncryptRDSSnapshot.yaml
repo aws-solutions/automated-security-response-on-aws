@@ -13,7 +13,7 @@ description: |
   * TargetDBSnapshotIdentifier: (Required) The name of the encrypted RDS snapshot to create.
   * DBSnapshotType: (Required) The type of snapshot (DB or cluster).
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * KmsKeyId: (Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use. If no key is specified, the default encryption key for snapshots (`alias/aws/rds`) will be used.
+  * KmsKeyId: (Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use. If no key is specified, the default encryption key for snapshots (`aws/rds`) will be used.
 
   ## Output Parameters
   * CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId: The ID of the encrypted RDS snapshot.
@@ -44,9 +44,9 @@ parameters:
   DBSnapshotType:
     type: 'String'
     allowedValues:
-    - 'snapshot'
-    - 'cluster-snapshot'
-    - 'dbclustersnapshot'
+      - 'snapshot'
+      - 'cluster-snapshot'
+      - 'dbclustersnapshot'
   AutomationAssumeRole:
     type: 'String'
     description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
@@ -54,90 +54,90 @@ parameters:
   KmsKeyId:
     type: 'String'
     description: '(Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.'
-    default: 'alias/aws/rds'
+    default: 'aws/rds'
     allowedPattern: '^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 outputs:
-- 'CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId'
-- 'CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot.EncryptedClusterSnapshotId'
+  - 'CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId'
+  - 'CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot.EncryptedClusterSnapshotId'
 mainSteps:
-- name: 'ChooseSnapshotOrClusterSnapshot'
-  action: 'aws:branch'
-  inputs:
-    Choices:
-    - NextStep: 'CopyRdsSnapshotToEncryptedRdsSnapshot'
-      Variable: '{{DBSnapshotType}}'
-      StringEquals: 'snapshot'
-    - Or:
-      - Variable: '{{DBSnapshotType}}'
-        StringEquals: 'cluster-snapshot'
-      - Variable: '{{DBSnapshotType}}'
-        StringEquals: 'dbclustersnapshot'
-      NextStep: 'CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot'
+  - name: 'ChooseSnapshotOrClusterSnapshot'
+    action: 'aws:branch'
+    inputs:
+      Choices:
+        - NextStep: 'CopyRdsSnapshotToEncryptedRdsSnapshot'
+          Variable: '{{DBSnapshotType}}'
+          StringEquals: 'snapshot'
+        - Or:
+            - Variable: '{{DBSnapshotType}}'
+              StringEquals: 'cluster-snapshot'
+            - Variable: '{{DBSnapshotType}}'
+              StringEquals: 'dbclustersnapshot'
+          NextStep: 'CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot'
 
-- name: 'CopyRdsSnapshotToEncryptedRdsSnapshot'
-  action: 'aws:executeAwsApi'
-  inputs:
-    Service: 'rds'
-    Api: 'CopyDBSnapshot'
-    SourceDBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
-    TargetDBSnapshotIdentifier: '{{TargetDBSnapshotIdentifier}}'
-    CopyTags: true
-    KmsKeyId: '{{KmsKeyId}}'
-  outputs:
-  - Name: 'EncryptedSnapshotId'
-    Selector: '$.DBSnapshot.DBSnapshotIdentifier'
-    Type: 'String'
-- name: 'VerifyRdsEncryptedSnapshot'
-  action: 'aws:waitForAwsResourceProperty'
-  timeoutSeconds: 14400
-  inputs:
-    Service: 'rds'
-    Api: 'DescribeDBSnapshots'
-    Filters:
-    - Name: 'db-snapshot-id'
-      Values:
-      - '{{CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId}}'
-    PropertySelector: '$.DBSnapshots[0].Status'
-    DesiredValues:
-    - 'available'
-- name: 'DeleteUnencryptedRdsSnapshot'
-  action: 'aws:executeAwsApi'
-  inputs:
-    Service: 'rds'
-    Api: 'DeleteDBSnapshot'
-    DBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
-  isEnd: true
+  - name: 'CopyRdsSnapshotToEncryptedRdsSnapshot'
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: 'rds'
+      Api: 'CopyDBSnapshot'
+      SourceDBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
+      TargetDBSnapshotIdentifier: '{{TargetDBSnapshotIdentifier}}'
+      CopyTags: true
+      KmsKeyId: '{{KmsKeyId}}'
+    outputs:
+      - Name: 'EncryptedSnapshotId'
+        Selector: '$.DBSnapshot.DBSnapshotIdentifier'
+        Type: 'String'
+  - name: 'VerifyRdsEncryptedSnapshot'
+    action: 'aws:waitForAwsResourceProperty'
+    timeoutSeconds: 14400
+    inputs:
+      Service: 'rds'
+      Api: 'DescribeDBSnapshots'
+      Filters:
+        - Name: 'db-snapshot-id'
+          Values:
+            - '{{CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId}}'
+      PropertySelector: '$.DBSnapshots[0].Status'
+      DesiredValues:
+        - 'available'
+  - name: 'DeleteUnencryptedRdsSnapshot'
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: 'rds'
+      Api: 'DeleteDBSnapshot'
+      DBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
+    isEnd: true
 
-- name: 'CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot'
-  action: 'aws:executeAwsApi'
-  inputs:
-    Service: 'rds'
-    Api: 'CopyDBClusterSnapshot'
-    SourceDBClusterSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
-    TargetDBClusterSnapshotIdentifier: '{{TargetDBSnapshotIdentifier}}'
-    CopyTags: true
-    KmsKeyId: '{{KmsKeyId}}'
-  outputs:
-  - Name: 'EncryptedClusterSnapshotId'
-    Selector: '$.DBClusterSnapshot.DBClusterSnapshotIdentifier'
-    Type: 'String'
-- name: 'VerifyRdsEncryptedClusterSnapshot'
-  action: 'aws:waitForAwsResourceProperty'
-  timeoutSeconds: 14400
-  inputs:
-    Service: 'rds'
-    Api: 'DescribeDBClusterSnapshots'
-    Filters:
-    - Name: 'db-cluster-snapshot-id'
-      Values:
-      - '{{CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot.EncryptedClusterSnapshotId}}'
-    PropertySelector: '$.DBClusterSnapshots[0].Status'
-    DesiredValues:
-    - 'available'
-- name: 'DeleteUnencryptedRdsClusterSnapshot'
-  action: 'aws:executeAwsApi'
-  inputs:
-    Service: 'rds'
-    Api: 'DeleteDBClusterSnapshot'
-    DBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
-  isEnd: true
+  - name: 'CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot'
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: 'rds'
+      Api: 'CopyDBClusterSnapshot'
+      SourceDBClusterSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
+      TargetDBClusterSnapshotIdentifier: '{{TargetDBSnapshotIdentifier}}'
+      CopyTags: true
+      KmsKeyId: '{{KmsKeyId}}'
+    outputs:
+      - Name: 'EncryptedClusterSnapshotId'
+        Selector: '$.DBClusterSnapshot.DBClusterSnapshotIdentifier'
+        Type: 'String'
+  - name: 'VerifyRdsEncryptedClusterSnapshot'
+    action: 'aws:waitForAwsResourceProperty'
+    timeoutSeconds: 14400
+    inputs:
+      Service: 'rds'
+      Api: 'DescribeDBClusterSnapshots'
+      Filters:
+        - Name: 'db-cluster-snapshot-id'
+          Values:
+            - '{{CopyRdsClusterSnapshotToEncryptedRdsClusterSnapshot.EncryptedClusterSnapshotId}}'
+      PropertySelector: '$.DBClusterSnapshots[0].Status'
+      DesiredValues:
+        - 'available'
+  - name: 'DeleteUnencryptedRdsClusterSnapshot'
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: 'rds'
+      Api: 'DeleteDBClusterSnapshot'
+      DBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
+    isEnd: true

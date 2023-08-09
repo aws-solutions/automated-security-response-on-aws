@@ -155,7 +155,7 @@ export function getRegexRegistry(): RegexRegistry {
   const kmsKeyArnOrIdOrAlias: RegexTestCase = new RegexTestCase(
     String.raw`^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$`,
     'KMS Key ARN or Key ID or Alias, no match',
-    ['alias/aws/rds'],
+    ['aws/rds'],
     []
   );
   // TODO: ES regex engine doesn't support case-insensitive non-capturing groups, just include capitals
