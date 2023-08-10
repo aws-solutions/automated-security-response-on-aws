@@ -22,6 +22,8 @@ import * as ec2_6 from '../ssmdocs/SC_EC2.6';
 import * as ec2_7 from '../ssmdocs/SC_EC2.7';
 import * as ec2_13 from '../ssmdocs/SC_EC2.13';
 import * as ec2_15 from '../ssmdocs/SC_EC2.15';
+import * as iam_1 from '../ssmdocs/SC_IAM.1';
+import * as iam_2 from '../ssmdocs/SC_IAM.2';
 import * as iam_3 from '../ssmdocs/SC_IAM.3';
 import * as iam_7 from '../ssmdocs/SC_IAM.7';
 import * as iam_8 from '../ssmdocs/SC_IAM.8';
@@ -89,6 +91,8 @@ export class ControlRunbooks extends Construct {
     this.add(ec2_7.createControlRunbook(this, 'EC2.7', props));
     this.add(ec2_13.createControlRunbook(this, 'EC2.13', props));
     this.add(ec2_15.createControlRunbook(this, 'EC2.15', props));
+    this.add(iam_1.createControlRunbook(this, 'IAM.1', props));
+    this.add(iam_2.createControlRunbook(this, 'IAM.2', props));
     this.add(iam_3.createControlRunbook(this, 'IAM.3', props));
     this.add(iam_7.createControlRunbook(this, 'IAM.7', props));
     this.add(iam_8.createControlRunbook(this, 'IAM.8', props));
