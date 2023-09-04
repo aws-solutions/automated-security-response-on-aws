@@ -29,6 +29,7 @@ Aspects.of(app).add(new AwsSolutionsChecks());
 // Security Standard and Control Id. See cis-member-stack
 const remediations: IControl[] = [
   { control: 'AutoScaling.1' },
+  { control: 'CloudFormation.1' },
   { control: 'CloudTrail.1' },
   { control: 'CloudTrail.2' },
   { control: 'CloudTrail.3', executes: 'CloudTrail.1' },
@@ -58,6 +59,7 @@ const remediations: IControl[] = [
   { control: 'EC2.7' },
   { control: 'EC2.13' },
   { control: 'EC2.14', executes: 'EC2.13' },
+  { control: 'EC2.15' },
   { control: 'IAM.1' },
   { control: 'IAM.2' },
   { control: 'IAM.3' },
@@ -94,6 +96,9 @@ const remediations: IControl[] = [
   { control: 'S3.5' },
   { control: 'S3.6' },
   { control: 'S3.8', executes: 'S3.2' },
+  { control: 'SNS.1' },
+  { control: 'SNS.2' },
+  { control: 'SQS.1' },
 ];
 
 const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {

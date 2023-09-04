@@ -15,7 +15,7 @@ class DetachIAMPolicyFromUsersDocument extends ControlRunbookDocument {
       ...props,
       securityControlId: 'IAM.1',
       remediationName: 'DetachIAMPolicyFromUsers',
-      scope: RemediationScope.REGIONAL,
+      scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of('Users detached from IAMPolicy.'),
     });
   }
