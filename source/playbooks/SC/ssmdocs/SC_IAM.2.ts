@@ -15,8 +15,7 @@ class CreateIAMGroupToAttachUserPolicyDocument extends ControlRunbookDocument {
       ...props,
       securityControlId: 'IAM.2',
       remediationName: 'CreateIAMGroupToAttachUserPolicy',
-      scope: RemediationScope.REGIONAL,
-      resourceIdName: 'IAMUser',
+      scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of('Created IAMGroup to attach user policies'),
     });
   }
