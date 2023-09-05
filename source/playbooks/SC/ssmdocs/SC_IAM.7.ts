@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new SetIAMPasswordPolicyDocument(scope, id, {
     ...props,
     controlId: 'IAM.7',
-    otherControlIds: ['IAM.11', 'IAM.12', 'IAM.13', 'IAM.14', 'IAM.15', 'IAM.16', 'IAM.17'],
+    otherControlIds: ['IAM.10', 'IAM.11', 'IAM.12', 'IAM.13', 'IAM.14', 'IAM.15', 'IAM.16', 'IAM.17'],
   });
 }
 
