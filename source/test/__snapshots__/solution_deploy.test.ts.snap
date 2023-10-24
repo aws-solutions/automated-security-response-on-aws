@@ -350,6 +350,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "createCustomActionRoleF0047414",
       ],
       "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -912,6 +920,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "orchestratorRole46A9F242",
       ],
       "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -1073,6 +1089,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "orchestratorRole46A9F242",
       ],
       "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -1130,6 +1154,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "orchestratorRole46A9F242",
       ],
       "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -1188,6 +1220,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "orchestratorRole46A9F242",
       ],
       "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -1898,6 +1938,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "notifyRole40298120",
       ],
       "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
         "cfn_nag": {
           "rules_to_suppress": [
             {

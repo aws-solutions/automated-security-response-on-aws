@@ -67,7 +67,7 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
 
     params.GrantedPermission = ['READ'];
     params.GranteeType = ['Group'];
-    params.GranteeUri = ['http://acs.amazonaws.com/groups/s3/LogDelivery'];
+    params.GranteeUri = ['http://acs.amazonaws.com/groups/s3/LogDelivery']; //NOSONAR This is the recommended URL for a log delivery group.
     params.TargetPrefix = [StringVariable.of(`ParseInput.${this.resourceIdName}`)];
     params.TargetBucket = [getTargetBucketName(this.solutionId)];
 

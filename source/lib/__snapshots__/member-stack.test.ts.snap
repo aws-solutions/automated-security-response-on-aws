@@ -980,6 +980,16 @@ exports[`member stack snapshot matches 1`] = `
       "DependsOn": [
         "WaitProviderRole83B0295F",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-L1",
+              "reason": "Will upgrade in next release to prioritize patch",
+            },
+          ],
+        },
+      },
       "Properties": {
         "Code": {
           "S3Bucket": {

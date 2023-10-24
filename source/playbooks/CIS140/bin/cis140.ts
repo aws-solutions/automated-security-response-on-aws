@@ -32,8 +32,8 @@ const remediations: IControl[] = [
   { control: '1.17' },
   { control: '2.1.1' },
   { control: '2.1.2' },
-  { control: '2.1.5.1' },
-  { control: '2.1.5.2' },
+  { control: '2.1.5.1' }, //NOSONAR This is not an IP Address.
+  { control: '2.1.5.2' }, //NOSONAR This is not an IP Address.
   { control: '2.2.1' },
   { control: '3.1' },
   { control: '3.2' },

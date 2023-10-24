@@ -75,7 +75,7 @@ export class WaitProvider extends Construct {
       },
     ]);
 
-    const lambdaFunction = new Function(scope, `${id}Function`, {
+    const lambdaFunction = new Function(scope, `${id}Function`, { //NOSONAR This is not unknown code.
       role,
       runtime: props.runtimePython,
       code: Code.fromBucket(
@@ -86,6 +86,13 @@ export class WaitProvider extends Construct {
       environment: { LOG_LEVEL: 'INFO' },
       timeout: Duration.minutes(15),
     });
+
+    NagSuppressions.addResourceSuppressions(lambdaFunction, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
 
     return new WaitProvider(scope, id, { serviceToken: lambdaFunction.functionArn });
   }

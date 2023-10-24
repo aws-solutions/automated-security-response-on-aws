@@ -30,7 +30,7 @@ export class RedshiftAuditLogging extends Construct {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
     });
 
-    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {
+    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', { //NOSONAR The policy attached to this bucket enforces SSL.
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,

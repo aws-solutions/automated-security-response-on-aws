@@ -276,6 +276,13 @@ export class SolutionDeployStack extends cdk.Stack {
       };
     }
 
+    cdk_nag.NagSuppressions.addResourceSuppressions(checkSSMDocState, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
+
     /**
      * @description getApprovalRequirement - determine whether manual approval is required
      * @type {lambda.Function}
@@ -325,6 +332,13 @@ export class SolutionDeployStack extends cdk.Stack {
       };
     }
 
+    cdk_nag.NagSuppressions.addResourceSuppressions(getApprovalRequirement, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
+
     /**
      * @description execAutomation - initiate an SSM automation document in a target account
      * @type {lambda.Function}
@@ -373,6 +387,13 @@ export class SolutionDeployStack extends cdk.Stack {
       };
     }
 
+    cdk_nag.NagSuppressions.addResourceSuppressions(execAutomation, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
+
     /**
      * @description monitorSSMExecState - get the status of an ssm execution
      * @type {lambda.Function}
@@ -420,6 +441,13 @@ export class SolutionDeployStack extends cdk.Stack {
         },
       };
     }
+
+    cdk_nag.NagSuppressions.addResourceSuppressions(monitorSSMExecState, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
 
     /**
      * @description Policy for role used by common Orchestrator notification lambda
@@ -555,6 +583,13 @@ export class SolutionDeployStack extends cdk.Stack {
       };
     }
 
+    cdk_nag.NagSuppressions.addResourceSuppressions(sendNotifications, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
+
     //-------------------------------------------------------------------------
     // Custom Lambda Policy
     //
@@ -668,6 +703,13 @@ export class SolutionDeployStack extends cdk.Stack {
         ],
       },
     };
+
+    cdk_nag.NagSuppressions.addResourceSuppressions(createCustomAction, [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Will upgrade in next release to prioritize patch",
+      },
+    ]);
 
     const orchestrator = new OrchestratorConstruct(this, 'orchestrator', {
       roleArn: orchestratorRole.roleArn,
