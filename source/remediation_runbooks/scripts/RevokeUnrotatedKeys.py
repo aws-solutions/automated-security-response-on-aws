@@ -66,7 +66,7 @@ def deactivate_key(user_name, access_key):
 def verify_expired_credentials_revoked(responses, user_name):
     if responses.get("DeactivateUnusedKeysResponse"):
         for key in responses.get("DeactivateUnusedKeysResponse"):
-            key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True)))
+            key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True))) #NOSONAR The value key should change at the next loop iteration as we're cycling through each response.
             if key_data.get("Status") != "Inactive":
                 error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
                 raise RuntimeError(error_message)

@@ -104,7 +104,7 @@ def create_bucket_policy(config_bucket, aws_partition):
                 "Effect": "Allow",
                 "Principal": {
                     "Service": [
-                        "config.amazonaws.com"
+                        "config.amazonaws.com" #NOSONAR
                     ]
                 },
                 "Action": "s3:GetBucketAcl",

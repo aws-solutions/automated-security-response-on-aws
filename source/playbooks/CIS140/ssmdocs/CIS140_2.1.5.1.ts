@@ -6,5 +6,5 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { ConfigureS3PublicAccessBlockDocument } from '../../SC/ssmdocs/SC_S3.1';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new ConfigureS3PublicAccessBlockDocument(stage, id, { ...props, controlId: '2.1.5.1' });
+  return new ConfigureS3PublicAccessBlockDocument(stage, id, { ...props, controlId: '2.1.5.1' }); //NOSONAR This is not an IP Address.
 }

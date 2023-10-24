@@ -1,4 +1,5 @@
 Automated Security Response on AWS
+
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
 in compliance with the License. A copy of the License is located at http://www.apache.org/licenses/
@@ -45,9 +46,31 @@ pytest under the MIT License
 pytest-cov under the MIT License
 pytest-env under the MIT License
 pytest-mock under the MIT License
-python-dateutil under the Apache License 2.0 and the BSD 3-Clause "New" or "Revised" License
+python-dateutil under the Apache License 2.0 and the BSD 3-Clause
 s3transfer under the Apache License 2.0
 setuptools under the MIT License
 six under the MIT License
 urllib3 under the MIT License
 virtualenv under the MIT License
+Jinja2 under the BSD 3-Clause
+MarkupSafe under the BSD 3-Clause
+Werkzeug under the BSD 3-Clause
+boolean.py under the BSD-2-Clause
+botocore-stubs under the MIT License
+cffi under the MIT License
+coverage under the Apache License 2.0
+cryptography under the Apache License 2.0 and the BSD 3-Clause
+exceptiongroup under the MIT License
+iniconfig under the MIT License
+license-expression under the Apache License 2.0
+mypy-boto3-s3 under the MIT License
+pluggy under the MIT License
+py-partiql-parser under the MIT License
+pycparser under the BSD 3-Clause
+responses under the Apache License 2.0
+tomli under the MIT License
+types-PyYAML under the Apache License 2.0
+types-awscrt under the MIT License
+types-s3transfer under the MIT License
+typing_extensions under the  Python Software Foundation License
+xmltodict under the MIT License

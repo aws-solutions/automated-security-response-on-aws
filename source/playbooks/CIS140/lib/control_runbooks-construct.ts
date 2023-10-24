@@ -53,8 +53,8 @@ export class ControlRunbooks extends Construct {
     this.add(cis_140_1_17.createControlRunbook(this, '1.17', props));
     this.add(cis_140_2_1_1.createControlRunbook(this, '2.1.1', props));
     this.add(cis_140_2_1_2.createControlRunbook(this, '2.1.2', props));
-    this.add(cis_140_2_1_5_1.createControlRunbook(this, '2.1.5.1', props));
-    this.add(cis_140_2_1_5_2.createControlRunbook(this, '2.1.5.2', props));
+    this.add(cis_140_2_1_5_1.createControlRunbook(this, '2.1.5.1', props)); //NOSONAR This is not an IP Address.
+    this.add(cis_140_2_1_5_2.createControlRunbook(this, '2.1.5.2', props)); //NOSONAR This is not an IP Address.
     this.add(cis_140_2_2_1.createControlRunbook(this, '2.2.1', props));
     this.add(cis_140_3_1.createControlRunbook(this, '3.1', props));
     this.add(cis_140_3_2.createControlRunbook(this, '3.2', props));
