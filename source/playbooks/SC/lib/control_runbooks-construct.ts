@@ -20,6 +20,7 @@ import * as ec2_1 from '../ssmdocs/SC_EC2.1';
 import * as ec2_2 from '../ssmdocs/SC_EC2.2';
 import * as ec2_6 from '../ssmdocs/SC_EC2.6';
 import * as ec2_7 from '../ssmdocs/SC_EC2.7';
+import * as ec2_8 from '../ssmdocs/SC_EC2.8'; // EnforceEC2InstanceIMDSv2
 import * as ec2_13 from '../ssmdocs/SC_EC2.13';
 import * as ec2_15 from '../ssmdocs/SC_EC2.15';
 import * as iam_3 from '../ssmdocs/SC_IAM.3';
@@ -87,11 +88,12 @@ export class ControlRunbooks extends Construct {
     this.add(ec2_2.createControlRunbook(this, 'EC2.2', props));
     this.add(ec2_6.createControlRunbook(this, 'EC2.6', props));
     this.add(ec2_7.createControlRunbook(this, 'EC2.7', props));
+    this.add(ec2_8.createControlRunbook(this, 'EC2.8', props)); // EnforceEC2InstanceIMDSv2
     this.add(ec2_13.createControlRunbook(this, 'EC2.13', props));
     this.add(ec2_15.createControlRunbook(this, 'EC2.15', props));
     this.add(iam_3.createControlRunbook(this, 'IAM.3', props));
     this.add(iam_7.createControlRunbook(this, 'IAM.7', props));
-    this.add(iam_8.createControlRunbook(this, 'IAM.8', props));
+    this.add(iam_8.createControlRunbook(this, 'IAM.8', props));  
     this.add(iam_18.createControlRunbook(this, 'IAM.18', props));
     this.add(iam_22.createControlRunbook(this, 'IAM.22', props));
     this.add(kms_4.createControlRunbook(this, 'KMS.4', props));

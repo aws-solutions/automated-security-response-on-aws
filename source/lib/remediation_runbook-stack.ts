@@ -1644,6 +1644,51 @@ export class RemediationRunbookStack extends cdk.Stack {
     }
 
     //-----------------------
+    // AWSConfigRemediation-EnforceEC2InstanceIMDSv2
+    //
+
+    {
+      const remediationName = 'EnforceEC2InstanceIMDSv2';
+      const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+      const ec2Perms = new PolicyStatement();
+      ec2Perms.addActions('ec2:DescribeInstances', 'ec2:ModifyInstanceMetadataOptions');
+      ec2Perms.effect = Effect.ALLOW;
+      ec2Perms.addResources('*');
+      inlinePolicy.addStatements(ec2Perms);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
+        ssmDocName: remediationName,
+        ssmDocPath: ssmdocs,
+        ssmDocFileName: `${remediationName}.yaml`,
+        scriptPath: `${ssmdocs}/scripts`,
+        solutionVersion: props.solutionVersion,
+        solutionDistBucket: props.solutionDistBucket,
+        solutionId: props.solutionId,
+      });
+      // CFN-NAG
+      // WARN W12: IAM policy should not allow * resource
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+
+    //-----------------------
     // AWSConfigRemediation-EnableEnhancedMonitoringOnRDSInstance
     //
     {
