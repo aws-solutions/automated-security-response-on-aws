@@ -59,6 +59,7 @@ const remediations: IControl[] = [
   { control: 'EC2.8' }, // EnforceEC2InstanceIMDSv2
   { control: 'EC2.13' },
   { control: 'EC2.14', executes: 'EC2.13' },
+  { control: 'EC2.19' },
   { control: 'IAM.3' },
   { control: 'IAM.7' },
   { control: 'IAM.8' },
