@@ -1697,7 +1697,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       const remediationName = 'RemoveUnrestrictedSourceIngressRules';
       const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
       const ec2Perms = new PolicyStatement();
-      ec2Perms.addActions('ec2:DescribeInstances', 'ec2:ModifyInstanceMetadataOptions', 'ec2:DescribeSecurityGroups', 'ec2:DescribeSecurityGroupRules', 'ec2:DescribeTags', 'ec2:RevokeSecurityGroupIngress', 'ec2:ModifySecurityGroupRules', 'ec2:UpdateSecurityGroupRuleDescriptionsIngress', 'ec2:ModifySecurityGroupRules');
+      ec2Perms.addActions('ec2:DescribeInstances', 'ec2:ModifyInstanceMetadataOptions', 'ec2:DescribeSecurityGroups', 'ec2:DescribeSecurityGroupRules', 'ec2:DescribeTags', 'ec2:RevokeSecurityGroupIngress', 'ec2:ModifySecurityGroupRules', 'ec2:UpdateSecurityGroupRuleDescriptionsIngress', 'ec2:ModifySecurityGroupRules', 'ec2:AuthorizeSecurityGroupIngress');
       ec2Perms.effect = Effect.ALLOW;
       ec2Perms.addResources('*');
       inlinePolicy.addStatements(ec2Perms);
