@@ -75,17 +75,26 @@ export class WaitProvider extends Construct {
       },
     ]);
 
+    const artifactBucket = Bucket.fromBucketName(scope, 'Bucket', `${props.solutionDistBucket}-${Stack.of(scope).region}`);
+
+
     const lambdaFunction = new Function(scope, `${id}Function`, { //NOSONAR This is not unknown code.
       role,
       runtime: props.runtimePython,
       code: Code.fromBucket(
-        Bucket.fromBucketName(scope, 'Bucket', `${props.solutionDistBucket}-${Stack.of(scope).region}`),
+        artifactBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/wait_provider.zip'
       ),
       handler: 'wait_provider.lambda_handler',
       environment: { LOG_LEVEL: 'INFO' },
       timeout: Duration.minutes(15),
     });
+
+    const s3BucketPolicy = new PolicyStatement({
+      actions: ['s3:GetObject'],
+      resources: [artifactBucket.bucketArn + '/aws-security-hub-automated-response-and-remediation/v2.0.2/lambda/wait_provider.zip'], 
+    });
+    lambdaFunction.addToRolePolicy(s3BucketPolicy);
 
     NagSuppressions.addResourceSuppressions(lambdaFunction, [
       {

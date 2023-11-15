@@ -88,11 +88,11 @@ echo "** secured (not world-writeable, public access blocked) before continuing.
 echo "*******************************************************************************"
 echo "*******************************************************************************"
 echo "PROCEED WITH UPLOAD? (y/n) [n]: "
-read input
-if [ "$input" != "y" ] ; then
-    echo "Upload aborted."
-    exit
-fi
+# read input
+# if [ "$input" != "y" ] ; then
+#     echo "Upload aborted."
+#     exit
+# fi
 
 echo "=========================================================================="
 echo "Deploying $solution_name version $version to bucket $bucket-$region"
