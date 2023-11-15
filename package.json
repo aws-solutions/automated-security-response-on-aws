@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@aws-cdk/core": "^1.204.0",
+    "aws-sdk": "^2.1496.0"
+  }
+}

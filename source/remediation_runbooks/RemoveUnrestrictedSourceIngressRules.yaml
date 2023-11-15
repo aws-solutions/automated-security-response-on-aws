@@ -51,7 +51,7 @@ mainSteps:
     InputPayload:
       SecurityGroupId: "{{ SecurityGroupId }}"
       IpRanges: "{{ IpRanges }}"
-      AllowedPort: "{{ IpRanges }}"
+      AllowedPort: "{{ AllowedPort }}"
     Script: |-
       import json
       import boto3

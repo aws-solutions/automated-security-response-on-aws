@@ -172,6 +172,14 @@ main() {
 	mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/aws-sharr-orchestrator-log.template
 	mv "$template_dist_dir"/MemberRoleStack.template "$template_dist_dir"/aws-sharr-member-roles.template
 
+	cd "$template_dist_dir"
+
+	zip -r aws-sharr-deploy.zip aws-sharr-deploy.template playbooks
+	zip -r aws-sharr-member.zip aws-sharr-member.template playbooks
+	zip -r aws-sharr-member-roles.zip aws-sharr-member-roles.template
+	zip -r aws-sharr-orchestrator-log.zip aws-sharr-orchestrator-log.template
+	zip -r aws-sharr-remediations.zip aws-sharr-remediations.template
+
 	rm "$template_dist_dir"/*.nested.template
 }
 
