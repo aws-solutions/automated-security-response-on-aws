@@ -327,13 +327,223 @@ When using *executeScript* actions, the source code for the remediation script i
 
 During the build-s3-dist.sh process, the CDK script will insert the script as inline code in the template, as there is currently no way to use attachments via CloudFormation without a Lambda-backed custom resource to create the automation document using the API (which does support it).
 
+# Custom Remediations
+
+This section shows how to include custom remediations based on the naming standard used by SecurityHub to identify the controls and their remediations.
+
+1. Identify what is the playbook where the remediation will be.
+   1. AFSBP
+   2. CIS120
+   3. CIS140
+   4. PCI321
+   5. SC
+2. Validate the remediation already exists. searching in the following path:  **`/playbooks/<PlayBookName>/ssmdocs/<PlayBookName-Service.#>.ts`**
+
+> If the remediation is new for the solution, first validate if there is a remediation already created by looking for in **`AWSConfigRemediation`** and follow the steps [here](#Shared-Remediations).
+
+The information required is the following:
+
+- ControlId: e.g. EC2.7
+- RemediationName: e.g RemoveLambdaPublicAccess
+- Playbook: e.g. SC (security group)
+- RemediationDescription: e.g Removes the public resource policy.
+- ResourceId: e.g IntanceId, SecurityGroupId ..
+
+3. Create or add the remediation runbook definition. Go to **`/source/remediation_runbooks`** and create the file according to the <RemediationName>.
+
+e.g.
+**`RemoveLambdaPublicAccess.yaml`**
+
+The common structure is the following:
+```yaml
+schemaVersion: "0.3"
+description: |
+  ### Document Name - AWSConfigRemediation-<RemediationName>
+  ## What does this document do?
+  <RemediationDescription> [RemediationName>](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Operations.html) API.
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  ...
+  ## Output Parameters
+  * <RemediationName>.Output: The standard HTTP response from the <RemediationName> API.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+## ...
+outputs:
+- <RemediationName>.Output
+mainSteps:
+- name: <RemediationName>
+  action: "aws:executeAwsApi"
+  description: |
+    ## <RemediationName>
+    <RemediationDescription>
+    ## Outputs
+	...
+  timeoutSeconds: 600
+  isEnd: false
+...
+```
+[Creating your own runbooks](https://docs.aws.amazon.com/systems-manager/latest/userguide/automation-authoring-runbooks-parent-child-example.html)
+
+4. Include the template for the new remediation in **`source/solution_deploy/lib/remediation_runbook-stack.ts`**. 
+
+The following is an example of the common structure to add a new one:
+
+```typescript
+  {	  
+	  // File name without extension /source/remediation_runbooks.
+      const remediationName = '<RemediationName>';
+	  	  
+	  // IAM Policy required to execute the remediation.	
+      const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+	  const ec2Perms = new PolicyStatement();
+      ec2Perms.addActions('ec2:DescribeInstances');
+      ec2Perms.effect = Effect.ALLOW;
+      ec2Perms.addResources('*');
+      inlinePolicy.addStatements(ec2Perms);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
+        ssmDocName: remediationName,
+        ssmDocPath: ssmdocs,
+        ssmDocFileName: `${remediationName}.yaml`,
+        scriptPath: `${ssmdocs}/scripts`,
+        solutionVersion: props.solutionVersion,
+        solutionDistBucket: props.solutionDistBucket,
+        solutionId: props.solutionId,
+      });
+    }
+ ```
+
+5. Go to the playbook configuration folder:
+
+e.g.
+**`./source/playbooks/SC**`
+
+6. Include the new control into the playbook configuration. Go to **`/bin`** folder. There's a file with .ts extension and add the new control. 
+
+e.g.
+**`./source/playbooks/SC/bin/security_controls.ts`**
+
+```typescript
+const remediations: IControl[] = [
+  { control: 'AutoScaling.1' },
+  { control: 'CloudFormation.1' },
+  { control: 'CloudTrail.1' },
+  
+  // Replace the ControlId expected.
+  { control: '<ControlId>'}
+  // ....
+]
+```
+
+7. Add the constructor in the controls definition. Go to **`/lib`** and modify the **`control_runbooks_construct.ts`** file. 
+
+e.g.
+**`source/playbooks/SC/lib/control_runbooks-construct.ts`**
+
+```typescript
+import * as ec2_2 from '../ssmdocs/SC_EC2.2';
+import * as ec2_6 from '../ssmdocs/SC_EC2.6';
+import * as ec2_7 from '../ssmdocs/SC_EC2.7';
+
+// Include the following line replacing the Control Name
+import * as <ControlId in format service_#> from '../ssmdocs/<PlayBook_ControlId>';
+// ...
+
+export class ControlRunbooks extends Construct {
+    this.add(ec2_2.createControlRunbook(this, 'EC2.2', props));
+    this.add(ec2_6.createControlRunbook(this, 'EC2.6', props));
+    this.add(ec2_7.createControlRunbook(this, 'EC2.7', props));
+    this.add(ec2_8.createControlRunbook(this, 'EC2.8', props)); 
+
+	// Include the following line replacing the ControlId
+	this.add(<Control Name>.createControlRunbook(this, '<ControlId>', props)); 
+	// ....
+```
+
+8. Create and include the Control Runbook constructor. Go to **`/ssmdocs`** and create a new file <RunbookName_Service_#.ts>.
+
+e.g.
+**`SC_EC2.8.ts`**
+
+Also add the following content:
+
+```typescript
+import { Construct } from 'constructs';
+import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
+import { PlaybookProps } from '../lib/control_runbooks-construct';
+import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
+
+// EnforceEC2InstanceIMDSv2
+export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
+  	
+  // Replace to ControlId expected.	
+  return new (scope, id, { ...props, controlId: '<ControlId>' });
+}
+
+// The name of the class should be the RemediationaName defined in the step 1.
+export class <RemediationaName> extends ControlRunbookDocument {
+  constructor(scope: Construct, id: string, props: ControlRunbookProps) {
+    super(scope, id, {
+      ...props,
+	  //Replace the information according to the ControlId, RemediationName, descriptions and runbook inputs.
+      securityControlId: '<ControlId>',
+      remediationName: '<RemediationName>',
+      scope: RemediationScope.GLOBAL,
+      updateDescription: HardCodedString.of('<RemediationDescription>'),
+      resourceIdName: '<ResourceId>',
+	  // If the ResourceId require some pattern like arn, sg format, numbers this property should be defined with the pattern expected. 
+      resourceIdRegex: String.raw`^arn:aws:ec2:[a-z0-9-]+:\d{12}:instance/(i-[0-9a-fA-F]{17})$`
+    });
+  }
+}
+
+```
+
+9. Creates the Markdown documentation for the new remediation. Go to **`/ssmdocs/descriptions`** and create the following file: <ControlId>.md:
+
+e.g.
+**`EC2.7.md`** 
+
+The content should have the following format:
+
+> The inputs and outputs are according to the runbook definition. 
+
+```md
+### Document Name - AWSConfigRemediation-<RemediationName>
+
+## What does this document do?
+<RemediationDescription> [<RemediationName>](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Operations.html) API.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* <ResourceId>: (Required) <Description>
+
+## Output Parameters
+* <RemediationName>.Output: <RemediationDescription>
+<RemediationName> API.
+```
+ 
+10.  Update the solution following the steps in [this](AWSSD-DevNotes.md) article.
+
 # Shared Remediations
 
 In SHARR v1.3 we introduced shared remediations - remediation code that is separate from the security controls. SHARR remediation document names start with **SHARR-** and a name describing what the runbook does. Ex. **SHARR-CreateAccessLoggingBucket** creates a bucket for logging access to another bucket.
 
 ## Roles 
 
-SO0111-<docname>
+ **prefix:** SO0111-<docname>
 
 ## Using AWSConfigRemediation AWS-Owned Documents
 
@@ -345,8 +555,9 @@ SO0111-<docname>
 Note that these will be replaced with the AWS-Owned version once they are supported in GovCloud and China.
 
 ## Add it to the template
+Including new remediation required updating the following file where the resources needed to add it successfully.
 
-source/solution_deploy/lib/remediation_runbook-stack.ts
+ **`source/solution_deploy/lib/remediation_runbook-stack.ts`**
 
 # Processing Runbook Output
 
