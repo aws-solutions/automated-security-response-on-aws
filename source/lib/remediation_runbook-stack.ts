@@ -1033,7 +1033,8 @@ export class RemediationRunbookStack extends cdk.Stack {
         'rds:DescribeDBSnapshots',
         'rds:DescribeDBClusterSnapshots',
         'rds:DeleteDBSnapshot',
-        'rds:DeleteDBClusterSnapshots'
+        'rds:DeleteDBClusterSnapshots',
+        'rds:AddTagsToResource',
       );
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources('*');
