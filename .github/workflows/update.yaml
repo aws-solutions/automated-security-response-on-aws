@@ -1,0 +1,53 @@
+# name: Update S3 and CDK Diff
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - "source/**"
+
+# env:
+#   REGIONS: "us-east-1 us-east-2 us-west-1 us-west-2 eu-north-1 eu-central-1 eu-west-2 ap-southeast-1 ap-southeast-2"
+#   BUCKET_ID:
+  
+# jobs: 
+#   update-templates: 
+#     name: Update ASR CF templates and upload to S3 
+#     runs-on: ["self-hosted", "asr", "temporary"]
+#     steps:
+
+#       - name: Checkout Code
+#         uses: actions/checkout@v3
+
+#       - name: Set Up Node
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: "16"
+
+#       - name: install CDK
+#         run: |
+#           npm install -g aws-cdk
+
+#       - name: Compile ASR CDK project
+#         run: |
+#           cd source 
+#           npm i
+#           pwd
+
+#       - name: Generate Templates
+#         run: |
+#           cd deployment
+#           ./build-s3-dist.sh -b cf-templates-asr-${{ env.BUCKET_ID }} -v v2.0.2 -t SO0111
+
+#       - name: Upload templates to S3 bucket for each region
+#         run: |
+#           cd deployment
+#           IFS=' ' read -ra regions <<< ${{ env.REGIONS }}
+#           for region in "${regions[@]}"; do
+#             ./upload-s3-dist.sh $region
+#           done
+
+#       - name: Run CDK Deploy
+#         run: |
+#           cd bootstrap
+#           cdk deploy --all -require-approval never

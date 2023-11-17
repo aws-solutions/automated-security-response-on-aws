@@ -1,0 +1,90 @@
+# name: CDK Deploy
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#     paths:
+#       - "bootstrap/**"
+
+# env:
+#   BUCKET_NAME:
+  
+# jobs: 
+#   update-templates: 
+#     name: Update ASR CF templates and upload to S3 
+#     runs-on: ["self-hosted", "asr", "temporary"]
+#     steps:
+
+#       - name: Checkout Code
+#         uses: actions/checkout@v3
+
+#       - name: Set Up Node
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: "16"
+
+#       - name: install CDK
+#         run: |
+#           npm install -g aws-cdk
+
+#       - name: Compile ASR CDK project
+#         run: |
+#           cd bootstrap 
+#           npm i
+#           pwd
+
+#       - name: Run CDK Diff
+#         id: diff
+#         run: |
+#           cd bootstrap
+#           npm ci
+#           cdk diff | tee /tmp/diff.txt
+#           echo 'diff<<EOF' >> $GITHUB_OUTPUT
+#           echo "$(cat /tmp/diff.txt)" >> $GITHUB_OUTPUT
+#           echo 'EOF' >> $GITHUB_OUTPUT 
+
+#       - name: Update Pull Request Success
+#         if: steps.diff.outcome == 'success'
+#         uses: actions/github-script@v6
+#         env:
+#           DIFF: "${{ steps.diff.outputs.diff}}"
+#         with:
+#           github-token: ${{ env.GITHUB_TOKEN }}
+#           script: |
+#             const output = `Ran CDK Diff 
+
+#             ${process.env.DIFF}  
+
+#             ---
+            
+#               - :arrow_forward:  Logs for this run can be found here ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#             `;
+      
+#             github.rest.issues.createComment({
+#               issue_number: context.issue.number,
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               body: output
+#             }) 
+
+#       - name: Update Pull Request Failure
+#         if: steps.apply.outcome == 'failure'
+#         uses: actions/github-script@v6
+#         env:
+#         with:
+#           github-token: ${{ env.GITHUB_TOKEN }}
+#           script: |
+#             const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+#             const output = `
+#             **Failed:** CDK Diff failed with an error.
+#             - :sos: The detail of the failure can be found here <a href="${url}">here</a>
+#             `;
+
+#             github.rest.issues.createComment({
+#               issue_number: context.issue.number,
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               body: output
+#             })
+
+
