@@ -53,11 +53,12 @@ def enable_server_access_logging(event, _):
         target_bucket = event.get('targetbucket') or exit('Target Bucket not specified')
         return target_bucket
     
+    aws_account: str = event["account"]
+    aws_region: str = event["region"]
+    # Extract the bucket name from the event
+    bucket_name = __get_bucket_from_event(event)
+    
     try:
-        aws_account: str = event.get["account"]
-        aws_region: str = event.get["region"]
-        # Extract the bucket name from the event
-        bucket_name = __get_bucket_from_event(event)
         target_bucket_name = create_logging_bucket(
             aws_account,
             aws_region,
@@ -84,7 +85,7 @@ def enable_server_access_logging(event, _):
     except Exception as e:
         return {
             "output": {
-                "Message": f'S3 bucket server access logging failed for {bucket_name}'
+                "Message": f'S3 bucket server access logging failed for {bucket_name}',
                 "Error": str(e)
             }
         }
