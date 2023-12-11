@@ -29,16 +29,15 @@ def test_enable_bucket_logging(mocker):
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
     s3_stubber = Stubber(s3)
-
-    bucket_name = event["bucket"]
-    target_bucket_name = event["bucket"] + "-" + event["region"] + "-" + event["account"]
+    bucket_name = event().get("bucket")
+    target_bucket_name = event().get("targetbucket") + "-" + event().get("region") + "-" + event().get("account")
 
     kwargs = {
         "Bucket": target_bucket_name,
     }
-    if event["region"] != "us-east-1":
+    if event().get("region") != "us-east-1":
         kwargs["CreateBucketConfiguration"] = {
-            "LocationConstraint": event["region"]
+            "LocationConstraint": event().get("region")
         }
     s3_stubber.add_response("create_bucket", {}, kwargs)
     s3_stubber.add_response(
