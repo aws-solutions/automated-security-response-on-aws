@@ -461,7 +461,7 @@ export class SolutionDeployStack extends cdk.Stack {
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: ['securityhub:BatchUpdateFindings'],
+          actions: ['securityhub:BatchUpdateFindings', 'securityhub:GetFindings'],
           resources: ['*'],
         }),
         new PolicyStatement({
@@ -475,6 +475,11 @@ export class SolutionDeployStack extends cdk.Stack {
         new PolicyStatement({
           actions: ['sns:Publish'],
           resources: [`arn:${this.partition}:sns:${this.region}:${this.account}:${RESOURCE_PREFIX}-SHARR_Topic`],
+        }),
+        // Allows conversion of Account Id -> Account Alias (Name)
+        new PolicyStatement({
+          actions: ['organizations:ListAccounts'],
+          resources: ['*'],
         }),
       ],
     });
