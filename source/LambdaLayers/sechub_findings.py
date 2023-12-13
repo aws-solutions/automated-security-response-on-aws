@@ -271,9 +271,10 @@ class SHARRNotification(object):
             'finding': self.finding_info
         }
 
+        topic = 'SO0111-SHARR_Topic'
         if self.send_to_sns:
             sent_id = publish_to_sns(
-                'SO0111-SHARR_Topic',
+                topic,
                 json.dumps(
                     sns_notify_json,
                     indent=2,
@@ -281,7 +282,7 @@ class SHARRNotification(object):
                 ),
                 self.__region
             )
-            print(f'Notification message ID {sent_id} sent.')
+            print(f'Notification message ID {sent_id} sent to {topic}')
         self.applogger.add_message(
             self.severity + ': ' + self.message
         )
