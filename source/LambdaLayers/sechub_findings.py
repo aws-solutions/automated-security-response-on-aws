@@ -8,6 +8,11 @@ import boto3
 from utils import publish_to_sns
 from awsapi_cached_client import AWSCachedClient
 from botocore.exceptions import ClientError
+from logger import Logger
+
+# initialise loggers
+LOG_LEVEL = os.getenv('log_level', 'info')
+LOGGER = Logger(loglevel=LOG_LEVEL)
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
@@ -49,6 +54,8 @@ class Finding(object):
     region = None
     arn = ''
     uuid = ''
+    account_alias = ''
+    resource = {}
 
     def __init__(self, finding_rec):
         self.region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
@@ -59,8 +66,8 @@ class Finding(object):
         self.uuid = self.arn.split ('/finding/')[1]
         self.generator_id = self.details.get('GeneratorId', 'error')
         self.account_id = self.details.get('AwsAccountId', 'error')
-        resource = self.details.get('Resources',[])[0]
-        self.resource_region = resource.get('Region','error')
+        self.resource = self.details.get('Resources', [])[0]
+        self.resource_region = self.resource.get('Region','error')
 
         if not self.is_valid_finding_json():
             raise InvalidFindingJson
@@ -78,7 +85,14 @@ class Finding(object):
             self.standard_version = '2.0.0'
             self.standard_name = 'security-control'
 
-
+        # Lookup the alias for the Account as it's more human readable
+        try:
+            accounts = self.aws_api_client.get_connection('organizations').list_accounts()['Accounts']
+            self.account_alias = next((x for x in accounts if x['Id'] == self.account_id), self.account_id)['Name']
+        except Exception as error:
+            LOGGER.warning(f'Unable to list account aliases for {self.account_id}')
+            LOGGER.warning(error)
+            self.account_alias = self.account_id
 
         self._get_security_standard_abbreviation_from_ssm()
         self._get_control_remap()
@@ -231,6 +245,8 @@ class SHARRNotification(object):
     logdata = []
     send_to_sns = False
     finding_info = {}
+    state = 'UNKNOWN'
+    execution_id = None
 
     def __init__(self, security_standard, region, controlid=None):
         """
@@ -268,7 +284,9 @@ class SHARRNotification(object):
         sns_notify_json = {
             'severity': self.severity,
             'message': self.message,
-            'finding': self.finding_info
+            'finding': self.finding_info,
+            'state': self.state,
+            'execution_id': self.execution_id
         }
 
         if self.send_to_sns:

@@ -7,6 +7,7 @@ import os
 import sechub_findings
 from logger import Logger
 from metrics import Metrics
+import urllib.parse
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
@@ -59,6 +60,8 @@ def lambda_handler(event, _):
     #   SecurityStandard?: string
     #   EventType?: string
 
+    LOGGER.info(json.dumps(event))
+
     message_prefix, message_suffix = set_message_prefix_and_suffix(event)
 
     # Get finding status
@@ -74,6 +77,25 @@ def lambda_handler(event, _):
     finding_info = ''
     if 'Finding' in event:
         finding = sechub_findings.Finding(event['Finding'])
+
+        resource = (event['Notification'].get('AffectedObject', '').split(' ', 2)[-1]
+            if 'AffectedObject' in event['Notification'] and isinstance(event['Notification']['AffectedObject'], str)
+            else finding.resource.get('Id', '').split(':')[-1]
+        )
+
+        # Get the Note that the SSM Automation added to the finding
+        note = None
+        try:
+            note = sechub_findings.get_securityhub().get_findings(Filters={'Id':[{'Comparison':'EQUALS','Value':finding.arn}]})['Findings'][0]['Note']['Text']
+        except Exception as _error:
+            LOGGER.info('Unable to retrieve Note from Finding')
+            note = ''
+
+        # https://us-east-1.console.aws.amazon.com/securityhub/home?region=us-east-1#/findings?search=Id%3D%255Coperator%255C%253AEQUALS%255C%253Aarn%253Aaws%253Asecurityhub%253Aus-east-1%253A166758023262%253Asecurity-control%252FCloudWatch.12%252Ffinding%252F368ddc4f-b603-4076-866a-26d10b2a9e94
+        _search = urllib.parse.quote_plus(f'\operator\:EQUALS\:{finding.arn}')
+        _search = urllib.parse.quote_plus(f'Id={_search}')
+        link = f'https://console.aws.amazon.com/securityhub/home?region={finding.region}#/findings?search={_search}'
+
         finding_info = {
             'finding_id': finding.uuid,
             'finding_description': finding.description,
@@ -83,7 +105,11 @@ def lambda_handler(event, _):
             'title': finding.title,
             'region': finding.region,
             'account': finding.account_id,
-            'finding_arn': finding.arn
+            'finding_arn': finding.arn,
+            'account_alias': finding.account_alias,
+            'link': link,
+            'note': note,
+            'resource': resource
         }
 
     # Send anonymous metrics
@@ -101,6 +127,7 @@ def lambda_handler(event, _):
         )
         notification.severity = 'INFO'
         notification.send_to_sns = True
+        notification.state = event['Notification']['State'].upper()
 
     elif event['Notification']['State'].upper() == 'FAILED':
         notification = sechub_findings.SHARRNotification(
@@ -110,10 +137,12 @@ def lambda_handler(event, _):
         )
         notification.severity = 'ERROR'
         notification.send_to_sns = True
+        notification.state = event['Notification']['State'].upper()
 
     elif event['Notification']['State'].upper() in {'WRONGSTANDARD', 'LAMBDAERROR'}:
         notification = sechub_findings.SHARRNotification('SHARR',AWS_REGION, None)
         notification.severity = 'ERROR'
+        notification.state = event['Notification']['State'].upper()
 
     else:
         notification = sechub_findings.SHARRNotification(
@@ -125,9 +154,11 @@ def lambda_handler(event, _):
         if finding:
             finding.flag(event['Notification']['Message'])
 
-    notification.message = message_prefix + event['Notification']['Message'] + message_suffix
+    notification.execution_id = event['Notification'].get('ExecId', None)
+    notification.message = event['Notification']['Message'] + message_suffix
     if 'Details' in event['Notification'] and event['Notification']['Details'] != 'MISSING':
         notification.logdata = format_details_for_output(event['Notification']['Details'])
 
     notification.finding_info = finding_info
+    LOGGER.info(notification)
     notification.notify()
