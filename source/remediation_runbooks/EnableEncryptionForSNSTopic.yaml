@@ -1,26 +1,26 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 ---
-schemaVersion: "0.3"
+schemaVersion: '0.3'
 description: |
-   ### Document name - ASR-EnableEncryptionForSNSTopic
+  ### Document name - ASR-EnableEncryptionForSNSTopic
 
-   ## What does this document do?
-    This document enables encryption on given Amazon Simple Notification Service (Amazon SNS) topic using
-    [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
+  ## What does this document do?
+   This document enables encryption on given Amazon Simple Notification Service (Amazon SNS) topic using
+   [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
 
-    This document must only be used as a baseline to ensure that your Amazon SNS topics are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
-    Based on your data policy, Amazon SNS topic should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+   This document must only be used as a baseline to ensure that your Amazon SNS topics are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
+   Based on your data policy, Amazon SNS topic should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
 
-   ## Input Parameters
-   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-   * TopicArn: (Required)  The ARN of the Amazon SNS Topic.
-   * KmsKeyArn: (Required) The ARN of AWS KMS Key.
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * SNSTopicArn: (Required)  The ARN of the Amazon SNS Topic.
+  * KmsKeyArn: (Required) The ARN of AWS KMS Key.
 
-    ## Security Standards / Controls
-    * AFSBP v1.0.0:   SNS.1
+   ## Security Standards / Controls
+   * AFSBP v1.0.0:   SNS.1
 
-assumeRole: "{{ AutomationAssumeRole }}"
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -40,9 +40,8 @@ parameters:
 outputs:
   - EncryptSNSTopic.Response
 mainSteps:
-  -
-    name: EncryptSNSTopic
-    action: "aws:executeAwsApi"
+  - name: EncryptSNSTopic
+    action: 'aws:executeAwsApi'
     description: |
       ## EncryptSNSTopic
       Makes SetTopicAttributes API call using the Amazon SNS Topic ARN to enables encyption.
@@ -53,15 +52,14 @@ mainSteps:
     inputs:
       Service: sns
       Api: SetTopicAttributes
-      TopicArn: "{{SNSTopicArn}}"
+      TopicArn: '{{SNSTopicArn}}'
       AttributeName: KmsMasterKeyId
-      AttributeValue: "{{KmsKeyArn}}"
+      AttributeValue: '{{KmsKeyArn}}'
     outputs:
       - Name: Response
         Selector: $
         Type: StringMap
-  -
-    name: VerifyTopicEncryption
+  - name: VerifyTopicEncryption
     action: aws:assertAwsResourceProperty
     description: |
       ## VerifyTopicEncryption
@@ -71,7 +69,7 @@ mainSteps:
     inputs:
       Service: sns
       Api: GetTopicAttributes
-      TopicArn: "{{TopicArn}}"
+      TopicArn: '{{SNSTopicArn}}'
       PropertySelector: Attributes.KmsMasterKeyId
       DesiredValues:
-      - "{{ KmsKeyArn }}"
+        - '{{ KmsKeyArn }}'
