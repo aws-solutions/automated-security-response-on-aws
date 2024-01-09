@@ -84,7 +84,7 @@ mainSteps:
       RuntimeParameters:
         KmsKeyArn: '{{KmsKeyArn}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableEncryptionForSNSTopic'
-        TopicArn: '{{ParseInput.SNSTopicArn}}'
+        SNSTopicArn: '{{ParseInput.SNSTopicArn}}'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

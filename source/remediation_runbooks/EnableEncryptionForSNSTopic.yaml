@@ -32,7 +32,7 @@ parameters:
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
     description: The ARN of the KMS key created by ASR for this remediation
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
-  TopicArn:
+  SNSTopicArn:
     type: String
     description: (Required) The ARN of the Amazon SNS Topic.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):sns:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:([a-zA-Z0-9_-]{1,80}(?:\.fifo)?)$'
@@ -53,7 +53,7 @@ mainSteps:
     inputs:
       Service: sns
       Api: SetTopicAttributes
-      TopicArn: "{{TopicArn}}"
+      TopicArn: "{{SNSTopicArn}}"
       AttributeName: KmsMasterKeyId
       AttributeValue: "{{KmsKeyArn}}"
     outputs:
