@@ -6,10 +6,10 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString, Input, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableDeliveryLoggingForSNSTopicDocument(scope, id, { ...props, controlId: 'SNS.2' });
+  return new EnableDeliveryStatusLoggingForSNSTopicDocument(scope, id, { ...props, controlId: 'SNS.2' });
 }
 
-export class EnableDeliveryLoggingForSNSTopicDocument extends ControlRunbookDocument {
+export class EnableDeliveryStatusLoggingForSNSTopicDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs = [
       Input.ofTypeString('LoggingRole', {
@@ -22,7 +22,7 @@ export class EnableDeliveryLoggingForSNSTopicDocument extends ControlRunbookDocu
       ...props,
       docInputs,
       securityControlId: 'SNS.2',
-      remediationName: 'EnableDeliveryLoggingForSNSTopic',
+      remediationName: 'EnableDeliveryStatusLoggingForSNSTopic',
       scope: RemediationScope.REGIONAL,
       resourceIdName: 'SNSTopicArn',
       updateDescription: HardCodedString.of('Delivery Status Logging enabled on SNS Topic'),
