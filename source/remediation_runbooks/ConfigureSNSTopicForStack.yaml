@@ -30,21 +30,21 @@ parameters:
     allowedPattern: '^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$'
     default: 'SO0111-ASR-CloudFormationNotifications'
 outputs:
-- 'ConfigureSNSTopic.Output'
+  - 'ConfigureSNSTopic.Output'
 mainSteps:
-- name: 'ConfigureSNSTopic'
-  action: 'aws:executeScript'
-  timeoutSeconds: 600
-  inputs:
-    InputPayload:
-      stack_arn: '{{ StackArn }}'
-      topic_name: 'SO0111-ASR-CloudFormationNotifications'
-    Runtime: 'python3.8'
-    Handler: 'lambda_handler'
-    Script: |-
-      %%SCRIPT=configure_stack_notifications.py%%
-  outputs:
-  - Name: 'Output'
-    Selector: '$.Payload.output'
-    Type: 'StringMap'
-  isEnd: true
+  - name: 'ConfigureSNSTopic'
+    action: 'aws:executeScript'
+    timeoutSeconds: 3600
+    inputs:
+      InputPayload:
+        stack_arn: '{{ StackArn }}'
+        topic_name: 'SO0111-ASR-CloudFormationNotifications'
+      Runtime: 'python3.8'
+      Handler: 'lambda_handler'
+      Script: |-
+        %%SCRIPT=configure_stack_notifications.py%%
+    outputs:
+      - Name: 'Output'
+        Selector: '$.Payload.output'
+        Type: 'StringMap'
+    isEnd: true
