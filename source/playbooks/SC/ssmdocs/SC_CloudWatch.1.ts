@@ -22,6 +22,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
     ...props,
     controlId: 'CloudWatch.1',
     otherControlIds: [
+      'IAM.20',
       'CloudWatch.2',
       'CloudWatch.3',
       'CloudWatch.4',
