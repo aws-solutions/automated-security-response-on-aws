@@ -1,0 +1,53 @@
+description: |
+  ### Document name - ASR-EnableServerAccessLoggingS3
+
+  ## What does this document do?
+  This document enables server access logging for an Amazon S3 Bucket.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * BucketName: (Required) Name of the bucket to enable server access logging.
+  * AccountId: (Required) Account to which the bucket belongs
+
+  ## Output Parameters
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AFSBP v1.0.0: S3.9
+  * CIS v1.2.0:   n/a
+  * PCI:          n/a
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  BucketName:
+    type: String
+    description: Name of the bucket to have server access logging enabled
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+  TargetBucketName:
+    type: String
+    description: Name of the target bucket to store the server access logging
+    default: 'so0111-server-access-logs'
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+
+mainSteps:
+  - name: EnableServerAccessLogging
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload:
+        account: '{{global:ACCOUNT_ID}}'
+        region: '{{global:REGION}}'
+        bucket: '{{BucketName}}'
+        targetbucket: '{{TargetBucketName}}'
+      Runtime: python3.8
+      Handler: enable_server_access_logging
+      Script: |-
+        %%SCRIPT=EnableServerAccessLoggingS3.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

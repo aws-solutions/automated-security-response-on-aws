@@ -97,6 +97,7 @@ const remediations: IControl[] = [
   { control: 'S3.5' },
   { control: 'S3.6' },
   { control: 'S3.8', executes: 'S3.2' },
+  { control: 'S3.9' },
   { control: 'SNS.1' },
   { control: 'SNS.2' },
   { control: 'SQS.1' },

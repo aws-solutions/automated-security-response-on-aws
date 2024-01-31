@@ -49,6 +49,7 @@ import * as s3_2 from '../ssmdocs/SC_S3.2';
 import * as s3_4 from '../ssmdocs/SC_S3.4';
 import * as s3_5 from '../ssmdocs/SC_S3.5';
 import * as s3_6 from '../ssmdocs/SC_S3.6';
+import * as s3_9 from '../ssmdocs/SC_S3.9';
 import * as sqs_1 from '../ssmdocs/SC_SQS.1';
 import * as sns_1 from '../ssmdocs/SC_SNS.1';
 import * as sns_2 from '../ssmdocs/SC_SNS.2';
@@ -118,6 +119,7 @@ export class ControlRunbooks extends Construct {
     this.add(s3_4.createControlRunbook(this, 'S3.4', props));
     this.add(s3_5.createControlRunbook(this, 'S3.5', props));
     this.add(s3_6.createControlRunbook(this, 'S3.6', props));
+    this.add(s3_9.createControlRunbook(this, 'S3.9', props));
     this.add(sqs_1.createControlRunbook(this, 'SQS.1', props));
     this.add(sns_1.createControlRunbook(this, 'SNS.1', props));
     this.add(sns_2.createControlRunbook(this, 'SNS.2', props));

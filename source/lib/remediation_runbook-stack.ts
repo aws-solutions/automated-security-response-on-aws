@@ -1290,6 +1290,54 @@ export class RemediationRunbookStack extends cdk.Stack {
       };
     }
 
+    //----------------------------
+    // EnableServerAccessLoggingS3
+    //
+    {
+      const remediationName = 'EnableServerAccessLoggingS3';
+      const inlinePolicy = new Policy(props.roleStack, `SHARR-Remediation-Policy-${remediationName}`);
+
+      const remediationPolicy = new PolicyStatement();
+      remediationPolicy.addActions('s3:CreateBucket', 's3:PutBucketLogging');
+      remediationPolicy.effect = Effect.ALLOW;
+      remediationPolicy.addResources('*');
+      inlinePolicy.addStatements(remediationPolicy);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      prevBook = RunbookFactory.createRemediationRunbook(
+        this,
+        'ASR ' + remediationName,
+        {
+          ssmDocName: remediationName,
+          ssmDocPath: ssmdocs,
+          ssmDocFileName: `${remediationName}.yaml`,
+          scriptPath: `${ssmdocs}/scripts`,
+          solutionVersion: props.solutionVersion,
+          solutionDistBucket: props.solutionDistBucket,
+          solutionId: props.solutionId,
+        },
+        prevBook
+      );
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+
     //-----------------------------------------
     // AWS-EncryptRdsSnapshot
     //
