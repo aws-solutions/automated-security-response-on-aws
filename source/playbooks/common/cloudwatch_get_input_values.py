@@ -187,6 +187,7 @@ Cloudwatch_mappings = {
     },
     'security-control': {
         '2.0.0': {
+           "IAM.20": rootAccountUsageFilter,
            "CloudWatch.1": rootAccountUsageFilter,
            "CloudWatch.2": unauthorizedAPICallsFilter,
            "CloudWatch.3": consoleSignInWithoutMFAFilter,
