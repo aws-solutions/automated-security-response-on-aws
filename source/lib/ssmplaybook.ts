@@ -279,7 +279,7 @@ export class SsmRole extends Construct {
 
     memberRole.attachInlinePolicy(basePolicy);
     memberRole.attachInlinePolicy(props.remediationPolicy);
-    memberRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+    memberRole.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
     memberRole.node.addDependency(roleStack.getOrchestratorMemberRole());
 
     const memberRoleResource = memberRole.node.findChild('Resource') as CfnRole;
