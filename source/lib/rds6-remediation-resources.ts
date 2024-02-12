@@ -49,7 +49,7 @@ export class Rds6EnhancedMonitoringRole extends Construct {
     });
 
     rds6Role.attachInlinePolicy(rds6Policy);
-    rds6Role.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+    rds6Role.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
     const roleResource = rds6Role.node.findChild('Resource') as CfnRole;
     roleResource.cfnOptions.metadata = {

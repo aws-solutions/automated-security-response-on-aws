@@ -562,7 +562,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
         roleName: `${RESOURCE_PREFIX}-CloudTrailToCloudWatchLogs`,
       });
-      ctcw_remediation_role.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+      ctcw_remediation_role.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
       {
         const childToMod = ctcw_remediation_role.node.findChild('Resource') as CfnRole;
         childToMod.cfnOptions.metadata = {
@@ -809,7 +809,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
         roleName: `${RESOURCE_PREFIX}-EnableVPCFlowLogs-remediationRole`,
       });
-      remediation_role.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+      remediation_role.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
       const roleResource = remediation_role.node.findChild('Resource') as CfnRole;
 
