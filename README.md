@@ -4,7 +4,7 @@
 Feature
 request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
-Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation%3E/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
+Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
 
 Automated Security Response (ASR) on AWS is a solution that enables AWS Security Hub customers to remediate findings
 with a single click using sets of predefined response and remediation actions called Playbooks. The remediations are
