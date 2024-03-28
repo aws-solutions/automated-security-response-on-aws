@@ -5,19 +5,12 @@
 # TODO: test that ID over 20 characters is rejected
 
 import os
-import pytest
-from pytest_mock import mocker
-import boto3
-import botocore.session
-from botocore.stub import Stubber, ANY
-from botocore.exceptions import ClientError
 import random
-from action_target_provider import (
-    lambda_handler,
-    CustomAction,
-    get_securityhub_client,
-)
-from botocore.config import Config
+
+import boto3
+import pytest
+from action_target_provider import CustomAction, get_securityhub_client, lambda_handler
+from botocore.stub import ANY, Stubber
 
 os.environ["AWS_REGION"] = "us-east-1"
 os.environ["AWS_PARTITION"] = "aws"
@@ -124,7 +117,7 @@ def test_create_already_exists(mocker):
             "Id": "ASRRemediationTest",
         },
     )
-    assert customAction.create() == None
+    assert customAction.create() is None
     sechub_stub.assert_no_pending_responses()
     sechub_stub.deactivate()
 

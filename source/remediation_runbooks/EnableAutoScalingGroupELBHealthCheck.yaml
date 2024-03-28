@@ -18,7 +18,7 @@ description: |
   * Remediation.Output - stdout messages from the remediation
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0: Autoscaling.1
+  * AWS FSBP v1.0.0: Autoscaling.1
   * CIS v1.2.0:   2.1
   * PCI:          Autoscaling.1
 

@@ -249,24 +249,42 @@ exports[`test App Orchestrator Construct 1`] = `
                     "kms:GenerateDataKey",
                   ],
                   "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:",
-                        {
-                          "Ref": "AWS::Partition",
-                        },
-                        ":kms:",
-                        {
-                          "Ref": "AWS::Region",
-                        },
-                        ":",
-                        {
-                          "Ref": "AWS::AccountId",
-                        },
-                        ":alias/bbb-SHARR-Key",
+                  "Resource": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:",
+                          {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":kms:",
+                          {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":alias/bbb-SHARR-Key",
+                        ],
                       ],
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "SHARRKeyC551FE02",
+                        "Value",
+                      ],
+                    },
+                  ],
+                },
+                {
+                  "Action": "sqs:SendMessage",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "SchedulingQueueB533E3CD",
+                      "Arn",
                     ],
                   },
                 },
@@ -320,7 +338,7 @@ exports[`test App Orchestrator Construct 1`] = `
               {
                 "Ref": "AWS::Partition",
               },
-              ":states:::lambda:invoke","Parameters":{"FunctionName":"arn:aws:lambda:us-east-1:111122223333:function/foobar","Payload.$":"$"}},"Automation Document is not Active":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Automation Document ({}) is not active ({}) in the member account({}).', $.AutomationDocId, $.AutomationDocument.DocState, $.Finding.AwsAccountId)","State.$":"States.Format('REMEDIATIONNOTACTIVE')","updateSecHub":"yes"},"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion"},"Next":"notify"},"Automation Doc Active?":{"Type":"Choice","Choices":[{"Variable":"$.AutomationDocument.DocState","StringEquals":"ACTIVE","Next":"Execute Remediation"},{"Variable":"$.AutomationDocument.DocState","StringEquals":"NOTACTIVE","Next":"Automation Document is not Active"},{"Variable":"$.AutomationDocument.DocState","StringEquals":"NOTENABLED","Next":"Security Standard is not enabled"},{"Variable":"$.AutomationDocument.DocState","StringEquals":"NOTFOUND","Next":"No Remediation for Control"}],"Default":"check_ssm_doc_state Error"},"Get Automation Document State":{"Next":"Automation Doc Active?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Get the status of the remediation automation document in the target account","TimeoutSeconds":60,"ResultPath":"$.AutomationDocument","ResultSelector":{"DocState.$":"$.Payload.status","Message.$":"$.Payload.message","SecurityStandard.$":"$.Payload.securitystandard","SecurityStandardVersion.$":"$.Payload.securitystandardversion","SecurityStandardSupported.$":"$.Payload.standardsupported","ControlId.$":"$.Payload.controlid","AccountId.$":"$.Payload.accountid","RemediationRole.$":"$.Payload.remediationrole","AutomationDocId.$":"$.Payload.automationdocid","ResourceRegion.$":"$.Payload.resourceregion"},"Resource":"arn:",
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"arn:aws:lambda:us-east-1:111122223333:function/foobar","Payload.$":"$"}},"Automation Document is not Active":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Automation Document ({}) is not active ({}) in the member account({}).', $.AutomationDocId, $.AutomationDocument.DocState, $.Finding.AwsAccountId)","State.$":"States.Format('REMEDIATIONNOTACTIVE')","updateSecHub":"yes"},"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion"},"Next":"notify"},"Automation Doc Active?":{"Type":"Choice","Choices":[{"Variable":"$.AutomationDocument.DocState","StringEquals":"ACTIVE","Next":"Send Task Token"},{"Variable":"$.AutomationDocument.DocState","StringEquals":"NOTACTIVE","Next":"Automation Document is not Active"},{"Variable":"$.AutomationDocument.DocState","StringEquals":"NOTENABLED","Next":"Security Standard is not enabled"},{"Variable":"$.AutomationDocument.DocState","StringEquals":"NOTFOUND","Next":"No Remediation for Control"}],"Default":"check_ssm_doc_state Error"},"Get Automation Document State":{"Next":"Automation Doc Active?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Get the status of the remediation automation document in the target account","TimeoutSeconds":60,"ResultPath":"$.AutomationDocument","ResultSelector":{"DocState.$":"$.Payload.status","Message.$":"$.Payload.message","SecurityStandard.$":"$.Payload.securitystandard","SecurityStandardVersion.$":"$.Payload.securitystandardversion","SecurityStandardSupported.$":"$.Payload.standardsupported","ControlId.$":"$.Payload.controlid","AccountId.$":"$.Payload.accountid","RemediationRole.$":"$.Payload.remediationrole","AutomationDocId.$":"$.Payload.automationdocid","ResourceRegion.$":"$.Payload.resourceregion"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -328,7 +346,15 @@ exports[`test App Orchestrator Construct 1`] = `
               {
                 "Ref": "AWS::Partition",
               },
-              ":states:::lambda:invoke","Parameters":{"FunctionName":"arn:aws:lambda:us-east-1:111122223333:function/foobar","Payload.$":"$"}},"Orchestrator Failed":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Orchestrator failed: {}', $.Error)","State.$":"States.Format('LAMBDAERROR')","Details.$":"States.Format('Cause: {}', $.Cause)"},"Payload.$":"$"},"Next":"notify"},"Execute Remediation":{"Next":"Remediation Queued","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Execute the SSM Automation Document in the target account","TimeoutSeconds":300,"HeartbeatSeconds":60,"ResultPath":"$.SSMExecution","ResultSelector":{"ExecState.$":"$.Payload.status","Message.$":"$.Payload.message","ExecId.$":"$.Payload.executionid","Account.$":"$.Payload.executionaccount","Region.$":"$.Payload.executionregion"},"Resource":"arn:",
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"arn:aws:lambda:us-east-1:111122223333:function/foobar","Payload.$":"$"}},"Orchestrator Failed":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Orchestrator failed: {}', $.Error)","State.$":"States.Format('LAMBDAERROR')","Details.$":"States.Format('Cause: {}', $.Cause)"},"Payload.$":"$"},"Next":"notify"},"Send Task Token":{"Next":"Remediation Wait","Catch":[{"ErrorEquals":["States.ALL"],"Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Send Task Token to SQS Queue for Remediation Scheduling","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::sqs:sendMessage.waitForTaskToken","Parameters":{"QueueUrl":"",
+              {
+                "Ref": "SchedulingQueueB533E3CD",
+              },
+              "","MessageBody":{"RemediationDetails.$":"$","TaskToken.$":"$$.Task.Token","AccountId.$":"$.AutomationDocument.AccountId","ResourceRegion.$":"$.AutomationDocument.ResourceRegion","executionId.$":"$$.Execution.Id"}}},"Remediation Wait":{"Type":"Wait","Comment":"Waiting for remediation","TimestampPath":"$.PlannedTimestamp","Next":"Execute Remediation"},"Execute Remediation":{"Next":"Remediation Queued","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Execute the SSM Automation Document in the target account","TimeoutSeconds":300,"HeartbeatSeconds":60,"ResultPath":"$.SSMExecution","ResultSelector":{"ExecState.$":"$.Payload.status","Message.$":"$.Payload.message","ExecId.$":"$.Payload.executionid","Account.$":"$.Payload.executionaccount","Region.$":"$.Payload.executionregion"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -340,7 +366,7 @@ exports[`test App Orchestrator Construct 1`] = `
               {
                 "Ref": "AWS::Partition",
               },
-              ":states:::lambda:invoke","Parameters":{"FunctionName":"arn:aws:lambda:us-east-1:111122223333:function/foobar","Payload.$":"$"}},"Wait for Remediation":{"Type":"Wait","Seconds":15,"Next":"execMonitor"},"Remediation completed?":{"Type":"Choice","Choices":[{"Variable":"$.Remediation.RemediationState","StringEquals":"Failed","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Success","Next":"Remediation Succeeded"},{"Variable":"$.Remediation.ExecState","StringEquals":"TimedOut","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelling","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelled","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Failed","Next":"Remediation Failed"}],"Default":"Wait for Remediation"},"Remediation Failed":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","SSMExecution.$":"$.SSMExecution","AutomationDocument.$":"$.AutomationDocument","Notification":{"Message.$":"States.Format('Remediation failed for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","State.$":"$.Remediation.ExecState","Details.$":"$.Remediation.LogData","ExecId.$":"$.Remediation.ExecId","AffectedObject.$":"$.Remediation.AffectedObject"}},"Next":"notify"},"Remediation Succeeded":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion","Notification":{"Message.$":"States.Format('Remediation succeeded for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","State.$":"States.Format('SUCCESS')","Details.$":"$.Remediation.LogData","ExecId.$":"$.Remediation.ExecId","AffectedObject.$":"$.Remediation.AffectedObject"}},"Next":"notify"},"check_ssm_doc_state Error":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('check_ssm_doc_state returned an error: {}', $.AutomationDocument.Message)","State.$":"States.Format('LAMBDAERROR')"},"EventType.$":"$.EventType","Finding.$":"$.Finding"},"Next":"notify"},"Security Standard is not enabled":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Security Standard ({}) v{} is not enabled.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion)","State.$":"States.Format('STANDARDNOTENABLED')","updateSecHub":"yes"},"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion"},"Next":"notify"},"No Remediation for Control":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Security Standard {} v{} control {} has no automated remediation.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion, $.AutomationDocument.ControlId)","State.$":"States.Format('NOREMEDIATION')","updateSecHub":"yes"},"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion"},"Next":"notify"}}},"ItemsPath":"$.Findings"},"EOJ":{"Type":"Pass","Comment":"END-OF-JOB","End":true}},"TimeoutSeconds":900}",
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"arn:aws:lambda:us-east-1:111122223333:function/foobar","Payload.$":"$"}},"Wait for Remediation":{"Type":"Wait","Seconds":15,"Next":"execMonitor"},"Remediation completed?":{"Type":"Choice","Choices":[{"Variable":"$.Remediation.RemediationState","StringEquals":"Failed","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Success","Next":"Remediation Succeeded"},{"Variable":"$.Remediation.ExecState","StringEquals":"TimedOut","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelling","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelled","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Failed","Next":"Remediation Failed"}],"Default":"Wait for Remediation"},"Remediation Failed":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","SSMExecution.$":"$.SSMExecution","AutomationDocument.$":"$.AutomationDocument","Notification":{"Message.$":"States.Format('Remediation failed for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","State.$":"$.Remediation.ExecState","Details.$":"$.Remediation.LogData","ExecId.$":"$.Remediation.ExecId","AffectedObject.$":"$.Remediation.AffectedObject"}},"Next":"notify"},"Remediation Succeeded":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion","Notification":{"Message.$":"States.Format('Remediation succeeded for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","State.$":"States.Format('SUCCESS')","Details.$":"$.Remediation.LogData","ExecId.$":"$.Remediation.ExecId","AffectedObject.$":"$.Remediation.AffectedObject"}},"Next":"notify"},"check_ssm_doc_state Error":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('check_ssm_doc_state returned an error: {}', $.AutomationDocument.Message)","State.$":"States.Format('LAMBDAERROR')"},"EventType.$":"$.EventType","Finding.$":"$.Finding"},"Next":"notify"},"Security Standard is not enabled":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Security Standard ({}) v{} is not enabled.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion)","State.$":"States.Format('STANDARDNOTENABLED')","updateSecHub":"yes"},"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion"},"Next":"notify"},"No Remediation for Control":{"Type":"Pass","Parameters":{"Notification":{"Message.$":"States.Format('Security Standard {} v{} control {} has no automated remediation.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion, $.AutomationDocument.ControlId)","State.$":"States.Format('NOREMEDIATION')","updateSecHub":"yes"},"EventType.$":"$.EventType","Finding.$":"$.Finding","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion"},"Next":"notify"}}},"ItemsPath":"$.Findings"},"EOJ":{"Type":"Pass","Comment":"END-OF-JOB","End":true}},"TimeoutSeconds":5400}",
             ],
           ],
         },
@@ -473,6 +499,52 @@ exports[`test App Orchestrator Construct 1`] = `
       },
       "Type": "AWS::KMS::Key",
       "UpdateReplacePolicy": "Retain",
+    },
+    "SchedulingQueueB533E3CD": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "KmsMasterKeyId": {
+          "Fn::GetAtt": [
+            "SHARRkeyE6BD0F56",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::SQS::Queue",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SchedulingQueuePolicy36FAAC29": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sqs:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SchedulingQueueB533E3CD",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Queues": [
+          {
+            "Ref": "SchedulingQueueB533E3CD",
+          },
+        ],
+      },
+      "Type": "AWS::SQS::QueuePolicy",
     },
   },
 }

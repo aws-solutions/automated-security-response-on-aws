@@ -9,11 +9,10 @@ PCI_mappings = {
         "metric_value": 1,
         "alarm_name": "SHARR_Alarm_PCI_321_Finding_CW1_RootAccountUsage",
         "alarm_desc": "Alarm for PCI finding CW.1 RootAccountUsage",
-        "alarm_threshold": 1
+        "alarm_threshold": 1,
     }
 }
 
 
 def verify(event, _):
-
-    return PCI_mappings.get(event['ControlId'], None)
+    return PCI_mappings.get(event["ControlId"], None)

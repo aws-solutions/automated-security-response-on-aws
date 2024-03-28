@@ -3,8 +3,9 @@
 """Test the custom resource provider for arbitrary wait"""
 
 from unittest.mock import ANY, patch
-from wait_provider import lambda_handler
+
 from cfnresponse import SUCCESS
+from wait_provider import lambda_handler
 
 
 def get_event(create, update, delete, request_type):

@@ -19,9 +19,9 @@ description: |
   * RemoveLambdaPublicAccess.Output - stdout messages from the remediation
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0: Lambda.1
-  * CIS v1.2.0:   n/a
-  * PCI:          Lambda.1
+  * AWS FSBP v1.0.0: Lambda.1
+  * CIS v1.2.0:      n/a
+  * PCI:             Lambda.1
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:

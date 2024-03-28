@@ -25,7 +25,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableRedshiftClusterAuditLoggingDocument(scope, id, { ...props, controlId: 'Redshift.4' });
 }
 
-class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
+export class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

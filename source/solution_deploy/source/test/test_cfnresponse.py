@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Test cfnresponse"""
 
-import os
 import json
+import os
 from unittest.mock import ANY
-import pytest
-from pytest_mock import mocker
+
 import cfnresponse
+import pytest
 
 os.environ["AWS_REGION"] = "us-east-1"
 os.environ["AWS_PARTITION"] = "aws"
@@ -67,7 +67,7 @@ def body_correct(
 
 def test_send(urllib_mock, event, context):
     status = cfnresponse.SUCCESS
-    response_data = {}
+    response_data: dict[str, str] = {}
     cfnresponse.send(event, context, status, response_data)
     urllib_mock.request.assert_called_once_with(
         "PUT", event["ResponseURL"], body=ANY, headers=ANY

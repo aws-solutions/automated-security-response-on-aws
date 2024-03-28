@@ -1,8 +1,0 @@
-moto[s3]
-aws-lambda-powertools
-boto3-stubs-lite[s3]
-pytest
-pytest-cov
-pytest-env
-pytest-mock
-urllib3<2

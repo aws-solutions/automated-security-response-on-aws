@@ -1,20 +1,21 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+from typing import TYPE_CHECKING, Any, Dict
+
 import boto3
 import botocore.session
+import CreateAccessLoggingBucket_createloggingbucket as script
+from aws_lambda_powertools.utilities.typing import LambdaContext
 from botocore.config import Config
 from botocore.stub import Stubber
-from moto import mock_s3
-from pytest_mock import mocker
+from CreateAccessLoggingBucket_createloggingbucket import Event
+from moto import mock_aws
 from pytest import raises
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.type_defs import GetBucketEncryptionOutputTypeDef
 else:
     GetBucketEncryptionOutputTypeDef = object
-
-import CreateAccessLoggingBucket_createloggingbucket as script
 
 
 def is_sse_s3_encrypted(config: GetBucketEncryptionOutputTypeDef) -> bool:
@@ -30,16 +31,16 @@ def is_sse_s3_encrypted(config: GetBucketEncryptionOutputTypeDef) -> bool:
     return False
 
 
-@mock_s3
 def test_bucket_created_with_encryption() -> None:
     bucket_name = "my-bucket"
-    event = {"BucketName": bucket_name, "AWS_REGION": "us-east-1"}
+    event: Event = {"BucketName": bucket_name, "AWS_REGION": "us-east-1"}
 
-    script.create_logging_bucket(event, None)
+    with mock_aws():
+        script.create_logging_bucket(event, LambdaContext())
 
-    s3 = boto3.client("s3")
-    bucket_encryption = s3.get_bucket_encryption(Bucket=bucket_name)
-    assert is_sse_s3_encrypted(bucket_encryption)
+        s3 = boto3.client("s3")
+        bucket_encryption = s3.get_bucket_encryption(Bucket=bucket_name)
+        assert is_sse_s3_encrypted(bucket_encryption)
 
 
 def get_region() -> str:
@@ -48,9 +49,7 @@ def get_region() -> str:
 
 
 def test_create_logging_bucket(mocker):
-    event = {
-        "SolutionId": "SO0000",
-        "SolutionVersion": "1.2.3",
+    event: Event = {
         "BucketName": "mahbukkit",
         "AWS_REGION": get_region(),
     }
@@ -58,7 +57,7 @@ def test_create_logging_bucket(mocker):
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
     s3_stubber = Stubber(s3)
-    kwargs = {
+    kwargs: Dict[str, Any] = {
         "Bucket": event["BucketName"],
         "GrantWrite": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
         "GrantReadACP": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
@@ -85,15 +84,13 @@ def test_create_logging_bucket(mocker):
     mocker.patch(
         "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
     )
-    script.create_logging_bucket(event, {})
+    script.create_logging_bucket(event, LambdaContext())
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()
 
 
 def test_bucket_already_exists(mocker):
-    event = {
-        "SolutionId": "SO0000",
-        "SolutionVersion": "1.2.3",
+    event: Event = {
         "BucketName": "mahbukkit",
         "AWS_REGION": get_region(),
     }
@@ -109,15 +106,13 @@ def test_bucket_already_exists(mocker):
         "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
     )
     with raises(SystemExit):
-        script.create_logging_bucket(event, {})
+        script.create_logging_bucket(event, LambdaContext())
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()
 
 
 def test_bucket_already_owned_by_you(mocker):
-    event = {
-        "SolutionId": "SO0000",
-        "SolutionVersion": "1.2.3",
+    event: Event = {
         "BucketName": "mahbukkit",
         "AWS_REGION": get_region(),
     }
@@ -132,6 +127,6 @@ def test_bucket_already_owned_by_you(mocker):
     mocker.patch(
         "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
     )
-    script.create_logging_bucket(event, {})
+    script.create_logging_bucket(event, LambdaContext())
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()

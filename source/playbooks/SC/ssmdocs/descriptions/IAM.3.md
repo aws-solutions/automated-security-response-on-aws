@@ -11,4 +11,4 @@ This document disables active keys that have not been rotated for more than 90 d
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP v1.0.0 IAM.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-3)
+* [AWS FSBP v1.0.0 IAM.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-3)

@@ -8,4 +8,4 @@ This document enables `EBS Encryption by default` for an AWS account in the curr
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP EC2.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-7)
+* [AWS FSBP EC2.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-7)

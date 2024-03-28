@@ -1,0 +1,50 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-DisableUnrestrictedAccessToHighRiskPorts
+ 
+  ## What does this document do?
+    This document disables unrestricted access to high risk ports using 
+    [DescribeSecurityGroupRules](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroupRules.html) API,
+    [ModifySecurityGroupRules](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifySecurityGroupRules.html) API.
+
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * SecurityGroupId: (Required)  The Id of the security group.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  EC2.19
+
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  SecurityGroupId:
+    type: String
+    description: (Required) The Id of the Seurity Group.
+    allowedPattern: '^sg-[a-z0-9\-]+$'
+ 
+outputs:
+  - DisableUnrestrictedAccessToHighRiskPorts.Output
+mainSteps:
+- name: 'DisableUnrestrictedAccessToHighRiskPorts'
+  action: 'aws:executeScript'
+  maxAttempts: 3
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      SecurityGroupId: '{{ SecurityGroupId }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=DisableUnrestrictedAccessToHighRiskPorts.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

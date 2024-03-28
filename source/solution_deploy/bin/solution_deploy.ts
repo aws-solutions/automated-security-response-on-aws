@@ -15,7 +15,7 @@ const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'unknown';
 const SOLUTION_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
 const SOLUTION_TMN = process.env['SOLUTION_TRADEMARKEDNAME'] || 'unknown';
 const SOLUTION_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || 'unknown';
-const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_9;
+const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_11;
 
 const app = new cdk.App();
 cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks({ verbose: true }));

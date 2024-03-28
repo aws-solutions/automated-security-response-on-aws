@@ -1,18 +1,25 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-import boto3
 import json
-import botocore.session
-from botocore.stub import Stubber
-from botocore.config import Config
-import pytest
-from pytest_mock import mocker
+from typing import TYPE_CHECKING, Any, Dict
 
+import boto3
+import botocore.session
 import CreateCloudTrailMultiRegionTrail_createcloudtrailbucket as createcloudtrailbucket
 import CreateCloudTrailMultiRegionTrail_createcloudtrailbucketpolicy as createcloudtrailbucketpolicy
 import CreateCloudTrailMultiRegionTrail_createloggingbucket as createloggingbucket
 import CreateCloudTrailMultiRegionTrail_enablecloudtrail as enablecloudtrail
 import CreateCloudTrailMultiRegionTrail_process_results as process_results
+import pytest
+from aws_lambda_powertools.utilities.typing import LambdaContext
+from botocore.config import Config
+from botocore.stub import Stubber
+from CreateCloudTrailMultiRegionTrail_createloggingbucket import Event
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
+else:
+    S3Client = object
 
 
 def get_region() -> str:
@@ -36,7 +43,10 @@ def test_create_encrypted_bucket(mocker):
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
     s3_stubber = Stubber(s3)
-    kwargs = {"Bucket": "so0111-aws-cloudtrail-111111111111", "ACL": "private"}
+    kwargs: Dict[str, Any] = {
+        "Bucket": "so0111-aws-cloudtrail-111111111111",
+        "ACL": "private",
+    }
     if get_region() != "us-east-1":
         kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
 
@@ -110,7 +120,10 @@ def test_bucket_already_exists(mocker):
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
     s3_stubber = Stubber(s3)
-    kwargs = {"Bucket": "so0111-aws-cloudtrail-111111111111", "ACL": "private"}
+    kwargs: Dict[str, Any] = {
+        "Bucket": "so0111-aws-cloudtrail-111111111111",
+        "ACL": "private",
+    }
     if get_region() != "us-east-1":
         kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
 
@@ -139,7 +152,10 @@ def test_bucket_already_owned_by_you(mocker):
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
     s3_stubber = Stubber(s3)
-    kwargs = {"Bucket": "so0111-aws-cloudtrail-111111111111", "ACL": "private"}
+    kwargs: Dict[str, Any] = {
+        "Bucket": "so0111-aws-cloudtrail-111111111111",
+        "ACL": "private",
+    }
     if get_region() != "us-east-1":
         kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
 
@@ -202,7 +218,10 @@ def test_create_bucket_policy(mocker):
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
     s3_stubber = Stubber(s3)
-    kwargs = {"Bucket": "so0111-aws-cloudtrail-111111111111", "ACL": "private"}
+    kwargs: Dict[str, Any] = {
+        "Bucket": "so0111-aws-cloudtrail-111111111111",
+        "ACL": "private",
+    }
     if get_region() != "us-east-1":
         kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
 
@@ -226,39 +245,15 @@ def test_create_bucket_policy(mocker):
 # CreateCloudTrailMultiRegionTrail_createloggingbucket
 # =====================================================================================
 def test_create_logging_bucket(mocker):
-    event = {
-        "SolutionId": "SO0000",
-        "SolutionVersion": "1.2.3",
+    event: Event = {
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
         "account": "111111111111",
     }
-    bucket_policy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": "AWSCloudTrailAclCheck20150319",
-                "Effect": "Allow",
-                "Principal": {"Service": ["cloudtrail.amazonaws.com"]},
-                "Action": "s3:GetBucketAcl",
-                "Resource": "arn:aws:s3:::mahbukkit",
-            },
-            {
-                "Sid": "AWSCloudTrailWrite20150319",
-                "Effect": "Allow",
-                "Principal": {"Service": ["cloudtrail.amazonaws.com"]},
-                "Action": "s3:PutObject",
-                "Resource": "arn:aws:s3:::mahbukkit/AWSLogs/111111111111/*",
-                "Condition": {
-                    "StringEquals": {"s3:x-amz-acl": "bucket-owner-full-control"}
-                },
-            },
-        ],
-    }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
 
-    kwargs = {
+    kwargs: Dict[str, Any] = {
         "Bucket": "so0111-access-logs-" + get_region() + "-111111111111",
         "ACL": "private",
         "ObjectOwnership": "ObjectWriter",
@@ -316,7 +311,7 @@ def test_create_logging_bucket(mocker):
         "CreateCloudTrailMultiRegionTrail_createloggingbucket.connect_to_s3",
         return_value=s3,
     )
-    createloggingbucket.create_logging_bucket(event, {})
+    createloggingbucket.create_logging_bucket(event, LambdaContext())
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()
 
@@ -387,13 +382,13 @@ def test_put_bucket_acl_fails():
     Verify proper exit when put_bucket_acl fails
     """
 
-    s3 = botocore.session.get_session().create_client("s3")
+    s3: S3Client = boto3.client("s3")
     s3_stubber = Stubber(s3)
     s3_stubber.add_client_error("put_bucket_acl", "ADoorIsAjar")
     s3_stubber.activate()
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        parsed_event = createloggingbucket.put_bucket_acl(s3, "mahbukkit")
+        createloggingbucket.put_bucket_acl(s3, "mahbukkit")
     assert pytest_wrapped_e.type == SystemExit
     assert (
         pytest_wrapped_e.value.code
@@ -408,13 +403,13 @@ def test_put_access_blocks_fails():
     Verify proper exit when put_public_access_blocks fails
     """
 
-    s3 = botocore.session.get_session().create_client("s3")
+    s3: S3Client = boto3.client("s3")
     s3_stubber = Stubber(s3)
     s3_stubber.add_client_error("put_public_access_block", "ADoorIsAjar")
     s3_stubber.activate()
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        parsed_event = createloggingbucket.put_access_block(s3, "mahbukkit")
+        createloggingbucket.put_access_block(s3, "mahbukkit")
     assert pytest_wrapped_e.type == SystemExit
     assert (
         pytest_wrapped_e.value.code
@@ -429,13 +424,13 @@ def test_encrypt_bucket_fails():
     Verify proper exit when put_bucket_encryption fails
     """
 
-    s3 = botocore.session.get_session().create_client("s3")
+    s3: S3Client = boto3.client("s3")
     s3_stubber = Stubber(s3)
     s3_stubber.add_client_error("put_bucket_encryption", "ADoorIsAjar")
     s3_stubber.activate()
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        parsed_event = createloggingbucket.encrypt_bucket(
+        createloggingbucket.encrypt_bucket(
             s3, "mahbukkit", "arn:aws:kms:us-east-1:111111111111:key/mahcryptionkey"
         )
     assert pytest_wrapped_e.type == SystemExit

@@ -1,0 +1,76 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CodeBuild.5/finding/db862c92-eeb6-4e84-978d-627b74c055fc",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CodeBuild.5",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2023-08-24T23:18:59.036Z",
+    "LastObservedAt": "2023-08-25T16:42:22.395Z",
+    "CreatedAt": "2023-08-24T23:18:59.036Z",
+    "UpdatedAt": "2023-08-25T16:42:11.112Z",
+    "Severity": {
+      "Product": 70,
+      "Label": "HIGH",
+      "Normalized": 70,
+      "Original": "HIGH"
+    },
+    "Title": "CodeBuild.5 CodeBuild project environments should not have privileged mode enabled",
+    "Description": "This control checks if an AWS CodeBuild project environment has privileged mode enabled.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For information on how to correct this issue, consult the AWS Security Hub controls documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/CodeBuild.5/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "CodeBuild.5",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CodeBuild.5/remediation",
+      "RelatedAWSResources:0/name": "securityhub-codebuild-project-environment-privileged-check-974aa0aa",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CodeBuild.5",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:codebuild:us-east-1:111111111111:project/test",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CodeBuild.5/finding/db862c92-eeb6-4e84-978d-627b74c055fc"
+    },
+    "Resources": [
+      {
+        "Type": "AwsCodeBuildProject",
+        "Id": "arn:aws:codebuild:us-east-1:111111111111:project/test",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "SecurityControlId": "CodeBuild.5",
+      "AssociatedStandards": [
+        {
+          "StandardsId": "standards/aws-foundational-security-best-practices/v/1.0.0"
+        }
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "HIGH",
+        "Original": "HIGH"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    },
+    "ProcessedAt": "2023-08-25T16:42:26.635Z"
+  }

@@ -89,7 +89,10 @@ export class Trigger extends Construct {
     });
 
     enable_auto_remediation_param.overrideLogicalId(
-      `${props.securityStandard}${props.securityStandardVersion}${props.controlId}AutoTrigger`.replace(illegalChars, '')
+      `${props.securityStandard}${props.securityStandardVersion}${props.controlId}AutoTrigger`.replace(
+        illegalChars,
+        '',
+      ),
     );
 
     interface IPattern {
@@ -249,7 +252,7 @@ export class SsmRole extends Construct {
         actions: ['sts:AssumeRole'],
         resources: [`arn:${stack.partition}:iam::${stack.account}:role/${props.remediationRoleName}`],
         effect: Effect.ALLOW,
-      })
+      }),
     );
 
     // AssumeRole Policy
@@ -259,7 +262,7 @@ export class SsmRole extends Construct {
 
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, '');
     const roleprincipal = new ArnPrincipal(
-      `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`
+      `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`,
     );
 
     const principals = new CompositePrincipal(roleprincipal);

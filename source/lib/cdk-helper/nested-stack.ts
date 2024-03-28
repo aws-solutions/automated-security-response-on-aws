@@ -68,7 +68,7 @@ export class SerializedNestedStackFactory extends Construct {
       this.conditionalNestedStacks.forEach(function (previousStack: ConditionalNestedStack) {
         dummyResource.addMetadata(
           `${previousStack.stack.logicalId}Ready`,
-          Fn.conditionIf(previousStack.condition.logicalId, Fn.ref(previousStack.stack.logicalId), '')
+          Fn.conditionIf(previousStack.condition.logicalId, Fn.ref(previousStack.stack.logicalId), ''),
         );
       });
       cfnStack.addDependency(dummyResource);

@@ -75,24 +75,18 @@ export class WaitProvider extends Construct {
       },
     ]);
 
-    const lambdaFunction = new Function(scope, `${id}Function`, { //NOSONAR This is not unknown code.
+    const lambdaFunction = new Function(scope, `${id}Function`, {
+      //NOSONAR This is not unknown code.
       role,
       runtime: props.runtimePython,
       code: Code.fromBucket(
         Bucket.fromBucketName(scope, 'Bucket', `${props.solutionDistBucket}-${Stack.of(scope).region}`),
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/wait_provider.zip'
+        props.solutionTMN + '/' + props.solutionVersion + '/lambda/wait_provider.zip',
       ),
       handler: 'wait_provider.lambda_handler',
       environment: { LOG_LEVEL: 'INFO' },
       timeout: Duration.minutes(15),
     });
-
-    NagSuppressions.addResourceSuppressions(lambdaFunction, [
-      {
-        id: "AwsSolutions-L1",
-        reason: "Will upgrade in next release to prioritize patch",
-      },
-    ]);
 
     return new WaitProvider(scope, id, { serviceToken: lambdaFunction.functionArn });
   }

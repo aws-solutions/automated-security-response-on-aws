@@ -18,7 +18,7 @@ description: |
    * KmsKeyArn: (Required) The ARN of AWS KMS Key.
 
     ## Security Standards / Controls
-    * AFSBP v1.0.0:   SNS.1
+    * AWS FSBP v1.0.0:   SNS.1
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:

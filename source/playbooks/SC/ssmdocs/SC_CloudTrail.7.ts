@@ -14,7 +14,11 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new ConfigureS3BucketLoggingDocument(scope, id, { ...props, controlId: 'CloudTrail.7' });
+  return new ConfigureS3BucketLoggingDocument(scope, id, {
+    ...props,
+    controlId: 'CloudTrail.7',
+    otherControlIds: ['S3.9'],
+  });
 }
 
 export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
@@ -44,7 +48,7 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
         BucketName: getTargetBucketName(this.solutionId),
         AutomationAssumeRole: new StringFormat(
           `arn:%s:iam::%s:role/${this.solutionId}-${createAccessLoggingBucketStepName}`,
-          [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')]
+          [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
         ),
       }),
     });

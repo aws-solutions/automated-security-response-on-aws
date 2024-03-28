@@ -11,4 +11,4 @@ This document enables `Copy tags to snapshots` on a given Amazon RDS cluster by 
 * Remediation.Output - The standard HTTP response from the ModifyDBCluster API.
 
 ## Documentation Links
-* [AFSBP RDS.16](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-16)
+* [AWS FSBP RDS.16](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-16)

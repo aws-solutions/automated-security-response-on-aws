@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new ReplaceCodeBuildClearTextCredentialsDocument(scope, id, { ...props, controlId: 'CodeBuild.2' });
 }
 
-class ReplaceCodeBuildClearTextCredentialsDocument extends ControlRunbookDocument {
+export class ReplaceCodeBuildClearTextCredentialsDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

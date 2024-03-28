@@ -20,7 +20,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new S3BlockDenylistDocument(scope, id, { ...props, controlId: 'S3.6' });
 }
 
-class S3BlockDenylistDocument extends ControlRunbookDocument {
+export class S3BlockDenylistDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -58,7 +58,7 @@ class S3BlockDenylistDocument extends ControlRunbookDocument {
       new ExecuteScriptStep(this, 'ExtractSensitiveApis', {
         language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'runbook_handler'),
         code: ScriptCode.fromFile(
-          fs.realpathSync(path.join(__dirname, '..', '..', 'AFSBP', 'ssmdocs', 'scripts', 'deserializeApiList.py'))
+          fs.realpathSync(path.join(__dirname, '..', '..', 'AFSBP', 'ssmdocs', 'scripts', 'deserializeApiList.py')),
         ),
         outputs: [
           {

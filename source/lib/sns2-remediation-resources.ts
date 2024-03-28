@@ -5,10 +5,13 @@ import * as cdk from 'aws-cdk-lib';
 import { Effect, Policy, PolicyStatement, Role, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
+export interface ISNS2DeliveryStatusLoggingRole {
+  roleName: string;
+}
+
 export class SNS2DeliveryStatusLoggingRole extends Construct {
   roleArn: string;
-  roleName: string;
-  constructor(scope: Construct, id: string) {
+  constructor(scope: Construct, id: string, props: ISNS2DeliveryStatusLoggingRole) {
     super(scope, id);
 
     const deliveryStatusLoggingPolicy = new Policy(this, 'Delivery-Status-Logging-Policy');
@@ -42,9 +45,10 @@ export class SNS2DeliveryStatusLoggingRole extends Construct {
       This role is retained after the solution is deleted to support continuing function 
       of SNS delivery status logging enabled by this remediation. Before removing this 
       role, use IAM access analyzer for confirming it's safe`,
+      roleName: props.roleName,
     });
+
     this.roleArn = deliveryStatusLoggingRole.roleArn;
-    this.roleName = deliveryStatusLoggingRole.roleName;
 
     deliveryStatusLoggingRole.attachInlinePolicy(deliveryStatusLoggingPolicy);
     deliveryStatusLoggingRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);

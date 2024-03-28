@@ -69,7 +69,7 @@ describe('SSM doc rate limit aspect', function () {
       documentSets.push(
         (deleteWaits[logicalId].DependsOn as Array<string>).filter(function (value: string) {
           return documentLogicalIds.includes(value);
-        })
+        }),
       );
     });
     const remainingDocuments = { ...documents };
@@ -167,7 +167,7 @@ describe('SSM doc rate limit aspect with conditional documents', function () {
       documentSet.push(
         ...dependencies.filter(function (value: string) {
           return documentLogicalIds.includes(value);
-        })
+        }),
       );
       documentSets.push(documentSet);
     });

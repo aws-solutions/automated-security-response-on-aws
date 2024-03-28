@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new DisablePublicAccessToRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.2' });
 }
 
-class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocument {
+export class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

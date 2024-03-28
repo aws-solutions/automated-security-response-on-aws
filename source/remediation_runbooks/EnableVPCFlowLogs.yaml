@@ -13,7 +13,7 @@ description: |
   * KMSKeyArn: Amazon Resource Name (ARN) of the KMS Customer-Managed Key to use to encrypt the log group
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0:   CloudTrail.2
+  * AWS FSBP v1.0.0:   CloudTrail.2
   * CIS v1.2.0:     2.7
   * PCI:            CloudTrail.1
 
