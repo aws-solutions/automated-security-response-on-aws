@@ -11,6 +11,18 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
       ],
     },
+    "ShouldDeployAppReg": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AWS::Partition",
+            },
+            "aws-cn",
+          ],
+        },
+      ],
+    },
     "loadAFSBPCond": {
       "Fn::Equals": [
         {
@@ -31,6 +43,14 @@ exports[`member stack snapshot matches 1`] = `
       "Fn::Equals": [
         {
           "Ref": "LoadCIS140MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadNIST80053Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadNIST80053MemberStack",
         },
         "yes",
       ],
@@ -89,6 +109,7 @@ exports[`member stack snapshot matches 1`] = `
             "LoadAFSBPMemberStack",
             "LoadCIS120MemberStack",
             "LoadCIS140MemberStack",
+            "LoadNIST80053MemberStack",
             "LoadPCI321MemberStack",
             "LoadSCMemberStack",
           ],
@@ -138,6 +159,15 @@ exports[`member stack snapshot matches 1`] = `
       "Description": "Load Playbook member stack for CIS140?",
       "Type": "String",
     },
+    "LoadNIST80053MemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "yes",
+      "Description": "Load Playbook member stack for NIST80053?",
+      "Type": "String",
+    },
     "LoadPCI321MemberStack": {
       "AllowedValues": [
         "yes",
@@ -168,6 +198,7 @@ exports[`member stack snapshot matches 1`] = `
   },
   "Resources": {
     "AppRegistry968496A3": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Description": "Service Catalog application to track and manage all your resources for the solution automated-security-response-on-aws",
         "Name": {
@@ -227,6 +258,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
     "AppRegistryAssociation": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -242,6 +274,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
     "AppRegistryAttributeGroupAssociation8045a8dd9527B814DC7A": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -259,6 +292,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
     "DefaultApplicationAttributesFC1CC26B": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Attributes": {
           "applicationType": {
@@ -342,6 +376,38 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
+    "NestedStackFactoryGatePlaybookMemberStackNIST80053C3D22DE7": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS140Ready": {
+          "Fn::If": [
+            "loadCIS140Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
     "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906": {
       "Metadata": {
         "PlaybookMemberStackAFSBPReady": {
@@ -367,6 +433,15 @@ exports[`member stack snapshot matches 1`] = `
             "loadCIS140Cond",
             {
               "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackNIST80053Ready": {
+          "Fn::If": [
+            "loadNIST80053Cond",
+            {
+              "Ref": "PlaybookMemberStackNIST80053",
             },
             "",
           ],
@@ -399,6 +474,15 @@ exports[`member stack snapshot matches 1`] = `
             "loadCIS140Cond",
             {
               "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackNIST80053Ready": {
+          "Fn::If": [
+            "loadNIST80053Cond",
+            {
+              "Ref": "PlaybookMemberStackNIST80053",
             },
             "",
           ],
@@ -548,6 +632,53 @@ exports[`member stack snapshot matches 1`] = `
                 ],
               },
               "/playbooks/CIS140MemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookMemberStackNIST80053": {
+      "Condition": "loadNIST80053Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackNIST80053C3D22DE7",
+        "RunbookStackNoRoles",
+      ],
+      "Properties": {
+        "Parameters": {
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+          "WaitProviderServiceToken": {
+            "Fn::GetAtt": [
+              "WaitProviderFunction3D90ED36",
+              "Arn",
+            ],
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/NIST80053MemberStack.template",
             ],
           ],
         },
@@ -724,6 +855,9 @@ exports[`member stack snapshot matches 1`] = `
           "BlockPublicPolicy": true,
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
         },
       },
       "Type": "AWS::S3::Bucket",
@@ -943,7 +1077,7 @@ exports[`member stack snapshot matches 1`] = `
     },
     "SSMParameterForS34EncryptionKeyAlias73DD8A98": {
       "Properties": {
-        "Description": "Parameter to store encryption key alias for the PCI.S3.4/AFSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.",
+        "Description": "Parameter to store encryption key alias for the PCI.S3.4/FSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.",
         "Name": "/Solutions/SO9999/afsbp/1.0.0/S3.4/KmsKeyAlias",
         "Type": "String",
         "Value": "default-s3-encryption",
@@ -956,7 +1090,7 @@ exports[`member stack snapshot matches 1`] = `
         "S3BucketForRedShiftAuditLogging652E7355",
       ],
       "Properties": {
-        "Description": "Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.",
+        "Description": "Parameter to store the S3 bucket name for the remediation FSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.",
         "Name": "/Solutions/SO9999/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging",
         "Type": "String",
         "Value": {
@@ -980,16 +1114,6 @@ exports[`member stack snapshot matches 1`] = `
       "DependsOn": [
         "WaitProviderRole83B0295F",
       ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-L1",
-              "reason": "Will upgrade in next release to prioritize patch",
-            },
-          ],
-        },
-      },
       "Properties": {
         "Code": {
           "S3Bucket": {

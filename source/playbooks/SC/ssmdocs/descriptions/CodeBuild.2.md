@@ -11,4 +11,4 @@ This document removes CodeBuild project environment variables containing clear t
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP v1.0.0 CodeBuild.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-codebuild-2)
+* [AWS FSBP v1.0.0 CodeBuild.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-codebuild-2)

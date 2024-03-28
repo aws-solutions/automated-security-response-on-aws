@@ -20,7 +20,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableAutomaticVersionUpgradeOnRedshiftClusterDocument(scope, id, { ...props, controlId: 'Redshift.6' });
 }
 
-class EnableAutomaticVersionUpgradeOnRedshiftClusterDocument extends ControlRunbookDocument {
+export class EnableAutomaticVersionUpgradeOnRedshiftClusterDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

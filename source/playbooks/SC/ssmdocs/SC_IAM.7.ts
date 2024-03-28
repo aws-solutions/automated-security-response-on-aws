@@ -3,7 +3,14 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { HardCodedBoolean, HardCodedNumber, HardCodedString } from '@cdklabs/cdk-ssm-documents';
+import {
+  AutomationStep,
+  DataTypeEnum,
+  HardCodedString,
+  BooleanVariable,
+  NumberVariable,
+  Output,
+} from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new SetIAMPasswordPolicyDocument(scope, id, {
@@ -23,9 +30,88 @@ export class SetIAMPasswordPolicyDocument extends ControlRunbookDocument {
       remediationName,
       scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of(
-        `Established a baseline password policy using the ${props.solutionAcronym}-${remediationName} runbook.`
+        `Established a baseline password policy using the ${props.solutionAcronym}-${remediationName} runbook.`,
       ),
     });
+  }
+  /** @override */
+  protected getExtraSteps(): AutomationStep[] {
+    return [
+      super.getInputParamsStep({
+        AllowUsersToChangePassword: 'True',
+        HardExpiry: 'True',
+        MaxPasswordAge: '90',
+        MinimumPasswordLength: '14',
+        RequireSymbols: 'True',
+        RequireNumbers: 'True',
+        RequireUppercaseCharacters: 'True',
+        RequireLowercaseCharacters: 'True',
+        PasswordReusePrevention: '24',
+      }),
+    ];
+  }
+
+  /** @override */
+  protected getInputParamsStepOutput(): Output[] {
+    const AllowUsersToChangePasswordOutput: Output = {
+      name: 'AllowUsersToChangePassword',
+      outputType: DataTypeEnum.BOOLEAN,
+      selector: '$.Payload.AllowUsersToChangePassword',
+    };
+    const HardExpiryOutput: Output = {
+      name: 'HardExpiry',
+      outputType: DataTypeEnum.BOOLEAN,
+      selector: '$.Payload.HardExpiry',
+    };
+    const MaxPasswordAgeOutput: Output = {
+      name: 'MaxPasswordAge',
+      outputType: DataTypeEnum.INTEGER,
+      selector: '$.Payload.MaxPasswordAge',
+    };
+    const MinimumPasswordLengthOutput: Output = {
+      name: 'MinimumPasswordLength',
+      outputType: DataTypeEnum.INTEGER,
+      selector: '$.Payload.MinimumPasswordLength',
+    };
+    const RequireSymbolsOutput: Output = {
+      name: 'RequireSymbols',
+      outputType: DataTypeEnum.BOOLEAN,
+      selector: '$.Payload.RequireSymbols',
+    };
+    const RequireNumbersOutput: Output = {
+      name: 'RequireNumbers',
+      outputType: DataTypeEnum.BOOLEAN,
+      selector: '$.Payload.RequireNumbers',
+    };
+    const RequireUppercaseCharactersOutput: Output = {
+      name: 'RequireUppercaseCharacters',
+      outputType: DataTypeEnum.BOOLEAN,
+      selector: '$.Payload.RequireUppercaseCharacters',
+    };
+    const RequireLowercaseCharactersOutput: Output = {
+      name: 'RequireLowercaseCharacters',
+      outputType: DataTypeEnum.BOOLEAN,
+      selector: '$.Payload.RequireLowercaseCharacters',
+    };
+    const PasswordReusePreventionOutput: Output = {
+      name: 'PasswordReusePrevention',
+      outputType: DataTypeEnum.INTEGER,
+      selector: '$.Payload.PasswordReusePrevention',
+    };
+
+    const outputs: Output[] = [
+      AllowUsersToChangePasswordOutput,
+      HardExpiryOutput,
+      MaxPasswordAgeOutput,
+      MinimumPasswordLengthOutput,
+      RequireSymbolsOutput,
+      RequireNumbersOutput,
+      RequireUppercaseCharactersOutput,
+      RequireLowercaseCharactersOutput,
+      PasswordReusePreventionOutput,
+    ];
+
+    return outputs;
   }
 
   /** @override */
@@ -34,15 +120,15 @@ export class SetIAMPasswordPolicyDocument extends ControlRunbookDocument {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const params: { [_: string]: any } = super.getRemediationParams();
 
-    params.AllowUsersToChangePassword = HardCodedBoolean.TRUE;
-    params.HardExpiry = HardCodedBoolean.TRUE;
-    params.MaxPasswordAge = HardCodedNumber.of(90);
-    params.MinimumPasswordLength = HardCodedNumber.of(14);
-    params.RequireSymbols = HardCodedBoolean.TRUE;
-    params.RequireNumbers = HardCodedBoolean.TRUE;
-    params.RequireUppercaseCharacters = HardCodedBoolean.TRUE;
-    params.RequireLowercaseCharacters = HardCodedBoolean.TRUE;
-    params.PasswordReusePrevention = HardCodedNumber.of(24);
+    params.AllowUsersToChangePassword = BooleanVariable.of('GetInputParams.AllowUsersToChangePassword');
+    params.HardExpiry = BooleanVariable.of('GetInputParams.HardExpiry');
+    params.MaxPasswordAge = NumberVariable.of('GetInputParams.MaxPasswordAge');
+    params.MinimumPasswordLength = NumberVariable.of('GetInputParams.MinimumPasswordLength');
+    params.RequireSymbols = BooleanVariable.of('GetInputParams.RequireSymbols');
+    params.RequireNumbers = BooleanVariable.of('GetInputParams.RequireNumbers');
+    params.RequireUppercaseCharacters = BooleanVariable.of('GetInputParams.RequireUppercaseCharacters');
+    params.RequireLowercaseCharacters = BooleanVariable.of('GetInputParams.RequireLowercaseCharacters');
+    params.PasswordReusePrevention = NumberVariable.of('GetInputParams.PasswordReusePrevention');
 
     return params;
   }

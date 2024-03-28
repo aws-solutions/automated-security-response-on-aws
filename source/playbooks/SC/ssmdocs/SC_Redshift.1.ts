@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new DisablePublicAccessToRedshiftClusterDocument(scope, id, { ...props, controlId: 'Redshift.1' });
 }
 
-class DisablePublicAccessToRedshiftClusterDocument extends ControlRunbookDocument {
+export class DisablePublicAccessToRedshiftClusterDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

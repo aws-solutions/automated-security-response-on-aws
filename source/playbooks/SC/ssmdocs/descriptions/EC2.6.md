@@ -11,4 +11,4 @@ Enables VPC Flow Logs for a VPC
 * Remediation.Output - Remediation results
 
 ## Documentation Links
-* [AFSBP EC2.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-6)
+* [AWS FSBP EC2.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-6)

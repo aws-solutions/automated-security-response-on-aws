@@ -82,7 +82,7 @@ exports[`Global Roles Stack 1`] = `
       },
       "Properties": {
         "LogGroupName": "TestLogGroup",
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",
@@ -95,7 +95,7 @@ exports[`Global Roles Stack 1`] = `
           "Ref": "KmsKeyArn",
         },
         "LogGroupName": "TestLogGroup",
-        "RetentionInDays": 365,
+        "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Retain",

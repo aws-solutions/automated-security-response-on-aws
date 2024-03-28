@@ -78,8 +78,8 @@ Security is **Job 0**. SHARR Runbooks must be tightly secured, validate inputs, 
 
 **Remediation Runbooks** are AWS-owned or SHARR-owned runbooks that perform a single remediation or remediation step for a specific resource. For example, creating a logging bucket, enabling an AWS Service, or setting a parameter on an AWS Service. The permissions to the service APIs are within the definition of the Remediation Runbook; SHARR Runbooks must be allowed to assume the remediation role.
 
-A playbook is a set of remediations within a Security Standard (ex. "CIS", "AFSBP"). Each Playbook has a standard-specific Step Function ("Orchestrator") that "understands" the JSON format of that standard's Finding data. The Orchestrator does the following:
-1. Verify the finding data matches the Standard (ex. CIS, PCI, AFSBP)
+A playbook is a set of remediations within a Security Standard (ex. "CIS", "FSBP"). Each Playbook has a standard-specific Step Function ("Orchestrator") that "understands" the JSON format of that standard's Finding data. The Orchestrator does the following:
+1. Verify the finding data matches the Standard (ex. CIS, PCI, FSBP)
 2. Identify the control id and target account in the JSON data
 3. Derive the runbook name (SHARR-\<standard\>-\<version\>-\<controlid\>)
 4. Check the status of the runbook in the target account
@@ -104,7 +104,7 @@ A sample Playbook is provided as a starting point. The estimated time to create 
 	
 	* **StandardControlArn**: arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/RDS.1
 	* **securityStandardLongName**: aws-foundational-security-best-practices
-	* **securityStandardShortName**: AFSBP (can be any value you choose)
+	* **securityStandardShortName**: FSBP (can be any value you choose)
 	* **version**: 1.0.0
 	
 	For the following example, we will create a PCI DSS v3.2.1 Playbook:
@@ -172,7 +172,7 @@ A sample Playbook is provided as a starting point. The estimated time to create 
 	const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
 	const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
 	
-	const standardShortName = 'AFSBP'
+	const standardShortName = 'FSBP'
 	const standardLongName = 'aws-foundational-security-best-practices'
 	const standardVersion = '1.0.0' // DO NOT INCLUDE 'V'
 	const RESOURCE_PREFIX = SOLUTION_ID.replace(/^DEV-/,''); // prefix on every resource name
@@ -195,11 +195,11 @@ A sample Playbook is provided as a starting point. The estimated time to create 
 		'Lambda.1',
 		'RDS.1',
 		'RDS.6',
-		'RDS.7'
-		// 'S3.1'
+		'RDS.7',
+    'S3.9'
 	]
 	
-	const adminStack = new PlaybookPrimaryStack(app, 'AFSBPStack', {
+	const adminStack = new PlaybookPrimaryStack(app, 'FSBPStack', {
 		description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
 		solutionId: SOLUTION_ID,
 		solutionVersion: DIST_VERSION,
@@ -211,7 +211,7 @@ A sample Playbook is provided as a starting point. The estimated time to create 
 		securityStandardVersion: standardVersion
 	});
 	
-	const memberStack = new PlaybookMemberStack(app, 'AFSBPMemberStack', {
+	const memberStack = new PlaybookMemberStack(app, 'FSBPMemberStack', {
 		description: `(${SOLUTION_ID}C) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,
 		solutionId: SOLUTION_ID,
 		solutionVersion: DIST_VERSION,
@@ -229,7 +229,7 @@ A sample Playbook is provided as a starting point. The estimated time to create 
 5. Update test/pci321_stack.test.ts
 6. Update cdk.json to point to the new bin/\*.ts name
 7. ssmdocs/scripts parse script: the example should work for most Standards. Review what it does and make any adjustments.
-8. Update the test script for the parse script. Copy finding json for the Security Standard to use in the test. See AFSBP, CIS for examples.
+8. Update the test script for the parse script. Copy finding json for the Security Standard to use in the test. See FSBP, CIS for examples.
 10. Create the ssmdocs for each control in the ssmdocs folder. This is the runbook that is invoked directly by the Orchestrator.
 11. Update support.txt, README.md, description.txt
 12. Add the Playbook to source/jest.config.js
@@ -532,12 +532,12 @@ The Markdown in the Description for each SSM Document is displayed in the consol
 SHARR-<standard>_<version>_<control>
 ```
 
-* **standard**: abbreviation for the Security Standard. The abbreviation is set in an SSM Parameter, /**/Solutions/SO0111/<name>/<version/shortname**. For example, **/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname** = **AFSBP**
+* **standard**: abbreviation for the Security Standard. The abbreviation is set in an SSM Parameter, /**/Solutions/SO0111/<name>/<version/shortname**. For example, **/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname** = **FSBP**
 * **version**: *v*.*r*.*m* - semver format version of the *Security Standard*. Some standards have multiple versions and may not be compatible with other versions.
-* **control**: control Id within the standard. Ex. **2.1** (CIS), **CloudTrail.1** (AFSBP)
+* **control**: control Id within the standard. Ex. **2.1** (CIS), **CloudTrail.1** (FSBP)
 
 ### Example Document Names
-* **SHARR-AFSBP-v1.0.0-CloudTrail.1**
+* **SHARR-FSBP-v1.0.0-CloudTrail.1**
 * **SHARR-CIS-v1.2.0-2.1**
 
 ### Header Template
@@ -619,7 +619,7 @@ Remediation runbooks often support more than one Control. They are called by the
   * Remediation.Output - stdout messages from the remediation
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0: Autoscaling.1
+  * FSBP v1.0.0:  Autoscaling.1
   * CIS v1.2.0:   2.1
   * PCI:          Autoscaling.1
 ```

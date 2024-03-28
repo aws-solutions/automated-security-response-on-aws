@@ -1,0 +1,57 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |-
+  ### Document name - AWSConfigRemediation-EnableCloudFrontDefaultRootObject
+
+  ## What does this document do?
+  This runbook configures the default root object for the Amazon CloudFront distribution you specify using the [UpdateDistribution](https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_UpdateDistribution.html) API.
+
+  ## Input Parameters
+  * CloudFrontDistribution: (Required) The ARN of the CloudFront distribution you want to configure the default root object for.
+  * DefaultRootObject: (Required) The object that you want CloudFront to return when a viewer request points to your root URL.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * UpdateDistributionAndVerify.Output: The standard HTTP response from the UpdateDistribution API.
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  CloudFrontDistribution:
+    type: String
+    description: (Required) The ID of the CloudFront distribution you want to configure the default root object for.
+    allowedPattern: ^(arn:(?:aws|aws-us-gov|aws-cn):cloudfront::\d{12}:distribution\/([A-Z0-9]+))$
+  DefaultRootObject:
+    type: String
+    description: (Required) The object that you want CloudFront to return when a viewer request points to your root URL.
+    allowedPattern: ^[\w._-~]{1,255}$
+    default: index.html
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - UpdateDistributionAndVerify.Output
+mainSteps:
+  - name: UpdateDistributionAndVerify
+    action: "aws:executeScript"
+    description: |
+      ## UpdateDistributionAndVerify
+      Configures the default root object for the CloudFront distribution you specify in the CloudFrontDistributionId parameter and verifies it's successful modification.
+      ## outputs
+      * Output: The standard HTTP response from the UpdateDistribution API.
+    isEnd: true
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.8
+      Handler: handler
+      InputPayload:
+        cloudfront_distribution: "{{ CloudFrontDistribution }}"
+        root_object: "{{ DefaultRootObject }}"
+      Script: |-
+          %%SCRIPT=enable_cloudfront_default_root_object.py%%
+    outputs:
+      - Name: Output
+        Type: StringMap
+        Selector: $.Payload.Output

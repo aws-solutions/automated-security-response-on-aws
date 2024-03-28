@@ -13,13 +13,14 @@
 #     "ResponseURL": "https://bogus"
 # }
 
-import os
 import json
+import os
+
 import boto3
+import cfnresponse
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from logger import Logger
-import cfnresponse
+from layer.logger import Logger
 
 # initialize logger
 LOG_LEVEL = os.getenv("log_level", "info")

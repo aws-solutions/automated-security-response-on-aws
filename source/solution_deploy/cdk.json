@@ -2,6 +2,7 @@
   "app": "npx ts-node bin/solution_deploy.ts",
   "versionReporting": false,
   "context": {
-    "aws-cdk:enableDiffNoFail": "true"
+    "aws-cdk:enableDiffNoFail": "true",
+    "@aws-cdk/aws-iam:standardizedServicePrincipals": true
   }
 }

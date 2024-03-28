@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableMinorVersionUpgradeOnRDSDBInstanceDocument(scope, id, { ...props, controlId: 'RDS.13' });
 }
 
-class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDocument {
+export class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

@@ -14,7 +14,7 @@ description: |
   * SubnetARN: (Required)  The ARN of the Amazon EC2 Subnet.
  
   ## Security Standards / Controls
-  * AFSBP v1.0.0:  EC2.15
+  * AWS FSBP v1.0.0:  EC2.15
  
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:

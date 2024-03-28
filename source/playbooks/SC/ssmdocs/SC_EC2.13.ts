@@ -20,7 +20,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   });
 }
 
-class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookDocument {
+export class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'GroupId';
 

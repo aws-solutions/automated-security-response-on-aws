@@ -11,4 +11,4 @@ This document disables auto assignment of public IP addresses on a subnet.
 * Remediation.Output
  
 ## Documentation Links
-* [AFSBP v1.0.0 EC2.15](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-15)
+* [AWS FSBP v1.0.0 EC2.15](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-15)

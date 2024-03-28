@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new ConfigureSNSTopicForStackDocument(scope, id, { ...props, controlId: 'CloudFormation.1' });
 }
 
-class ConfigureSNSTopicForStackDocument extends ControlRunbookDocument {
+export class ConfigureSNSTopicForStackDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

@@ -1,0 +1,15 @@
+{
+  "all": true,
+  "failOn": "high",
+  "safeAccounts": [
+    "297356227824",
+    "193023089310",
+    "023102451235",
+    "797873946194",
+    "017000801446"
+  ],
+  "safeEmails": [
+    "abc@example.co-m",
+    "abc@example.co.in"
+  ]
+}

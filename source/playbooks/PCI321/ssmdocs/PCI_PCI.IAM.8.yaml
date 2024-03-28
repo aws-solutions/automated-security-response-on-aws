@@ -9,7 +9,7 @@ description: |
 
   ## Security Standards and Controls
   * CIS 1.5 - 1.11
-  * AFSBP IAM.7
+  * FSBP IAM.7
   * PCI IAM.8
 
   ## Input Parameters

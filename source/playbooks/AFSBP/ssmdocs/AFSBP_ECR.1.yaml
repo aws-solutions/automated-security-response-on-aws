@@ -1,0 +1,98 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-AFSBP_1.0.0_ECR.1
+ 
+  ## What does this document do?
+  This document enables image scanning configuration on a private ECR repository.
+ 
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * RemediationRoleName: (Optional) The name of the role that allows Automation to remediate the finding on your behalf.
+ 
+  ## Output Parameters
+  * Remediation.Output
+ 
+  ## Documentation Links
+  * [AWS FSBP v1.0.0 ECR.1](https://docs.aws.amazon.com/securityhub/latest/userguide/ecr-controls.html#ecr-1)
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for the ECR.1 finding
+  RemediationRoleName:
+    type: 'String'
+    default: 'SO0111-EnablePrivateRepositoryScanning'
+    allowedPattern: '^[\w+=,.@-]+$'
+
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output
+ 
+mainSteps:
+  -
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FindingId
+        Selector: $.Payload.finding.Id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.finding.ProductArn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: RepositoryName
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: RemediationRegion
+        Selector: $.Payload.resource_region
+        Type: String
+      - Name: RemediationAccount
+        Selector: $.Payload.account_id
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ecr:[a-z]{2}-[a-z]+-\d{1}:\d{12}:repository\/([a-z0-9._\/\-]+)$'
+        expected_control_id: 
+          - 'ECR.1'
+      Runtime: python3.8
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=common/parse_input.py%%
+  -
+    name: Remediation
+    action: 'aws:executeAutomation'
+    inputs:
+      DocumentName: ASR-EnablePrivateRepositoryScanning
+      TargetLocations:
+        - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
+          Regions: [ '{{ParseInput.RemediationRegion}}' ]
+          ExecutionRoleName: '{{ RemediationRoleName }}'
+      RuntimeParameters:
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
+        RepositoryName: '{{ParseInput.RepositoryName}}'
+  - 
+    name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Enabled image scanning on private repository.'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_ECR.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding

@@ -15,7 +15,7 @@ description: |
   * Remediation.Output - The standard HTTP response from the ModifyDBCluster API.
 
   ## Documentation Links
-  * [AFSBP RDS.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-7)
+  * [AWS FSBP RDS.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-7)
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"

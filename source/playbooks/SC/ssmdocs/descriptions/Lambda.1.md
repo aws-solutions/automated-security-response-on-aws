@@ -10,4 +10,4 @@ function. The remediation is to remove the SID of the public policy.
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
 ## Documentation Links
-* [AFSBP Lambda.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-lambda-1)
+* [AWS FSBP Lambda.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-lambda-1)

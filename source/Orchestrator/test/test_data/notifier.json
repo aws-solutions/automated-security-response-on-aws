@@ -3,7 +3,7 @@
     "Details": [
       "{\"ExecutionLog\":\"Snapshot snap-00004115408c25b92 permissions set to private\\nSnapshot snap-00003bd4b6a40277c permissions set to private\\n\",\"Payload\":[\"snap-00004115408c25b92\",\"snap-00003bd4b6a40277c\"]}"
     ],
-    "Message": "Remediation succeeded for AFSBP control EC2.1 in account 111111111111: Remediation for ['111111111111'] status: Success",
+    "Message": "Remediation succeeded for AWS FSBP control EC2.1 in account 111111111111: Remediation for ['111111111111'] status: Success",
     "State": "SUCCESS"
   },
   "Metrics": {

@@ -4,20 +4,18 @@
 Unit Test: exec_ssm_doc.py
 Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
 """
+from typing import Any
 
-import os
-import pytest
 import boto3
-from botocore.stub import Stubber, ANY
+from botocore.stub import ANY, Stubber
 from exec_ssm_doc import lambda_handler
-from pytest_mock import mocker
 
 
 def test_exec_runbook(mocker):
     """
     Verifies correct operation on success
     """
-    step_input = {
+    step_input: dict[str, Any] = {
         "EventType": "Security Hub Findings - Custom Action",
         "Finding": {
             "SchemaVersion": "2018-10-08",

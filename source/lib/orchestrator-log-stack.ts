@@ -39,7 +39,7 @@ export class OrchLogStack extends cdk.Stack {
     const orchestratorLogGroupEncrypted: LogGroup = new LogGroup(this, 'Orchestrator-Logs-Encrypted', {
       logGroupName: props.logGroupName,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
       encryptionKey: kmsKey,
     });
 
@@ -49,7 +49,7 @@ export class OrchLogStack extends cdk.Stack {
     const orchestratorLogGroupNOTEncrypted: LogGroup = new LogGroup(this, 'Orchestrator-Logs', {
       logGroupName: props.logGroupName,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
     });
 
     /*******************
@@ -70,7 +70,7 @@ export class OrchLogStack extends cdk.Stack {
       childToMod.cfnOptions.condition = new cdk.CfnCondition(this, 'Unencrypted Log Group', {
         expression: cdk.Fn.conditionAnd(
           cdk.Fn.conditionNot(isNotGovCloud),
-          cdk.Fn.conditionEquals(reuseOrchLogGroup.valueAsString, 'no')
+          cdk.Fn.conditionEquals(reuseOrchLogGroup.valueAsString, 'no'),
         ),
       });
       childToMod.cfnOptions.metadata = {

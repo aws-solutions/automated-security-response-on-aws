@@ -7,6 +7,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { OrchestratorConstruct } from '../lib/common-orchestrator-construct';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 test('test App Orchestrator Construct', () => {
   const app = new App();
@@ -43,6 +44,12 @@ test('test App Orchestrator Construct', () => {
     stringValue: kmsKey.keyArn,
   });
 
+  const schedulingQueue = new sqs.Queue(stack, 'SchedulingQueue', {
+    encryption: sqs.QueueEncryption.KMS,
+    enforceSSL: true,
+    encryptionMasterKey: kmsKey,
+  });
+
   new OrchestratorConstruct(stack, 'Orchestrator', {
     roleArn: 'arn:aws-test:iam::111122223333:role/TestRole',
     ssmDocStateLambda: 'arn:aws:lambda:us-east-1:111122223333:function/foobar',
@@ -55,6 +62,7 @@ test('test App Orchestrator Construct', () => {
     solutionVersion: '1.1.1',
     orchLogGroup: 'ORCH_LOG_GROUP',
     kmsKeyParm: kmsKeyParm,
+    sqsQueue: schedulingQueue,
   });
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   expect(Template.fromStack(stack)).toMatchSnapshot();

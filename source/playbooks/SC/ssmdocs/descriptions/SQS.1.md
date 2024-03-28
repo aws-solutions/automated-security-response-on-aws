@@ -11,4 +11,4 @@ This document enables encryption at rest using AWS KMS for SQS Queues.
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP v1.0.0 SQS.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-sqs-1)
+* [AWS FSBP v1.0.0 SQS.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-sqs-1)

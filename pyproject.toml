@@ -1,0 +1,10 @@
+[project]
+name = "automated_security_response_on_aws"
+version = "2.1.0"
+
+[tool.setuptools]
+package-dir = {"" = "source"}
+packages = ["layer"]
+
+[tool.setuptools.package-data]
+"layer" = ["py.typed"]

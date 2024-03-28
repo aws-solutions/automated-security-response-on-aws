@@ -8,10 +8,10 @@
 
 ### SSM Parameters
 There are N parameters that control processing under /Solutions/SO0111:
-CMK_ARN - encryption key for the AFSBP runbooks
+CMK_ARN - encryption key for the AWS FSBP runbooks
 CMK_ARN - Admin account only, KMS key for solution encryption
 SNS_Topic_Arn - arn of the SHARR topic
-sendAnonymousMetrics - controls whether the solution sends metrics
+sendAnonymizedMetrics - controls whether the solution sends metrics
 version - solution version
 
 The following are set by each Security Standard's playbook, enabling remediation mapping in the step function:

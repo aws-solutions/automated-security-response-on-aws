@@ -15,7 +15,7 @@ description: |
    * SNSTopicArn: (Required)  The ARN of the Amazon SNS Topic.
 
     ## Security Standards / Controls
-    * AFSBP v1.0.0:   SNS.2
+    * AWS FSBP v1.0.0:   SNS.2
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:

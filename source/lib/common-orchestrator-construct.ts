@@ -4,11 +4,12 @@ import { Stack, Duration, RemovalPolicy, CfnParameter, CfnResource, Fn, NestedSt
 import { PolicyDocument, PolicyStatement, Role, Effect, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
-import { LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks';
+import { LambdaInvoke, SqsSendMessage } from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as cdk_nag from 'cdk-nag';
 import { Timeout } from 'aws-cdk-lib/aws-stepfunctions';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
 export interface ConstructProps {
   roleArn: string;
@@ -22,6 +23,7 @@ export interface ConstructProps {
   solutionVersion: string;
   orchLogGroup: string;
   kmsKeyParm: StringParameter; // to force dependency
+  sqsQueue: IQueue;
 }
 
 export class OrchestratorConstruct extends Construct {
@@ -64,7 +66,7 @@ export class OrchestratorConstruct extends Construct {
       'getRequirementFunc',
       {
         functionArn: props.getApprovalRequirementLambda,
-      }
+      },
     );
 
     const orchestratorFailed = new sfn.Pass(this, 'Orchestrator Failed', {
@@ -111,6 +113,25 @@ export class OrchestratorConstruct extends Construct {
       resultPath: '$.Workflow',
     });
     getApprovalRequirement.addCatch(orchestratorFailed);
+
+    const remediationWait = new sfn.Wait(this, 'Remediation Wait', {
+      comment: 'Waiting for remediation',
+      time: sfn.WaitTime.timestampPath('$.PlannedTimestamp'),
+    });
+
+    const sendTaskToken = new SqsSendMessage(this, 'Send Task Token', {
+      comment: 'Send Task Token to SQS Queue for Remediation Scheduling',
+      integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+      queue: props.sqsQueue,
+      messageBody: sfn.TaskInput.fromObject({
+        RemediationDetails: sfn.JsonPath.stringAt('$'),
+        TaskToken: sfn.JsonPath.taskToken,
+        AccountId: sfn.JsonPath.stringAt('$.AutomationDocument.AccountId'),
+        ResourceRegion: sfn.JsonPath.stringAt('$.AutomationDocument.ResourceRegion'),
+        executionId: sfn.JsonPath.stringAt('$$.Execution.Id'),
+      }),
+    });
+    sendTaskToken.addCatch(orchestratorFailed);
 
     const remediateFinding = new LambdaInvoke(this, 'Execute Remediation', {
       comment: 'Execute the SSM Automation Document in the target account',
@@ -334,10 +355,10 @@ export class OrchestratorConstruct extends Construct {
         sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Custom Action'),
         sfn.Condition.and(
           sfn.Condition.stringEquals('$.Finding.Workflow.Status', 'NEW'),
-          sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Imported')
-        )
+          sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Imported'),
+        ),
       ),
-      getApprovalRequirement
+      getApprovalRequirement,
     );
     checkWorkflowNew.otherwise(docNotNew);
 
@@ -348,7 +369,7 @@ export class OrchestratorConstruct extends Construct {
 
     getApprovalRequirement.next(getDocState);
 
-    checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'ACTIVE'), remediateFinding);
+    checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'ACTIVE'), sendTaskToken);
     checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTACTIVE'), docStateNotActive);
     checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTENABLED'), standardNotEnabled);
     checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTFOUND'), controlNoRemediation);
@@ -365,6 +386,9 @@ export class OrchestratorConstruct extends Construct {
     // Execute the remediation
     // remediateFinding.next(execMonitor)
 
+    sendTaskToken.next(remediationWait);
+
+    remediationWait.next(remediateFinding);
     // Send a notification
     remediateFinding.next(remediationQueued);
 
@@ -407,7 +431,7 @@ export class OrchestratorConstruct extends Construct {
         ],
         effect: Effect.ALLOW,
         resources: ['*'],
-      })
+      }),
     );
     orchestratorPolicy.addStatements(
       new PolicyStatement({
@@ -420,14 +444,24 @@ export class OrchestratorConstruct extends Construct {
           `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${notifyFunc.functionName}`,
           `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${getApprovalRequirementFunc.functionName}`,
         ],
-      })
+      }),
     );
     orchestratorPolicy.addStatements(
       new PolicyStatement({
         actions: ['kms:Encrypt', 'kms:Decrypt', 'kms:GenerateDataKey'],
         effect: Effect.ALLOW,
-        resources: [`arn:${stack.partition}:kms:${stack.region}:${stack.account}:alias/${RESOURCE_PREFIX}-SHARR-Key`],
-      })
+        resources: [
+          `arn:${stack.partition}:kms:${stack.region}:${stack.account}:alias/${RESOURCE_PREFIX}-SHARR-Key`,
+          props.kmsKeyParm.stringValue,
+        ],
+      }),
+    );
+    orchestratorPolicy.addStatements(
+      new PolicyStatement({
+        actions: ['sqs:SendMessage'],
+        effect: Effect.ALLOW,
+        resources: [props.sqsQueue.queueArn],
+      }),
     );
 
     const principal = new ServicePrincipal(`states.amazonaws.com`);
@@ -438,7 +472,6 @@ export class OrchestratorConstruct extends Construct {
       },
     });
     orchestratorRole.applyRemovalPolicy(RemovalPolicy.RETAIN);
-
     {
       const childToMod = orchestratorRole.node.defaultChild as CfnRole;
       childToMod.cfnOptions.metadata = {
@@ -463,9 +496,9 @@ export class OrchestratorConstruct extends Construct {
     ]);
 
     const orchestratorStateMachine = new sfn.StateMachine(this, 'StateMachine', {
-      definition: extractFindings,
+      definitionBody: sfn.DefinitionBody.fromChainable(extractFindings),
       stateMachineName: `${RESOURCE_PREFIX}-SHARR-Orchestrator`,
-      timeout: Duration.minutes(15),
+      timeout: Duration.minutes(90),
       role: orchestratorRole,
     });
 
@@ -531,7 +564,7 @@ export class OrchestratorConstruct extends Construct {
         Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
         '-reference.s3.amazonaws.com/' +
         Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-        '/aws-sharr-orchestrator-log.template'
+        '/aws-sharr-orchestrator-log.template',
     );
     return logStack;
   }

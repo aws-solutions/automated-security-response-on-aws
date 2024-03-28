@@ -1,0 +1,14 @@
+aws-lambda-powertools
+black
+boto3-stubs-lite[cloudfront,cloudformation,cloudwatch,ec2,iam,s3,sns,ssm,sts]
+flake8
+isort
+moto[cloudfront,dynamodb,s3]
+mypy
+pytest
+pytest-cov
+pytest-env
+pytest-mock
+tox
+types-urllib3
+urllib3<2

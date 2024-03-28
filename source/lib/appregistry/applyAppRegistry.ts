@@ -1,9 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Aws, CfnMapping, Fn, Stack } from 'aws-cdk-lib';
+import { Aspects, Aws, CfnCondition, CfnMapping, Fn, Stack } from 'aws-cdk-lib';
 import { Application, AttributeGroup } from '@aws-cdk/aws-servicecatalogappregistry-alpha';
 import { applyTag } from '../tags/applyTag';
-import { CfnResourceAssociation } from 'aws-cdk-lib/aws-servicecatalogappregistry';
+import {
+  CfnAttributeGroup,
+  CfnAttributeGroupAssociation,
+  CfnResourceAssociation,
+} from 'aws-cdk-lib/aws-servicecatalogappregistry';
+import { ConditionAspect } from '../cdk-helper/condition-aspect';
+import setCondition from '../cdk-helper/set-condition';
 
 export interface AppRegisterProps {
   solutionId: string;
@@ -19,6 +25,7 @@ export class AppRegister {
   private solutionVersion: string;
   private appRegistryApplicationName: string;
   private applicationType: string;
+  private shouldDeployAppRegCondition?: CfnCondition;
 
   constructor(props: AppRegisterProps) {
     this.solutionId = props.solutionId;
@@ -36,19 +43,25 @@ export class AppRegister {
    * Do not create ApplicationInsights. This may sometimes fail.
    */
   public applyAppRegistryToStacks(hubStack: Stack, nestedStacks: Stack[]) {
+    this.shouldDeployAppRegCondition = new CfnCondition(hubStack, 'ShouldDeployAppReg', {
+      expression: Fn.conditionNot(Fn.conditionEquals(Aws.PARTITION, 'aws-cn')),
+    });
+
     const application = this.createAppRegistry(hubStack);
     // Do not create resource share
     // Do not associated spoke stacks, we must allow different regions
 
+    setCondition(application, this.shouldDeployAppRegCondition);
+    Aspects.of(application).add(new ConditionAspect(this.shouldDeployAppRegCondition, CfnAttributeGroupAssociation));
+
     let suffix = 1;
     nestedStacks.forEach((nestedStack) => {
-      const association = new CfnResourceAssociation(application, `ResourceAssociation${suffix++}`, {
+      const association = new CfnResourceAssociation(application, `ResourceAssociation${suffix}`, {
         application: application.applicationId,
         resource: nestedStack.stackId,
         resourceType: 'CFN_STACK',
       });
 
-      // If the nested stack is conditional, the resource association must also be so on the same condition
       association.cfnOptions.condition = nestedStack.nestedStackResource?.cfnOptions.condition;
 
       if (nestedStack.nestedStackResource) {
@@ -56,7 +69,11 @@ export class AppRegister {
       } else {
         throw new Error('No nested stack resource');
       }
+      suffix++;
     });
+
+    Aspects.of(hubStack).add(new ConditionAspect(this.shouldDeployAppRegCondition, CfnResourceAssociation));
+    Aspects.of(hubStack).add(new ConditionAspect(this.shouldDeployAppRegCondition, CfnAttributeGroup));
   }
 
   private createAppRegistry(stack: Stack): Application {

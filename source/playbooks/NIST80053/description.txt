@@ -1,0 +1,3 @@
+Automated Response on AWS is an add-on solution that
+enables AWS Security Hub customers to remediate security findings with a single click
+using predefined response and remediation actions packaged in “Playbooks”. This Playbook, NIST80053, includes remediations for many of the NIST 800-53Rev5 Security Standard findings.

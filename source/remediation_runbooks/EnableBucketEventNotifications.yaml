@@ -1,0 +1,73 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-EnableBucketEventNotifications
+
+  ## What does this document do?
+  This document creates an SNS topic if it does not already exist, then configures notifications on an S3 bucket that posts event notifications to that topic.
+
+  ## Input Parameters
+  * AccountId: (Required) Account ID of the account for the finding
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * BucketName: (Required) Name of bucket that event notifications will be triggered on.
+  * TopicName: (Required) The name of the SNS topic to create and configure for notifications.
+
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0:   S3.11
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AccountId:
+    type: String
+    description: Account ID of the account for the finding
+    allowedPattern: ^[0-9]{12}$
+  AutomationAssumeRole:
+    type: 'String'
+    description: '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  BucketName:
+    type: 'String'
+    description: '(Required) The name of the S3 Bucket.'
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+  TopicName:
+    type: 'String'
+    description: '(Optional) The name of the SNS topic to create and configure for notifications.'
+    allowedPattern: '^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$'
+    default: 'SO0111-ASR-S3BucketNotifications'
+  EventTypes:
+    type: 'StringList'
+    description: '(Optional) The event types to add notifications for.'
+    default: [
+                "s3:ReducedRedundancyLostObject",
+                "s3:ObjectCreated:*",
+                "s3:ObjectRemoved:*",
+                "s3:ObjectRestore:*",
+                "s3:Replication:*",
+                "s3:LifecycleExpiration:*",
+                "s3:LifecycleTransition",
+                "s3:IntelligentTiering",
+                "s3:ObjectTagging:*",
+                "s3:ObjectAcl:Put",
+              ]
+outputs:
+- 'EnableBucketEventNotifications.Output'
+mainSteps:
+- name: 'EnableBucketEventNotifications'
+  action: 'aws:executeScript'
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      bucket_name: '{{ BucketName }}'
+      topic_name: '{{ TopicName }}'
+      account_id: '{{ AccountId }}'
+      event_types: '{{ EventTypes }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=enable_bucket_event_notifications.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload.output'
+    Type: 'StringMap'
+  isEnd: true

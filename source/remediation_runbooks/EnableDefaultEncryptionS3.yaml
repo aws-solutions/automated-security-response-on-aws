@@ -17,9 +17,9 @@ description: |
   * Remediation.Output - stdout messages from the remediation
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0: S3.4
-  * CIS v1.2.0:   n/a
-  * PCI:          S3.4
+  * AWS FSBP v1.0.0: S3.4
+  * CIS v1.2.0:      n/a
+  * PCI:             S3.4
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"

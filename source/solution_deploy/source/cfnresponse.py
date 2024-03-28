@@ -3,6 +3,7 @@
 """Send custom resource status to CloudFormation"""
 
 import json
+
 import urllib3
 
 SUCCESS = "SUCCESS"

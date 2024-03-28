@@ -11,4 +11,4 @@ This document configures an SNS topic for notifications from a CloudFormation st
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP v1.0.0 CloudFormation.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudformation-1)
+* [AWS FSBP v1.0.0 CloudFormation.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudformation-1)

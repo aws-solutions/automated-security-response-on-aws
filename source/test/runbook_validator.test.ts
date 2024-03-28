@@ -350,7 +350,7 @@ test.skip.each(remediationRunbooks)(
   (runbook: RunbookTestHelper) => {
     const description: string = runbook.getObject().description;
     expect(desriptionDocumentsSecurityStandards(description)).toBe(true);
-  }
+  },
 );
 
 function isAssumeRoleParameter(value: string): boolean {
@@ -361,11 +361,11 @@ test.each(runbooks)('%s takes AssumeRole as parameter', (runbook: RunbookTestHel
   expect(isAssumeRoleParameter(runbook.getObject().assumeRole)).toBe(true);
   expect(runbook.getObject().parameters.AutomationAssumeRole.type).toStrictEqual('String');
   expect(runbook.getObject().parameters.AutomationAssumeRole.description).toStrictEqual(
-    '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.'
+    '(Required) The ARN of the role that allows Automation to perform the actions on your behalf.',
   );
   expect(runbook.getObject().parameters.AutomationAssumeRole).not.toHaveProperty('default');
   expect(runbook.getObject().parameters.AutomationAssumeRole.allowedPattern).toStrictEqual(
-    regexRegistry.getRegexForAutomationAssumeRole()
+    regexRegistry.getRegexForAutomationAssumeRole(),
   );
 });
 
@@ -380,7 +380,7 @@ test.skip.each(remediationRunbooks)('%s has outputs', (runbook: RunbookTestHelpe
 test.each(controlRunbooks)('%s takes finding as parameter', (runbook: RunbookTestHelper) => {
   expect(runbook.getObject().parameters.Finding.type).toStrictEqual('StringMap');
   expect(runbook.getObject().parameters.Finding.description).toStrictEqual(
-    `The input from the Orchestrator Step function for the ${runbook.getControlName()} finding`
+    `The input from the Orchestrator Step function for the ${runbook.getControlName()} finding`,
   );
 });
 

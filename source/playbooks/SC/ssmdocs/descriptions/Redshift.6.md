@@ -9,4 +9,4 @@ This document enables automatic version upgrade on a Redshift cluster by calling
 * RemediationRoleName: (Optional) The name of the role that allows Automation to remediate the finding on your behalf.
 
 ## Documentation Links
-* [AFSBP Redshift.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-redshift-6)
+* [AWS FSBP Redshift.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-redshift-6)

@@ -30,7 +30,9 @@ export class RedshiftAuditLogging extends Construct {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
     });
 
-    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', { //NOSONAR The policy attached to this bucket enforces SSL.
+    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {
+      //NOSONAR The policy attached to this bucket enforces SSL.
+      versioned: true,
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
@@ -67,7 +69,7 @@ export class RedshiftAuditLogging extends Construct {
         principals: [new StarPrincipal()],
         resources: [bucket.bucketArn, bucket.arnForObjects('*')],
         conditions: { Bool: { ['aws:SecureTransport']: 'false' } },
-      })
+      }),
     );
     setCondition(bucketPolicy, condition);
     bucketPolicy.node.addDependency(bucket.node.defaultChild as CfnBucket);
@@ -78,7 +80,7 @@ export class RedshiftAuditLogging extends Construct {
 
     const ssmParam = new StringParameter(scope, 'SSMParameterForS3BucketNameForREDSHIFT4', {
       description:
-        'Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
+        'Parameter to store the S3 bucket name for the remediation FSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
       parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging`,
       stringValue: bucket.bucketName,
     });

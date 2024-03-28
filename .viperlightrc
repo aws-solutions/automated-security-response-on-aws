@@ -1,4 +1,1 @@
-{
-  "failOn": "medium",
-  "all": true
-}
+{"failOn":"low","all":true}

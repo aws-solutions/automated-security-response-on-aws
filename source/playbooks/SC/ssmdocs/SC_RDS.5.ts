@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableMultiAZOnRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.5' });
 }
 
-class EnableMultiAZOnRDSInstanceDocument extends ControlRunbookDocument {
+export class EnableMultiAZOnRDSInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

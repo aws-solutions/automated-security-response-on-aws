@@ -1,0 +1,49 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-EnablePrivateRepositoryScanning
+ 
+  ## What does this document do?
+    This document enables image scanning configuration on a private ECR repository.
+    [PutImageScanningConfiguration](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PutImageScanningConfiguration.html) API.
+
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * RepositoryName: (Required) The name of the ECR private repository.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  ECR.1
+
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  RepositoryName:
+    type: String
+    description: (Required) The name of the ECR private repository.
+    allowedPattern: '([a-z0-9._\/\-]+)$'
+ 
+outputs:
+  - EnablePrivateRepositoryScanning.Output
+mainSteps:
+- name: 'EnablePrivateRepositoryScanning'
+  action: 'aws:executeScript'
+  maxAttempts: 3
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      RepositoryName: '{{ RepositoryName }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=EnablePrivateRepositoryScanning.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

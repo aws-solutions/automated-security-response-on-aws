@@ -19,7 +19,7 @@ export class CreateIAMSupportRoleDocument extends ControlRunbookDocument {
       remediationName,
       scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of(
-        `Create an IAM role to allow authorized users to manage incidents with AWS Support using the ${props.solutionAcronym}-${remediationName} runbook.`
+        `Create an IAM role to allow authorized users to manage incidents with AWS Support using the ${props.solutionAcronym}-${remediationName} runbook.`,
       ),
     });
   }

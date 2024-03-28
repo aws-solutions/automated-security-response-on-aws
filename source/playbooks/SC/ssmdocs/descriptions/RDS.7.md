@@ -11,4 +11,4 @@ This document enables `Deletion Protection` on a given Amazon RDS cluster by cal
 * Remediation.Output - The standard HTTP response from the ModifyDBCluster API.
 
 ## Documentation Links
-* [AFSBP RDS.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-7)
+* [AWS FSBP RDS.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-7)

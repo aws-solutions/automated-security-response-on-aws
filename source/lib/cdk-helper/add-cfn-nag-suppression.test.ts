@@ -11,7 +11,7 @@ describe('add cfn-nag suppression', function () {
     const suppression: CfnNagSuppression = { id: 'my id', reason: 'my reason' };
     addCfnNagSuppression(bucket, suppression);
     expect((bucket.node.defaultChild as CfnResource).cfnOptions.metadata?.cfn_nag?.rules_to_suppress).toStrictEqual(
-      expect.arrayContaining([suppression])
+      expect.arrayContaining([suppression]),
     );
   });
 
@@ -25,7 +25,7 @@ describe('add cfn-nag suppression', function () {
     };
     addCfnNagSuppression(bucket, secondSuppression);
     expect((bucket.node.defaultChild as CfnResource).cfnOptions.metadata?.cfn_nag?.rules_to_suppress).toStrictEqual(
-      expect.arrayContaining([firstSuppression, secondSuppression])
+      expect.arrayContaining([firstSuppression, secondSuppression]),
     );
   });
 });

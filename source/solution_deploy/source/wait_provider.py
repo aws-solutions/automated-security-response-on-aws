@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Custom resource provider that waits for a specified time, then returns success"""
 
-from os import getenv
 import json
 from logging import basicConfig, getLevelName, getLogger
+from os import getenv
 from time import sleep
+
 import cfnresponse
 
-basicConfig(level=getLevelName(getenv("LOG_LEVEL", "INFO"))) #NOSONAR This configures logging based on the environment variable that is set.
+basicConfig(
+    level=getLevelName(getenv("LOG_LEVEL", "INFO"))
+)  # NOSONAR This configures logging based on the environment variable that is set.
 logger = getLogger(__name__)
 
 
@@ -16,14 +19,14 @@ class InvalidRequest(Exception):
     """Invalid wait request"""
 
 
-def wait_seconds(wait: float):
+def wait_seconds(wait: float) -> None:
     """Wait for `wait` seconds"""
     sleep(wait)
 
 
 def lambda_handler(event, context):
     """Handle the Lambda request for a wait"""
-    response_data = {}
+    response_data: dict[str, str] = {}
 
     try:
         properties = event.get("ResourceProperties", {})

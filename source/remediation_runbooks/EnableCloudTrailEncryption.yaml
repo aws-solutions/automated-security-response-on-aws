@@ -13,7 +13,7 @@ description: |
   * TrailArn: ARN of the CloudTrail to encrypt
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0:   CloudTrail.2
+  * AWS FSBP v1.0.0:   CloudTrail.2
   * CIS v1.2.0:     2.7
   * PCI:            CloudTrail.1
 

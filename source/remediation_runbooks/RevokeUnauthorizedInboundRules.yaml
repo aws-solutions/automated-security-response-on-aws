@@ -1,0 +1,60 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-RevokeUnauthorizedInboundRules
+ 
+  ## What does this document do?
+  This document revokes inbound security group rules that allow unrestricted access to ports that are not authorized.
+  Authorized ports are listed in authorizedTcpPorts and authorizedUdpPorts parameters.
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * SecurityGroupId: (Required)  The ID of the Seurity Group.
+  * AuthorizedTcpPorts: (Optional) List of TCP ports authorized to be open to 0.0.0.0/0 or ::/0.
+  * AuthorizedUdpPorts: (Optional) List of UDP ports authorized to be open to 0.0.0.0/0 or ::/0.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  EC2.18
+
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  SecurityGroupId:
+    type: String
+    description: (Required) The ID of the Seurity Group.
+    allowedPattern: '^sg-[a-z0-9\-]+$'
+  AuthorizedTcpPorts:
+    type: StringList
+    description: (Optional) List of TCP ports authorized to be open to 0.0.0.0/0 or ::/0.
+    default: ["80", "443"]
+  AuthorizedUdpPorts:
+    type: StringList
+    description: (Optional) List of UDP ports authorized to be open to 0.0.0.0/0 or ::/0.
+    default: []
+
+outputs:
+  - RevokeUnauthorizedInboundRules.Output
+mainSteps:
+- name: 'RevokeUnauthorizedInboundRules'
+  action: 'aws:executeScript'
+  maxAttempts: 3
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      SecurityGroupId: '{{ SecurityGroupId }}'
+      AuthorizedTcpPorts: '{{ AuthorizedTcpPorts }}'
+      AuthorizedUdpPorts: '{{ AuthorizedUdpPorts }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=RevokeUnauthorizedInboundRules.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

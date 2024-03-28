@@ -71,7 +71,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
       remediationName: 'CreateLogMetricFilterAndAlarm',
       scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of(
-        `Added metric filter to the log group and notifications to SNS topic ${snsTopicName}.`
+        `Added metric filter to the log group and notifications to SNS topic ${snsTopicName}.`,
       ),
     });
     this.standardLongName = props.standardLongName;
@@ -96,7 +96,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     const getMetricFilterAndAlarmInputValueStep = new ExecuteScriptStep(this, 'GetMetricFilterAndAlarmInputValue', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'verify'),
       code: ScriptCode.fromFile(
-        fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'cloudwatch_get_input_values.py'))
+        fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'cloudwatch_get_input_values.py')),
       ),
       inputPayload: {
         ControlId: StringVariable.of('ParseInput.ControlId'),

@@ -13,4 +13,4 @@ Default: 30 seconds
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP AutoScaling.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-autoscaling-1)
+* [AWS FSBP AutoScaling.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-autoscaling-1)

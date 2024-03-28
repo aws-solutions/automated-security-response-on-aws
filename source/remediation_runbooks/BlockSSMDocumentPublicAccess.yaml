@@ -1,0 +1,48 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-BlockSSMDocumentPublicAccess
+
+  ## What does this document do?
+  This document modifies SSM document permissions to prevent cross-account public access.
+
+  ## Input Parameters
+  * DocumentArn: (Required) SSM Document name to be changed.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * BlockSSMDocumentPublicAccess.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  DocumentArn:
+    type: String
+    description: (Required) The document ARN.
+    allowedPattern: '^(arn:(?:aws|aws-cn|aws-us-gov):ssm:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:document\/[A-Za-z0-9][A-Za-z0-9\-_]{1,254})$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - BlockSSMDocumentPublicAccess.Output
+mainSteps:
+  -
+    name: BlockSSMDocumentPublicAccess
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Removes public access to the SSM Document
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        document_arn: '{{DocumentArn}}'
+      Runtime: python3.8
+      Handler: lambda_handler
+      Script: |-
+        %%SCRIPT=block_ssm_doc_public_access.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

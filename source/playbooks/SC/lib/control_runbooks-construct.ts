@@ -7,6 +7,8 @@ import { CfnCondition, CfnParameter, Fn } from 'aws-cdk-lib';
 
 import * as autoscaling_1 from '../ssmdocs/SC_AutoScaling.1';
 import * as cloudformation_1 from '../ssmdocs/SC_CloudFormation.1';
+import * as cloudfront_1 from '../ssmdocs/SC_CloudFront.1';
+import * as cloudfront_12 from '../ssmdocs/SC_CloudFront.12';
 import * as cloudtrail_1 from '../ssmdocs/SC_CloudTrail.1';
 import * as cloudtrail_2 from '../ssmdocs/SC_CloudTrail.2';
 import * as cloudtrail_4 from '../ssmdocs/SC_CloudTrail.4';
@@ -15,13 +17,21 @@ import * as cloudtrail_6 from '../ssmdocs/SC_CloudTrail.6';
 import * as cloudtrail_7 from '../ssmdocs/SC_CloudTrail.7';
 import * as cloudwatch_1 from '../ssmdocs/SC_CloudWatch.1';
 import * as codebuild_2 from '../ssmdocs/SC_CodeBuild.2';
+import * as codebuild_5 from '../ssmdocs/SC_CodeBuild.5';
 import * as config_1 from '../ssmdocs/SC_Config.1';
 import * as ec2_1 from '../ssmdocs/SC_EC2.1';
 import * as ec2_2 from '../ssmdocs/SC_EC2.2';
+import * as ec2_4 from '../ssmdocs/SC_EC2.4';
 import * as ec2_6 from '../ssmdocs/SC_EC2.6';
 import * as ec2_7 from '../ssmdocs/SC_EC2.7';
+import * as ec2_8 from '../ssmdocs/SC_EC2.8';
 import * as ec2_13 from '../ssmdocs/SC_EC2.13';
 import * as ec2_15 from '../ssmdocs/SC_EC2.15';
+import * as ec2_18 from '../ssmdocs/SC_EC2.18';
+import * as ec2_19 from '../ssmdocs/SC_EC2.19';
+import * as ec2_23 from '../ssmdocs/SC_EC2.23';
+import * as ecr_1 from '../ssmdocs/SC_ECR.1';
+import * as guardduty_1 from '../ssmdocs/SC_GuardDuty.1';
 import * as iam_3 from '../ssmdocs/SC_IAM.3';
 import * as iam_7 from '../ssmdocs/SC_IAM.7';
 import * as iam_8 from '../ssmdocs/SC_IAM.8';
@@ -47,9 +57,15 @@ import * as s3_2 from '../ssmdocs/SC_S3.2';
 import * as s3_4 from '../ssmdocs/SC_S3.4';
 import * as s3_5 from '../ssmdocs/SC_S3.5';
 import * as s3_6 from '../ssmdocs/SC_S3.6';
+import * as s3_11 from '../ssmdocs/SC_S3.11';
+import * as s3_13 from '../ssmdocs/SC_S3.13';
+import * as secretsmanager_1 from '../ssmdocs/SC_SecretsManager.1';
+import * as secretsmanager_3 from '../ssmdocs/SC_SecretsManager.3';
+import * as secretsmanager_4 from '../ssmdocs/SC_SecretsManager.4';
 import * as sqs_1 from '../ssmdocs/SC_SQS.1';
 import * as sns_1 from '../ssmdocs/SC_SNS.1';
 import * as sns_2 from '../ssmdocs/SC_SNS.2';
+import * as ssm_4 from '../ssmdocs/SC_SSM.4';
 
 export interface PlaybookProps {
   standardShortName: string;
@@ -74,6 +90,8 @@ export class ControlRunbooks extends Construct {
 
     this.add(autoscaling_1.createControlRunbook(this, 'AutoScaling.1', props));
     this.add(cloudformation_1.createControlRunbook(this, 'CloudFormation.1', props));
+    this.add(cloudfront_1.createControlRunbook(this, 'CloudFront.1', props));
+    this.add(cloudfront_12.createControlRunbook(this, 'CloudFront.12', props));
     this.add(cloudtrail_1.createControlRunbook(this, 'CloudTrail.1', props));
     this.add(cloudtrail_2.createControlRunbook(this, 'CloudTrail.2', props));
     this.add(cloudtrail_4.createControlRunbook(this, 'CloudTrail.4', props));
@@ -82,13 +100,21 @@ export class ControlRunbooks extends Construct {
     this.add(cloudtrail_7.createControlRunbook(this, 'CloudTrail.7', props));
     this.add(cloudwatch_1.createControlRunbook(this, 'CloudWatch.1', props));
     this.add(codebuild_2.createControlRunbook(this, 'CodeBuild.2', props));
+    this.add(codebuild_5.createControlRunbook(this, 'CodeBuild.5', props));
     this.add(config_1.createControlRunbook(this, 'Config.1', props));
     this.add(ec2_1.createControlRunbook(this, 'EC2.1', props));
     this.add(ec2_2.createControlRunbook(this, 'EC2.2', props));
+    this.add(ec2_4.createControlRunbook(this, 'EC2.4', props));
     this.add(ec2_6.createControlRunbook(this, 'EC2.6', props));
     this.add(ec2_7.createControlRunbook(this, 'EC2.7', props));
+    this.add(ec2_8.createControlRunbook(this, 'EC2.8', props));
     this.add(ec2_13.createControlRunbook(this, 'EC2.13', props));
     this.add(ec2_15.createControlRunbook(this, 'EC2.15', props));
+    this.add(ec2_18.createControlRunbook(this, 'EC2.18', props));
+    this.add(ec2_19.createControlRunbook(this, 'EC2.19', props));
+    this.add(ec2_23.createControlRunbook(this, 'EC2.23', props));
+    this.add(ecr_1.createControlRunbook(this, 'ECR.1', props));
+    this.add(guardduty_1.createControlRunbook(this, 'GuardDuty.1', props));
     this.add(iam_3.createControlRunbook(this, 'IAM.3', props));
     this.add(iam_7.createControlRunbook(this, 'IAM.7', props));
     this.add(iam_8.createControlRunbook(this, 'IAM.8', props));
@@ -114,9 +140,15 @@ export class ControlRunbooks extends Construct {
     this.add(s3_4.createControlRunbook(this, 'S3.4', props));
     this.add(s3_5.createControlRunbook(this, 'S3.5', props));
     this.add(s3_6.createControlRunbook(this, 'S3.6', props));
+    this.add(s3_11.createControlRunbook(this, 'S3.11', props));
+    this.add(s3_13.createControlRunbook(this, 'S3.13', props));
+    this.add(secretsmanager_1.createControlRunbook(this, 'SecretsManager.1', props));
+    this.add(secretsmanager_3.createControlRunbook(this, 'SecretsManager.3', props));
+    this.add(secretsmanager_4.createControlRunbook(this, 'SecretsManager.4', props));
     this.add(sqs_1.createControlRunbook(this, 'SQS.1', props));
     this.add(sns_1.createControlRunbook(this, 'SNS.1', props));
     this.add(sns_2.createControlRunbook(this, 'SNS.2', props));
+    this.add(ssm_4.createControlRunbook(this, 'SSM.4', props));
   }
 
   protected add(document: ControlRunbookDocument) {

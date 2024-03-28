@@ -17,7 +17,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new MakeEBSSnapshotsPrivateDocument(scope, id, { ...props, controlId: 'EC2.1' });
 }
 
-class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
+export class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,

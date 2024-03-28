@@ -7,4 +7,4 @@ This document changes public RDS snapshot to private
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
 ## Documentation Links
-* [AFSBP RDS.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-1)
+* [AWS FSBP RDS.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-1)

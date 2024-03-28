@@ -1,12 +1,20 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
-from botocore.config import Config
+from typing import Dict, Final, List, Literal, TypedDict
+
 import boto3
+from botocore.config import Config
 
 BOTO_CONFIG = Config(retries={"mode": "standard"})
 
-responses = {}
+
+class Response(TypedDict):
+    Account: str
+    RoleName: Literal["aws_incident_support_role"]
+
+
+responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {}
 responses["CreateIAMRoleResponse"] = []
 
 
@@ -15,11 +23,15 @@ def connect_to_iam(boto_config):
 
 
 def get_account(boto_config):
-    return boto3.client('sts', config=boto_config).get_caller_identity()['Account']
+    return boto3.client("sts", config=boto_config).get_caller_identity()["Account"]
 
 
 def get_partition(boto_config):
-    return boto3.client('sts', config=boto_config).get_caller_identity()['Arn'].split(':')[1]
+    return (
+        boto3.client("sts", config=boto_config)
+        .get_caller_identity()["Arn"]
+        .split(":")[1]
+    )
 
 
 def create_iam_role(_, __):
@@ -37,7 +49,7 @@ def create_iam_role(_, __):
         ],
     }
 
-    role_name = "aws_incident_support_role"
+    role_name: Final = "aws_incident_support_role"
     iam = connect_to_iam(BOTO_CONFIG)
     if not does_role_exist(iam, role_name):
         iam.create_role(

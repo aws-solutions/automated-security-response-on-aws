@@ -1,0 +1,45 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-SetCloudFrontOriginDomain
+ 
+  ## What does this document do?
+    This document updates the origin domain on a given CloudFront distribution to prevent a malicious third party from creating the referenced bucket and serving their own content through your distribution.
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * DistributionId: (Required)  ID of the CloudFront Distribution to be updated.
+ 
+  ## Security Standards / Controls
+  * NIST80053 v5.0.0:  CloudFront.12
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  DistributionId:
+    type: String
+    description: (Required) The Distribution ID of the CloudFront distribution.
+    allowedPattern: '^[A-Za-z0-9]*$'
+ 
+outputs:
+  - SetCloudFrontOriginDomain.Output
+mainSteps:
+- name: 'SetCloudFrontOriginDomain'
+  action: 'aws:executeScript'
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      Id: '{{ DistributionId }}'
+    Runtime: python3.8
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=SetCloudFrontOriginDomain.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

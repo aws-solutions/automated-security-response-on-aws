@@ -16,7 +16,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new MakeRDSSnapshotPrivateDocument(scope, id, { ...props, controlId: 'RDS.1' });
 }
 
-class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
+export class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -24,7 +24,7 @@ class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
       remediationName: 'MakeRDSSnapshotPrivate',
       scope: RemediationScope.REGIONAL,
       resourceIdName: 'DBSnapshotId',
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(cluster-snapshot|snapshot):([a-zA-Z](?:[0-9a-zA-Z]+-)*[0-9a-zA-Z]+)$`,
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(cluster-snapshot|snapshot):([a-zA-Z][0-9a-zA-Z]*(?:-[0-9a-zA-Z]+)*)$`,
       updateDescription: HardCodedString.of('RDS DB Snapshot modified to private'),
     });
   }

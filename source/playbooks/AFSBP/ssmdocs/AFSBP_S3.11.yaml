@@ -1,0 +1,125 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+ ### Document Name - ASR-AFSBP_1.0.0_S3.11
+
+ ## What does this document do?
+ Configures event notification for an S3 bucket.
+
+ ## Input Parameters
+ * Finding: (Required) Security Hub finding details JSON
+ * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+ ## Output Parameters
+ * Remediation.Output - Remediation results
+
+ ## Documentation Links
+ * [AWS FSBP v1.0.0 S3.11](https://docs.aws.amazon.com/securityhub/latest/userguide/s3-controls.html#s3-11)
+
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for the S3.11 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  RemediationRoleName:
+    type: String
+    default: "SO0111-EnableBucketEventNotifications"
+    allowedPattern: '^[\w+=,.@-]+$'
+
+mainSteps:
+  -
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: BucketName
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: AccountId
+        Selector: $.Payload.account_id
+        Type: String
+      - Name: SecHubInputParams
+        Selector: $.Payload.input_params
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$'
+        expected_control_id: [ 'S3.11' ]
+      Runtime: python3.8
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=common/parse_input.py%%
+  - 
+    name: GetInputParams
+    action: 'aws:executeScript'
+    outputs:
+      - Name: eventTypes
+        Selector: $.Payload.eventTypes
+        Type: StringList
+    inputs:
+      InputPayload:
+        SecHubInputParams: '{{ParseInput.SecHubInputParams}}'
+        DefaultParams: { 
+        "eventTypes": [
+          "s3:ReducedRedundancyLostObject",
+          "s3:ObjectCreated:*",
+          "s3:ObjectRemoved:*",
+          "s3:ObjectRestore:*",
+          "s3:Replication:*",
+          "s3:LifecycleExpiration:*",
+          "s3:LifecycleTransition",
+          "s3:IntelligentTiering",
+          "s3:ObjectTagging:*",
+          "s3:ObjectAcl:Put",
+        ], 
+        }
+        expected_control_id: [ 'S3.11' ]
+      Runtime: python3.8
+      Handler: get_input_params
+      Script: |-
+        %%SCRIPT=common/get_input_params.py%%
+
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: ASR-EnableBucketEventNotifications
+      RuntimeParameters:
+        BucketName: '{{ParseInput.BucketName}}'
+        AccountId: '{{ParseInput.AccountId}}'
+        EventTypes: '{{GetInputParams.eventTypes}}'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+      - Id: '{{ParseInput.FindingId}}'
+        ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Configured event notification to {{ParseInput.BucketName}}'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_S3.11'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

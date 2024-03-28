@@ -164,13 +164,29 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
 
   /**
    * @virtual
-   * @returns The inputs to the `parse_input.py` script
+   * @returns The `getInputParams` step to parse any user customized input parameters.
    */
-  protected getParseInputStepInputs(): { [_: string]: IGenericVariable } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected getInputParamsStep(defaultParameters: { [_: string]: any }): AutomationStep {
+    const getInputParamsStep = new ExecuteScriptStep(this, 'GetInputParams', {
+      language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'get_input_params'),
+      code: ScriptCode.fromFile(fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'get_input_params.py'))),
+      inputPayload: this.getInputParamsStepInputs(defaultParameters),
+      outputs: this.getInputParamsStepOutput(),
+    });
+
+    return getInputParamsStep;
+  }
+
+  /**
+   * @virtual
+   * @returns The inputs to the `get_input_params.py` script
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected getInputParamsStepInputs(defaultParameters: { [_: string]: any }): { [_: string]: IGenericVariable } {
     return {
-      Finding: StringMapVariable.of('Finding'),
-      parse_id_pattern: HardCodedString.of(this.resourceIdRegex ?? ''),
-      expected_control_id: HardCodedStringList.of(this.expectedControlIds),
+      SecHubInputParams: StringMapVariable.of('ParseInput.InputParams'),
+      DefaultParams: HardCodedStringMap.of(defaultParameters),
     };
   }
 
@@ -209,8 +225,13 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
       outputType: DataTypeEnum.STRING,
       selector: '$.Payload.product_arn',
     };
+    const inputParamsOutput: Output = {
+      name: 'InputParams',
+      outputType: DataTypeEnum.STRING_MAP,
+      selector: '$.Payload.input_params',
+    };
 
-    const outputs: Output[] = [findingIdOutput, productArnOutput, affectedObjectOutput];
+    const outputs: Output[] = [findingIdOutput, productArnOutput, affectedObjectOutput, inputParamsOutput];
 
     // Output the resource id if used
     if (this.resourceIdName) {
@@ -221,6 +242,34 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
     if (this.scope === RemediationScope.REGIONAL) {
       outputs.push(remediationAccountOutput, remediationRegionOutput);
     }
+
+    return outputs;
+  }
+
+  /**
+   * @virtual
+   * @returns The inputs to the `parse_input.py` script
+   */
+  protected getParseInputStepInputs(): { [_: string]: IGenericVariable } {
+    return {
+      Finding: StringMapVariable.of('Finding'),
+      parse_id_pattern: HardCodedString.of(this.resourceIdRegex ?? ''),
+      expected_control_id: HardCodedStringList.of(this.expectedControlIds),
+    };
+  }
+
+  /**
+   * @virtual
+   * @returns The output values of the `GetInputParams` step.
+   */
+  protected getInputParamsStepOutput(): Output[] {
+    const inputParamsOutput: Output = {
+      name: 'InputParams',
+      outputType: DataTypeEnum.STRING_MAP,
+      selector: '$.Payload.input_params',
+    };
+
+    const outputs: Output[] = [inputParamsOutput];
 
     return outputs;
   }

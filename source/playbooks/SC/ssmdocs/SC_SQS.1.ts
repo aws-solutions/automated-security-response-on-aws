@@ -36,7 +36,6 @@ export class EnableEncryptionForSQSQueueDocument extends ControlRunbookDocument 
     const params = super.getRemediationParams();
 
     params.KmsKeyArn = StringVariable.of('KmsKeyArn');
-    params.SNSTopicArn = StringVariable.of('ParseInput.SQSQueueName');
 
     return params;
   }

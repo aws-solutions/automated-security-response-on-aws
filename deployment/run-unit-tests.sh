@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+[[ "$DEBUG" ]] && set -x
+set -eo pipefail
+
 maxrc=0
 rc=0
 export overrideWarningsEnabled=false
@@ -15,7 +18,11 @@ source ./.venv/bin/activate
 python3 -m pip install -U pip setuptools
 
 echo 'Installing required Python testing modules'
-pip install -r ./testing_requirements.txt
+pip install -r ./requirements_dev.txt
+
+cd ..
+pip install -e .
+cd ./deployment
 
 # Get reference for all important folders
 template_dir="$PWD"
@@ -27,22 +34,22 @@ coverage_report_path="${template_dir}/test/coverage-reports"
 mkdir -p ${coverage_report_path}
 
 run_pytest() {
-  cd ${1}
-  report_file="${coverage_report_path}/${2}.coverage.xml"
-  echo "coverage report path set to ${report_file}"
+    cd ${1}
+    report_file="${coverage_report_path}/${2}.coverage.xml"
+    echo "coverage report path set to ${report_file}"
 
-  # Use -vv for debugging
-  python3 -m pytest --cov --cov-report=term-missing --cov-report "xml:$report_file"
-  rc=$?
+    # Use -vv for debugging
+    python3 -m pytest --cov --cov-report=term-missing --cov-report "xml:$report_file"
+    rc=$?
 
-  if [ "$rc" -ne "0" ]; then
-    echo "** UNIT TESTS FAILED **"
-  else
-    echo "Unit Tests Successful"
-  fi
-  if [ "$rc" -gt "$maxrc" ]; then
-      maxrc=$rc
-  fi
+    if [ "$rc" -ne "0" ]; then
+        echo "** UNIT TESTS FAILED **"
+    else
+        echo "Unit Tests Successful"
+    fi
+    if [ "$rc" -gt "$maxrc" ]; then
+        maxrc=$rc
+    fi
 }
 
 if [[ -e './solution_env.sh' ]]; then
@@ -75,18 +82,28 @@ else
 fi
 
 echo "------------------------------------------------------------------------------"
-echo "[Test] CDK Unit Tests"
+echo "[Lint] Code Style and Lint"
 echo "------------------------------------------------------------------------------"
 cd $source_dir
+npx prettier --check '**/*.ts'
+npx eslint --ext .ts --max-warnings=0 .
+cd ..
+tox -e format
+tox -e lint
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] CDK Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"
 [[ $update == "true" ]] && {
     npm run test -- -u
 } || {
     npm run test
     rc=$?
     if [ "$rc" -ne "0" ]; then
-      echo "** UNIT TESTS FAILED **"
+        echo "** UNIT TESTS FAILED **"
     else
-      echo "Unit Tests Successful"
+        echo "Unit Tests Successful"
     fi
     if [ "$rc" -gt "$maxrc" ]; then
         maxrc=$rc
@@ -106,7 +123,7 @@ run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - LambdaLayers"
 echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/LambdaLayers" "LambdaLayers"
+run_pytest "${source_dir}/layer" "LambdaLayers"
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Scripts for Remediation Runbooks"
@@ -123,7 +140,7 @@ echo "[Test] Python Scripts for Playbooks"
 echo "------------------------------------------------------------------------------"
 for playbook in `ls ${source_dir}/playbooks`; do
     if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ]; then
-      run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
+        run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
     fi
 done
 
@@ -138,9 +155,9 @@ sed -i -e "s|<source>.*${temp_source_dir}|<source>source|g" $coverage_report_pat
 
 echo "========================================================================="
 if [ "$maxrc" -ne "0" ]; then
-  echo "** UNIT TESTS FAILED **"
+    echo "** UNIT TESTS FAILED **"
 else
-  echo "ALL UNIT TESTS PASSED"
+    echo "ALL UNIT TESTS PASSED"
 fi
 
 exit $maxrc

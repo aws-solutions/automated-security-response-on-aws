@@ -13,7 +13,7 @@ description: |
   * StackArn: (Required)  The ARN of the stack.
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0:   CloudFormation.1
+  * AWS FSBP v1.0.0:   CloudFormation.1
 assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:

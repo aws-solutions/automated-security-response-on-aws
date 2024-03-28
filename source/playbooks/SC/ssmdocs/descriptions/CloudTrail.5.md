@@ -11,4 +11,4 @@ This document configures CloudTrail to log to CloudWatch Logs.
 * Remediation.Output - Remediation results
 
 ## Documentation Links
-* [AFSBP v1.0.0 CloudTrail.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-5)
+* [AWS FSBP v1.0.0 CloudTrail.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-5)

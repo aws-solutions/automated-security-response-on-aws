@@ -12,4 +12,4 @@ Enables AWS Config:
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
 ## Documentation Links
-* [AFSBP Config.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-config-1)
+* [AWS FSBP Config.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-config-1)

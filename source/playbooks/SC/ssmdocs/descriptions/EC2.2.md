@@ -12,4 +12,4 @@ group using the AWS SSM Runbook AWSConfigRemediation-RemoveVPCDefaultSecurityGro
 * Remediation.Output - Output from AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules SSM doc
 
 ## Documentation Links
-* [AFSBP EC2.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-2)
+* [AWS FSBP EC2.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-2)

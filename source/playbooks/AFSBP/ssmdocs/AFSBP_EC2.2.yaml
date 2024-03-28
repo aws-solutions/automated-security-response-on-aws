@@ -16,7 +16,7 @@ description: |
   * Remediation.Output - Output from AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules SSM doc
 
   ## Documentation Links
-  * [AFSBP EC2.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-2)
+  * [AWS FSBP EC2.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-2)
 
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
