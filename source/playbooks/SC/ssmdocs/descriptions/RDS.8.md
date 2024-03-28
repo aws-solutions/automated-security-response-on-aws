@@ -9,4 +9,4 @@ This document enables `Deletion Protection` on a given Amazon RDS cluster by cal
 * RemediationRoleName: (Optional) The name of the role that allows Automation to remediate the finding on your behalf.
 
 ## Documentation Links
-* [AFSBP RDS.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-8)
+* [AWS FSBP RDS.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-8)

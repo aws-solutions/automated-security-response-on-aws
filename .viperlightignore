@@ -1,24 +1,5 @@
-# CDK files - files produced/installed by CDK
-# js files produced by npm
-.*.js
-# jest.config
-.*.d.ts
-.*/node_modules/
-.cdk.staging
-.*/package-lock.json
-# Developer work files - not present in pipeline
-deployment/build/
-deployment/temp/
-deployment/global-s3-assets/
-deployment/regional-s3-assets/
-deployment/open-source/
-deployment/test/
-# ignore own scan file
-vlscan.json
-# Ignore repo Config
-Config
-.venv
+node_modules/
+.venv/
 
 [python-pipoutdated]
 boto3=1.20.32 # Should match Lambda runtime: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
-py-partiql-parser=0.1.0 # trust moto to resolve its own dependencies

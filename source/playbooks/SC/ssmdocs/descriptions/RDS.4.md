@@ -10,4 +10,4 @@ This document encrypts an unencrypted RDS snapshot by calling another SSM docume
 * KMSKeyId: (Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.
 
 ## Documentation Links
-* [AFSBP RDS.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-4)
+* [AWS FSBP RDS.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-4)

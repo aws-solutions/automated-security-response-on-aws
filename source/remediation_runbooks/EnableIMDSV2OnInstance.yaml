@@ -1,0 +1,47 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-EnableIMDSV2OnInstance
+ 
+  ## What does this document do?
+    This document enables IMDS V2 by using the
+    [ModifyInstanceMetadataOptions](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifyInstanceMetadataOptions.html) API.
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * InstanceARN: (Required)  The ARN of the Amazon EC2 Instance.
+ 
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0:  EC2.8
+  * NIST 800-53 Rev5: EC2.8
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  InstanceARN:
+    type: String
+    description: (Required) The ARN of the Amazon EC2 Instance.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:instance\/(i-[0-9a-f]*)$'
+ 
+outputs:
+  - EnableIMDSV2OnInstance.Output
+mainSteps:
+- name: 'EnableIMDSV2OnInstance'
+  action: 'aws:executeScript'
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      instance_arn: '{{ InstanceARN }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=enable_imds_v2_on_instance.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

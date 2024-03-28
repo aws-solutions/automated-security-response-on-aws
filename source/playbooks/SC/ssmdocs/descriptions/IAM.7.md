@@ -4,7 +4,7 @@
 This document establishes a default password policy.
 
 ## Security Standards and Controls
-* AFSBP IAM.7
+* AWS FSBP IAM.7
 
 ## Input Parameters
 * Finding: (Required) Security Hub finding details JSON
@@ -13,4 +13,4 @@ This document establishes a default password policy.
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP IAM.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-7)
+* [AWS FSBP IAM.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-7)

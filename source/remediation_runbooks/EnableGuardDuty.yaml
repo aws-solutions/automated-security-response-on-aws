@@ -1,0 +1,40 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-EnableGuardDuty
+ 
+  ## What does this document do?
+    This document enables Amazon GuardDuty.
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  GuardDuty.1
+
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+ 
+outputs:
+  - EnableGuardDuty.Output
+mainSteps:
+- name: 'EnableGuardDuty'
+  action: 'aws:executeScript'
+  maxAttempts: 3
+  timeoutSeconds: 600
+  inputs:
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=EnableGuardDuty.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

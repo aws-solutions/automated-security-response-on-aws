@@ -1,7 +1,9 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
+
 import pytest
+
 
 @pytest.fixture(scope="module", autouse=True)
 def aws_credentials():

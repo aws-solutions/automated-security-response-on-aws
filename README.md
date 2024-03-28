@@ -4,7 +4,7 @@
 Feature
 request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
-Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation%3E/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
+Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
 
 Automated Security Response (ASR) on AWS is a solution that enables AWS Security Hub customers to remediate findings
 with a single click using sets of predefined response and remediation actions called Playbooks. The remediations are
@@ -19,6 +19,7 @@ standards:
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0
 - Payment Card Industry (PCI) Data Security Standard (DSS) v3.2.1
+- National Institute of Standards and Technology (NIST) Special Publication 800-53 Revision 5
 
 A Playbook called Security Control is included that allows operation with AWS Security Hub's Consolidated Control
 Findings feature.
@@ -113,7 +114,7 @@ const standardVersion = "1.1.1"; // DO NOT INCLUDE 'V'
 ```
 
 **standardShortName** can be as you wish. General recommendation is to make it short and meaningful. Ex. PCI, CIS,
-AFSBP. This is the name used in many labels throughout the solution. **standardLongName** must match the
+FSBP. This is the name used in many labels throughout the solution. **standardLongName** must match the
 StandardsControlArn, as _pci-dss_ in the above example. **standardVersion** must match the StandardsControlArn version,
 as _.../v/3.2.1/..._ in the above example.
 
@@ -206,7 +207,7 @@ https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-
 |-deployment/             [ Scripts used to build, test, and upload templates for the solution ]
 |-simtest/                [ Tool and sample data used to simulate findings for testing ]
 |-source/                 [ Solution source code and tests ]
-  |-LambdaLayers/         [ Common functions used by the Orchestrator and custom resource providers ]
+  |-layer/                [ Common functions used by the Orchestrator and custom resource providers ]
   |-lib/                  [ Solution CDK ]
     |-appregistry/        [ Resources for integration with Service Catalog AppRegistry ]
     |-cdk-helper/         [ CDK helper functions ]
@@ -233,7 +234,7 @@ https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-
 
 ## Collection of operational metrics
 
-This solution collects anonymous operational metrics to help AWS improve the quality of features of the solution. For
+This solution collects anonymized operational metrics to help AWS improve the quality of features of the solution. For
 more information, including how to disable this capability, please see the [Implementation
 Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/collection-of-operational-metrics.html)
 

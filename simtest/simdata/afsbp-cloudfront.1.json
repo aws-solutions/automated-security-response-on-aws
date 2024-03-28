@@ -1,0 +1,76 @@
+{
+    "SchemaVersion": "2018-10-08",
+    "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudFront.1/finding/62f4c4cb-b17d-4575-b8e4-b1f2d8fc7350",
+    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+    "ProductName": "Security Hub",
+    "CompanyName": "AWS",
+    "Region": "us-east-1",
+    "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudFront.1",
+    "AwsAccountId": "111111111111",
+    "Types": [
+      "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+    ],
+    "FirstObservedAt": "2023-08-29T22:04:14.831Z",
+    "LastObservedAt": "2023-08-29T22:04:21.785Z",
+    "CreatedAt": "2023-08-29T22:04:14.831Z",
+    "UpdatedAt": "2023-08-29T22:04:14.831Z",
+    "Severity": {
+      "Product": 90,
+      "Label": "CRITICAL",
+      "Normalized": 90,
+      "Original": "CRITICAL"
+    },
+    "Title": "CloudFront.1 CloudFront distributions should have a default root object configured",
+    "Description": "This control checks whether an Amazon CloudFront distribution is configured to return a specific object that is the default root object. The control fails if the CloudFront distribution does not have a default root object configured.",
+    "Remediation": {
+      "Recommendation": {
+        "Text": "For information on how to correct this issue, consult the AWS Security Hub controls documentation.",
+        "Url": "https://docs.aws.amazon.com/console/securityhub/CloudFront.1/remediation"
+      }
+    },
+    "ProductFields": {
+      "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+      "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+      "ControlId": "CloudFront.1",
+      "RecommendationUrl": "https://docs.aws.amazon.com/console/securityhub/CloudFront.1/remediation",
+      "RelatedAWSResources:0/name": "securityhub-cloudfront-default-root-object-configured-4276159b",
+      "RelatedAWSResources:0/type": "AWS::Config::ConfigRule",
+      "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/CloudFront.1",
+      "aws/securityhub/ProductName": "Security Hub",
+      "aws/securityhub/CompanyName": "AWS",
+      "Resources:0/Id": "arn:aws:cloudfront::111111111111:distribution/E202DN2YO141F9",
+      "aws/securityhub/FindingId": "arn:aws:securityhub:us-east-1::product/aws/securityhub/arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudFront.1/finding/62f4c4cb-b17d-4575-b8e4-b1f2d8fc7350"
+    },
+    "Resources": [
+      {
+        "Type": "AwsCloudFrontDistribution",
+        "Id": "arn:aws:cloudfront::111111111111:distribution/E202DN2YO141F9",
+        "Partition": "aws",
+        "Region": "us-east-1"
+      }
+    ],
+    "Compliance": {
+      "Status": "FAILED",
+      "SecurityControlId": "CloudFront.1",
+      "AssociatedStandards": [
+        {
+          "StandardsId": "standards/aws-foundational-security-best-practices/v/1.0.0"
+        }
+      ]
+    },
+    "WorkflowState": "NEW",
+    "Workflow": {
+      "Status": "NEW"
+    },
+    "RecordState": "ACTIVE",
+    "FindingProviderFields": {
+      "Severity": {
+        "Label": "CRITICAL",
+        "Original": "CRITICAL"
+      },
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ]
+    },
+    "ProcessedAt": "2023-08-29T22:04:26.320Z"
+  }

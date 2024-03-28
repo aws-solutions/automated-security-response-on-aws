@@ -20,7 +20,7 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
       remediationName,
       scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of(
-        `Deactivated unused keys and expired logins using the ${props.solutionAcronym}-${remediationName} runbook.`
+        `Deactivated unused keys and expired logins using the ${props.solutionAcronym}-${remediationName} runbook.`,
       ),
     });
     this.maxCredentialUsageAge = props.parameterToPass ?? '90';

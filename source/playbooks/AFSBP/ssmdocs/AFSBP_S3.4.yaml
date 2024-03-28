@@ -15,7 +15,7 @@ description: |
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 S3.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-4)
+  * [AWS FSBP v1.0.0 S3.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-4)
 
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'

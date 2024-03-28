@@ -2,25 +2,28 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      nodejs: 16
-      python: 3.10
+      nodejs: 18
+      python: 3.11
     commands:
-    - python3 -m pip install -U pip setuptools virtualenv
-    - npm install --location=global npm@latest
+    - python3 -m pip install -U pip setuptools
+    - npm install -g npm@9
+    - pyenv install -s 3.8 3.9 3.10 3.11
+  pre_build:
+    commands:
+    - cd ./source
+    - npm ci
+    - cd ..
   build:
     commands:
-    - cd source
-    - npm ci
-    - cd ../deployment
+    - cd ./deployment
     - ./build-s3-dist.sh -b $DIST_OUTPUT_BUCKET -v $VERSION
-    - ./build-open-source-dist.sh $SOLUTION_NAME
+    - ./build-open-source-dist.sh
+    - cd ..
+  post_build:
+    commands:
+    - cd ./deployment
     - ./run-unit-tests.sh
+    - cd ..
 artifacts:
   files:
   - '**/*'
-  exclude-paths:
-  - '**/.pytest_cache/**/*'
-  - '**/__pycache__/**/*'
-  - source/node_modules/**/*
-  - deployment/.venv/**/*
-  - deployment/temp/**/*

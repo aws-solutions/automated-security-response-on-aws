@@ -12,7 +12,7 @@ description: |
   * Remediation.Output - Output from the remediation
 
   ## Documentation Links
-  * [AFSBP CloudTrail.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-2)
+  * [AWS FSBP CloudTrail.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-2)
 
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
@@ -32,6 +32,10 @@ parameters:
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+  RemediationRoleName:
+    type: String
+    default: "SO0111-EnableCloudTrailEncryption"
+    allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
   -
@@ -53,6 +57,12 @@ mainSteps:
       - Name: TrailRegion
         Selector: $.Payload.resource_region
         Type: String
+      - Name: RemediationRegion
+        Selector: $.Payload.resource_region
+        Type: String
+      - Name: RemediationAccount
+        Selector: $.Payload.account_id
+        Type: String
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
@@ -69,11 +79,14 @@ mainSteps:
     action: 'aws:executeAutomation'
     inputs:
       DocumentName: ASR-EnableCloudTrailEncryption
+      TargetLocations:
+        - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
+          Regions: [ '{{ParseInput.RemediationRegion}}' ]
+          ExecutionRoleName: '{{RemediationRoleName}}'
       RuntimeParameters:
         TrailRegion: '{{ParseInput.TrailRegion}}'
         TrailArn: '{{ParseInput.TrailArn}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableCloudTrailEncryption'
-        KMSKeyArn: '{{KMSKeyArn}}'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

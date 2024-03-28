@@ -36,7 +36,7 @@ parameters:
   SourceDBSnapshotIdentifier:
     type: 'String'
     description: '(Required) The name of the unencrypted RDS snapshot or cluster snapshot to copy.'
-    allowedPattern: '^(?:rds:)?(?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}$'
+    allowedPattern: '^(?:rds:|awsbackup:)?(?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}$'
   TargetDBSnapshotIdentifier:
     type: 'String'
     description: '(Required) The name of the encrypted RDS snapshot or cluster snapshot to create.'

@@ -82,7 +82,7 @@ export default class SsmDocRateLimit implements IAspect {
         }
         this.currentDummyResource.addMetadata(
           `${node.logicalId}Ready`,
-          Fn.conditionIf(node.cfnOptions.condition.logicalId, Fn.ref(node.logicalId), '')
+          Fn.conditionIf(node.cfnOptions.condition.logicalId, Fn.ref(node.logicalId), ''),
         );
         this.currentDeleteWaitResource.node.addDependency(this.currentDummyResource);
       } else {

@@ -1,0 +1,49 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description:  |
+  ### Document Name - ASR-RemoveCodeBuildPrivilegedMode
+
+  ## What does this document do?
+  This document removes CodeBuild project privileged mode to remove a build project's Docker container access to all devices.
+
+  ## Input Parameters
+  * ProjectName: (Required) Name of the CodeBuild project (not the ARN).
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0:  CodeBuild.5
+  * NIST 800-53 Rev5: CodeBuild.5
+
+  ## Output Parameters
+  * RemoveCodeBuildPrivilegedMode.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+
+parameters:
+  ProjectName:
+    type: String
+    description: (Required) The project name (not the ARN).
+    allowedPattern: ^[A-Za-z0-9][A-Za-z0-9\-_]{1,254}$
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - RemoveCodeBuildPrivilegedMode.Output
+mainSteps:
+  - name: RemoveCodeBuildPrivilegedMode
+    action: 'aws:executeScript'
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        project_name: '{{ProjectName}}'
+      Runtime: python3.8
+      Handler: lambda_handler
+      Script: |-
+        %%SCRIPT=remove_codebuild_privileged_mode.py%%
+    outputs:
+    - Name: Output
+      Selector: $.Payload
+      Type: StringMap

@@ -16,7 +16,7 @@ description: |
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 SNS.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-sns-2)
+  * [AWS FSBP v1.0.0 SNS.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-sns-2)
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
@@ -33,9 +33,8 @@ parameters:
     allowedPattern: '^[\w+=,.@-]+$'
   LoggingRole:
     type: 'String'
-    default: >- 
-      {{ssm:/Solutions/SO0111/DeliveryStatusLoggingRole}}
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+    default: 'SO0111-SNS2DeliveryStatusLogging-remediationRole'
+    allowedPattern: '^[\w+=,.@-]+$'
 outputs:
   - ParseInput.AffectedObject
   - Remediation.Output
@@ -84,7 +83,7 @@ mainSteps:
           ExecutionRoleName: '{{RemediationRoleName}}'
       RuntimeParameters:
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
-        LoggingRole: '{{LoggingRole}}'
+        LoggingRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{LoggingRole}}'
         SNSTopicArn: '{{ParseInput.SNSTopicArn}}'
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

@@ -1,23 +1,37 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+from typing import TYPE_CHECKING, Dict, Literal, TypedDict, cast
+
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
     from aws_lambda_powertools.utilities.typing import LambdaContext
+    from mypy_boto3_s3.client import S3Client
+    from mypy_boto3_s3.literals import BucketLocationConstraintType
+    from mypy_boto3_s3.type_defs import CreateBucketRequestRequestTypeDef
 else:
     S3Client = object
     LambdaContext = object
+    BucketLocationConstraintType = object
+    CreateBucketRequestRequestTypeDef = object
 
 
 def connect_to_s3() -> S3Client:
-    return boto3.client("s3", config=Config(retries={"mode": "standard"}))
+    s3: S3Client = boto3.client("s3", config=Config(retries={"mode": "standard"}))
+    return s3
 
 
-def create_logging_bucket(event: Dict, _: LambdaContext) -> Dict:
+class Event(TypedDict):
+    account: str
+    region: str
+    kms_key_arn: str
+
+
+def create_logging_bucket(
+    event: Event, _: LambdaContext
+) -> Dict[Literal["logging_bucket"], str]:
     s3 = connect_to_s3()
 
     kms_key_arn: str = event["kms_key_arn"]
@@ -36,13 +50,15 @@ def create_logging_bucket(event: Dict, _: LambdaContext) -> Dict:
 
 def create_bucket(s3: S3Client, bucket_name: str, aws_region: str) -> str:
     try:
-        kwargs = {
+        kwargs: CreateBucketRequestRequestTypeDef = {
             "Bucket": bucket_name,
             "ACL": "private",
             "ObjectOwnership": "ObjectWriter",
         }
         if aws_region != "us-east-1":
-            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": aws_region}
+            kwargs["CreateBucketConfiguration"] = {
+                "LocationConstraint": cast(BucketLocationConstraintType, aws_region)
+            }
 
         s3.create_bucket(**kwargs)
         return "success"

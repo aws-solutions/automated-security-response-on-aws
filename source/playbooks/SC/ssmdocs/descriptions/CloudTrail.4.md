@@ -11,4 +11,4 @@ This document enables CloudTrail log file validation.
 * Remediation.Output
 
 ## Documentation Links
-* [AFSBP v1.0.0 CloudTrail.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-4)
+* [AWS FSBP v1.0.0 CloudTrail.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-4)

@@ -30,7 +30,7 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
     const orchestratorArn = StringParameter.valueForStringParameter(
       this,
-      `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`
+      `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`,
     );
 
     // Register the playbook. These parameters enable the step function to route matching events
@@ -103,7 +103,7 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
     const waitProvider = WaitProvider.fromServiceToken(
       this,
       'WaitProvider',
-      waitProviderServiceTokenParam.valueAsString
+      waitProviderServiceTokenParam.valueAsString,
     );
 
     Aspects.of(this).add(new SsmDocRateLimit(waitProvider));

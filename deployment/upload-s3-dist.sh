@@ -104,6 +104,6 @@ echo "---"
 # read -p "Press [Enter] key to start upload to $region"
 
 aws s3 sync ./global-s3-assets s3://${bucket}-reference/$solution_name/$version/
-aws s3 sync ./regional-s3-assets s3://$bucket-${region}/$solution_name/$version/
+aws s3 sync ./regional-s3-assets s3://$bucket-${region}/$solution_name/$version/ --region ${region}
 
 echo "Completed uploading distribution. You may now install from the templates in ${bucket-reference}-reference/${solution_name}/${version}/"

@@ -11,6 +11,7 @@ const config: Config = {
     '<rootDir>/playbooks/NEWPLAYBOOK/test',
     '<rootDir>/playbooks/PCI321/test',
     '<rootDir>/playbooks/SC/test',
+    '<rootDir>/playbooks/NIST80053/test',
     '<rootDir>/remediation_runbooks',
     '<rootDir>/solution_deploy',
     '<rootDir>/test',

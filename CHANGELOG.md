@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2024-03-28
+
+### Added
+
+- CloudWatch Dashboard for monitoring solution metrics
+- Remediations will be scheduled in the future to prevent throttling if many remediations are triggered in a short period of time
+- New support for NIST 800-53 standard
+- New remediations for CloudFront.1, CloudFront.12, Codebuild.5, EC2.4, EC2.8, EC2.18, EC2.19, EC2.23, ECR.1, GuardDuty.1 IAM.3, S3.9, S3.11, S3.13, SecretsManager.1, SecretsManager.3, SecretsManager.4, SSM.4
+- Support for customizable input parameters to remediations
+
+### Changed
+
+- Updated AFBSP to FBSP in docs
+- Add HttpEndpoint parameter as enabled for EC2.8 remediation
+- Updated imports for moto 5.0.0
+
+### Fixed
+
+- Disabled AppRegistry functionality in China regions. AppRegistry is not available in those regions.
+- Added missing EventBridge rules for CloudFormation.1, EC2.15, SNS.1, SNS.2, and SQS.1
+- Fixed SC_SNS.2 Not executing due to wrong automation document
+- Fixed RDS.4 remediation failing to remediate due to incorrect regex
+- RDS.4 regex now includes snapshots created by Backup
+- Enable CloudTrail encryption remediation is now a regional remediation
+- Fixed SC_SQS.2 incorrect parameter
+- Fixed SC_EC2.6 message on finding note
+- Added AddTagsToResource to EncryptRDSSnapshot remediation role
+- SNS.2 now works in regions other than where the roles are deployed
+- Updated SNS.1 parameter to TopicArn instead of SNSTopicArn
+- SC_RDS.1 regex now includes snapshots
+- Fixed certain remediations failing in opt-in regions due to STS token endpoint
+- Rules for CIS 1.4.0 no longer match on CIS 1.2.0 generator ID
+- Fixed S3.6 creating malformed policy when all principals are "*"
+
+### Security
+
+- Upgraded urllib3
+
 ## [2.0.2] - 2023-10-24
 
 ### Security
@@ -25,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - New remediations contributed by 6Pillars: CIS v1.2.0 1.20
-- New AFSBP remediations for CloudFormation.1, EC2.15, SNS.1, SNS.2, SQS.1
+- New AWS FSBP remediations for CloudFormation.1, EC2.15, SNS.1, SNS.2, SQS.1
 - Service Catalog AppRegistry integration
 - New support for Security Controls, finding deduplication
 - New support for CIS v1.4.0 standard
@@ -44,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Reverted SSM document custom resource provider to resolve intermittent deployment errors
-- Fixed bug in AFSBP AutoScaling.1 and PCI.AutoScaling.1 remediation regexes
+- Fixed bug in AWS FSBP AutoScaling.1 and PCI.AutoScaling.1 remediation regexes
 
 ## [1.5.0] - 2022-05-31
 
@@ -74,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bug fixes for AFSBP EC2.1, CIS 3.x
+- Bug fixes for AWS FSBP EC2.1, CIS 3.x
 - Separated Member roles from the remediations so that roles can be deployed once per account
 - Roles are now global
 - Cross-region remediation is now supported
@@ -87,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a get_approval_requirement lambda that customers can use to implement custom business logic
 - Added the ability for customers to route findings to an alterate runbook when the finding meets criteria. For example,
   potentially destructive remediations can be sent to a runbook that sends the finding data to Incident Manager.
-- New remediation for AFSBP & PCI S3.5
+- New remediation for AWS FSBP & PCI S3.5
 
 ## [1.3.2] - 2021-11-09
 
@@ -108,7 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New AWS Foundational Best Practices (AFSBP) support: EC2.6, IAM.7-8, S3.1-3
+- New AWS Foundational Best Practices (FSBP) support: EC2.6, IAM.7-8, S3.1-3
 - New CIS v1.2.0 support: 2.1, 2.7, 3.1-14
 - New PCI-DSS v3.2.1 Playbook support for 17 controls (see IG for details)
 - Library of remediation SSM Automation runbooks
@@ -136,13 +174,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New AFSBP playbook with 12 new remediations
+- New FSBP playbook with 12 new remediations
 - New Lambda Layer for use by solution lambdas
 - New Playbook architecture: Step Function, microservice Lambdas, Systems Manager runbooks
 - Corrected anonymous metrics to log only on final state (FAILED or RESOLVED)
 - Added logging to put anonymous metrics in solution logs as an audit trail
 - Corrected the anonymous metrics UUID to use standard 8-4-4-4-12 format
-- Encrypted CloudWatch logs for AFSBP state machine
+- Encrypted CloudWatch logs for FSBP state machine
 
 ### Changed
 

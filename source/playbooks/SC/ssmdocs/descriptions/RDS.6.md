@@ -11,4 +11,4 @@ This document enables `Enhanced Monitoring` on a given Amazon RDS instance by ca
 * VerifyRemediation.Output - The standard HTTP response from the ModifyDBInstance API.
 ## Documentation Links
 
-* [AFSBP RDS.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-6)
+* [AWS FSBP RDS.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-6)

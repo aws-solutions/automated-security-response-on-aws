@@ -15,7 +15,7 @@ description: |
   * KMSKeyId: (Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.
 
   ## Documentation Links
-  * [AFSBP RDS.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-4)
+  * [AWS FSBP RDS.4](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-4)
 assumeRole: '{{AutomationAssumeRole}}'
 outputs:
 - 'Remediation.Output'
@@ -68,7 +68,7 @@ mainSteps:
   inputs:
     InputPayload:
       Finding: '{{Finding}}'
-      parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$'
+      parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:|awsbackup:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$'
       resource_index: 2
       expected_control_id:
       - 'RDS.4'

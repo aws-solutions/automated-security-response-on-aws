@@ -36,7 +36,7 @@ export class CIS140PlaybookMemberStack extends Stack {
     const waitProvider = WaitProvider.fromServiceToken(
       this,
       'WaitProvider',
-      waitProviderServiceTokenParam.valueAsString
+      waitProviderServiceTokenParam.valueAsString,
     );
 
     Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
