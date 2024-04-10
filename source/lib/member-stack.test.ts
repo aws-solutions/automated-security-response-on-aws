@@ -348,7 +348,6 @@ describe('member stack', function () {
 
     const expectedTemplateParameterProperties = {
       AllowedValues: ['yes', 'no'],
-      Default: 'yes',
       Type: 'String',
     };
 

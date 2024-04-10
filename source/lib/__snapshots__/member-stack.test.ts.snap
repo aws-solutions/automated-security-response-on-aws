@@ -103,7 +103,15 @@ exports[`member stack snapshot matches 1`] = `
         },
         {
           "Label": {
-            "default": "Playbooks",
+            "default": "Consolidated control finding Playbook",
+          },
+          "Parameters": [
+            "LoadSCMemberStack",
+          ],
+        },
+        {
+          "Label": {
+            "default": "Security Standard Playbooks",
           },
           "Parameters": [
             "LoadAFSBPMemberStack",
@@ -111,7 +119,15 @@ exports[`member stack snapshot matches 1`] = `
             "LoadCIS140MemberStack",
             "LoadNIST80053MemberStack",
             "LoadPCI321MemberStack",
-            "LoadSCMemberStack",
+          ],
+        },
+        {
+          "Label": {
+            "default": "Configuration",
+          },
+          "Parameters": [
+            "CreateS3BucketForRedshiftAuditLogging",
+            "SecHubAdminAccount",
           ],
         },
       ],
@@ -137,8 +153,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for AFSBP?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of AFSBP controls?",
       "Type": "String",
     },
     "LoadCIS120MemberStack": {
@@ -146,8 +162,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for CIS120?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of CIS120 controls?",
       "Type": "String",
     },
     "LoadCIS140MemberStack": {
@@ -155,8 +171,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for CIS140?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of CIS140 controls?",
       "Type": "String",
     },
     "LoadNIST80053MemberStack": {
@@ -164,8 +180,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for NIST80053?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of NIST80053 controls?",
       "Type": "String",
     },
     "LoadPCI321MemberStack": {
@@ -173,8 +189,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for PCI321?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of PCI321 controls?",
       "Type": "String",
     },
     "LoadSCMemberStack": {
@@ -183,7 +199,7 @@ exports[`member stack snapshot matches 1`] = `
         "no",
       ],
       "Default": "yes",
-      "Description": "Load Playbook member stack for SC?",
+      "Description": "If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.",
       "Type": "String",
     },
     "LogGroupName": {

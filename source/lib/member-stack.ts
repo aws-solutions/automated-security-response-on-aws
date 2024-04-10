@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { readdirSync } from 'fs';
-import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnResource } from 'aws-cdk-lib';
+import { StackProps, Stack, App, CfnResource } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from './admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
@@ -11,6 +11,7 @@ import { MemberBucketEncryption } from './member/bucket-encryption';
 import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 import { WaitProvider } from './wait-provider';
+import { MemberPlaybook } from './member-playbook';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -27,7 +28,7 @@ export class MemberStack extends Stack {
 
     const adminAccountParam = new AdminAccountParam(this, 'AdminAccountParameter');
 
-    new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
+    const redShiftLogging = new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
     new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
 
@@ -60,39 +61,39 @@ export class MemberStack extends Stack {
     this.nestedStacks.push(nestedStackNoRoles as Stack);
 
     const playbookDirectory = `${__dirname}/../playbooks`;
-    const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
-    const illegalChars = /[\\._]/g;
+    const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage', 'SC'];
     const listOfPlaybooks: string[] = [];
     const items = readdirSync(playbookDirectory);
     items.forEach((file) => {
       if (!ignore.includes(file)) {
-        const templateFile = `${file}MemberStack.template`;
-
-        const parmname = file.replace(illegalChars, '');
-        const memberStackOption = new CfnParameter(this, `LoadMemberStack${parmname}`, {
-          type: 'String',
-          description: `Load Playbook member stack for ${file}?`,
-          default: 'yes',
-          allowedValues: ['yes', 'no'],
-        });
-        memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
-        listOfPlaybooks.push(memberStackOption.logicalId);
-
-        const nestedStack = nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
-          templateRelativePath: `playbooks/${templateFile}`,
+        const playbook = new MemberPlaybook(this, {
+          name: file,
+          defaultState: 'no',
+          nestedStackFactory,
           parameters: {
             SecHubAdminAccount: adminAccountParam.value,
             WaitProviderServiceToken: waitProvider.serviceToken,
           },
-          condition: new CfnCondition(this, `load${file}Cond`, {
-            expression: Fn.conditionEquals(memberStackOption, 'yes'),
-          }),
         });
-        const cfnResource = nestedStack.nestedStackResource as CfnResource;
-        cfnResource.overrideLogicalId(`PlaybookMemberStack${file}`);
-        this.nestedStacks.push(nestedStack as Stack);
+
+        listOfPlaybooks.push(playbook.parameterName);
+        this.nestedStacks.push(playbook.playbookStack);
       }
     });
+
+    const scPlaybook = new MemberPlaybook(this, {
+      name: 'SC',
+      defaultState: 'yes',
+      description:
+        'If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.',
+      nestedStackFactory,
+      parameters: {
+        SecHubAdminAccount: adminAccountParam.value,
+        WaitProviderServiceToken: waitProvider.serviceToken,
+      },
+    });
+
+    this.nestedStacks.push(scPlaybook.playbookStack);
 
     /********************
      ** Metadata
@@ -105,8 +106,16 @@ export class MemberStack extends Stack {
             Parameters: [memberLogGroup.paramId],
           },
           {
-            Label: { default: 'Playbooks' },
+            Label: { default: 'Consolidated control finding Playbook' },
+            Parameters: [scPlaybook.parameterName],
+          },
+          {
+            Label: { default: 'Security Standard Playbooks' },
             Parameters: listOfPlaybooks,
+          },
+          {
+            Label: { default: 'Configuration' },
+            Parameters: [redShiftLogging.paramId, adminAccountParam.paramId],
           },
         ],
         ParameterLabels: {

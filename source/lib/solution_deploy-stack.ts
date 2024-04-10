@@ -25,6 +25,7 @@ import { OrchestratorConstruct } from './common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { OneTrigger } from './ssmplaybook';
 import { CloudWatchMetrics } from './cloudwatch_metrics';
+import { AdminPlaybook } from './admin-playbook';
 
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -736,48 +737,39 @@ export class SolutionDeployStack extends cdk.Stack {
     // Loop through all of the Playbooks and create an option to load each
     //
     const PB_DIR = `${__dirname}/../playbooks`;
-    const ignore = ['.DS_Store', 'common', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
-    const illegalChars = /[\\._]/g;
+    const ignore = [
+      '.DS_Store',
+      'common',
+      'python_lib',
+      'python_tests',
+      '.pytest_cache',
+      'NEWPLAYBOOK',
+      '.coverage',
+      'SC',
+    ];
 
     const standardLogicalNames: string[] = [];
     const items = fs.readdirSync(PB_DIR);
     items.forEach((file) => {
       if (!ignore.includes(file)) {
-        const template_file = `${file}Stack.template`;
-
-        //---------------------------------------------------------------------
-        // Playbook Admin Template Nested Stack
-        //
-        const parmname = file.replace(illegalChars, '');
-        const adminStackOption = new cdk.CfnParameter(this, `LoadAdminStack${parmname}`, {
-          type: 'String',
-          description: `Load CloudWatch Event Rules for ${file}?`,
-          default: 'yes',
-          allowedValues: ['yes', 'no'],
+        const playbook = new AdminPlaybook(this, {
+          name: file,
+          stackDependencies: [stateMachineConstruct, orchestratorArn],
+          defaultState: 'no',
         });
-        adminStackOption.overrideLogicalId(`Load${parmname}AdminStack`);
-        standardLogicalNames.push(`Load${parmname}AdminStack`);
-
-        const adminStack = new cdk.NestedStack(this, `PlaybookAdminStack${file}`);
-        const cfnStack = adminStack.nestedStackResource as cdk.CfnResource;
-        cfnStack.addPropertyOverride(
-          'TemplateURL',
-          'https://' +
-            cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
-            '-reference.s3.amazonaws.com/' +
-            cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-            '/playbooks/' +
-            template_file,
-        );
-        cfnStack.cfnOptions.condition = new cdk.CfnCondition(this, `load${file}Cond`, {
-          expression: cdk.Fn.conditionEquals(adminStackOption, 'yes'),
-        });
-        cfnStack.node.addDependency(stateMachineConstruct);
-        cfnStack.node.addDependency(orchestratorArn);
-        cfnStack.overrideLogicalId(`PlaybookAdminStack${file}`);
-        this.nestedStacks.push(adminStack as cdk.Stack);
+        standardLogicalNames.push(playbook.parameterName);
+        this.nestedStacks.push(playbook.playbookStack);
       }
     });
+
+    const scPlaybook = new AdminPlaybook(this, {
+      name: 'SC',
+      stackDependencies: [stateMachineConstruct, orchestratorArn],
+      defaultState: 'yes',
+      description:
+        'If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.',
+    });
+    this.nestedStacks.push(scPlaybook.playbookStack);
 
     //---------------------------------------------------------------------
     // Scheduling Table for SQS Remediation Throttling
@@ -916,6 +908,10 @@ export class SolutionDeployStack extends cdk.Stack {
     stack.templateOptions.metadata = {
       'AWS::CloudFormation::Interface': {
         ParameterGroups: [
+          {
+            Label: { default: 'Consolidated Control Findings Playbook' },
+            Parameters: [scPlaybook.parameterName],
+          },
           {
             Label: { default: 'Security Standard Playbooks' },
             Parameters: standardLogicalNames,
