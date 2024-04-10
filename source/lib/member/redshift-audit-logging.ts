@@ -15,6 +15,8 @@ export interface RedshiftAuditLoggingProps {
 }
 
 export class RedshiftAuditLogging extends Construct {
+  public readonly paramId: string;
+
   constructor(scope: Construct, id: string, props: RedshiftAuditLoggingProps) {
     super(scope, id);
 
@@ -25,6 +27,7 @@ export class RedshiftAuditLogging extends Construct {
       allowedValues: [ChoiceParam.Yes, ChoiceParam.No],
       description: 'Create S3 Bucket For Redshift Cluster Audit Logging.',
     });
+    this.paramId = templateParam.logicalId;
 
     const condition = new CfnCondition(scope, 'EnableS3BucketForRedShift4', {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
