@@ -1,8 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCondition, CfnParameter, Fn, RemovalPolicy } from 'aws-cdk-lib';
+import { CfnCondition, CfnParameter, Fn, RemovalPolicy, Duration } from 'aws-cdk-lib';
 import { Effect, PolicyStatement, ServicePrincipal, StarPrincipal } from 'aws-cdk-lib/aws-iam';
-import { BlockPublicAccess, Bucket, BucketEncryption, BucketPolicy, CfnBucket } from 'aws-cdk-lib/aws-s3';
+import { BlockPublicAccess, Bucket, BucketEncryption, BucketPolicy, CfnBucket, StorageClass } from 'aws-cdk-lib/aws-s3';
+import { Key } from 'aws-cdk-lib/aws-kms';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
@@ -30,10 +31,28 @@ export class RedshiftAuditLogging extends Construct {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
     });
 
+    const kmsKeyArnParameter = StringParameter.fromStringParameterName(
+      this, 
+      'ImportedKmsKeyArn', 
+      `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`
+    );
+    const kmsKeyArn = kmsKeyArnParameter.stringValue;
+    const kmsKey = Key.fromKeyArn(this, 'SHARRRemediationKey', kmsKeyArn);
+
     const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {
-      encryption: BucketEncryption.S3_MANAGED,
+      encryption: BucketEncryption.KMS,
+      encryptionKey: kmsKey,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      versioned: true,
+      objectLockEnabled: true,
+      lifecycleRules: [{
+        expiration: Duration.days(365), // Set objects to expire after 1 year
+        transitions: [{
+          storageClass: StorageClass.INFREQUENT_ACCESS, // Transition to Infrequent Access after 30 days
+          transitionAfter: Duration.days(30),
+        }],
+      }],
     });
     setCondition(bucket, condition);
 
