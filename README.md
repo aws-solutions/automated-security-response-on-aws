@@ -2,9 +2,9 @@
 
 [🚀 Solution Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/) \| [🚧
 Feature
-request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
+request](https://github.com/aws-solutions/automated-security-response-on-aws/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
-Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
+Report](https://github.com/aws-solutions/automated-security-response-on-aws/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
 
 Automated Security Response (ASR) on AWS is a solution that enables AWS Security Hub customers to remediate findings
 with a single click using sets of predefined response and remediation actions called Playbooks. The remediations are
@@ -63,13 +63,13 @@ make to your private copy of the solution.
 **Git Clone example:**
 
 ```bash
-git clone https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation.git
+git clone https://github.com/aws-solutions/automated-security-response-on-aws.git
 ```
 
 **Download Zip example:**
 
 ```bash
-wget https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/archive/main.zip
+wget https://github.com/aws-solutions/automated-security-response-on-aws/archive/main.zip
 ```
 
 ### Custom Playbooks
@@ -125,6 +125,26 @@ from the StandardsControlArn:
 
 ```typescript
 const remediations: IControl[] = [{ control: "RDS.6" }];
+```
+
+#### Add your playbook as a new nested stack in the solution template
+
+Edit **playbooks/playbook-index.ts** to include the new playbook.
+
+Add the new playbook to the end of the `standardPlaybookProps` array.
+
+**Important** Do not change the order of the items in this array. Doing so will change the App Registry logical IDs for the nested stacks. 
+This will cause an error when updating the solution.
+
+Interface:
+
+```typescript
+export interface PlaybookProps {
+  name: string; // Playbook short name
+  useAppRegistry: boolean; // Add this playbook's nested stack to app registry for the solution
+  defaultParameterValue?: 'yes' | 'no'; // Default value for enabling this playbook in CloudFormation. Will default to 'no' if not provided.
+  description?: string; // Description for the CloudFormation parameter. Solution will provide a generated description if left blank.
+}
 ```
 
 #### Create the Remediations
@@ -187,7 +207,7 @@ Confirm that all unit tests pass.
 **Note**: Verify bucket ownership before uploading.
 
 By default, the templates created by build-s3-dist.sh expect the software to be stored in
-**aws-security-hub-automated-response-and-remediation/v\<version\>**. If in doubt, view the template.
+**automated-security-response-on-aws/v\<version\>**. If in doubt, view the template.
 
 Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the
 regional bucket.
@@ -198,7 +218,7 @@ See the [Automated Security Response on AWS Implementation
 Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for
 deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for
 AWS Solutions. Ex.
-https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
+https://mybucket-reference.s3.amazonaws.com/automated-security-response-on-aws/v1.3.0.mybuild/aws-sharr-deploy.template
 
 ## Directory structure
 

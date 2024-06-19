@@ -25,6 +25,6 @@ The Payment Card Industry Data Security Standard (PCI-DSS) playbook is part of t
 * S3.5
 * S3.6
   
-See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information on this Playbook.
+See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/welcome.html) for more information on this Playbook.
 
 See [PCI DSS controls](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-pci-controls.html) for more information on controls and remediations in [AWS Security Hub](https://aws.amazon.com/security-hub)

@@ -118,32 +118,12 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "yes",
       ],
     },
-    "loadPCI321CondAndShouldDeployAppReg": {
-      "Fn::And": [
-        {
-          "Condition": "ShouldDeployAppReg",
-        },
-        {
-          "Condition": "loadPCI321Cond",
-        },
-      ],
-    },
     "loadSCCond": {
       "Fn::Equals": [
         {
           "Ref": "LoadSCAdminStack",
         },
         "yes",
-      ],
-    },
-    "loadSCCondAndShouldDeployAppReg": {
-      "Fn::And": [
-        {
-          "Condition": "ShouldDeployAppReg",
-        },
-        {
-          "Condition": "loadSCCond",
-        },
       ],
     },
   },
@@ -159,7 +139,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "SourceCode": {
       "General": {
-        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.0.0",
+        "KeyPrefix": "automated-security-response-on-aws/v1.0.0",
         "S3Bucket": "solutions",
       },
     },
@@ -334,7 +314,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/deployment_metrics_custom_resource.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/deployment_metrics_custom_resource.zip",
         },
         "Description": "ASR - Handles deployment related custom actions",
         "Environment": {
@@ -580,44 +560,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
-    "AppRegistryResourceAssociation62B582FF5": {
-      "Condition": "loadPCI321CondAndShouldDeployAppReg",
-      "DependsOn": [
-        "PlaybookAdminStackPCI321",
-      ],
-      "Properties": {
-        "Application": {
-          "Fn::GetAtt": [
-            "AppRegistry968496A3",
-            "Id",
-          ],
-        },
-        "Resource": {
-          "Ref": "PlaybookAdminStackPCI321",
-        },
-        "ResourceType": "CFN_STACK",
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
-    },
-    "AppRegistryResourceAssociation7A2A1D7B5": {
-      "Condition": "loadSCCondAndShouldDeployAppReg",
-      "DependsOn": [
-        "PlaybookAdminStackSC",
-      ],
-      "Properties": {
-        "Application": {
-          "Fn::GetAtt": [
-            "AppRegistry968496A3",
-            "Id",
-          ],
-        },
-        "Resource": {
-          "Ref": "PlaybookAdminStackSC",
-        },
-        "ResourceType": "CFN_STACK",
-      },
-      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
-    },
     "CreateCustomActionE7A973F5": {
       "DependsOn": [
         "createCustomActionRoleF0047414",
@@ -643,7 +585,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/action_target_provider.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/action_target_provider.zip",
         },
         "Description": "Custom resource to create an action target in Security Hub",
         "Environment": {
@@ -1601,7 +1543,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
         ],
         "Content": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/layer.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/layer.zip",
         },
         "Description": "SO0111 SHARR Common functions used by the solution",
         "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -1676,7 +1618,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/check_ssm_doc_state.py.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/check_ssm_doc_state.py.zip",
         },
         "Description": "Checks the status of an SSM Automation Document in the target account",
         "Environment": {
@@ -1883,7 +1825,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/exec_ssm_doc.py.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/exec_ssm_doc.py.zip",
         },
         "Description": "Executes an SSM Automation Document in a target account",
         "Environment": {
@@ -1940,7 +1882,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/get_approval_requirement.py.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/get_approval_requirement.py.zip",
         },
         "Description": "Determines if a manual approval is required for remediation",
         "Environment": {
@@ -1998,7 +1940,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/check_ssm_execution.py.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/check_ssm_execution.py.zip",
         },
         "Description": "Checks the status of an SSM automation document execution",
         "Environment": {
@@ -2722,7 +2664,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/schedule_remediation.py.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/schedule_remediation.py.zip",
         },
         "Description": "SO0111 ASR function that schedules remediations in member accounts",
         "Environment": {
@@ -2793,7 +2735,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "aws-security-hub-automated-response-and-remediation/v1.0.0/lambda/send_notifications.py.zip",
+          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/send_notifications.py.zip",
         },
         "Description": "Sends notifications and log messages",
         "Environment": {

@@ -5,7 +5,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { MemberStack } from './member-stack';
-import { AppRegister } from '../lib/appregistry/applyAppRegistry';
+import { AppRegister } from './appregistry/applyAppRegistry';
 
 const description = 'ASR Member Stack';
 const solutionId = 'SO9999';
@@ -33,7 +33,7 @@ function getMemberStack(): Stack {
     solutionDistBucket,
     runtimePython: Runtime.PYTHON_3_9,
   });
-  appregistry.applyAppRegistryToStacks(stack, []);
+  appregistry.applyAppRegistryToStacks(stack, stack.nestedStacksWithAppRegistry);
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }

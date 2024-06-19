@@ -15,7 +15,7 @@ function getPrimaryStack(): Stack {
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
-    solutionDistName: 'aws-security-hub-automated-response-and-remediation',
+    solutionDistName: 'automated-security-response-on-aws',
     remediations: [{ control: '1.1' }, { control: '1.2' }, { control: '1.3' }],
     securityStandard: 'CIS',
     securityStandardLongName: 'cis-aws-foundations-benchmark',

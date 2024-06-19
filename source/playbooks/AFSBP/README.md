@@ -27,6 +27,6 @@ The AWS Foundational Security Best Practices (AWS FSBP) playbook is part of the 
 * S3.5
 * S3.9
   
-See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information on this Playbook.
+See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/welcome.html) for more information on this Playbook.
 
 See [AWS Foundational Security Best Practices controls](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html) for more information on controls and remediations in [AWS Security Hub](https://aws.amazon.com/security-hub)

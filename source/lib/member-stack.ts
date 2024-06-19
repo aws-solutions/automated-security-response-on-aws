@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { readdirSync } from 'fs';
+
 import { StackProps, Stack, App, CfnResource } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from './admin-account-param';
@@ -12,6 +12,7 @@ import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 import { WaitProvider } from './wait-provider';
 import { MemberPlaybook } from './member-playbook';
+import { standardPlaybookProps, scPlaybookProps } from '../playbooks/playbook-index';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -22,7 +23,7 @@ export interface SolutionProps extends StackProps {
 }
 
 export class MemberStack extends Stack {
-  nestedStacks: Stack[] = [];
+  nestedStacksWithAppRegistry: Stack[] = [];
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
 
@@ -58,34 +59,32 @@ export class MemberStack extends Stack {
     const noRolesCfnResource = nestedStackNoRoles.nestedStackResource as CfnResource;
     noRolesCfnResource.overrideLogicalId('RunbookStackNoRoles');
 
-    this.nestedStacks.push(nestedStackNoRoles as Stack);
+    this.nestedStacksWithAppRegistry.push(nestedStackNoRoles as Stack);
 
-    const playbookDirectory = `${__dirname}/../playbooks`;
-    const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage', 'SC'];
-    const listOfPlaybooks: string[] = [];
-    const items = readdirSync(playbookDirectory);
-    items.forEach((file) => {
-      if (!ignore.includes(file)) {
-        const playbook = new MemberPlaybook(this, {
-          name: file,
-          defaultState: 'no',
-          nestedStackFactory,
-          parameters: {
-            SecHubAdminAccount: adminAccountParam.value,
-            WaitProviderServiceToken: waitProvider.serviceToken,
-          },
-        });
+    const securityStandardPlaybookNames: string[] = [];
+    standardPlaybookProps.forEach((playbookProps) => {
+      const playbook = new MemberPlaybook(this, {
+        name: playbookProps.name,
+        defaultState: playbookProps.defaultParameterValue,
+        description: playbookProps.description,
+        nestedStackFactory,
+        parameters: {
+          SecHubAdminAccount: adminAccountParam.value,
+          WaitProviderServiceToken: waitProvider.serviceToken,
+        },
+      });
 
-        listOfPlaybooks.push(playbook.parameterName);
-        this.nestedStacks.push(playbook.playbookStack);
+      securityStandardPlaybookNames.push(playbook.parameterName);
+
+      if (playbookProps.useAppRegistry) {
+        this.nestedStacksWithAppRegistry.push(playbook.playbookStack);
       }
     });
 
     const scPlaybook = new MemberPlaybook(this, {
-      name: 'SC',
-      defaultState: 'yes',
-      description:
-        'If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.',
+      name: scPlaybookProps.name,
+      defaultState: scPlaybookProps.defaultParameterValue,
+      description: scPlaybookProps.description,
       nestedStackFactory,
       parameters: {
         SecHubAdminAccount: adminAccountParam.value,
@@ -93,7 +92,7 @@ export class MemberStack extends Stack {
       },
     });
 
-    this.nestedStacks.push(scPlaybook.playbookStack);
+    const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
 
     /********************
      ** Metadata
@@ -111,7 +110,7 @@ export class MemberStack extends Stack {
           },
           {
             Label: { default: 'Security Standard Playbooks' },
-            Parameters: listOfPlaybooks,
+            Parameters: sortedPlaybookNames,
           },
           {
             Label: { default: 'Configuration' },

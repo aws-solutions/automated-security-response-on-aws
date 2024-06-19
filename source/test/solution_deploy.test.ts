@@ -24,12 +24,12 @@ function getTestStack(): Stack {
     solutionId: 'SO0111',
     solutionVersion: 'v1.0.0',
     solutionDistBucket: 'solutions',
-    solutionTMN: 'aws-security-hub-automated-response-and-remediation',
+    solutionTMN: 'automated-security-response-on-aws',
     solutionName: 'AWS Security Hub Automated Response & Remediation',
     runtimePython: Runtime.PYTHON_3_9,
     orchLogGroup: 'ORCH_LOG_GROUP',
   });
-  appregistry.applyAppRegistryToStacks(stack, stack.nestedStacks);
+  appregistry.applyAppRegistryToStacks(stack, stack.nestedStacksWithAppRegistry);
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
@@ -39,6 +39,6 @@ test('Test if the Stack has all the resources.', () => {
   process.env.SOLUTION_NAME = 'AWS Security Hub Automated Response & Remediation';
   process.env.DIST_VERSION = 'v1.0.0';
   process.env.SOLUTION_ID = 'SO0111111';
-  process.env.SOLUTION_TRADEMARKEDNAME = 'aws-security-hub-automated-response-and-remediation';
+  process.env.SOLUTION_TRADEMARKEDNAME = 'automated-security-response-on-aws';
   expect(Template.fromStack(getTestStack())).toMatchSnapshot();
 });

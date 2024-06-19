@@ -148,7 +148,7 @@ main() {
     header "[Create] Playbooks"
 
     for playbook in $(ls "$source_dir"/playbooks); do
-        if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ] || [ $playbook == 'common' ]; then
+        if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ] || [ $playbook == 'common' ] || [ $playbook == 'playbook-index.ts' ]; then
             continue
         fi
         echo Create $playbook playbook
