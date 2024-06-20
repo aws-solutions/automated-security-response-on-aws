@@ -6,7 +6,7 @@ exports[`default stack 1`] = `
   "Mappings": {
     "SourceCode": {
       "General": {
-        "KeyPrefix": "aws-security-hub-automated-response-and-remediation/v1.1.1",
+        "KeyPrefix": "automated-security-response-on-aws/v1.1.1",
         "S3Bucket": "sharrbukkit",
       },
     },

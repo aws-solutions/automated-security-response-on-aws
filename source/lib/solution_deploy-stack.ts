@@ -10,7 +10,6 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { StringParameter, CfnParameter } from 'aws-cdk-lib/aws-ssm';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
-import * as fs from 'fs';
 import {
   Role,
   CfnRole,
@@ -26,6 +25,7 @@ import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { OneTrigger } from './ssmplaybook';
 import { CloudWatchMetrics } from './cloudwatch_metrics';
 import { AdminPlaybook } from './admin-playbook';
+import { standardPlaybookProps, scPlaybookProps } from '../playbooks/playbook-index';
 
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -39,11 +39,11 @@ export interface SHARRStackProps extends cdk.StackProps {
 
 export class SolutionDeployStack extends cdk.Stack {
   SEND_ANONYMIZED_DATA = 'Yes';
-  nestedStacks: cdk.Stack[];
+  nestedStacksWithAppRegistry: cdk.Stack[];
 
   constructor(scope: cdk.App, id: string, props: SHARRStackProps) {
     super(scope, id, props);
-    this.nestedStacks = [];
+    this.nestedStacksWithAppRegistry = [];
     const stack = cdk.Stack.of(this);
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
 
@@ -717,7 +717,7 @@ export class SolutionDeployStack extends cdk.Stack {
       sqsQueue: schedulingQueue,
     });
 
-    this.nestedStacks.push(orchestrator.nestedStack as cdk.Stack);
+    this.nestedStacksWithAppRegistry.push(orchestrator.nestedStack as cdk.Stack);
 
     const orchStateMachine = orchestrator.node.findChild('StateMachine') as StateMachine;
     const stateMachineConstruct = orchStateMachine.node.defaultChild as CfnStateMachine;
@@ -736,40 +736,27 @@ export class SolutionDeployStack extends cdk.Stack {
     //-------------------------------------------------------------------------
     // Loop through all of the Playbooks and create an option to load each
     //
-    const PB_DIR = `${__dirname}/../playbooks`;
-    const ignore = [
-      '.DS_Store',
-      'common',
-      'python_lib',
-      'python_tests',
-      '.pytest_cache',
-      'NEWPLAYBOOK',
-      '.coverage',
-      'SC',
-    ];
+    const securityStandardPlaybookNames: string[] = [];
+    standardPlaybookProps.forEach((playbookProps) => {
+      const playbook = new AdminPlaybook(this, {
+        name: playbookProps.name,
+        stackDependencies: [stateMachineConstruct, orchestratorArn],
+        defaultState: playbookProps.defaultParameterValue,
+        description: playbookProps.description,
+      });
+      securityStandardPlaybookNames.push(playbook.parameterName);
 
-    const standardLogicalNames: string[] = [];
-    const items = fs.readdirSync(PB_DIR);
-    items.forEach((file) => {
-      if (!ignore.includes(file)) {
-        const playbook = new AdminPlaybook(this, {
-          name: file,
-          stackDependencies: [stateMachineConstruct, orchestratorArn],
-          defaultState: 'no',
-        });
-        standardLogicalNames.push(playbook.parameterName);
-        this.nestedStacks.push(playbook.playbookStack);
+      if (playbookProps.useAppRegistry) {
+        this.nestedStacksWithAppRegistry.push(playbook.playbookStack);
       }
     });
 
     const scPlaybook = new AdminPlaybook(this, {
-      name: 'SC',
+      name: scPlaybookProps.name,
       stackDependencies: [stateMachineConstruct, orchestratorArn],
-      defaultState: 'yes',
-      description:
-        'If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.',
+      defaultState: scPlaybookProps.defaultParameterValue,
+      description: scPlaybookProps.description,
     });
-    this.nestedStacks.push(scPlaybook.playbookStack);
 
     //---------------------------------------------------------------------
     // Scheduling Table for SQS Remediation Throttling
@@ -905,6 +892,8 @@ export class SolutionDeployStack extends cdk.Stack {
       true,
     );
 
+    const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
+
     stack.templateOptions.metadata = {
       'AWS::CloudFormation::Interface': {
         ParameterGroups: [
@@ -914,7 +903,7 @@ export class SolutionDeployStack extends cdk.Stack {
           },
           {
             Label: { default: 'Security Standard Playbooks' },
-            Parameters: standardLogicalNames,
+            Parameters: sortedPlaybookNames,
           },
           {
             Label: { default: 'Orchestrator Configuration' },

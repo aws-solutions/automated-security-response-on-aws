@@ -31,12 +31,32 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
       ],
     },
+    "loadAFSBPCondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadAFSBPCond",
+        },
+      ],
+    },
     "loadCIS120Cond": {
       "Fn::Equals": [
         {
           "Ref": "LoadCIS120MemberStack",
         },
         "yes",
+      ],
+    },
+    "loadCIS120CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadCIS120Cond",
+        },
       ],
     },
     "loadCIS140Cond": {
@@ -47,12 +67,32 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
       ],
     },
+    "loadCIS140CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadCIS140Cond",
+        },
+      ],
+    },
     "loadNIST80053Cond": {
       "Fn::Equals": [
         {
           "Ref": "LoadNIST80053MemberStack",
         },
         "yes",
+      ],
+    },
+    "loadNIST80053CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadNIST80053Cond",
+        },
       ],
     },
     "loadPCI321Cond": {
@@ -306,6 +346,101 @@ exports[`member stack snapshot matches 1`] = `
         },
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
+    },
+    "AppRegistryResourceAssociation142839FB0": {
+      "Condition": "ShouldDeployAppReg",
+      "DependsOn": [
+        "RunbookStackNoRoles",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "RunbookStackNoRoles",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation2BB1A3300": {
+      "Condition": "loadAFSBPCondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackAFSBP",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackAFSBP",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation3BEAC7BB7": {
+      "Condition": "loadCIS120CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackCIS120",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackCIS120",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation46F7B9873": {
+      "Condition": "loadCIS140CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackCIS140",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackCIS140",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation5FAA30631": {
+      "Condition": "loadNIST80053CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackNIST80053",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackNIST80053",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
     "DefaultApplicationAttributesFC1CC26B": {
       "Condition": "ShouldDeployAppReg",

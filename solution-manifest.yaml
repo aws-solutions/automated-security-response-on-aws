@@ -1,6 +1,6 @@
 id: SO0111
 name: security-hub-automated-response-and-remediation
-version: 2.1.1
+version: 2.1.2
 cloudformation_templates:
   - template: aws-sharr-deploy.template
     main_template: true

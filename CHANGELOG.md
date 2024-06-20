@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2024-06-20
+
+### Fixed
+
+- Disabled AppRegistry for certain playbooks to avoid errors when updating solution
+- Created list of playbooks instead of creating stacks dynamically to avoid this in the future
+
+### Security
+
+- Updated braces package version for CVE-2024-4068 - https://avd.aquasec.com/nvd/cve-2024-4068
+
 ## [2.1.1] - 2024-04-10
 
 ### Changed
@@ -32,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Disabled AppRegistry functionality in China regions. AppRegistry is not available in those regions.
+- Disabled AppRegistry functionality in China regions. AppRegistry is not available in those regions
 - Added missing EventBridge rules for CloudFormation.1, EC2.15, SNS.1, SNS.2, and SQS.1
 - Fixed SC_SNS.2 Not executing due to wrong automation document
 - Fixed RDS.4 remediation failing to remediate due to incorrect regex
@@ -114,8 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bug Fix for issue [47](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/47)
-- Bug Fix for issue [48](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/48)
+- Bug Fix for issue [47](https://github.com/aws-solutions/automated-security-response-on-aws/issues/47)
+- Bug Fix for issue [48](https://github.com/aws-solutions/automated-security-response-on-aws/issues/48)
 
 ## [1.4.0] - 2021-12-13
 

@@ -1,6 +1,6 @@
 {
     "name": "aws-security-hub-automated-response-and-remediation",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "description": "Automated remediation for AWS Security Hub (SO0111)",
     "bin": {
         "solution_deploy": "bin/solution_deploy.js"

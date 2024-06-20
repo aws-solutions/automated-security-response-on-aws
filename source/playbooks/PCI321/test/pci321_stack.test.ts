@@ -12,7 +12,7 @@ function getTestStack(): Stack {
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
-    solutionDistName: 'aws-security-hub-automated-response-and-remediation',
+    solutionDistName: 'automated-security-response-on-aws',
     remediations: [{ control: 'PCI.AutoScaling.1' }, { control: 'PCI.EC2.6' }, { control: 'PCI.IAM.8' }],
     securityStandard: 'PCI',
     securityStandardLongName: 'pci-dss',
