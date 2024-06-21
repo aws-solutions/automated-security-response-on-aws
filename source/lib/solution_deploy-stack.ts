@@ -9,6 +9,7 @@ import { StringParameter, CfnParameter } from 'aws-cdk-lib/aws-ssm';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as fs from 'fs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as logs from "aws-cdk-lib/aws-logs";
 import {
   Role,
   CfnRole,
@@ -121,10 +122,43 @@ export class SolutionDeployStack extends cdk.Stack {
     });
 
     const vpc = new ec2.Vpc(this, 'orchestratorLambdaVPC', {
+      natGateways: 2,
       maxAzs: 2,
+      ipAddresses: ec2.IpAddresses.cidr('10.1.0.0/16'),
+      vpcName: 'ASROrchestratorLambdaVPC',
+      subnetConfiguration: [
+        {
+          name: 'public',
+          subnetType: ec2.SubnetType.PUBLIC,
+          cidrMask: 24
+        },
+        {
+          name: 'private',
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          cidrMask: 24
+        }
+      ],
     });
 
-    const securityGroup = new ec2.SecurityGroup(this, 'orchestratorLambdaSG', { vpc })
+    const securityGroup = new ec2.SecurityGroup(this, 'orchestratorLambdaSG', 
+      {
+        vpc: vpc,
+        allowAllOutbound: true,
+        description: "Security group for orchestrator lambdas to allow outbound traffic." 
+      }
+    )
+
+    const logGroup = new logs.LogGroup(this, 'orchestratorLambdaVPCLogGroup', {
+      retention: logs.RetentionDays.ONE_YEAR,
+    });
+
+    new ec2.CfnFlowLog(this, 'orchestratorLambdaVPCFlowLog', {
+      resourceId: vpc.vpcId,
+      resourceType: 'VPC',
+      trafficType: 'ALL',
+      logDestinationType: 'cloud-watch-logs',
+      logGroupName: logGroup.logGroupName
+    });
 
     const mapping = new cdk.CfnMapping(this, 'mappings');
     mapping.setValue('sendAnonymousMetrics', 'data', this.SEND_ANONYMOUS_DATA);
@@ -272,9 +306,6 @@ export class SolutionDeployStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
       vpc: vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-      },
       securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
@@ -322,9 +353,6 @@ export class SolutionDeployStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
       vpc: vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-      },
       securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
@@ -371,9 +399,6 @@ export class SolutionDeployStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
       vpc: vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-      },
       securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
@@ -420,9 +445,6 @@ export class SolutionDeployStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
       vpc: vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-      },
       securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
@@ -555,9 +577,6 @@ export class SolutionDeployStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(600),
       role: notifyRole,
       vpc: vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-      },
       securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
@@ -671,9 +690,6 @@ export class SolutionDeployStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(600),
       role: createCustomActionRole,
       vpc: vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-      },
       securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
