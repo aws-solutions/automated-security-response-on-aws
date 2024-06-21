@@ -8,6 +8,8 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { StringParameter, CfnParameter } from 'aws-cdk-lib/aws-ssm';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as fs from 'fs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as logs from "aws-cdk-lib/aws-logs";
 import {
   Role,
   CfnRole,
@@ -119,6 +121,45 @@ export class SolutionDeployStack extends cdk.Stack {
       stringValue: snsTopic.topicArn,
     });
 
+    const vpc = new ec2.Vpc(this, 'orchestratorLambdaVPC', {
+      natGateways: 2,
+      maxAzs: 2,
+      ipAddresses: ec2.IpAddresses.cidr('10.1.0.0/16'),
+      vpcName: 'ASROrchestratorLambdaVPC',
+      subnetConfiguration: [
+        {
+          name: 'public',
+          subnetType: ec2.SubnetType.PUBLIC,
+          cidrMask: 24
+        },
+        {
+          name: 'private',
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          cidrMask: 24
+        }
+      ],
+    });
+
+    const securityGroup = new ec2.SecurityGroup(this, 'orchestratorLambdaSG', 
+      {
+        vpc: vpc,
+        allowAllOutbound: true,
+        description: "Security group for orchestrator lambdas to allow outbound traffic." 
+      }
+    )
+
+    const logGroup = new logs.LogGroup(this, 'orchestratorLambdaVPCLogGroup', {
+      retention: logs.RetentionDays.ONE_YEAR,
+    });
+
+    new ec2.CfnFlowLog(this, 'orchestratorLambdaVPCFlowLog', {
+      resourceId: vpc.vpcId,
+      resourceType: 'VPC',
+      trafficType: 'ALL',
+      logDestinationType: 'cloud-watch-logs',
+      logGroupName: logGroup.logGroupName
+    });
+
     const mapping = new cdk.CfnMapping(this, 'mappings');
     mapping.setValue('sendAnonymousMetrics', 'data', this.SEND_ANONYMOUS_DATA);
 
@@ -176,6 +217,20 @@ export class SolutionDeployStack extends cdk.Stack {
           actions: ['organizations:ListTagsForResource'],
           resources: ['*'],
         }),
+        new PolicyStatement({
+          actions: [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "ec2:CreateNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeSubnets",
+            "ec2:DeleteNetworkInterface",
+            "ec2:AssignPrivateIpAddresses",
+            "ec2:UnassignPrivateIpAddresses"
+          ],
+          resources: [vpc.vpcArn],
+        })
       ],
     });
 
@@ -250,6 +305,8 @@ export class SolutionDeployStack extends cdk.Stack {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
+      vpc: vpc,
+      securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
 
@@ -262,10 +319,6 @@ export class SolutionDeployStack extends cdk.Stack {
             {
               id: 'W58',
               reason: 'False positive. Access is provided via a policy',
-            },
-            {
-              id: 'W89',
-              reason: 'There is no need to run this lambda in a VPC',
             },
             {
               id: 'W92',
@@ -299,6 +352,8 @@ export class SolutionDeployStack extends cdk.Stack {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
+      vpc: vpc,
+      securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
 
@@ -311,10 +366,6 @@ export class SolutionDeployStack extends cdk.Stack {
             {
               id: 'W58',
               reason: 'False positive. Access is provided via a policy',
-            },
-            {
-              id: 'W89',
-              reason: 'There is no need to run this lambda in a VPC',
             },
             {
               id: 'W92',
@@ -347,6 +398,8 @@ export class SolutionDeployStack extends cdk.Stack {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
+      vpc: vpc,
+      securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
 
@@ -359,10 +412,6 @@ export class SolutionDeployStack extends cdk.Stack {
             {
               id: 'W58',
               reason: 'False positive. Access is provided via a policy',
-            },
-            {
-              id: 'W89',
-              reason: 'There is no need to run this lambda in a VPC',
             },
             {
               id: 'W92',
@@ -395,6 +444,8 @@ export class SolutionDeployStack extends cdk.Stack {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: orchestratorRole,
+      vpc: vpc,
+      securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
 
@@ -407,10 +458,6 @@ export class SolutionDeployStack extends cdk.Stack {
             {
               id: 'W58',
               reason: 'False positive. Access is provided via a policy',
-            },
-            {
-              id: 'W89',
-              reason: 'There is no need to run this lambda in a VPC',
             },
             {
               id: 'W92',
@@ -529,6 +576,8 @@ export class SolutionDeployStack extends cdk.Stack {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: notifyRole,
+      vpc: vpc,
+      securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
 
@@ -541,10 +590,6 @@ export class SolutionDeployStack extends cdk.Stack {
             {
               id: 'W58',
               reason: 'False positive. Access is provided via a policy',
-            },
-            {
-              id: 'W89',
-              reason: 'There is no need to run this lambda in a VPC',
             },
             {
               id: 'W92',
@@ -607,9 +652,8 @@ export class SolutionDeployStack extends cdk.Stack {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       description: 'Lambda role to allow creation of Security Hub Custom Actions',
     });
-
+    createCustomActionPolicy.attachToRole(orchestratorRole);
     createCustomActionRole.attachInlinePolicy(createCustomActionPolicy);
-
     const createCARoleResource = createCustomActionRole.node.findChild('Resource') as CfnRole;
 
     createCARoleResource.cfnOptions.metadata = {
@@ -645,6 +689,8 @@ export class SolutionDeployStack extends cdk.Stack {
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
       role: createCustomActionRole,
+      vpc: vpc,
+      securityGroups: [securityGroup],
       layers: [sharrLambdaLayer],
     });
 
@@ -656,10 +702,6 @@ export class SolutionDeployStack extends cdk.Stack {
           {
             id: 'W58',
             reason: 'False positive. the lambda role allows write to CW Logs',
-          },
-          {
-            id: 'W89',
-            reason: 'There is no need to run this lambda in a VPC',
           },
           {
             id: 'W92',

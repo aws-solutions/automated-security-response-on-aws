@@ -37,3 +37,5 @@ __pycache__/
 
 # system
 .DS_Store
+
+aws/
