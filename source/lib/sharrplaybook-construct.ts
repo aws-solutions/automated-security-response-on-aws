@@ -7,7 +7,7 @@
 // Orchestrator lambdas are common to all Playbooks and deployed in the main stack
 //
 import * as cdk from 'aws-cdk-lib';
-import { StringParameter, CfnDocument } from 'aws-cdk-lib/aws-ssm';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from './ssmplaybook';
 import AdminAccountParam from './admin-account-param';
 import { RunbookFactory } from './runbook_factory';
@@ -39,7 +39,7 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
     const orchestratorArn = StringParameter.valueForStringParameter(
       this,
-      `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`
+      `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`,
     );
 
     // Register the playbook. These parameters enable the step function to route matching events
@@ -74,10 +74,7 @@ export class PlaybookPrimaryStack extends cdk.Stack {
         });
       }
       let generatorId = '';
-      if (
-        props.securityStandard === 'CIS' &&
-        (props.securityStandardVersion === '1.2.0' || props.securityStandardVersion === '1.4.0')
-      ) {
+      if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
         // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
         generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/rule/${controlSpec.control}`;
       } else {
@@ -127,30 +124,25 @@ export class PlaybookMemberStack extends cdk.Stack {
     const waitProvider = WaitProvider.fromServiceToken(
       this,
       'WaitProvider',
-      waitProviderServiceTokenParam.valueAsString
+      waitProviderServiceTokenParam.valueAsString,
     );
 
     Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
-    let prevBook: CfnDocument | null = null;
+
     const processRemediation = function (controlSpec: IControl): void {
       // Create the ssm automation document only if this is not a remapped control
       if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
-        prevBook = RunbookFactory.createControlRunbook(
-          stack,
-          `${props.securityStandard} ${controlSpec.control}`,
-          {
-            securityStandard: props.securityStandard,
-            securityStandardVersion: props.securityStandardVersion,
-            controlId: controlSpec.control,
-            ssmDocPath: ssmdocs,
-            ssmDocFileName: `${props.securityStandard}_${controlSpec.control}.yaml`,
-            solutionVersion: props.solutionVersion,
-            solutionDistBucket: props.solutionDistBucket,
-            solutionId: props.solutionId,
-            commonScripts: props.commonScripts,
-          },
-          prevBook
-        );
+        RunbookFactory.createControlRunbook(stack, `${props.securityStandard} ${controlSpec.control}`, {
+          securityStandard: props.securityStandard,
+          securityStandardVersion: props.securityStandardVersion,
+          controlId: controlSpec.control,
+          ssmDocPath: ssmdocs,
+          ssmDocFileName: `${props.securityStandard}_${controlSpec.control}.yaml`,
+          solutionVersion: props.solutionVersion,
+          solutionDistBucket: props.solutionDistBucket,
+          solutionId: props.solutionId,
+          commonScripts: props.commonScripts,
+        });
       }
     };
 

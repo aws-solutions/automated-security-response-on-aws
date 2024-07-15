@@ -39,12 +39,7 @@ export class RunbookFactory extends Construct {
     super(scope, id);
   }
 
-  static createControlRunbook(
-    scope: Construct,
-    id: string,
-    props: IssmPlaybookProps,
-    prevBook: CfnDocument | null
-  ): CfnDocument {
+  static createControlRunbook(scope: Construct, id: string, props: IssmPlaybookProps): CfnDocument {
     const scriptPath = props.scriptPath ?? `${props.ssmDocPath}/scripts`;
 
     const commonScripts = props.commonScripts ?? '../common';
@@ -98,19 +93,10 @@ export class RunbookFactory extends Construct {
 
     ssmDoc.cfnOptions.condition = installSsmDoc;
 
-    if (prevBook != null) {
-      ssmDoc.node.addDependency(prevBook);
-    }
-
     return ssmDoc;
   }
 
-  static createRemediationRunbook(
-    scope: Construct,
-    id: string,
-    props: RemediationRunbookProps,
-    prevBook: CfnDocument | null
-  ) {
+  static createRemediationRunbook(scope: Construct, id: string, props: RemediationRunbookProps) {
     const ssmDocName = `ASR-${props.ssmDocName}`;
     let scriptPath = '';
     if (props.scriptPath == undefined) {
@@ -146,10 +132,6 @@ export class RunbookFactory extends Construct {
       name: ssmDocName,
       updateMethod: 'NewVersion',
     });
-
-    if (prevBook != null) {
-      //runbook.node.addDependency(prevBook);
-    }
 
     return runbook;
   }
