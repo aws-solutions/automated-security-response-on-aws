@@ -1,0 +1,47 @@
+schemaVersion: "0.3"
+description: |
+   ### Document name - AWSConfigRemediation-EnableApiGatewayTracing
+
+   ## What does this document do?
+   This document enables tracing on an Amazon API Gateway Stage using the [UpdateStage](https://docs.aws.amazon.com/apigateway/api-reference/link-relation/stage-update/) API.
+   Please note, AWS Config is required to be enabled in this region for this document to work as it requires the resource ID recorded by the AWS Config service.
+
+   ## Input Parameters
+   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+   * StageArn: (Required) The Amazon API Gateway Stage ARN.
+
+   ## Output Parameters
+   * EnableTracingAndVerify.Output: Success message or failure exception.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  StageArn:
+    type: String
+    description: (Required) The Amazon API Gateway Stage ARN.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:apigateway:[a-z0-9-]+::/restapis/[a-z0-9]+/stages/[\w]+
+
+outputs:
+  - EnableTracingAndVerify.Output
+mainSteps:
+  -
+    name: EnableTracingAndVerify
+    action: "aws:executeScript"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## EnableTracingAndVerify
+      Enables tracing on the given Amazon API Gateway stage and verifies.
+    inputs:
+      Runtime: python3.8
+      Handler: lambda_handler
+      InputPayload:
+        StageArn: "{{ StageArn }}"
+      Script: |-
+        %%SCRIPT=EnableApiGatewayTracing.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap

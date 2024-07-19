@@ -1,0 +1,69 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableCloudFrontAccessLogs
+
+  ## What does this document do?
+  This runbook enables access logging on an Amazon CloudFront (CloudFront) distribution you specify using the [UpdateDistribution](https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_UpdateDistribution.html) API.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * CloudFrontId: (Required) The ID of the CloudFront distribution you want to enable access logging on.
+  * BucketName: (Required) The name of the Amazon Simple Storage Service (Amazon S3) bucket you want to store access logs in. Buckets in the af-south-1, ap-east-1, eu-south-1, and me-south-1 AWS Region are not supported.
+  * Prefix: (Optional) An optional string that you want CloudFront to prefix to the access log filenames for your distribution, for example, myprefix/.
+  * IncludeCookies: (Required) Set this parameter to 'true', if you want cookies to be included in the access logs.
+
+  ## Output Parameters
+  * UpdateDistributionAndVerify.Response: The standard HTTP response from the UpdateDistribution API.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  CloudFrontId:
+    type: String
+    description: (Required) The ID of the CloudFront distribution you want to enable access logging on.
+    allowedPattern: "[A-Z0-9]+"
+  BucketName:
+    type: AWS::S3::Bucket::Name
+    description: |
+      (Required) The name of the Amazon Simple Storage Service (Amazon S3) bucket you want to store access logs in. Buckets in the af-south-1, ap-east-1, eu-south-1, and me-south-1 AWS Region are not supported.
+  Prefix:
+    type: String
+    description: (Optional) An optional string that you want CloudFront to prefix to the access log filenames for your distribution, for example, myprefix/.
+    allowedPattern: ".{0,1024}"
+    default: ''
+  IncludeCookies:
+    type: Boolean
+    description: (Required) Set this parameter to 'true', if you want cookies to be included in the access logs.
+    allowedValues:
+      - True
+      - False
+
+outputs:
+  - UpdateDistributionAndVerify.Response
+mainSteps:
+  -
+    name: UpdateDistributionAndVerify
+    action: aws:executeScript
+    description: |
+      ## UpdateDistributionAndVerify
+      Enables and verifies access logging for the CloudFront distribution you specify in the CloudFrontDistributionId parameter.
+      ## Outputs
+      * Response: The standard HTTP response from the UpdateDistribution API.
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Runtime: python3.8
+      Handler: handler
+      InputPayload:
+        DistributionId: "{{ CloudFrontId }}"
+        BucketName: "{{ BucketName }}"
+        Prefix: "{{ Prefix }}"
+        IncludeCookies: "{{ IncludeCookies }}"
+      Script: |-
+        %%SCRIPT=EnableCloudFrontAccessLogs.py%%
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap

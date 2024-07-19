@@ -1698,6 +1698,47 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
       };
     }
+    //-----------------------------------------
+    // AWSConfigRemediation-EnableCloudFrontAccessLogs
+    //
+    {
+      const remediationName = 'EnableCloudFrontAccessLogsDocument';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsAPIGateway = new PolicyStatement();
+      remediationPermsAPIGateway.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'cloudfront:GetDistribution',
+        'cloudfront:GetDistributionConfig',
+        'cloudfront:UpdateDistribution',
+        's3:GetBucketLocation',
+        's3:GetBucketAcl',
+        's3:PutBucketAcl'
+      );
+      remediationPermsAPIGateway.effect = Effect.ALLOW;
+      remediationPermsAPIGateway.addResources('*');
+      inlinePolicy.addStatements(remediationPermsAPIGateway);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
 
     //=========================================================================
     // The following runbooks are copied from AWS-owned documents to make them
