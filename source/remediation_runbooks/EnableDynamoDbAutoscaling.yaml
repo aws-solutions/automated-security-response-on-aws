@@ -1,0 +1,283 @@
+#
+# Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this
+# software and associated documentation files (the "Software"), to deal in the Software
+# without restriction, including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+schemaVersion: "0.3"
+description: |
+  # Document name - AWS-EnableDynamoDbAutoscaling
+
+  ## What does this document do?
+  The AWS-EnableDynamoDbAutoscaling runbook will enable Application Autoscaling for an existing DynamoDB Table which is 
+  configured for provisioned capacity in order to maintain availability using the [RegisterScalableTarget](https://docs\
+  .aws.amazon.com/autoscaling/application/APIReference/API_RegisterScalableTarget.html) and [PutScalingPolicy](https://\
+  docs.aws.amazon.com/autoscaling/application/APIReference/API_PutScalingPolicy.html) APIs. Amazon DynamoDB auto scaling 
+  uses the AWS Application Auto Scaling service to dynamically adjust provisioned throughput capacity on your behalf, in 
+  response to actual traffic patterns. For more information, see Managing throughput capacity 
+  automatically with DynamoDB auto scaling in the [Amazon DynamoDB User Guide](https://docs.aws.amazon.com/amazondynamo\
+  db/latest/developerguide/AutoScaling.html).
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Optional) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role
+    that allows Systems Manager Automation to perform the actions on your behalf. If no role is specified,
+    Systems Manager Automation uses the permissions of the user that starts this runbook.
+    * Default: ""
+  * TableName: (Required) The name of the DynamoDB Table on which to enable Application Autoscaling.
+  * MinReadCapacity: (Required) The minimum number of provisioned-throughput read units for the DynamoDB Table.
+  * MaxReadCapacity: (Required) The maximum number of provisioned-throughput read units for the DynamoDB Table.
+  * TargetReadCapacityUtilization: (Required) The desired target read capacity utilization, expressed as a percentage, 
+  between 20-90%. 
+  * ReadScaleOutCooldown: (Required) The amount of time, in seconds, to wait for a previous read capacity scale-out 
+  activity to take effect.
+  * ReadScaleInCooldown: (Required) The amount of time, in seconds, after a read capacity scale-in activity completes 
+  before another scale-in activity can start.
+  * MinWriteCapacity: (Required) The minimum number of provisioned-throughput write units for the DynamoDB Table.
+  * MaxWriteCapacity: (Required) The maximum number of provisioned-throughput write units for the DynamoDB Table.
+  * TargetWriteCapacityUtilization: (Required) The desired target write capacity utilization, expressed as a percentage, 
+  between 20-90%. 
+  Application Autoscaling ensures the ratio of consumed capacity to provisioned capacity stays at or near this value.
+  * WriteScaleOutCooldown: (Required) The amount of time, in seconds, to wait for a previous write capacity scale-out 
+  activity to take effect.
+  * WriteScaleInCooldown: (Required) (Required) The amount of time, in seconds, after a write capacity scale-in activity 
+  completes before another scale-in activity can start.
+
+  ## Output Parameters
+  * RegisterAppAutoscalingTargetWrite.Response
+  * PutScalingPolicyWrite.Response
+  * RegisterAppAutoscalingTargetRead.Response
+  * PutScalingPolicyRead.Response
+  * VerifyDynamoDbAutoscalingEnabled.DynamoDbAutoscalingEnabledResponse
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: |
+      (Optional) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that
+      allows Systems Manager Automation to perform the actions on your behalf. If no role is specified,
+      Systems Manager Automation uses the permissions of the user that starts this runbook.
+    default: ""
+  TableName:
+    type: String
+    description: (Required) The name of the DynamoDB Table on which to enable Application Autoscaling.
+    allowedPattern: ^([a-zA-Z0-9._-]{3,1024})$
+  MinReadCapacity:
+    type: Integer
+    description: (Required) The minimum number of provisioned-throughput read units for the DynamoDB Table. 
+    allowedPattern: ^(\d{1,1024})$
+  MaxReadCapacity:
+    type: Integer
+    description: (Required) The maximum number of provisioned-throughput read units for the DynamoDB Table.
+    allowedPattern: ^(\d{1,1024})$
+  TargetReadCapacityUtilization:
+    type: Integer
+    description: |
+      (Required) The desired target read capacity utilization, expressed as a percentage, between 20-90%. Application 
+      Autoscaling ensures the ratio of consumed capacity to provisioned capacity stays at or near this value.
+    allowedPattern: ^([2-8]\d|90)$
+  ReadScaleOutCooldown:
+    type: Integer
+    description: |
+      (Required) The amount of time, in seconds, to wait for a previous read capacity scale-out activity to take effect.
+    allowedPattern: ^(\d{1,1024})$
+  ReadScaleInCooldown:
+    type: Integer
+    description: |
+      (Required) The amount of time, in seconds, after a read capacity scale-in activity completes before another 
+      scale-in activity can start.
+    allowedPattern: ^(\d{1,1024})$
+  MinWriteCapacity:
+    type: Integer
+    description: (Required) The minimum number of provisioned-throughput write units for the DynamoDB Table.
+    allowedPattern: ^(\d{1,1024})$
+  MaxWriteCapacity:
+    type: Integer
+    description:  (Required) The maximum number of provisioned-throughput write units for the DynamoDB Table.
+    allowedPattern: ^(\d{1,1024})$
+  TargetWriteCapacityUtilization:
+    type: Integer
+    description: |
+      (Required) The desired target write capacity utilization, expressed as a percentage, between 20-90%. Application 
+      Autoscaling ensures the ratio of consumed capacity to provisioned capacity stays at or near this value.
+    allowedPattern: ^([2-8]\d|90)$
+  WriteScaleOutCooldown:
+    type: Integer
+    description: |
+      (Required) The amount of time, in seconds, to wait for a previous write capacity scale-out activity to take 
+      effect.
+    allowedPattern: ^(\d{1,1024})$
+  WriteScaleInCooldown:
+    type: Integer
+    description: |
+      (Required) The amount of time, in seconds, after a write capacity scale-in activity completes before another 
+      scale-in activity can start.
+    allowedPattern: ^(\d{1,1024})$
+
+outputs:
+  - RegisterAppAutoscalingTargetWrite.Response
+  - PutScalingPolicyWrite.Response
+  - RegisterAppAutoscalingTargetRead.Response
+  - PutScalingPolicyRead.Response
+  - VerifyDynamoDbAutoscalingEnabled.DynamoDbAutoscalingEnabledResponse
+
+mainSteps:
+  - name: RegisterAppAutoscalingTargetWrite
+    description: |
+      ## RegisterAppAutoscalingTargetWrite
+      This step will execute the RegisterScalableTarget API call to configure Application Autoscaling on the DynamoDB 
+      Table specified by the user to configure minimum and maximum write capacity units.
+      ## Outputs
+      Response: The full response from the RegisterScalableTarget API call
+    action: aws:executeAwsApi
+    inputs:
+      Service: application-autoscaling
+      Api: RegisterScalableTarget
+      MaxCapacity: "{{ MaxWriteCapacity }}"
+      MinCapacity: "{{ MinWriteCapacity }}"
+      ResourceId: "table/{{ TableName }}"
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+
+  - name: RegisterAppAutoscalingTargetWriteDelay
+    description: |
+      ## RegisterAppAutoscalingTargetWriteDelay
+      This step is to place a delay between the required calls to prevent API throttling
+    action: aws:sleep
+    inputs:
+      Duration: PT0.5S
+
+  - name: PutScalingPolicyWrite
+    description: |
+      ## PutScalingPolicyWrite
+      This step will execute the PutScalingPolicy API call to configure Application Autoscaling on the DynamoDB Table 
+      specified by the user to configure the desired target write capacity utilization.
+      ## Outputs
+      Response: The full response from the PutScalingPolicy API call
+    action: aws:executeAwsApi
+    inputs:
+      Service: application-autoscaling
+      Api: PutScalingPolicy
+      PolicyName: "{{ TableName }}-Policy-Write"
+      ServiceNamespace: dynamodb
+      ResourceId: "table/{{ TableName }}"
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      PolicyType: TargetTrackingScaling
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        ScaleOutCooldown: "{{ WriteScaleOutCooldown }}"
+        ScaleInCooldown: "{{ WriteScaleInCooldown }}"
+        TargetValue: "{{ TargetWriteCapacityUtilization }}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+
+  - name: PutScalingPolicyWriteDelay
+    description: |
+      ## PutScalingPolicyWriteDelay
+      This step is to place a delay between the required calls to prevent API throttling
+    action: aws:sleep
+    inputs:
+      Duration: PT0.5S
+
+  - name: RegisterAppAutoscalingTargetRead
+    description: |
+      ## RegisterAppAutoscalingTargetRead
+      This step will execute the RegisterScalableTarget API call to configure Application Autoscaling on the DynamoDB 
+      Table specified by the user to configure minimum and maximum read capacity units.
+      ## Outputs
+      Response: The full response from the RegisterScalableTarget API call
+    action: aws:executeAwsApi
+    inputs:
+      Service: application-autoscaling
+      Api: RegisterScalableTarget
+      ResourceId: "table/{{ TableName }}"
+      ServiceNamespace: dynamodb
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      MinCapacity: "{{ MinReadCapacity }}"
+      MaxCapacity: "{{ MaxReadCapacity }}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+
+  - name: RegisterAppAutoscalingTargetReadDelay
+    description: |
+      ## ApplicationAutoscalingRegisterReadDelay
+      This step is to place a delay between the required calls to prevent API throttling
+    action: aws:sleep
+    inputs:
+      Duration: PT0.5S
+
+  - name: PutScalingPolicyRead
+    description: |
+      ## PutScalingPolicyRead
+      This step will execute the PutScalingPolicy API call to configure Application Autoscaling on the DynamoDB Table 
+      specified by the user to configure the desired target read capacity utilization.
+      ## Outputs
+      Response: The full response from the PutScalingPolicy API call
+    action: aws:executeAwsApi
+    inputs:
+      Service: application-autoscaling
+      Api: PutScalingPolicy
+      PolicyName: "{{ TableName }}-Policy-Read"
+      PolicyType: TargetTrackingScaling
+      ResourceId: "table/{{ TableName }}"
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        ScaleOutCooldown: "{{ ReadScaleOutCooldown }}"
+        ScaleInCooldown: "{{ ReadScaleInCooldown }}"
+        TargetValue: "{{ TargetReadCapacityUtilization }}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+
+  - name: VerifyDynamoDbAutoscalingEnabled
+    description: |
+      ## VerifyDynamoDbAutoscalingEnabled
+      This step will verify Application Autoscaling capacity values are configured as provided on the user-specified 
+      DynamoDB Table.
+      ## Outputs
+      DynamoDbAutoscalingEnabledResponse:  Output of the step indicating successful configuration of Application Autoscaling on 
+      the DynamoDB table.
+    action: aws:executeScript
+    inputs:
+      Runtime: python3.8
+      Handler: handler
+      InputPayload:
+        TableName: "{{ TableName }}"
+        MinReadCapacity: "{{ MinReadCapacity }}"
+        MaxReadCapacity: "{{ MaxReadCapacity }}"
+        TargetReadCapacityUtilization: "{{ TargetReadCapacityUtilization }}"
+        ReadScaleOutCooldown: "{{ ReadScaleOutCooldown }}"
+        ReadScaleInCooldown: "{{ ReadScaleInCooldown }}"
+        MinWriteCapacity: "{{ MinWriteCapacity }}"
+        MaxWriteCapacity: "{{ MaxWriteCapacity }}"
+        TargetWriteCapacityUtilization: "{{ TargetWriteCapacityUtilization }}"
+        WriteScaleOutCooldown: "{{ WriteScaleOutCooldown }}"
+        WriteScaleInCooldown: "{{ WriteScaleInCooldown }}"
+      Script: |
+        %%SCRIPT=EnableDynamoDbAutoscaling.py%%
+    outputs:
+      - Name: DynamoDbAutoscalingEnabledResponse
+        Type: String
+        Selector: $.Payload.DynamoDbAutoscalingEnabled

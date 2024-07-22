@@ -1815,7 +1815,119 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
       };
     }
+    //-----------------------------------------
+    // AWSConfigRemediation-EnablePITRForDynamoDbTable
+    //
+    {
+      const remediationName = 'EnablePITRForDynamoDbTable';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
+      const remediationPermsDynamoDB = new PolicyStatement();
+      remediationPermsDynamoDB.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'dynamodb:DescribeContinuousBackups',
+        'dynamodb:UpdateContinuousBackups',
+      );
+      remediationPermsDynamoDB.effect = Effect.ALLOW;
+      remediationPermsDynamoDB.addResources('*');
+      inlinePolicy.addStatements(remediationPermsDynamoDB);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWS-EnableDynamoDbAutoscaling
+    //
+    {
+      const remediationName = 'EnableDynamoDbAutoscaling';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsDynamoDB = new PolicyStatement();
+      remediationPermsDynamoDB.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'application-autoscaling:DescribeScalableTargets',
+        'application-autoscaling:DescribeScalingPolicies',
+        'application-autoscaling:PutScalingPolicy',
+        'application-autoscaling:RegisterScalableTarget',
+      );
+      remediationPermsDynamoDB.effect = Effect.ALLOW;
+      remediationPermsDynamoDB.addResources('*');
+      inlinePolicy.addStatements(remediationPermsDynamoDB);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWSSupport-CollectEKSInstanceLogs
+    //
+    {
+      const remediationName = 'CollectEKSInstanceLogs';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsEKS = new PolicyStatement();
+      remediationPermsEKS.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'ssm:SendCommand',
+        's3:PutObject' //?
+      );
+      remediationPermsEKS.effect = Effect.ALLOW;
+      remediationPermsEKS.addResources('*');
+      inlinePolicy.addStatements(remediationPermsEKS);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
     //=========================================================================
     // The following runbooks are copied from AWS-owned documents to make them
     //   available to GovCloud and China partition customers. The
