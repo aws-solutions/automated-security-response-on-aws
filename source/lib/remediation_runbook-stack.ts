@@ -1739,6 +1739,82 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
       };
     }
+    //-----------------------------------------
+    // AWS-EnableDocDbClusterBackupRetentionPeriod
+    //
+    {
+      const remediationName = 'EnableDocDbClusterBackupRetentionPeriod';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsDocumentDb = new PolicyStatement();
+      remediationPermsDocumentDb.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'docdb:DescribeDBClusters',
+        'docdb:ModifyDBCluster',
+        'rds:DescribeDBClusters',
+        'rds:ModifyDBCluster'
+      );
+      remediationPermsDocumentDb.effect = Effect.ALLOW;
+      remediationPermsDocumentDb.addResources('*');
+      inlinePolicy.addStatements(remediationPermsDocumentDb);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWSConfigRemediation-EnableCloudFrontOriginAccessIdentity
+    //
+    {
+      const remediationName = 'EnableCloudFrontOriginAccessIdentity';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsCloudFront = new PolicyStatement();
+      remediationPermsCloudFront.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'cloudfront:GetDistributionConfig',
+        'cloudfront:UpdateDistribution',
+      );
+      remediationPermsCloudFront.effect = Effect.ALLOW;
+      remediationPermsCloudFront.addResources('*');
+      inlinePolicy.addStatements(remediationPermsCloudFront);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
 
     //=========================================================================
     // The following runbooks are copied from AWS-owned documents to make them

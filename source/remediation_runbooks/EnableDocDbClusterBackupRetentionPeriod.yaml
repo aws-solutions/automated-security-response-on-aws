@@ -1,0 +1,167 @@
+#
+# Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this
+# software and associated documentation files (the "Software"), to deal in the Software
+# without restriction, including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+schemaVersion: "0.3"
+description: |
+  # AWS-EnableDocDbClusterBackupRetentionPeriod
+
+  ## What does this document do?
+  The AWS-EnableDocDbClusterBackupRetentionPeriod runbook enables the backup retention period using the 
+  [ModifyDBCluster](https://docs.aws.amazon.com/documentdb/latest/developerguide/API_ModifyDBCluster.html) API to 
+  update the retention period for an Amazon DocumentDB cluster to a value between 7 days to 35 days. This feature 
+  sets the total number of days for which an automated backup is retained. To modify a cluster, the cluster must be 
+  in the available state with an engine type of `docdb`.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Optional) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role
+    that allows Systems Manager Automation to perform the actions on your behalf. If no role is specified,
+    Systems Manager Automation uses the permissions of the user that starts this runbook.
+    * Default: ""
+  * DBClusterResourceId: (Required) The Amazon Document DB cluster resourceId for which the backup retention period 
+    should be enabled.
+  * BackupRetentionPeriod: (Required) The number of days for which automated backups are retained. 
+    Must be a value from 7-35 days.
+  * PreferredBackupWindow: (Optional) A daily time range value of at least 30 minutes, in Universal Time Coordinated 
+    (UTC) in the format hh24:mm-hh24:mm (e.g., 07:14-07:44). Must not conflict with the preferred maintenance window.
+
+  ## Output Parameters
+  * ModifyDocDbRetentionPeriod.ModifyDbClusterResponse: Response from the ModifyDBCluster API call.
+  * VerifyDocDbBackupsEnabled.VerifyDbClusterBackupsEnabledResponse: Output of the verify step indicating successful 
+    modification of the DocumentDB cluster.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: |
+      (Optional) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that
+      allows Systems Manager Automation to perform the actions on your behalf. If no role is specified,
+      Systems Manager Automation uses the permissions of the user that starts this runbook.
+    default: ""
+  DBClusterResourceId:
+    type: String
+    description: |
+      (Required) The Amazon Document DB cluster resourceId for which the backup retention period should be enabled.
+    allowedPattern: ^[a-zA-Z0-9-]{1,1024}$
+  BackupRetentionPeriod:
+    type: Integer
+    description: |
+      (Required) The number of days for which automated backups are retained. Must be a value from 7-35 days.
+    allowedPattern: ^([7-9]|1[0-9]|2[0-9]|3[0-5])$
+  PreferredBackupWindow:
+    type: String
+    description: |
+      (Optional) A daily time range value of at least 30 minutes, in Universal Time Coordinated (UTC) in the format 
+      hh24:mm-hh24:mm (e.g., 07:14-07:44). Must not conflict with the preferred maintenance window.
+    allowedPattern: ^$|^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$
+    default: ""
+
+outputs:
+  - ModifyDocDbRetentionPeriodWithBackupWindow.ModifyDbClusterResponse
+  - VerifyDocDbBackupsEnabled.VerifyDbClusterBackupsEnabledResponse
+
+mainSteps:
+  - name: GetDocDbClusterIdentifier
+    description: |
+      ## GetDocDbClusterIdentifier
+      This step will use the Amazon DocumentDB cluster resource Id to retrieve the Amazon DocumentDB cluster identifier.
+      ## Outputs
+      * DbClusterIdentifier: The DB cluster identifier.
+    action: aws:executeAwsApi
+    inputs:
+      Service: rds
+      Api: DescribeDBClusters
+      Filters:
+        - Name: db-cluster-resource-id
+          Values: 
+            - "{{ DBClusterResourceId }}"
+    outputs:
+      - Name: DbClusterIdentifier
+        Selector: $.DBClusters[0].DBClusterIdentifier
+        Type: String
+
+  - name: VerifyDocDbEngine
+    description: |
+      ## VerifyDocDbEngine
+      This step will verify the DocumentDB engine type as `docdb` in order to prevent inadvertent modification 
+      to any other RDS engine type.
+    action: aws:assertAwsResourceProperty
+    inputs:
+      Service: docdb
+      Api: DescribeDBClusters
+      DBClusterIdentifier: "{{ GetDocDbClusterIdentifier.DbClusterIdentifier }}"
+      PropertySelector: $.DBClusters[0].Engine
+      DesiredValues: 
+        - docdb
+
+  - name: VerifyDocDbStatus
+    description: |
+      ## VerifyDocDbStatus
+      This step will check the Amazon DocumentDB cluster status is ‘available’ in order to ensure 
+      that the database is ready to accept changes from the runbook.
+    action: aws:waitForAwsResourceProperty
+    timeoutSeconds: 600
+    inputs:
+      Service: docdb
+      Api: DescribeDBClusters
+      DBClusterIdentifier: "{{ GetDocDbClusterIdentifier.DbClusterIdentifier }}"
+      PropertySelector: $.DBClusters[0].Status
+      DesiredValues: 
+        - available
+
+  - name: ModifyDocDbRetentionPeriodWithBackupWindow
+    description: |
+      ## ModifyDocDbRetentionPeriod
+      This step will get the set period from the customer for the Amazon DocumentDB cluster using the 
+      ModifyDBCluster API call.
+      ## Outputs
+      * ModifyDbClusterResponse: The output from the ModifyDBCluster API Call.
+    action: aws:executeAwsApi
+    inputs:
+      Service: docdb
+      Api: ModifyDBCluster
+      DBClusterIdentifier: "{{ GetDocDbClusterIdentifier.DbClusterIdentifier }}"
+      BackupRetentionPeriod: "{{ BackupRetentionPeriod }}"
+      PreferredBackupWindow: "{{ PreferredBackupWindow }}"
+    outputs:
+      - Name: ModifyDbClusterResponse
+        Selector: $
+        Type: StringMap
+
+  - name: VerifyDocDbBackupsEnabled
+    description: |
+      ## VerifyDocDbRetentionPeriod
+      This step verifies the Retention Period for the Amazon DocumentDB cluster and the Preferred Backup Window 
+      (if specified) have been successfully set.
+      ## Outputs
+      VerifyDbClusterBackupsEnabled: Output of the step indicating successful modification of the 
+      Amazon DocumentDB cluster.
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.8
+      Handler: handler
+      InputPayload:
+        DBClusterIdentifier: "{{ GetDocDbClusterIdentifier.DbClusterIdentifier }}"
+        DBClusterResourceId: "{{ DBClusterResourceId }}"
+        BackupRetentionPeriod: "{{ BackupRetentionPeriod }}"
+        PreferredBackupWindow: "{{ PreferredBackupWindow }}"
+      Script: |-
+        %%SCRIPT=EnableDocDbClusterBackupRetentionPeriod.py%%
+    outputs:
+      - Name: VerifyDbClusterBackupsEnabledResponse
+        Selector: $.Payload.VerifyDbClusterBackupsEnabled
+        Type: String
