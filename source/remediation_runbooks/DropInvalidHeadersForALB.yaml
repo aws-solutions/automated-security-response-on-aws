@@ -1,0 +1,63 @@
+description: |
+  ### Document name - AWSConfigRemediation-DropInvalidHeadersForALB
+
+  ## What does this document do?
+  This runbook enables the application load balancer you specify to remove HTTP headers with invalid headers using the [ModifyLoadBalancerAttributes](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_ModifyLoadBalancerAttributes.html) API.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * LoadBalancerArn: (Required) The Amazon Resource Name (ARN) of the load balancer that you want to drop invalid headers.
+
+  ## Output Parameters
+  * DropInvalidHeaders.Output: The standard HTTP response from the ModifyLoadBalancerAttributes API.
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+outputs:
+  - DropInvalidHeaders.Output
+parameters:
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  LoadBalancerArn:
+    type: String
+    description: The Amazon Resource Name (ARN) of the load balancer that you want to drop invalid headers.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:elasticloadbalancing:[a-z]{2}-[a-z]+-[0-9]{1}:[0-9]{12}:loadbalancer\/app\/((?!internal-)(?!-)[0-9a-zA-Z-]{1,32}(?<!-))\/[0-9aA-zZ]{16}$
+mainSteps:
+  - name: DropInvalidHeaders
+    action: "aws:executeAwsApi"
+    description: |
+      ## DropInvalidHeaders
+      Enables the drop invalid headers setting for the load balancer you specify in the `LoadBalancerArn` parameter.
+      ## Outputs
+      * Output: The standard HTTP response from the ModifyLoadBalancerAttributes API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: elbv2
+      Api: ModifyLoadBalancerAttributes
+      LoadBalancerArn: "{{ LoadBalancerArn }}"
+      Attributes:
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: "true"
+    outputs:
+      - Name: Output
+        Selector: $
+        Type: StringMap
+  - name: VerifyDropInvalidHeaders
+    action: "aws:executeScript"
+    isEnd: true
+    timeoutSeconds: 600
+    description: |
+      ## VerifyDropInvalidHeaders
+      Verifies the drop invalid headers setting has been enabled on the load balancer you specify in the `LoadBalancerArn` parameter.
+    inputs:
+      Runtime: python3.8
+      Handler: verify_drop_invalid_headers
+      InputPayload:
+        LoadBalancerArn: "{{ LoadBalancerArn }}"
+      Script: |-
+        %%SCRIPT=DropInvalidHeadersForALB.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap

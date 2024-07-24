@@ -1928,6 +1928,81 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
       };
     }
+    //-----------------------------------------
+    // AWSConfigRemediation-DropInvalidHeadersForALB
+    //
+    {
+      const remediationName = 'DropInvalidHeadersForALB';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsEKS = new PolicyStatement();
+      remediationPermsEKS.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'elasticloadbalancing:DescribeLoadBalancerAttributes',
+        'elasticloadbalancing:ModifyLoadBalancerAttributes'
+      );
+      remediationPermsEKS.effect = Effect.ALLOW;
+      remediationPermsEKS.addResources('*');
+      inlinePolicy.addStatements(remediationPermsEKS);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWSConfigRemediation-EnableELBDeletionProtection
+    //
+    {
+      const remediationName = 'EnableELBDeletionProtection';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsEKS = new PolicyStatement();
+      remediationPermsEKS.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'elasticloadbalancing:DescribeLoadBalancerAttributes',
+        'elasticloadbalancing:DescribeLoadBalancers',
+        'elasticloadbalancing:ModifyLoadBalancerAttributes'
+      );
+      remediationPermsEKS.effect = Effect.ALLOW;
+      remediationPermsEKS.addResources('*');
+      inlinePolicy.addStatements(remediationPermsEKS);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
     //=========================================================================
     // The following runbooks are copied from AWS-owned documents to make them
     //   available to GovCloud and China partition customers. The

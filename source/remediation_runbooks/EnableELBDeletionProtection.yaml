@@ -1,0 +1,46 @@
+description: |
+  ### Document name - AWSConfigRemediation-EnableELBDeletionProtection
+
+  ## What does this document do?
+  This document enables deletion protection for the specified AWS Elastic Load Balancer using the [ModifyLoadBalancerAttributes](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_ModifyLoadBalancerAttributes.html) API.
+  
+  ## Input Parameters
+  * LoadBalancerArn: (Required) The Amazon Resource Name (ARN) of the load balancer.
+  * AutomationAsssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableAndVerifyDeletionProtection.Output - The standard HTTP response from ModifyLoadBalancerAttributes API.
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  LoadBalancerArn:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the load balancer.
+    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:elasticloadbalancing:[a-z]{2}-[a-z]+-[0-9]{1}:[0-9]{12}:loadbalancer\/(net|app|gwy)\/((?!internal-)(?!-)[0-9a-zA-Z-]{0,32}(?<!-))\/[0-9aA-zZ]{16}$
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+outputs:
+  - EnableAndVerifyDeletionProtection.Output
+mainSteps:
+- name: EnableAndVerifyDeletionProtection
+  description: |
+    ## EnableAndVerifyDeletionProtection
+    Verifies load balancer state and enables deletion protection
+  action: aws:executeScript
+  onFailure: Abort
+  isCritical: true
+  timeoutSeconds: 600
+  maxAttempts: 1
+  inputs:
+    InputPayload:
+      LoadBalancerArn: "{{ LoadBalancerArn }}"
+    Script: |
+      %%SCRIPT=DropInvalidHeadersForALB.py%%
+    Handler: script_handler
+    Runtime: python3.11
+  outputs:
+    - Name: Output
+      Selector: $.Payload
+      Type: StringMap
