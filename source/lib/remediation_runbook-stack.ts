@@ -2081,7 +2081,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         },
       };
     }
-     //-----------------------------------------
+    //-----------------------------------------
     // AWS-EnableNeptuneDbClusterDeletionProtection
     //
     {
@@ -2100,6 +2100,118 @@ export class RemediationRunbookStack extends cdk.Stack {
       remediationPermsNeptune.effect = Effect.ALLOW;
       remediationPermsNeptune.addResources('*');
       inlinePolicy.addStatements(remediationPermsNeptune);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWSConfigRemediation-EnableRDSInstanceBackup
+    //
+    {
+      const remediationName = 'EnableRDSInstanceBackup';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsRDS = new PolicyStatement();
+      remediationPermsRDS.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'rds:DescribeDBInstances',
+        'rds:ModifyDBInstance',
+      );
+      remediationPermsRDS.effect = Effect.ALLOW;
+      remediationPermsRDS.addResources('*');
+      inlinePolicy.addStatements(remediationPermsRDS);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWSConfigRemediation-EnableCopyTagsToSnapshotOnRDSDBInstance
+    //
+    {
+      const remediationName = 'EnableCopyTagsToSnapshotOnRDSDBInstance';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsRDS = new PolicyStatement();
+      remediationPermsRDS.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'config:GetResourceConfigHistory',
+        'rds:DescribeDBInstances',
+        'rds:ModifyDBInstance',
+      );
+      remediationPermsRDS.effect = Effect.ALLOW;
+      remediationPermsRDS.addResources('*');
+      inlinePolicy.addStatements(remediationPermsRDS);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
+    // AWS-ConfigureS3BucketVersioning
+    //
+    {
+      const remediationName = 'ConfigureS3BucketVersioning';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsS3 = new PolicyStatement();
+      remediationPermsS3.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        's3:PutBucketVersioning',
+        's3:GetBucketVersioning',
+      );
+      remediationPermsS3.effect = Effect.ALLOW;
+      remediationPermsS3.addResources('*');
+      inlinePolicy.addStatements(remediationPermsS3);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
