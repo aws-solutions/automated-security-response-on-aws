@@ -1,0 +1,120 @@
+#
+# Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this
+# software and associated documentation files (the "Software"), to deal in the Software
+# without restriction, including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+schemaVersion: "0.3"
+description: |
+  # AWS-EnableStepFunctionsStateMachineLogging
+
+  ## What does this document do?
+  The AWS-EnableStepFunctionsStateMachineLogging runbook will enable or update the logging on the specified AWS Step 
+  Functions State Machine using the 
+  [UpdateStateMachine](https://docs.aws.amazon.com/step-functions/latest/apireference/API_UpdateStateMachine.html) 
+  API. If no logging configuration currently exists on the AWS State Machine, one will be created. IF a logging 
+  configuration does exist, it will be updated during runbook execution. The minimum logging level must be set 
+  to ALL, ERROR, or FATAL.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Optional) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role
+    that allows Systems Manager Automation to perform the actions on your behalf. If no role is specified,
+    Systems Manager Automation uses the permissions of the user that starts this runbook.
+    * Default: ""
+  * StateMachineArn: (Required) The Amazon Resource Name (ARN) of the state machine.
+  * Level: (Required) Defines which category of execution history events are logged. Values can be ALL, ERROR, or FATAL.
+  * LogGroupArn: (Required) The ARN of the the Amazon CloudWatch log group to which you want your logs emitted to.
+  * IncludeExecutionData: (Optional) Determines whether execution data is included in your log.
+    * Default: "False"
+  * TracingConfiguration: (Optional) Selects whether AWS X-Ray tracing is enabled.
+    * Default: "False"
+
+  ## Output Parameters
+  * EnableStepFunctionsStateMachineLogging.Response: Response from the UpdateStateMachine API call.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: AWS::IAM::Role::Arn
+    description: |
+      (Optional) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that
+      allows Systems Manager Automation to perform the actions on your behalf. If no role is specified,
+      Systems Manager Automation uses the permissions of the user that starts this runbook.
+    default: ""
+  StateMachineArn:
+    type: String
+    description: (Required) The Amazon Resource Name (ARN) of the state machine.
+    allowedPattern: ^arn:aws[a-z0-9-]*:states:([a-z]{2,}-){2,}\d:\d{12}:stateMachine:[a-zA-Z0-9-]{1,1024}$
+  Level:
+    type: String
+    description: |
+      (Required) Defines which category of execution history events are logged. Values can be ALL, ERROR, or FATAL. 
+    allowedValues: 
+      - ALL
+      - ERROR
+      - FATAL
+  LogGroupArn:
+    type: String
+    description: (Required) The ARN of the the Amazon CloudWatch log group to which you want your logs emitted to.
+    allowedPattern: ^arn:aws[a-z0-9-]*:logs:[a-z0-9-]+:\d{12}:log-group:[A-Za-z0-9\.\-\_\#\/]{1,1024}\:\*$
+  IncludeExecutionData:
+    type: Boolean
+    description: (Optional) Determines whether execution data is included in your log.
+    default: False
+  TracingConfiguration:
+    type: Boolean
+    description: (Optional) Selects whether AWS X-Ray tracing is enabled.
+    default: False
+
+outputs:
+  - EnableStepFunctionsStateMachineLogging.Response
+
+mainSteps:
+  - name: EnableStepFunctionsStateMachineLogging
+    description: |
+      ## EnableStepFunctionsStateMachineLogging
+      This step updates the AWS Step Functions State Machine with the specified logging level 
+      and whether execution data should be included.
+      ## Outputs
+      * Response: Response received from UpdateStateMachine API call.
+    action: aws:executeAwsApi
+    inputs:
+      Service: stepfunctions
+      Api: UpdateStateMachine
+      stateMachineArn: "{{ StateMachineArn }}"
+      loggingConfiguration:
+        level: "{{ Level }}"
+        includeExecutionData: "{{ IncludeExecutionData }}"
+        destinations:
+          - cloudWatchLogsLogGroup:
+              logGroupArn: "{{ LogGroupArn }}"
+      tracingConfiguration:
+        enabled: "{{ TracingConfiguration }}"
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap
+
+  - name: VerifyStepFunctionsStateMachineLoggingEnabled
+    description: |
+      ## VerifyStepFunctionsStateMachineLoggingEnabled
+      This step verifies that logging for the Step Functions State Machine has been enabled.
+    action: aws:assertAwsResourceProperty
+    timeoutSeconds: 600
+    inputs:
+      Service: stepfunctions
+      Api: DescribeStateMachine
+      stateMachineArn: "{{ StateMachineArn }}"
+      PropertySelector: $.loggingConfiguration.level
+      DesiredValues: 
+        - "{{ Level }}"
