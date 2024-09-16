@@ -263,7 +263,7 @@ Removes public access to the SSM Document
                 "InputPayload": {
                   "document_arn": "{{DocumentArn}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 from typing import TypedDict
@@ -434,7 +434,7 @@ Retrieves the S3 PublicAccessBlock configuration for a S3 Bucket.
                   "IgnorePublicAcls": "{{ IgnorePublicAcls }}",
                   "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 
 def validate_s3_bucket_publicaccessblock(event, context):
@@ -613,7 +613,7 @@ Retrieves the S3 PublicAccessBlock configuration for an AWS account.
                   "IgnorePublicAcls": "{{ IgnorePublicAcls }}",
                   "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 from time import sleep
 
@@ -738,7 +738,7 @@ This document creates an SNS topic if it does not already exist, then updates th
                   "stack_arn": "{{ StackArn }}",
                   "topic_name": "SO0111-ASR-CloudFormationNotifications",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """
@@ -919,7 +919,7 @@ Creates an S3 bucket for access logging.
                   "AWS_REGION": "{{global:REGION}}",
                   "BucketName": "{{BucketName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 from typing import TYPE_CHECKING, TypedDict, cast
@@ -1066,7 +1066,7 @@ Note: this remediation will create a NEW trail.
                   "kms_key_arn": "{{KMSKeyArn}}",
                   "region": "{{global:REGION}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 from typing import TYPE_CHECKING, Dict, Literal, TypedDict, cast
@@ -1214,7 +1214,7 @@ def put_bucket_acl(s3: S3Client, bucket_name: str) -> None:
                   "logging_bucket": "{{CreateLoggingBucket.LoggingBucketName}}",
                   "region": "{{global:REGION}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -1338,7 +1338,7 @@ def put_bucket_logging(s3, bucket_name, logging_bucket):
                   "cloudtrail_bucket": "{{CreateCloudTrailBucket.CloudTrailBucketName}}",
                   "partition": "{{AWSPartition}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1417,7 +1417,7 @@ def create_bucket_policy(event, _):
                   "cloudtrail_bucket": "{{CreateCloudTrailBucket.CloudTrailBucketName}}",
                   "kms_key_arn": "{{KMSKeyArn}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -1466,7 +1466,7 @@ def enable_cloudtrail(event, _):
                   "cloudtrail_bucket": "{{CreateCloudTrailBucket.CloudTrailBucketName}}",
                   "logging_bucket": "{{CreateLoggingBucket.LoggingBucketName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 def process_results(event, _):
@@ -1557,7 +1557,7 @@ This step deactivates IAM user access keys that have not been rotated in more th
 ",
               "inputs": {
                 "Handler": "create_iam_role",
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1717,7 +1717,7 @@ Creates a metric filter for a given log group and also creates and alarm for the
                   "kms_key_arn": "{{KMSKeyArn}}",
                   "topic_name": "{{SNSTopicName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1831,7 +1831,7 @@ def create_topic_policy(topic_arn):
                   "MetricValue": "{{MetricValue}}",
                   "TopicArn": "{{CreateTopic.TopicArn}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import logging
@@ -2373,7 +2373,7 @@ Confirms the public accessibility setting is disabled on the cluster.
                 "InputPayload": {
                   "subnet_arn": "{{ SubnetARN }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -2504,7 +2504,7 @@ def describe_subnet(subnet_id):
                 "InputPayload": {
                   "TransitGatewayId": "{{ TransitGatewayId }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -2615,9 +2615,11 @@ def lambda_handler(event, _):
                 "InputPayload": {
                   "SecurityGroupId": "{{ SecurityGroupId }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
 import boto3
 from botocore.config import Config
 
@@ -2653,76 +2655,102 @@ PORTS_TO_CHECK = {
 # IPV4 and IPV6 open access
 OPENIPV4 = "0.0.0.0/0"
 OPENIPV6 = "::/0"
-PROTOCOLS = {"tcp", "udp"}
+PROTOCOLS = {"tcp", "udp", "-1"}
 
 
 def connect_to_ec2():
     return boto3.client("ec2", config=boto_config)
 
 
-def lambda_handler(event, _):
-    security_group_id = event["SecurityGroupId"]
+class Event(TypedDict):
+    SecurityGroupId: str
 
-    ec2 = connect_to_ec2()
 
+def lambda_handler(event: Event, _):
+    rules_deleted = []
     try:
-        # Get the security group rules
-        security_group_rules = ec2.describe_security_group_rules(
+        security_group_id = event["SecurityGroupId"]
+
+        security_group_rules = get_security_group_rules(security_group_id)
+
+        rules_deleted = delete_rules_with_access_to_high_risk_ports(
+            security_group_id, security_group_rules
+        )
+    except Exception as e:
+        raise RuntimeError("Failed to remove security group rules: " + str(e))
+
+    if not rules_deleted:
+        raise RuntimeError(
+            f"Could not find rules to delete for Security Group {security_group_id}. Please check the inbound "
+            f"rules manually."
+        )
+    return {
+        "message": "Successfully removed security group rules on " + security_group_id,
+        "status": "Success",
+        "rules_deleted": rules_deleted,
+    }
+
+
+def get_security_group_rules(security_group_id: str) -> list:
+    ec2 = connect_to_ec2()
+    try:
+        paginator = ec2.get_paginator("describe_security_group_rules")
+        page_iterator = paginator.paginate(
             Filters=[
                 {
                     "Name": "group-id",
-                    "Values": [
-                        security_group_id,
-                    ],
+                    "Values": [security_group_id],
                 },
-            ],
+            ]
         )
 
-        # List to return rules that are deleted
-        rules_deleted = []
+        security_group_rules = []
+        for page in page_iterator:
+            security_group_rules.extend(page.get("SecurityGroupRules", []))
 
-        for rule in security_group_rules["SecurityGroupRules"]:
-            # Look for TCP or UDP ingress rules
-            if rule["IpProtocol"] in PROTOCOLS and not rule["IsEgress"]:
-                # Check for high risk ports
-                if any(
-                    port in range(rule["FromPort"], rule["ToPort"] + 1)
-                    for port in PORTS_TO_CHECK
-                ):
-                    # Check for IPV4 open access
-                    if "CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4:
-                        # Add rule to list
-                        rules_deleted.append(rule["SecurityGroupRuleId"])
-                        # Delete the rule
-                        ec2.revoke_security_group_ingress(
-                            GroupId=security_group_id,
-                            SecurityGroupRuleIds=[
-                                rule["SecurityGroupRuleId"],
-                            ],
-                        )
-
-                    # Check for IPV6 open access
-                    elif "CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6:
-                        # Add rule to list
-                        rules_deleted.append(rule["SecurityGroupRuleId"])
-
-                        # Delete the rule
-                        ec2.revoke_security_group_ingress(
-                            GroupId=security_group_id,
-                            SecurityGroupRuleIds=[
-                                rule["SecurityGroupRuleId"],
-                            ],
-                        )
-
-        return {
-            "message": "Successfully removed security group rules on "
-            + security_group_id,
-            "status": "Success",
-            "rules_deleted": rules_deleted,
-        }
-
+        return security_group_rules
     except Exception as e:
-        exit("Failed to remove security group rules: " + str(e))",
+        exit("Failed to describe security group rules: " + str(e))
+
+
+def delete_rules_with_access_to_high_risk_ports(
+    security_group_id: str, security_group_rules: list
+):
+    ec2 = connect_to_ec2()
+    rules_deleted = []
+    for rule in security_group_rules:
+        if rule_has_access_to_high_risk_ports(rule) and is_open_cidr(rule):
+            try:
+                ec2.revoke_security_group_ingress(
+                    GroupId=security_group_id,
+                    SecurityGroupRuleIds=[
+                        rule["SecurityGroupRuleId"],
+                    ],
+                )
+                rules_deleted.append(rule["SecurityGroupRuleId"])
+            except Exception as e:
+                print(f"Failed to delete rule {rule['SecurityGroupRuleId']}: {str(e)}")
+    return rules_deleted
+
+
+def rule_has_access_to_high_risk_ports(rule: dict) -> bool:
+    return (
+        rule["IpProtocol"] in PROTOCOLS
+        and not rule["IsEgress"]
+        and (
+            any(
+                port in range(rule["FromPort"], rule["ToPort"] + 1)
+                for port in PORTS_TO_CHECK
+            )
+            or (rule["FromPort"] == rule["ToPort"] == -1)
+        )
+    )
+
+
+def is_open_cidr(rule: dict) -> bool:
+    return ("CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4) or (
+        "CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6
+    )",
               },
               "maxAttempts": 3,
               "name": "DisableUnrestrictedAccessToHighRiskPorts",
@@ -2795,7 +2823,7 @@ Enables AWS Config:
                   "kms_key_arn": "{{KMSKeyArn}}",
                   "topic_name": "{{SNSTopicName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -2917,7 +2945,7 @@ def create_topic_policy(topic_arn):
                   "partition": "{{global:AWS_PARTITION}}",
                   "region": "{{global:REGION}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -3091,7 +3119,7 @@ def create_encrypted_bucket(event, _):
                   "region": "{{global:REGION}}",
                   "topic_arn": "{{CreateTopic.TopicArn}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -3204,7 +3232,7 @@ def enable_config(event, _):
                   "logging_bucket": "so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}",
                   "sns_topic_arn": "{{CreateTopic.TopicArn}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 def process_results(event, _):
@@ -3315,7 +3343,7 @@ This runbook enables health checks for the Amazon EC2 Auto Scaling (Auto Scaling
                 "InputPayload": {
                   "AsgName": "{{AutoScalingGroupName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -3429,7 +3457,7 @@ def verify(event, _):
                   "MaximumAllowedRotationFrequency": "{{ MaximumAllowedRotationFrequency }}",
                   "SecretARN": "{{ SecretARN }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -3591,7 +3619,7 @@ The runbook enables automatic snapshots on a Redshift cluster.
                 "InputPayload": {
                   "RetentionPeriod": "{{QueryRetentionPeriod.CurrentRetentionPeriod}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "def event_handler(event, context):
     return str(event['RetentionPeriod'])
 ",
@@ -3657,7 +3685,7 @@ The runbook enables automatic snapshots on a Redshift cluster.
                 "InputPayload": {
                   "RetentionPeriod": "{{MinRetentionPeriod}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "def event_handler(event, context):
     return str(event['RetentionPeriod'])
 ",
@@ -3775,7 +3803,7 @@ The runbook enables automatic version upgrade on a Redshift cluster.
                 "InputPayload": {
                   "AllowVersionUpgrade": "{{AllowVersionUpgrade}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "def event_handler(event, context):
     return str(event['AllowVersionUpgrade'])
 ",
@@ -3865,7 +3893,7 @@ This document creates an SNS topic if it does not already exist, then configures
                   "event_types": "{{ EventTypes }}",
                   "topic_name": "{{ TopicName }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """
@@ -4110,7 +4138,7 @@ Configures the default root object for the CloudFront distribution you specify i
                   "cloudfront_distribution": "{{ CloudFrontDistribution }}",
                   "root_object": "{{ DefaultRootObject }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import datetime
 import json
 
@@ -4231,7 +4259,7 @@ Enables encryption on a CloudTrail using the provided KMS CMK
                   "trail": "{{TrailArn}}",
                   "trail_region": "{{TrailRegion}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -4447,7 +4475,7 @@ Creates a CloudWatch logs group for CloudTrail data.
                 "InputPayload": {
                   "LogGroup": "{{LogGroupName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import time
@@ -4839,7 +4867,7 @@ This document configures default encryption for an Amazon S3 Bucket.
                   "sample_rate": "{{ SampleRate }}",
                   "topic_arn": "{{ SNSTopicArn }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -5445,7 +5473,7 @@ Checks that the enhanced monitoring is enabled on RDS Instance in the previous s
                   "DBIdentifier": "{{ DescribeDBInstances.DbInstanceIdentifier }}",
                   "MonitoringInterval": "{{ MonitoringInterval }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 import time
 
@@ -5552,7 +5580,7 @@ def handler(event, context):
               "action": "aws:executeScript",
               "inputs": {
                 "Handler": "lambda_handler",
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -5664,7 +5692,7 @@ def lambda_handler(_, __):
                 "InputPayload": {
                   "instance_arn": "{{ InstanceARN }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -5881,7 +5909,7 @@ This document enables AutoMinorVersionUpgrade on the Amazon Relational Database 
                 "InputPayload": {
                   "DBInstanceIdentifier": "{{DBInstanceIdentifier}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -6244,7 +6272,7 @@ Verifies that the RDS Instance's \`PendingModifiedValues.MultiAZ\` value is \`Tr
                 "InputPayload": {
                   "RepositoryName": "{{ RepositoryName }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -6765,7 +6793,7 @@ Enables VPC Flow Logs for a given VPC
                   "remediation_role": "{{RemediationRole}}",
                   "vpc": "{{VPC}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import time
@@ -7211,7 +7239,7 @@ This runbook works an the account level to remove public share on all EBS snapsh
                   "region": "{{global:REGION}}",
                   "testmode": "{{TestMode}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -7292,7 +7320,7 @@ def list_public_snapshots(account_id):
                   "region": "{{global:REGION}}",
                   "snapshots": "{{GetPublicSnapshotIds.Snapshots}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -7415,7 +7443,7 @@ This runbook removes public access to an RDS Snapshot
                   "DBSnapshotId": "{{DBSnapshotId}}",
                   "DBSnapshotType": "{{DBSnapshotType}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -7528,7 +7556,7 @@ This document removes CodeBuild project privileged mode to remove a build projec
                 "InputPayload": {
                   "project_name": "{{ProjectName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import boto3
@@ -7668,7 +7696,7 @@ function. The remediation is to remove the SID of the public policy.
                 "InputPayload": {
                   "FunctionName": "{{FunctionName}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -7844,7 +7872,7 @@ def verify(function_name_to_check):
                   "SecretARN": "{{ SecretARN }}",
                   "UnusedForDays": "{{ UnusedForDays }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -7994,7 +8022,7 @@ Removes all rules from the default security group.
                 "InputPayload": {
                   "GroupId": "{{ GroupId }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 from botocore.exceptions import ClientError
 from time import sleep
@@ -8123,7 +8151,7 @@ Returns new project environment variables and SSM parameter information (without
                 "InputPayload": {
                   "ProjectInfo": "{{ BatchGetProjects.ProjectInfo }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import re
@@ -8411,9 +8439,11 @@ Authorized ports are listed in authorizedTcpPorts and authorizedUdpPorts paramet
                   "AuthorizedUdpPorts": "{{ AuthorizedUdpPorts }}",
                   "SecurityGroupId": "{{ SecurityGroupId }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
 import boto3
 from botocore.config import Config
 
@@ -8423,93 +8453,113 @@ BOTO_CONFIG = Config(retries={"mode": "standard", "max_attempts": 10})
 OPENIPV4 = "0.0.0.0/0"
 OPENIPV6 = "::/0"
 
+PROTOCOLS = {"tcp", "udp", "-1"}
+
 
 def connect_to_ec2():
     return boto3.client("ec2", config=BOTO_CONFIG)
 
 
-# Function to check if rule has open access to unauthorized ports
-def check_unauthorized_ports(authorized_ports, rule):
-    for port in range(rule["FromPort"], rule["ToPort"] + 1):
-        if port not in authorized_ports:
-            # Check for IPV4 open access
-            if "CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4:
-                # Return True if rule has open access to unauthorized ports
-                return True
-
-            # Check for IPV6 open access
-            elif "CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6:
-                # Return True if rule is removed
-                return True
-
-    # Return False if rule does not have open access to unauthorized ports
-    return False
+class Event(TypedDict):
+    SecurityGroupId: str
+    AuthorizedTcpPorts: list
+    AuthorizedUdpPorts: list
 
 
-def lambda_handler(event, _):
-    # Extract Security Group ID from event
-    security_group_id = event["SecurityGroupId"]
-    authorized_tcp_ports = set(map(int, event["AuthorizedTcpPorts"]))
-    authorized_udp_ports = set(map(int, event["AuthorizedUdpPorts"]))
-
-    # Connect to EC2 service
-    ec2 = connect_to_ec2()
-
-    # Get the security group rules
-    paginator = ec2.get_paginator("describe_security_group_rules")
-
-    security_group_rules = paginator.paginate(
-        Filters=[
-            {
-                "Name": "group-id",
-                "Values": [
-                    security_group_id,
-                ],
-            },
-        ],
-    )
-
-    # List to return rules that are deleted
+def lambda_handler(event: Event, _):
     rules_deleted = []
+    try:
+        security_group_id = event["SecurityGroupId"]
+        authorized_tcp_ports = set(map(int, event["AuthorizedTcpPorts"]))
+        authorized_udp_ports = set(map(int, event["AuthorizedUdpPorts"]))
 
-    for page in security_group_rules:
-        for rule in page["SecurityGroupRules"]:
-            # Remove TCP ingress rules
-            if (
-                rule["IpProtocol"] == "tcp"
-                and not rule["IsEgress"]
-                and check_unauthorized_ports(authorized_tcp_ports, rule)
-            ):
-                # Delete the rule
-                ec2.revoke_security_group_ingress(
-                    GroupId=security_group_id,
-                    SecurityGroupRuleIds=[
-                        rule["SecurityGroupRuleId"],
-                    ],
-                )
-                # Add rule to list of deleted rules
-                rules_deleted.append(rule["SecurityGroupRuleId"])
-            # Remove UDP ingress rules
-            if (
-                rule["IpProtocol"] == "udp"
-                and not rule["IsEgress"]
-                and check_unauthorized_ports(authorized_udp_ports, rule)
-            ):
-                # Delete the rule
-                ec2.revoke_security_group_ingress(
-                    GroupId=security_group_id,
-                    SecurityGroupRuleIds=[
-                        rule["SecurityGroupRuleId"],
-                    ],
-                )
-                # Add rule to list of deleted rules
-                rules_deleted.append(rule["SecurityGroupRuleId"])
+        security_group_rules = get_security_group_rules(security_group_id)
+
+        rules_deleted = revoke_unauthorized_rules(
+            security_group_id,
+            security_group_rules,
+            authorized_tcp_ports,
+            authorized_udp_ports,
+        )
+    except Exception as e:
+        raise RuntimeError("Failed to remove security group rules: " + str(e))
+
+    if not rules_deleted:
+        raise RuntimeError(
+            f"Could not find rules to delete for Security Group {security_group_id}. Please check the inbound "
+            f"rules manually."
+        )
 
     return {
         "message": "Successfully removed security group rules on " + security_group_id,
         "status": "Success",
         "rules_deleted": rules_deleted,
-    }",
+    }
+
+
+def get_security_group_rules(security_group_id: str) -> list:
+    ec2 = connect_to_ec2()
+    try:
+        paginator = ec2.get_paginator("describe_security_group_rules")
+        page_iterator = paginator.paginate(
+            Filters=[
+                {
+                    "Name": "group-id",
+                    "Values": [security_group_id],
+                },
+            ]
+        )
+
+        security_group_rules = []
+        for page in page_iterator:
+            security_group_rules.extend(page.get("SecurityGroupRules", []))
+
+        return security_group_rules
+    except Exception as e:
+        exit("Failed to describe security group rules: " + str(e))
+
+
+def check_unauthorized_ports(authorized_ports: set, rule: dict) -> bool:
+    for port in range(rule["FromPort"], rule["ToPort"] + 1):
+        if port not in authorized_ports:
+            if ("CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4) or (
+                "CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6
+            ):
+                return True
+    return False
+
+
+def revoke_unauthorized_rules(
+    security_group_id: str,
+    security_group_rules: list,
+    authorized_tcp_ports: set,
+    authorized_udp_ports: set,
+) -> list:
+    ec2 = connect_to_ec2()
+    rules_deleted = []
+    for rule in security_group_rules:
+        if rule["IpProtocol"] in PROTOCOLS and not rule["IsEgress"]:
+            authorized_ports = (
+                authorized_tcp_ports
+                if rule["IpProtocol"] == "tcp"
+                else authorized_udp_ports
+            )
+            if (rule["FromPort"] == rule["ToPort"] == -1) or check_unauthorized_ports(
+                authorized_ports, rule
+            ):
+                try:
+                    ec2.revoke_security_group_ingress(
+                        GroupId=security_group_id,
+                        SecurityGroupRuleIds=[
+                            rule["SecurityGroupRuleId"],
+                        ],
+                    )
+                    rules_deleted.append(rule["SecurityGroupRuleId"])
+                except Exception as e:
+                    print(
+                        f"Failed to delete rule {rule['SecurityGroupRuleId']}: {str(e)}"
+                    )
+    return rules_deleted",
               },
               "maxAttempts": 3,
               "name": "RevokeUnauthorizedInboundRules",
@@ -8595,7 +8645,7 @@ This step deactivates IAM user access keys that have not been rotated in more th
                   "IAMResourceId": "{{ IAMResourceId }}",
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 from datetime import datetime, timezone
@@ -8795,7 +8845,7 @@ This step deactivates expired IAM User access keys, deletes expired login profil
                   "IAMResourceId": "{{ IAMResourceId }}",
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 from datetime import datetime
 from datetime import timedelta
@@ -8960,7 +9010,7 @@ Adds an explicit deny to the bucket policy for specific restricted permissions.
                   "bucket": "{{BucketName}}",
                   "denylist": "{{DenyList}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """
@@ -9200,7 +9250,7 @@ def update_bucket_policy(event, _):
                 "InputPayload": {
                   "Id": "{{ DistributionId }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 
 
@@ -9353,7 +9403,7 @@ Verify AWS account password policy using GetAccountPasswordPolicy API.
                   "RequireSymbols": "{{ RequireSymbols }}",
                   "RequireUppercaseCharacters": "{{ RequireUppercaseCharacters }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import boto3
 
 
@@ -9511,7 +9561,7 @@ def update_and_verify_iam_user_password_policy(event, context):
                   "TargetTransitionDays": "{{ TargetTransitionDays }}",
                   "TargetTransitionStorageClass": "{{ TargetTransitionStorageClass }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9684,7 +9734,7 @@ This document adds a bucket policy to require transmission over HTTPS for the gi
                   "bucket": "{{BucketName}}",
                   "partition": "{{global:AWS_PARTITION}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -9827,7 +9877,7 @@ def add_ssl_bucket_policy(event, _):
                   "MaxDaysSinceRotation": "{{ MaxDaysSinceRotation }}",
                   "SecretARN": "{{ SecretARN }}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9942,7 +9992,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "81507fa8cc08b25712d6bb11838b74debfaef70c57538bc5b4a41604c53f805a",
+        "DocumentPropertiesHash": "cd718f7ef709f2ed4986efb1624477c91fe91863c8334de63158dcbcc80ac9d3",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -9959,7 +10009,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "136f833c9afc46d6dbb74732440b922bbeab34f14b0e2ae4e1a71e0965e09acd",
+        "DocumentPropertiesHash": "d3efb770392e2539d37420fd6d5db7e3e844a7def2bedfcf4b00347d57b82e5b",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -9976,7 +10026,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "59245ae3ddbfd7a056178f016a36493661aafeac24e726703cc08a7731400729",
+        "DocumentPropertiesHash": "1197767c58642f6627f9ee45c8e4f77c9e90089d5e74c22308b87de1c48aeceb",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -9993,7 +10043,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "c855d30b2277c8fb3f6e525a303816e91a32109f04e278c91b7e97958fed1127",
+        "DocumentPropertiesHash": "ff4b5cbfcd0d526056620866fb8a32ca261fefb36903e9d947deffbec1b5754d",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10010,7 +10060,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "2d0fcae37e200f1766715e193822d8f770336256aa94a3a3d343ebd316f63b53",
+        "DocumentPropertiesHash": "e05becb9cc59b6a93430737eab3f7be5bb8be01f54d670cf4b8718ce5ca4270f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10027,7 +10077,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "50ff92fe188d981a49c50a99a2a170b0bc8c070b4c6f3cc0f70ac1f3dea64c43",
+        "DocumentPropertiesHash": "9c8f5ac5afb252d2bf924cef9ae3ec60853e9503ce686f27bd98044e23f63434",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10044,7 +10094,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "a26ba78d0f128ca18d92c8df0267bd94d1fafe39cc465ff8073f15762b423bd0",
+        "DocumentPropertiesHash": "18be80b36f644a54a592e37f6fd47b23f0c3f159ed4062516c850c87842c283f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10061,7 +10111,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
+        "DocumentPropertiesHash": "7bc05425c5c18bd1adece0ccfdb9571f3f57dc6f3140ee00d51fc96ba471bd27",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10078,7 +10128,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
+        "DocumentPropertiesHash": "9016a203d38794687cb1055102cc61861fce733e7d6b27dde309ee8d8f633251",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10095,7 +10145,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "a79a323f87cedc32cab2f0319b3b409458bcfb163d2c63c51fe7792a4e80456e",
+        "DocumentPropertiesHash": "56533afcb5106bb6e797383861e5d3674097858a675fd07b95aba5bb86b9fade",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10112,7 +10162,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "e0d97e2de165b12c26e6a4d6e15358c0302a5363b2812f72efcd482cc4e2c148",
+        "DocumentPropertiesHash": "08195a0ef2bb796fce934fab9179c8d63f4935ec925f3bbeeb8f2a2826594a8f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10129,7 +10179,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "56cd4b027684fdab25f1dce18babb64db6bc08add36605f626a0c54f74a97ab4",
+        "DocumentPropertiesHash": "af2cca06fc147ac0ad0322306c2142aa7cfc01b5bb69dfdc2e12828d4ee628e4",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10150,7 +10200,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "81507fa8cc08b25712d6bb11838b74debfaef70c57538bc5b4a41604c53f805a",
+        "DocumentPropertiesHash": "cd718f7ef709f2ed4986efb1624477c91fe91863c8334de63158dcbcc80ac9d3",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10172,7 +10222,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "136f833c9afc46d6dbb74732440b922bbeab34f14b0e2ae4e1a71e0965e09acd",
+        "DocumentPropertiesHash": "d3efb770392e2539d37420fd6d5db7e3e844a7def2bedfcf4b00347d57b82e5b",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10194,7 +10244,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "59245ae3ddbfd7a056178f016a36493661aafeac24e726703cc08a7731400729",
+        "DocumentPropertiesHash": "1197767c58642f6627f9ee45c8e4f77c9e90089d5e74c22308b87de1c48aeceb",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10213,7 +10263,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "c855d30b2277c8fb3f6e525a303816e91a32109f04e278c91b7e97958fed1127",
+        "DocumentPropertiesHash": "ff4b5cbfcd0d526056620866fb8a32ca261fefb36903e9d947deffbec1b5754d",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10235,7 +10285,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "2d0fcae37e200f1766715e193822d8f770336256aa94a3a3d343ebd316f63b53",
+        "DocumentPropertiesHash": "e05becb9cc59b6a93430737eab3f7be5bb8be01f54d670cf4b8718ce5ca4270f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10257,7 +10307,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "50ff92fe188d981a49c50a99a2a170b0bc8c070b4c6f3cc0f70ac1f3dea64c43",
+        "DocumentPropertiesHash": "9c8f5ac5afb252d2bf924cef9ae3ec60853e9503ce686f27bd98044e23f63434",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10279,7 +10329,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a26ba78d0f128ca18d92c8df0267bd94d1fafe39cc465ff8073f15762b423bd0",
+        "DocumentPropertiesHash": "18be80b36f644a54a592e37f6fd47b23f0c3f159ed4062516c850c87842c283f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10301,7 +10351,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "6beab64cd1e1e29ec0dfac301f88b9a6eb2cf699bf743fbecf0fb88eca6f4f5c",
+        "DocumentPropertiesHash": "7bc05425c5c18bd1adece0ccfdb9571f3f57dc6f3140ee00d51fc96ba471bd27",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10323,7 +10373,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "76ac9234ed21512ab7274d9f95c6a1ef847748fa697d122f7c3e1d7a1d74f010",
+        "DocumentPropertiesHash": "9016a203d38794687cb1055102cc61861fce733e7d6b27dde309ee8d8f633251",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10345,7 +10395,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "a79a323f87cedc32cab2f0319b3b409458bcfb163d2c63c51fe7792a4e80456e",
+        "DocumentPropertiesHash": "56533afcb5106bb6e797383861e5d3674097858a675fd07b95aba5bb86b9fade",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10367,7 +10417,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "e0d97e2de165b12c26e6a4d6e15358c0302a5363b2812f72efcd482cc4e2c148",
+        "DocumentPropertiesHash": "08195a0ef2bb796fce934fab9179c8d63f4935ec925f3bbeeb8f2a2826594a8f",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10389,7 +10439,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "56cd4b027684fdab25f1dce18babb64db6bc08add36605f626a0c54f74a97ab4",
+        "DocumentPropertiesHash": "af2cca06fc147ac0ad0322306c2142aa7cfc01b5bb69dfdc2e12828d4ee628e4",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

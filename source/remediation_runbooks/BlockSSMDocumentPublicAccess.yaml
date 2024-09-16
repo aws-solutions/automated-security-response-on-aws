@@ -38,7 +38,7 @@ mainSteps:
     inputs:
       InputPayload:
         document_arn: '{{DocumentArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: lambda_handler
       Script: |-
         %%SCRIPT=block_ssm_doc_public_access.py%%

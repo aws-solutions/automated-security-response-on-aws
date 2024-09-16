@@ -453,7 +453,7 @@ function validateScriptStep(runbook: RunbookTestHelper, step: any) {
     }
   }
   // TODO scripts must be templates that link to files
-  expect(step.inputs.Runtime).toStrictEqual('python3.8');
+  expect(step.inputs.Runtime).toStrictEqual('python3.11');
 }
 
 test.each(runbooks)('%s has valid steps', (runbook: RunbookTestHelper) => {

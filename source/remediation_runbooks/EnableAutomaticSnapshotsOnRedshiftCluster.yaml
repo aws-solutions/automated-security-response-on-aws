@@ -56,7 +56,7 @@ mainSteps:
 - name: 'CastCurrentRetentionPeriodToString'
   action: 'aws:executeScript'
   inputs:
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'event_handler'
     InputPayload:
       RetentionPeriod: '{{QueryRetentionPeriod.CurrentRetentionPeriod}}'
@@ -102,7 +102,7 @@ mainSteps:
 - name: 'CastRetentionPeriodToString'
   action: 'aws:executeScript'
   inputs:
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'event_handler'
     InputPayload:
       RetentionPeriod: '{{MinRetentionPeriod}}'

@@ -101,7 +101,7 @@ mainSteps:
         parse_id_pattern: ''
         Finding: '{{Finding}}'
         expected_control_id: [ '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13','3.14']
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%
@@ -136,7 +136,7 @@ mainSteps:
         ControlId: '{{ParseInput.ControlId}}'
         StandardLongName: 'cis-aws-foundations-benchmark'
         StandardVersion: '1.2.0'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: verify
       Script: |-
         %%SCRIPT=common/cloudwatch_get_input_values.py%%

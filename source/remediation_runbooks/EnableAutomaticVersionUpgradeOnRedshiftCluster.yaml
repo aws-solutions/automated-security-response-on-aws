@@ -56,7 +56,7 @@ mainSteps:
 - name: 'CastAllowVersionUpgradeToString'
   action: 'aws:executeScript'
   inputs:
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'event_handler'
     InputPayload:
       AllowVersionUpgrade: '{{AllowVersionUpgrade}}'

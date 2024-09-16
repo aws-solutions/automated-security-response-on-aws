@@ -51,7 +51,7 @@ mainSteps:
         accountid: '{{AccountId}}'
         bucket: '{{BucketName}}'
         partition: '{{global:AWS_PARTITION}}' 
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: add_ssl_bucket_policy
       Script: |-
         %%SCRIPT=SetSSLBucketPolicy.py%%

@@ -72,7 +72,7 @@ mainSteps:
       resource_index: 2
       expected_control_id:
       - 'RDS.4'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'parse_event'
     Script: |-
       %%SCRIPT=common/parse_input.py%%

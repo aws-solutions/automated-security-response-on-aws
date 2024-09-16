@@ -1,5 +1,11 @@
 node_modules/
 .venv/
 
+# AWS Acccount IDs expected in .nightswatch/
+.nightswatch/deployment/govcloud-member-roles-stack.ym
+.nightswatch/deployment/govcloud-member-stack.yml
+.nightswatch/deployment/member-roles-stack.yml
+.nightswatch/deployment/member-stack.yml
+
 [python-pipoutdated]
 boto3=1.20.32 # Should match Lambda runtime: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html

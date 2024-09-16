@@ -55,7 +55,7 @@ mainSteps:
       TargetTransitionDays: '{{ TargetTransitionDays }}'
       TargetExpirationDays: '{{ TargetExpirationDays }}'
       TargetTransitionStorageClass: '{{ TargetTransitionStorageClass }}'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'lambda_handler'
     Script: |-
       %%SCRIPT=SetS3LifecyclePolicy.py%%

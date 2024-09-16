@@ -55,7 +55,7 @@ mainSteps:
         vpc: '{{VPC}}'
         remediation_role: '{{RemediationRole}}'
         kms_key_arn: '{{KMSKeyArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: enable_flow_logs
       Script: |-
         %%SCRIPT=EnableVPCFlowLogs.py%%

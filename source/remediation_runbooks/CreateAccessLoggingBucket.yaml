@@ -33,7 +33,7 @@ mainSteps:
       InputPayload:
         BucketName: '{{BucketName}}'
         AWS_REGION: '{{global:REGION}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_logging_bucket
       Script: |-
         %%SCRIPT=CreateAccessLoggingBucket_createloggingbucket.py%%

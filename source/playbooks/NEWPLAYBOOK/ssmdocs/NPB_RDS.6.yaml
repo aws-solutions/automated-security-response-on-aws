@@ -48,7 +48,7 @@ mainSteps:
       InputPayload:
         Finding: '{{Finding}}'
 
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%
@@ -90,7 +90,7 @@ mainSteps:
     inputs:
       InputPayload:
         remediation_output: '{{ExecRemediation.Output}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: verify_remediation
       Script: |-
         import json

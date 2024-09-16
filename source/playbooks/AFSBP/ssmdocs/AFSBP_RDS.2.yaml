@@ -42,7 +42,7 @@ mainSteps:
       parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:((?!.*--.*)(?!.*-$)[a-z][a-z0-9-]{0,62})$'
       expected_control_id:
       - 'RDS.2'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'parse_event'
     Script: |-
       %%SCRIPT=common/parse_input.py%%

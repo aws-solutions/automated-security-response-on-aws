@@ -90,7 +90,7 @@ def test_enable_rotation_success(mocker):
         {
             "FunctionName": FUNCTION_NAME,
             "Role": ROLE_ARN,
-            "Runtime": "python3.8",
+            "Runtime": "python3.11",
             "Code": {"ZipFile": b"0"},
         },
     )
@@ -197,7 +197,7 @@ def test_enable_rotation_success(mocker):
     lambda_client.create_function(
         FunctionName=FUNCTION_NAME,
         Role=ROLE_ARN,
-        Runtime="python3.8",
+        Runtime="python3.11",
         Code={
             "ZipFile": b"0",
         },

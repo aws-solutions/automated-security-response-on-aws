@@ -481,7 +481,7 @@ This document ensures that credentials unused for 90 days or greater are disable
                   ],
                   "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):iam::\\d{12}:user(?:(?:\\u002F)|(?:\\u002F[\\u0021-\\u007F]{1,510}\\u002F))([\\w+=,.@-]{1,64})$",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -873,7 +873,7 @@ This document establishes a default password policy.
                   ],
                   "parse_id_pattern": "",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1247,7 +1247,7 @@ Note: this remediation will create a NEW trail.
                   ],
                   "parse_id_pattern": "",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1601,7 +1601,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "8d6bbace1b02b19cfe1e0b6cfa73ca2612d705b5c6c1e8c6a7fbf90d91d9232b",
+        "DocumentPropertiesHash": "01b4fa65e397917ed3e4c3ff8fde39d2da8555a75245e88070f39ec093812333",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1618,7 +1618,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "8d6bbace1b02b19cfe1e0b6cfa73ca2612d705b5c6c1e8c6a7fbf90d91d9232b",
+        "DocumentPropertiesHash": "01b4fa65e397917ed3e4c3ff8fde39d2da8555a75245e88070f39ec093812333",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

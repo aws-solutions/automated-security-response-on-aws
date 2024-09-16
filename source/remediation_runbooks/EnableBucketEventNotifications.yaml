@@ -62,7 +62,7 @@ mainSteps:
       topic_name: '{{ TopicName }}'
       account_id: '{{ AccountId }}'
       event_types: '{{ EventTypes }}'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'lambda_handler'
     Script: |-
       %%SCRIPT=enable_bucket_event_notifications.py%%

@@ -50,7 +50,7 @@ mainSteps:
       InputPayload:
         DBSnapshotType: '{{DBSnapshotType}}'
         DBSnapshotId: '{{DBSnapshotId}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: make_snapshot_private
       Script: |-
         %%SCRIPT=MakeRDSSnapshotPrivate.py%%

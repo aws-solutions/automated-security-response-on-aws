@@ -74,7 +74,7 @@ mainSteps:
       InputPayload:
         kms_key_arn: '{{KMSKeyArn}}'
         topic_name: '{{SNSTopicName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_encrypted_topic
       Script: |-
         %%SCRIPT=CreateLogMetricFilterAndAlarm_createtopic.py%%
@@ -98,7 +98,7 @@ mainSteps:
         AlarmDesc: '{{AlarmDesc}}'
         AlarmThreshold: '{{AlarmThreshold}}'
         TopicArn: '{{CreateTopic.TopicArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: verify
       Script: |-
         %%SCRIPT=CreateLogMetricFilterAndAlarm.py%%

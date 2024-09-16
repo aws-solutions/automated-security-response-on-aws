@@ -35,7 +35,7 @@ mainSteps:
   inputs:
     InputPayload:
       Id: '{{ DistributionId }}'
-    Runtime: python3.8
+    Runtime: python3.11
     Handler: 'lambda_handler'
     Script: |-
       %%SCRIPT=SetCloudFrontOriginDomain.py%%

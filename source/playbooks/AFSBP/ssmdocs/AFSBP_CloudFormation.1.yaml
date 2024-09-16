@@ -57,7 +57,7 @@ mainSteps:
       parse_id_pattern: '^(arn:(?:aws|aws-us-gov|aws-cn):cloudformation:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:stack/[a-zA-Z][a-zA-Z0-9-]{0,127}/[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12})$'
       expected_control_id:
       - 'CloudFormation.1'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'parse_event'
     Script: |-
       %%SCRIPT=common/parse_input.py%%

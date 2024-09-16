@@ -450,7 +450,7 @@ Default: 30 seconds
                   ],
                   "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:autoScalingGroup:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):autoScalingGroupName/(.{1,255})$",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -849,7 +849,7 @@ Enables VPC Flow Logs for a VPC
                   ],
                   "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):ec2:.*:\\d{12}:vpc/(vpc-[0-9a-f]{8,17}$)",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1252,7 +1252,7 @@ This document establishes a default password policy.
                   ],
                   "parse_id_pattern": "",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1598,7 +1598,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "6f20765950aa8e2fcdd5b86db5ee56bfc35e50d088900de800c37e6b38e85f14",
+        "DocumentPropertiesHash": "5146da922b109f3efa568bbdd26cac7f8d29c291783e238fdcf4dc3d389e2b2e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1615,7 +1615,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "6f20765950aa8e2fcdd5b86db5ee56bfc35e50d088900de800c37e6b38e85f14",
+        "DocumentPropertiesHash": "5146da922b109f3efa568bbdd26cac7f8d29c291783e238fdcf4dc3d389e2b2e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

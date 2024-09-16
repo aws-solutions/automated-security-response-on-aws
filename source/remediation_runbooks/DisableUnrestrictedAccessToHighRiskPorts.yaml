@@ -40,7 +40,7 @@ mainSteps:
   inputs:
     InputPayload:
       SecurityGroupId: '{{ SecurityGroupId }}'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'lambda_handler'
     Script: |-
       %%SCRIPT=DisableUnrestrictedAccessToHighRiskPorts.py%%

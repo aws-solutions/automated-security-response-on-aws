@@ -47,7 +47,7 @@ mainSteps:
        logging_role: '{{ LoggingRole }}'
        topic_arn: '{{ SNSTopicArn }}'
        sample_rate: '{{ SampleRate }}'
-     Runtime: 'python3.8'
+     Runtime: 'python3.11'
      Handler: 'lambda_handler'
      Script: |-
        %%SCRIPT=enable_delivery_status_logging.py%%

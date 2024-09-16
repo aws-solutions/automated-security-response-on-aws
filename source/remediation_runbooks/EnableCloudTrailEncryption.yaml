@@ -56,7 +56,7 @@ mainSteps:
         trail: '{{TrailArn}}'
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: enable_trail_encryption
       Script: |-
         %%SCRIPT=EnableCloudTrailEncryption.py%%

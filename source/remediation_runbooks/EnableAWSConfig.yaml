@@ -54,7 +54,7 @@ mainSteps:
       InputPayload:
         kms_key_arn: '{{KMSKeyArn}}'
         topic_name: '{{SNSTopicName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_encrypted_topic
       Script: |-
         %%SCRIPT=EnableAWSConfig_createtopic.py%%
@@ -83,7 +83,7 @@ mainSteps:
         region: '{{global:REGION}}'
         partition: '{{global:AWS_PARTITION}}'
         kms_key_arn: '{{KMSKeyArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_encrypted_bucket
       Script: |-
         %%SCRIPT=EnableAWSConfig_createconfigbucket.py%%
@@ -103,7 +103,7 @@ mainSteps:
         config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
         aws_service_role: '{{AWSServiceRoleForConfig}}'
         topic_arn: '{{CreateTopic.TopicArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: enable_config
       Script: |-
         %%SCRIPT=EnableAWSConfig_enableconfig.py%%
@@ -121,7 +121,7 @@ mainSteps:
         config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
         logging_bucket: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
         sns_topic_arn: '{{CreateTopic.TopicArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: process_results
       Script: |-
         %%SCRIPT=EnableAWSConfig_summary.py%%
