@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Upgraded all Python runtimes in remediation SSM documents from Python 3.8 to Python 3.11.
 
+### Security
+- Upgraded micromatch package to mitigate [CVE-2024-4067](https://avd.aquasec.com/nvd/2024/cve-2024-4067/)
+
 ## [2.1.2] - 2024-06-20
 
 ### Fixed
