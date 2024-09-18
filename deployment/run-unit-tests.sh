@@ -13,9 +13,9 @@ export overrideWarningsEnabled=false
     echo "UPDATE MODE: CDK Snapshots will be updated. CDK UNIT TESTS WILL BE SKIPPED"
 } || update="false"
 
-[[ ! -d .venv ]] && python3 -m venv .venv
+[[ ! -d .venv ]] && python3.11 -m venv .venv
 source ./.venv/bin/activate
-python3 -m pip install -U pip setuptools
+python3.11 -m pip install -U pip setuptools
 
 echo 'Installing required Python testing modules'
 pip install -r ./requirements_dev.txt
@@ -39,7 +39,7 @@ run_pytest() {
     echo "coverage report path set to ${report_file}"
 
     # Use -vv for debugging
-    python3 -m pytest --cov --cov-report=term-missing --cov-report "xml:$report_file"
+    python3.11 -m pytest --cov --cov-report=term-missing --cov-report "xml:$report_file"
     rc=$?
 
     if [ "$rc" -ne "0" ]; then

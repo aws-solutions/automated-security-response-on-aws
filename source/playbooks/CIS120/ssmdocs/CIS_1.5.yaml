@@ -58,7 +58,7 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
         expected_control_id: [ '1.5', '1.6', '1.7', '1.8', '1.9', '1.10', '1.11' ]
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

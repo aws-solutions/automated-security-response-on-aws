@@ -45,7 +45,7 @@ mainSteps:
     inputs:
       InputPayload:
         FunctionName: '{{FunctionName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: remove_lambda_public_access
       Script: |-
         %%SCRIPT=RemoveLambdaPublicAccess.py%%

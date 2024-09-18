@@ -63,7 +63,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:.*:\d{12}:vpc/(vpc-[0-9a-f]{8,17})$'
         expected_control_id:
         - 'EC2.6'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

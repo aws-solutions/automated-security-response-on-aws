@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - 2024-09-18
+
+### Fixed
+- Resolved an issue in the remediation scripts for EC2.18 and EC2.19 where security group rules with IpProtocol set to "-1" were being incorrectly ignored.
+
+### Changed
+- Upgraded all Python runtimes in remediation SSM documents from Python 3.8 to Python 3.11.
+
+### Security
+- Upgraded micromatch package to mitigate [CVE-2024-4067](https://avd.aquasec.com/nvd/2024/cve-2024-4067/)
+
 ## [2.1.2] - 2024-06-20
 
 ### Fixed

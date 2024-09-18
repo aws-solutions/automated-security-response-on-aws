@@ -99,7 +99,7 @@ This document changes all public EC2 snapshots to private
                   "parse_id_pattern": "",
                   "resource_index": 2,
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -477,7 +477,7 @@ function. The remediation is to remove the SID of the public policy.
                   ],
                   "parse_id_pattern": "^arn:(?:aws|aws-us-gov|aws-cn):lambda:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:function:([a-zA-Z0-9\\-_]{1,64})$",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -871,7 +871,7 @@ This document changes public RDS snapshot to private
                   "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(cluster-snapshot|snapshot):([a-zA-Z][0-9a-zA-Z]*(?:-[0-9a-zA-Z]+)*)$",
                   "resource_index": 2,
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -1251,7 +1251,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "b02d58f4b8b5dbdfd43ae5fb533c84039059d469bff02db8c1af802e2ce6eea2",
+        "DocumentPropertiesHash": "021635f4d697eec7b8adf4b648135a434784538840467e8736f1e184319b2d2e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1268,7 +1268,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "b02d58f4b8b5dbdfd43ae5fb533c84039059d469bff02db8c1af802e2ce6eea2",
+        "DocumentPropertiesHash": "021635f4d697eec7b8adf4b648135a434784538840467e8736f1e184319b2d2e",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

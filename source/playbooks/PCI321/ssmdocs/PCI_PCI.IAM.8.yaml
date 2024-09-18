@@ -52,7 +52,7 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: ''
         expected_control_id: [ 'PCI.IAM.8' ]
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

@@ -407,7 +407,7 @@ This document enables \`Enhanced Monitoring\` on a given Amazon RDS instance by 
                 "InputPayload": {
                   "Finding": "{{Finding}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
@@ -725,7 +725,7 @@ def parse_event(event, _):
                 "InputPayload": {
                   "remediation_output": "{{ExecRemediation.Output}}",
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.11",
                 "Script": "import json
 
 def verify_remediation(event, context):
@@ -801,7 +801,7 @@ def verify_remediation(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "ba760c2ec83ae337d260ae23a7ebbc20181cddeaba0c5b8efc5addfbeb101fda",
+        "DocumentPropertiesHash": "064a40f60c0e87b763d57f5ed9643da2d18bc9b2c3ecdca980f13b6d5064c868",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -818,7 +818,7 @@ def verify_remediation(event, context):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "ba760c2ec83ae337d260ae23a7ebbc20181cddeaba0c5b8efc5addfbeb101fda",
+        "DocumentPropertiesHash": "064a40f60c0e87b763d57f5ed9643da2d18bc9b2c3ecdca980f13b6d5064c868",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

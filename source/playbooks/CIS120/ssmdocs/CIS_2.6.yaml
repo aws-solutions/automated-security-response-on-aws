@@ -53,7 +53,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([a-z0-9.-]{3,63})$'
         expected_control_id:
         - '2.6'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

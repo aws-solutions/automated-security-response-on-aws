@@ -40,7 +40,7 @@ mainSteps:
       parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):redshift:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:cluster:(?!.*--)([a-z][a-z0-9-]{0,62})(?<!-)$'
       expected_control_id:
       - 'Redshift.3'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'parse_event'
     Script: |-
       %%SCRIPT=common/parse_input.py%%
@@ -71,7 +71,7 @@ mainSteps:
   inputs:
     InputPayload:
       SerializedJson: '{{ParseInput.RetentionPeriodSerialized}}'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'event_handler'
     Script: |-
       %%SCRIPT=common/deserialize_json.py%%

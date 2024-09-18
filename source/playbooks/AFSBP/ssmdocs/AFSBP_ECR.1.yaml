@@ -65,7 +65,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ecr:[a-z]{2}-[a-z]+-\d{1}:\d{12}:repository\/([a-z0-9._\/\-]+)$'
         expected_control_id: 
           - 'ECR.1'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

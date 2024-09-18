@@ -54,7 +54,7 @@ mainSteps:
         account: '{{global:ACCOUNT_ID}}'
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_logging_bucket
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createloggingbucket.py%%
@@ -74,7 +74,7 @@ mainSteps:
         region: '{{global:REGION}}'
         kms_key_arn: '{{KMSKeyArn}}'
         logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_encrypted_bucket
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.py%%
@@ -89,7 +89,7 @@ mainSteps:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         partition: '{{AWSPartition}}'
         account: '{{global:ACCOUNT_ID}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: create_bucket_policy
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucketpolicy.py%%
@@ -106,7 +106,7 @@ mainSteps:
       InputPayload:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         kms_key_arn: '{{KMSKeyArn}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: enable_cloudtrail
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_enablecloudtrail.py%%
@@ -124,7 +124,7 @@ mainSteps:
       InputPayload:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         logging_bucket: '{{CreateLoggingBucket.LoggingBucketName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: process_results
       Script: |-
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_process_results.py%%

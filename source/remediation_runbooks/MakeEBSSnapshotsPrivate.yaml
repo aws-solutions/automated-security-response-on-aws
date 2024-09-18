@@ -49,7 +49,7 @@ mainSteps:
         region: '{{global:REGION}}'
         account_id: '{{AccountId}}'
         testmode: '{{TestMode}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: get_public_snapshots
       Script: |-
         %%SCRIPT=GetPublicEBSSnapshots.py%%
@@ -64,7 +64,7 @@ mainSteps:
       InputPayload:
         region: '{{global:REGION}}'
         snapshots: '{{GetPublicSnapshotIds.Snapshots}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: make_snapshots_private
       Script: |-
         %%SCRIPT=MakeEBSSnapshotsPrivate.py%%

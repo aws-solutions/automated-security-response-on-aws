@@ -56,7 +56,7 @@ mainSteps:
     inputs:
       InputPayload:
         LogGroup: '{{LogGroupName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: wait_for_loggroup
       Script: |-
         %%SCRIPT=EnableCloudTrailToCloudWatchLogging_waitforloggroup.py%%

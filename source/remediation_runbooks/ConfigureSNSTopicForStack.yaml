@@ -39,7 +39,7 @@ mainSteps:
     InputPayload:
       stack_arn: '{{ StackArn }}'
       topic_name: 'SO0111-ASR-CloudFormationNotifications'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'lambda_handler'
     Script: |-
       %%SCRIPT=configure_stack_notifications.py%%

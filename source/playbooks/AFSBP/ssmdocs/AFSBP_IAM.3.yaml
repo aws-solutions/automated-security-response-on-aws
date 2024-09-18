@@ -64,7 +64,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\u002F)|(?:\u002F[\u0021-\u007F]{1,510}\u002F))([\w+=,.@-]{1,64})$'
         expected_control_id:
         - 'IAM.3'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

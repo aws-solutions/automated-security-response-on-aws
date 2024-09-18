@@ -65,7 +65,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:[a-z]{2}-[a-z]+-\d{1}:\d{12}:transit-gateway\/(tgw-[a-z0-9\-]+)$'
         expected_control_id: 
           - 'EC2.23'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

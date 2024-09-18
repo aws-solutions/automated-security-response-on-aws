@@ -64,7 +64,7 @@ mainSteps:
     inputs:
       InputPayload:
         AsgName: '{{AutoScalingGroupName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: verify
       Script: |-
         %%SCRIPT=EnableAutoScalingGroupELBHealthCheck_validate.py%%

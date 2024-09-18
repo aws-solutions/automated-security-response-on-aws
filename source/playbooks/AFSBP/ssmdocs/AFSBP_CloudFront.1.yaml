@@ -57,7 +57,7 @@ mainSteps:
       parse_id_pattern: '^(arn:(?:aws|aws-us-gov|aws-cn):cloudfront::\d{12}:distribution\/([A-Z0-9]+))$'
       expected_control_id:
       - 'CloudFront.1'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'parse_event'
     Script: |-
       %%SCRIPT=common/parse_input.py%%

@@ -1,5 +1,0 @@
-node_modules/
-.venv/
-
-[python-pipoutdated]
-boto3=1.20.32 # Should match Lambda runtime: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
