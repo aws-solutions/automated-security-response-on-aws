@@ -1779,6 +1779,44 @@ export class RemediationRunbookStack extends cdk.Stack {
       };
     }
     //-----------------------------------------
+    // AWSConfigRemediation-EnableAPIGatewayTracing
+    //
+    {
+      const remediationName = 'EnableAPIGatewayTracing';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPermsAPIGateway = new PolicyStatement();
+      remediationPermsAPIGateway.addActions(
+        'ssm:GetAutomationExecution',
+        'ssm:StartAutomationExecution',
+        'config:GetResourceConfigHistory',
+        'apigateway:UpdateStage',
+        'apigateway:GetStage',
+      );
+      remediationPermsAPIGateway.effect = Effect.ALLOW;
+      remediationPermsAPIGateway.addResources('*');
+      inlinePolicy.addStatements(remediationPermsAPIGateway);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for to allow remediation for *any* resource.',
+            },
+          ],
+        },
+      };
+    }
+    //-----------------------------------------
     // AWSConfigRemediation-EnableCloudFrontOriginAccessIdentity
     //
     {
@@ -1856,7 +1894,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     // AWS-EnableDynamoDbAutoscaling
     //
     {
-      const remediationName = 'EnableDynamoDbAutoscaling';
+      const remediationName = 'EnableDynamoDbAutoscalingDocument';
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
       const remediationPermsDynamoDB = new PolicyStatement();
@@ -2273,7 +2311,7 @@ export class RemediationRunbookStack extends cdk.Stack {
     // AWSConfigRemediation-EnableWAFV2Logging
     //
     {
-      const remediationName = 'EnableWAFV2Logging';
+      const remediationName = 'EnableWAFV2LoggingDocument';
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
       const remediationPermsWAF = new PolicyStatement();
