@@ -1,0 +1,65 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-SetS3LifecyclePolicy
+ 
+  ## What does this document do?
+    This document sets an example lifecycle policy that transfers objects greater than 10 GB to S3 Intelligent Tiering after 90 days. 
+    It is recommended to set lifecycle policies appropriate for the objects stored in your S3 bucket.
+    [PutBucketLifecycleConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html) API.
+
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * BucketName: (Required)  The name of the S3 bucket.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  S3.13
+
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  BucketName:
+    type: String
+    description: (Required) The name of the S3 bucket.
+    allowedPattern: '(?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)'
+  TargetTransitionDays:
+    type: Integer
+    description:  (Optional) The number of days until transition used for the lifecycle policy.
+    default: 30
+  TargetExpirationDays:
+    type: Integer
+    description: (Optional) The number of days until expiration used for the lifecycle policy.
+    default: 0
+  TargetTransitionStorageClass:
+    type: String
+    description: (Optional) The name of the storage class that will be used for the lifecycle policy.
+    default: "INTELLIGENT_TIERING"
+    allowedPattern: '.*'
+outputs:
+  - SetS3LifecyclePolicy.Output
+mainSteps:
+- name: 'SetS3LifecyclePolicy'
+  action: 'aws:executeScript'
+  maxAttempts: 3
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      BucketName: '{{ BucketName }}'
+      TargetTransitionDays: '{{ TargetTransitionDays }}'
+      TargetExpirationDays: '{{ TargetExpirationDays }}'
+      TargetTransitionStorageClass: '{{ TargetTransitionStorageClass }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=SetS3LifecyclePolicy.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

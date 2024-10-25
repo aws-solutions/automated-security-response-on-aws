@@ -1,0 +1,107 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableRDSInstanceBackup
+
+  ## What does this document do?
+  This document enables backups on an Amazon RDS DB instance using the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.
+  Note: This is not applicable for Amazon Aurora.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * DbiResourceId: (Required) Resource ID of the Amazon RDS database instance for which backups need to be enabled.
+  * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
+    * Default: false
+  * BackupRetentionPeriod: (Required) A positive integer value that indicates the number of days to retain automated backups.
+  * PreferredBackupWindow: (Optional) A daily time range value of at least 30 minutes, in Universal Time Coordinated (UTC).
+    * Default: ""
+
+  ## Output Parameters
+  * EnableBackupsOnRDSInstanceAndVerify.Output
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:aws[a-z0-9-]*:iam::\d{12}:role\/[\w-\/.@+=,]{1,1017}$
+  DbiResourceId:
+    type: String
+    description: (Required) Resource ID of the Amazon RDS database instance for which backups need to be enabled.
+    allowedPattern: ^db-[A-Z0-9]+$
+  ApplyImmediately:
+    type: Boolean
+    description: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
+    default: false
+  BackupRetentionPeriod:
+    type: Integer
+    description: (Required) The integer number of days, between 1 and 35, to retain automated backups.
+    allowedPattern: ^([1-9]|[12][\d]|3[0-5])$
+  PreferredBackupWindow:
+    type: String
+    description: (Optional) A daily time range value of at least 30 minutes, in Universal Time Coordinated (UTC) in the format hh:mm-hh:mm.
+    allowedPattern: ^$|^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$
+    default: ""
+
+outputs:
+  - EnableBackupsOnRDSInstanceAndVerify.Output
+mainSteps:
+  - name: GetRDSInstanceIdentifier
+    action: "aws:executeAwsApi"
+    description: |
+      ## GetRDSInstanceIdentifier
+      Makes DescribeDBInstances API call using the database instance resource identifier to get DBInstanceIdentifier.
+      ## Outputs
+      * DBInstanceIdentifier: DBInstance identifier of the Amazon RDS instance.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      Filters:
+        - Name: dbi-resource-id
+          Values:
+            - "{{ DbiResourceId }}"
+    outputs:
+      - Name: DBInstanceIdentifier
+        Selector: "$.DBInstances[0].DBInstanceIdentifier"
+        Type: String
+  - name: VerifyDBInstanceStatus
+    action: "aws:waitForAwsResourceProperty"
+    timeoutSeconds: 900
+    isEnd: false
+    description: |
+      ## VerifyDBInstanceStatus
+      Waits and verifies whether AWS RDS DBInstance status is available before enabling AutoMiniorVersionUpgrade.
+    inputs:
+      Service: rds
+      Api: DescribeDBInstances
+      DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}"
+      PropertySelector: "$.DBInstances[0].DBInstanceStatus"
+      DesiredValues:
+        - "available"
+  - name: EnableBackupsOnRDSInstanceAndVerify
+    action: aws:executeScript
+    description: |
+        ## EnableBackupsOnRDSInstanceAndVerify
+        Accepts the Resource ID as input, modifies it to enable backups and verifies that backups are enabled or in `PendingModifiedValues` pending to be enabled.
+        ## Outputs
+        * Output: A success message or failure exception.
+    isEnd: true
+    timeoutSeconds: 600
+    inputs:
+        Runtime: python3.11
+        Handler: handler
+        InputPayload:
+            DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DBInstanceIdentifier }}"
+            ApplyImmediately: "{{ ApplyImmediately }}"
+            BackupRetentionPeriod: "{{ BackupRetentionPeriod }}"
+            PreferredBackupWindow: "{{ PreferredBackupWindow }}"
+        Script: |-
+          %%SCRIPT=EnableRDSInstanceBackup.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: String
+      - Name: ModifyDBInstanceResponse
+        Selector: $.Payload.ModifyDBInstanceResponse
+        Type: StringMap

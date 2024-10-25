@@ -1,0 +1,63 @@
+schemaVersion: "0.3"
+description: |
+  ### Document Name - AWSConfigRemediation-EnablePITRForDynamoDbTable
+
+  ## What does this document do?
+  This document enables `PointInTimeRecovery` on an Amazon DynamoDB table using the [UpdateContinuousBackups](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateContinuousBackups.html) API.
+
+  ## Input Parameters
+  * TableName: (Required) Name of the Amazon DynamoDB table.
+    * Example: dynamodb-pitr-example
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnablePITRForDynamoDbTable.UpdateContinuousBackupsResponse: The standard HTTP response from the UpdateContinuousBackups API.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  TableName:
+    description: (Required) Name of the Amazon DynamoDB table.
+    type: String
+    allowedPattern: "[a-zA-Z0-9_.-]{3,255}"
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:aws[a-z0-9-]*:iam::\d{12}:role\/[\w-\/.@+=,]{1,1017}$
+outputs:
+    - EnablePITRForDynamoDbTable.UpdateContinuousBackupsResponse
+mainSteps:
+  -
+    name: EnablePITRForDynamoDbTable
+    action: "aws:executeAwsApi"
+    description: |
+      ## EnablePITRForDynamoDbTable
+      Makes UpdateContinuousBackups API call to enable point in time recovery for the specified table.
+      ## Outputs
+      * UpdateContinuousBackupsResponse: The standard HTTP response from the UpdateContinuousBackups API.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: dynamodb
+      Api: UpdateContinuousBackups
+      TableName: "{{ TableName }}"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
+    outputs:
+      - Name: UpdateContinuousBackupsResponse
+        Selector: $
+        Type: StringMap
+  -
+    name: VerifyPITREnabled
+    action: "aws:assertAwsResourceProperty"
+    timeoutSeconds: 600
+    isEnd: true
+    description: |
+      ## VerifyPITREnabled
+      Checks whether point in time recovery is enabled on the given Amazon DynamoDB table.
+    inputs:
+      Service: dynamodb
+      Api: DescribeContinuousBackups
+      TableName: "{{ TableName }}"
+      PropertySelector: ContinuousBackupsDescription.PointInTimeRecoveryDescription.PointInTimeRecoveryStatus
+      DesiredValues:
+        - "ENABLED"

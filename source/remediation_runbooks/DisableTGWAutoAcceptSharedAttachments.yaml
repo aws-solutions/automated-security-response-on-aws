@@ -1,0 +1,49 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-DisableTGWAutoAcceptSharedAttachments
+ 
+  ## What does this document do?
+    This document turns off AutoAcceptSharedAttachments on a transit gateway to ensure that only authorized VPC attachment requests are accepted.
+    [ModifyTransitGateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifyTransitGateway.html) API.
+
+ 
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * TransitGatewayId: (Required)  The Id of the transit gateway.
+ 
+  ## Security Standards / Controls
+  * AFSBP v1.0.0:  EC2.23
+
+ 
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  TransitGatewayId:
+    type: String
+    description: (Required) The Id of the Transit Gateway.
+    allowedPattern: '^tgw-[a-z0-9\-]+$'
+ 
+outputs:
+  - DisableTGWAutoAcceptSharedAttachments.Output
+mainSteps:
+- name: 'DisableTGWAutoAcceptSharedAttachments'
+  action: 'aws:executeScript'
+  maxAttempts: 3
+  timeoutSeconds: 600
+  inputs:
+    InputPayload:
+      TransitGatewayId: '{{ TransitGatewayId }}'
+    Runtime: 'python3.8'
+    Handler: 'lambda_handler'
+    Script: |-
+      %%SCRIPT=DisableTGWAutoAcceptSharedAttachments.py%%
+  outputs:
+  - Name: 'Output'
+    Selector: '$.Payload'
+    Type: 'StringMap'

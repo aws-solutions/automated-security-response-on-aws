@@ -1,0 +1,102 @@
+schemaVersion: "0.3"
+description: |
+  ### Document name - AWSConfigRemediation-EnableCopyTagsToSnapshotOnRDSDBInstance
+
+  ## What does this document do?
+  The document enables CopyTagsToSnapshot on a given Amazon RDS database instance using the [ModifyDBInstance API](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html).
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * DbiResourceId: (Required) Resource ID of the Amazon RDS DB Instance for which `CopyTagsToSnapshot` needs to be enabled.
+  * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
+    * Default: false
+
+  ## Output Parameters
+  * ModifyDBInstanceResponse.Output: The response of the ModifyDBInstance API call.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: ^arn:aws[a-z0-9-]*:iam::\d{12}:role\/[\w-\/.@+=,]{1,1017}$
+  DbiResourceId:
+    type: String
+    description: (Required) Resource ID of the Amazon RDS DB Instance for which `CopyTagsToSnapshot` needs to be enabled.
+    allowedPattern: ^db-[A-Z0-9]+$
+  ApplyImmediately:
+    type: Boolean
+    description: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
+    default: false
+outputs:
+  - EnableCopyTagsToSnapshot.Output
+mainSteps:
+- name: GetDBInstanceIdentifier
+  action: aws:executeAwsApi
+  description: |
+    ## GetDBInstanceIdentifier
+    Accepts the Resource ID as input and returns the database instance name.
+    ## Outputs
+    * DBInstanceIdentifier: The name of the database instance.
+  timeoutSeconds: 600
+  isEnd: false
+  inputs:
+    Service: rds
+    Api: DescribeDBInstances
+    Filters:
+      - Name: dbi-resource-id
+        Values:
+          - "{{ DbiResourceId }}"
+  outputs:
+    - Name: DBInstanceIdentifier
+      Selector: $.DBInstances[0].DBInstanceIdentifier
+      Type: String
+- name: VerifyDBInstanceStatus
+  action: aws:assertAwsResourceProperty
+  description: |
+    ## VerifyDBInstanceStatus
+    Verifies if `DBInstanceStatus` is available before proceeding to the next step.
+  timeoutSeconds: 600
+  isEnd: false
+  inputs:
+    Service: rds
+    Api: DescribeDBInstances
+    DBInstanceIdentifier: "{{ GetDBInstanceIdentifier.DBInstanceIdentifier }}"
+    PropertySelector: "$.DBInstances[0].DBInstanceStatus"
+    DesiredValues:
+      - "available"
+- name: EnableCopyTagsToSnapshot
+  action: aws:executeAwsApi
+  description: |
+    ## EnableCopyTagsToSnapshot
+    Accepts the database instance name as input and modifies it to set true for CopyTagsToSnapshot.
+    ## Outputs
+    * Output: Response from the ModifyDBInstance API call.
+  timeoutSeconds: 600
+  isEnd: false
+  inputs:
+    Service: rds
+    Api: ModifyDBInstance
+    DBInstanceIdentifier: "{{ GetDBInstanceIdentifier.DBInstanceIdentifier }}"
+    ApplyImmediately: "{{ ApplyImmediately }}"
+    CopyTagsToSnapshot: True
+  outputs:
+    - Name: Output
+      Selector: $
+      Type: StringMap
+- name: VerifyDBInstanceCopyTagsToSnapshotEnabled
+  action: aws:assertAwsResourceProperty
+  description: |
+    ## VerifyDBInstanceCopyTagsToSnapshotEnabled
+    Verifies that `CopyTagsToSnapshot` has been enabled on the target resource.
+    ## Outputs
+    * Output: A success message or failure exception.
+  timeoutSeconds: 600
+  isEnd: true
+  inputs:
+    Service: rds
+    Api: DescribeDBInstances
+    DBInstanceIdentifier: "{{ GetDBInstanceIdentifier.DBInstanceIdentifier }}"
+    PropertySelector: $.DBInstances[0].CopyTagsToSnapshot
+    DesiredValues:
+      - "True"
