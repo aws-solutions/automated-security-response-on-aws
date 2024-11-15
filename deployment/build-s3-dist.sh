@@ -181,6 +181,8 @@ main() {
     mv "$template_dist_dir"/MemberRoleStack.template "$template_dist_dir"/aws-sharr-member-roles.template
 
     rm "$template_dist_dir"/*.nested.template
+
+    python3 $template_dir/upgrade_python_runtimes.py $template_dist_dir/playbooks
 }
 
 main "$@"
