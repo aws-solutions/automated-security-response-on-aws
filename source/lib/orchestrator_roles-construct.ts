@@ -12,6 +12,7 @@ import {
   CfnRole,
 } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface OrchRoleProps {
   solutionId: string;
@@ -142,5 +143,6 @@ export class OrchestratorMemberRole extends Construct {
         ],
       },
     };
+    addCfnGuardSuppression(memberRole, 'IAM_NO_INLINE_POLICY_CHECK');
   }
 }

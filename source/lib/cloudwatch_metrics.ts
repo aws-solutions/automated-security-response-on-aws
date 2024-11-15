@@ -19,6 +19,7 @@ import { Topic } from 'aws-cdk-lib/aws-sns';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions';
 import { ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface CloudWatchMetricsProps {
   solutionId: string;
@@ -195,6 +196,7 @@ export class CloudWatchMetrics {
     });
     setCondition(noRemediationErrorAlarm, isUsingCloudWatchMetricsAlarms);
     noRemediationErrorAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(noRemediationErrorAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
 
     const failedAssumeRoleAlarm = failedAssumeRoleMetric.createAlarm(scope, 'FailedAssumeRoleAlarm', {
       alarmName: 'ASR-RunbookAssumeRoleFailure',
@@ -210,6 +212,8 @@ export class CloudWatchMetrics {
     setCondition(failedAssumeRoleAlarm, isUsingCloudWatchMetricsAlarms);
     failedAssumeRoleAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
 
+    addCfnGuardSuppression(failedAssumeRoleAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+
     const stateMachineExecutionsAlarm = stateMachineExecutionsMetric.createAlarm(scope, 'StateMachineExecutions', {
       alarmName: 'ASR-StateMachineExecutions',
       evaluationPeriods: 1,
@@ -222,6 +226,7 @@ export class CloudWatchMetrics {
 
     setCondition(stateMachineExecutionsAlarm, isUsingCloudWatchMetricsAlarms);
     stateMachineExecutionsAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(stateMachineExecutionsAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
 
     /// CloudWatch Dashboard
     const remediationDashboard = new Dashboard(scope, 'RemediationDashboard', {

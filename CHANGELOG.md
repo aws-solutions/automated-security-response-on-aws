@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4] - 2024-11-18
+### Changed
+- Upgraded python runtimes in all control runbooks from python3.8 to python3.11.
+  - Upgrade is done at build-time temporarily, until the `cdklabs/cdk-ssm-documents` package adds support for newer python runtimes. 
+### Security
+- Upgraded cross-spawn to mitigate [CVE-2024-21538](https://avd.aquasec.com/nvd/cve-2024-21538)
+
 ## [2.1.3] - 2024-09-18
 
 ### Fixed

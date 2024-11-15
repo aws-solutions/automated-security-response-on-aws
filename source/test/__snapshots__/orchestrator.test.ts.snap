@@ -178,6 +178,11 @@ exports[`test App Orchestrator Construct 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {

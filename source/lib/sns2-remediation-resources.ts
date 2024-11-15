@@ -4,6 +4,7 @@ import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';
 import { Effect, Policy, PolicyStatement, Role, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface ISNS2DeliveryStatusLoggingRole {
   roleName: string;
@@ -66,5 +67,6 @@ export class SNS2DeliveryStatusLoggingRole extends Construct {
         ],
       },
     };
+    addCfnGuardSuppression(deliveryStatusLoggingRole, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
   }
 }
