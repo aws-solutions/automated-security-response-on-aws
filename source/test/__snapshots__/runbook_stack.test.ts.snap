@@ -25,6 +25,11 @@ exports[`Global Roles Stack 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {

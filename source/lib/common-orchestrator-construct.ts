@@ -10,6 +10,7 @@ import { Construct } from 'constructs';
 import * as cdk_nag from 'cdk-nag';
 import { Timeout } from 'aws-cdk-lib/aws-stepfunctions';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface ConstructProps {
   roleArn: string;
@@ -494,6 +495,7 @@ export class OrchestratorConstruct extends Construct {
           'CloudWatch Logs permissions require resource * except for DescribeLogGroups, except for GovCloud, which only works with resource *',
       },
     ]);
+    addCfnGuardSuppression(orchestratorRole, 'IAM_NO_INLINE_POLICY_CHECK');
 
     const orchestratorStateMachine = new sfn.StateMachine(this, 'StateMachine', {
       definitionBody: sfn.DefinitionBody.fromChainable(extractFindings),

@@ -26,6 +26,7 @@ import { OneTrigger } from './ssmplaybook';
 import { CloudWatchMetrics } from './cloudwatch_metrics';
 import { AdminPlaybook } from './admin-playbook';
 import { standardPlaybookProps, scPlaybookProps } from '../playbooks/playbook-index';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -231,6 +232,7 @@ export class SolutionDeployStack extends cdk.Stack {
         },
       };
     }
+    addCfnGuardSuppression(orchestratorRole, 'IAM_NO_INLINE_POLICY_CHECK');
 
     /**
      * @description checkSSMDocState - get the status of an ssm document
@@ -768,6 +770,9 @@ export class SolutionDeployStack extends cdk.Stack {
       timeToLiveAttribute: 'TTL',
     });
 
+    addCfnGuardSuppression(schedulingTable, 'DYNAMODB_BILLING_MODE_RULE');
+    addCfnGuardSuppression(schedulingTable, 'DYNAMODB_TABLE_ENCRYPTED_KMS');
+
     const schedulingLamdbdaPolicy = new Policy(this, 'SchedulingLambdaPolicy', {
       policyName: RESOURCE_PREFIX + '-SHARR_Scheduling_Lambda',
       statements: [
@@ -825,6 +830,8 @@ export class SolutionDeployStack extends cdk.Stack {
     orchStateMachine.grantTaskResponse(schedulingLambdaTrigger);
     schedulingTable.grantReadWriteData(schedulingLambdaTrigger);
 
+    addCfnGuardSuppression(schedulingLambdaTrigger, 'LAMBDA_INSIDE_VPC');
+
     schedulingLambdaTrigger.addEventSource(eventSource);
 
     const cloudWatchMetrics = new CloudWatchMetrics(this, {
@@ -873,6 +880,9 @@ export class SolutionDeployStack extends cdk.Stack {
       layers: [sharrLambdaLayer],
     });
 
+    addCfnGuardSuppression(customResourceFunction, 'LAMBDA_INSIDE_VPC');
+    addCfnGuardSuppression(customResourceFunction, 'LAMBDA_CONCURRENCY_CHECK');
+
     new cdk.CustomResource(this, `ASR-DeploymentMetricsCustomResource`, {
       resourceType: 'Custom::DeploymentMetrics',
       serviceToken: customResourceFunction.functionArn,
@@ -891,6 +901,8 @@ export class SolutionDeployStack extends cdk.Stack {
       ],
       true,
     );
+    addCfnGuardSuppression(customResourceLambdaRole, 'IAM_NO_INLINE_POLICY_CHECK');
+    addCfnGuardSuppression(customResourceLambdaRole, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
 
     const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
 

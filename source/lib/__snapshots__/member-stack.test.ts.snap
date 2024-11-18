@@ -1265,6 +1265,14 @@ exports[`member stack snapshot matches 1`] = `
       "DependsOn": [
         "WaitProviderRole83B0295F",
       ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_CONCURRENCY_CHECK",
+            "LAMBDA_INSIDE_VPC",
+          ],
+        },
+      },
       "Properties": {
         "Code": {
           "S3Bucket": {
@@ -1305,6 +1313,12 @@ exports[`member stack snapshot matches 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "Resource * is needed for CloudWatch Logs policies used on Lambda functions.",
             },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
           ],
         },
       },

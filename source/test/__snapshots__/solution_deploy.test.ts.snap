@@ -311,6 +311,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "DependsOn": [
         "stackRole9B4D53CC",
       ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
@@ -674,6 +682,13 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "FailedAssumeRoleAlarm06397028": {
       "Condition": "isUsingCloudWatchMetricsAlarms",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
       "Properties": {
         "ActionsEnabled": true,
         "AlarmActions": [
@@ -708,6 +723,13 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "NoRemediationErrorAlarm20FFD8DF": {
       "Condition": "isUsingCloudWatchMetricsAlarms",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
       "Properties": {
         "ActionsEnabled": true,
         "AlarmActions": [
@@ -1505,6 +1527,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "SchedulingTable1EC09B43": {
       "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "DYNAMODB_BILLING_MODE_RULE",
+            "DYNAMODB_TABLE_ENCRYPTED_KMS",
+          ],
+        },
+      },
       "Properties": {
         "AttributeDefinitions": [
           {
@@ -1552,6 +1582,13 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "StateMachineExecutions0993FE1A": {
       "Condition": "isUsingCloudWatchMetricsAlarms",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
       "Properties": {
         "AlarmActions": [
           {
@@ -2254,6 +2291,11 @@ exports[`Test if the Stack has all the resources. 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -2490,6 +2532,11 @@ exports[`Test if the Stack has all the resources. 1`] = `
             },
           ],
         },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
       },
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -2661,6 +2708,13 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "SchedulingLambdaRoleDefaultPolicy73C1B49B",
         "SchedulingLambdaRoleAB00F55C",
       ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+          ],
+        },
+      },
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
@@ -2775,6 +2829,12 @@ exports[`Test if the Stack has all the resources. 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "Resource * is needed for CloudWatch Logs policies used on Lambda functions.",
             },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
           ],
         },
       },

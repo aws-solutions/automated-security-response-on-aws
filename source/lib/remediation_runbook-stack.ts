@@ -25,6 +25,7 @@ import { SsmRole } from './ssmplaybook';
 import { Aspects, CfnParameter } from 'aws-cdk-lib';
 import { WaitProvider } from './wait-provider';
 import SsmDocRateLimit from './ssm-doc-rate-limit';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface MemberRoleStackProps extends cdk.StackProps {
   readonly solutionId: string;
@@ -419,6 +420,7 @@ export class RemediationRunbookStack extends cdk.Stack {
           },
         };
       }
+      addCfnGuardSuppression(ctcw_remediation_role, 'IAM_NO_INLINE_POLICY_CHECK');
     }
     //-----------------------
     // EnableCloudTrailEncryption
@@ -600,6 +602,7 @@ export class RemediationRunbookStack extends cdk.Stack {
           ],
         },
       };
+      addCfnGuardSuppression(remediation_role, 'IAM_NO_INLINE_POLICY_CHECK');
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
