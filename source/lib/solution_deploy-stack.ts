@@ -9,6 +9,7 @@ import { StringParameter, CfnParameter } from 'aws-cdk-lib/aws-ssm';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as fs from 'fs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from "aws-cdk-lib/aws-logs";
 import {
   Role,
@@ -152,12 +153,26 @@ export class SolutionDeployStack extends cdk.Stack {
       retention: logs.RetentionDays.ONE_YEAR,
     });
 
+    // Create an IAM Role for VPC Flow Logs
+    const flowLogsRole = new iam.Role(this, 'orchestratorLambdaVPCFlowLogsRole', {
+      assumedBy: new iam.ServicePrincipal('vpc-flow-logs.amazonaws.com'),
+    });
+
+    // Attach permissions for publishing logs to CloudWatch
+    flowLogsRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+        resources: [`${logGroup.logGroupArn}:*`],
+      })
+    );
+
     new ec2.CfnFlowLog(this, 'orchestratorLambdaVPCFlowLog', {
       resourceId: vpc.vpcId,
       resourceType: 'VPC',
       trafficType: 'ALL',
       logDestinationType: 'cloud-watch-logs',
-      logGroupName: logGroup.logGroupName
+      logGroupName: logGroup.logGroupName,
+      deliverLogsPermissionArn: flowLogsRole.roleArn,
     });
 
     const mapping = new cdk.CfnMapping(this, 'mappings');
