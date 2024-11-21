@@ -162,7 +162,7 @@ export class SolutionDeployStack extends cdk.Stack {
     flowLogsRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
-        resources: [`${logGroup.logGroupArn}:*`],
+        resources: [`${logGroup.logGroupArn}`],
       })
     );
 
