@@ -245,6 +245,17 @@ export class SolutionDeployStack extends cdk.Stack {
             "ec2:UnassignPrivateIpAddresses"
           ],
           resources: [vpc.vpcArn],
+        }),
+        new PolicyStatement({
+          actions: [
+            "ec2:CreateNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeSubnets",
+            "ec2:DeleteNetworkInterface",
+            "ec2:AssignPrivateIpAddresses",
+            "ec2:UnassignPrivateIpAddresses"
+          ],
+          resources: ['ec2:*'],
         })
       ],
     });
