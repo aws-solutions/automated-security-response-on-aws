@@ -255,7 +255,10 @@ export class SolutionDeployStack extends cdk.Stack {
             "ec2:AssignPrivateIpAddresses",
             "ec2:UnassignPrivateIpAddresses"
           ],
-          resources: ['ec2:*'],
+          resources: [
+            `arn:${this.partition}:ec2:${this.region}:${this.account}:network-interface/*`,
+            `arn:${this.partition}:ec2:${this.region}:${this.account}:subnet/*`,
+          ],
         })
       ],
     });
