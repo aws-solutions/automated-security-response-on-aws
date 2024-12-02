@@ -258,6 +258,7 @@ export class SolutionDeployStack extends cdk.Stack {
           resources: [
             `arn:${this.partition}:ec2:*:${this.account}:network-interface/*`,
             `arn:${this.partition}:ec2:*:${this.account}:subnet/*`,
+            `arn:${this.partition}:ec2:*:${this.account}:security-group/*`,
           ],
         })
       ],
