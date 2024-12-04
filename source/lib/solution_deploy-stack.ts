@@ -246,17 +246,6 @@ export class SolutionDeployStack extends cdk.Stack {
           ],
           resources: [vpc.vpcArn],
         }),
-        new PolicyStatement({
-          actions: [
-            "ec2:CreateNetworkInterface",
-            "ec2:DescribeNetworkInterfaces",
-            "ec2:DescribeSubnets",
-            "ec2:DeleteNetworkInterface",
-            "ec2:AssignPrivateIpAddresses",
-            "ec2:UnassignPrivateIpAddresses"
-          ],
-          resources: ['ec2:*'],
-        })
       ],
     });
 
@@ -521,6 +510,17 @@ export class SolutionDeployStack extends cdk.Stack {
           actions: ['sns:Publish'],
           resources: [`arn:${this.partition}:sns:${this.region}:${this.account}:${RESOURCE_PREFIX}-SHARR_Topic`],
         }),
+        new PolicyStatement({
+          actions: [
+            "ec2:CreateNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeSubnets",
+            "ec2:DeleteNetworkInterface",
+            "ec2:AssignPrivateIpAddresses",
+            "ec2:UnassignPrivateIpAddresses"
+          ],
+          resources: ['*'],
+        })
       ],
     });
 
@@ -637,7 +637,22 @@ export class SolutionDeployStack extends cdk.Stack {
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
+          actions: [
+            'logs:CreateLogGroup', 
+            'logs:CreateLogStream', 
+            'logs:PutLogEvents'
+          ],
+          resources: ['*'],
+        }),
+        new PolicyStatement({
+          actions: [
+            "ec2:CreateNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeSubnets",
+            "ec2:DeleteNetworkInterface",
+            "ec2:AssignPrivateIpAddresses",
+            "ec2:UnassignPrivateIpAddresses"
+          ],
           resources: ['*'],
         }),
         new PolicyStatement({
