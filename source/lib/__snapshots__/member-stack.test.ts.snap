@@ -813,7 +813,7 @@ exports[`member stack snapshot matches 1`] = `
     "SHARRKeyAliasEBF509D8": {
       "Properties": {
         "Description": "KMS Customer Managed Key that will encrypt data for remediations",
-        "Name": "/Solutions/SO9999/CMK_REMEDIATION_ARN",
+        "Name": "/Solutions/SO9999/CMK_ARN",
         "Type": "String",
         "Value": {
           "Fn::GetAtt": [

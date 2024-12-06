@@ -768,7 +768,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         ssmPerms.addActions('ssm:GetParameter');
         ssmPerms.effect = Effect.ALLOW;
         ssmPerms.addResources(
-          `arn:${this.partition}:ssm:*:${this.account}:parameter/${RESOURCE_PREFIX}/CMK_REMEDIATION_ARN`,
+          `arn:${this.partition}:ssm:*:${this.account}:parameter/${RESOURCE_PREFIX}/CMK_ARN`,
         );
         inlinePolicy.addStatements(ssmPerms);
       }

@@ -14,7 +14,7 @@ export class EnableAWSConfigDocument extends ControlRunbookDocument {
     const docInputs: Input[] = [
       Input.ofTypeString('KMSKeyArn', {
         description: `The ARN of the KMS key created by ${props.solutionAcronym} for remediations`,
-        defaultValue: `{{ssm:/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN}}`,
+        defaultValue: `{{ssm:/Solutions/${props.solutionId}/CMK_ARN}}`,
         allowedPattern: String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias\/[A-Za-z0-9/-_])|(?:key\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$`,
       }),
     ];

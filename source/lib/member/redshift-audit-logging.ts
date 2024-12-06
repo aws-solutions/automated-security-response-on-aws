@@ -34,7 +34,7 @@ export class RedshiftAuditLogging extends Construct {
     const kmsKeyArnParameter = StringParameter.fromStringParameterName(
       this, 
       'ImportedKmsKeyArn', 
-      `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`
+      `/Solutions/${props.solutionId}/CMK_ARN`
     );
     const kmsKeyArn = kmsKeyArnParameter.stringValue;
     const kmsKey = Key.fromKeyArn(this, 'SHARRRemediationKey', kmsKeyArn);
