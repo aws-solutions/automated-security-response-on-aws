@@ -30,7 +30,7 @@ parameters:
   KmsKeyArn:
     type: String
     default: >-
-      {{ssm:/Solutions/SO0111/CMK_ARN}}
+      {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
     description: The ARN of the KMS key created by ASR for this remediation
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 outputs:

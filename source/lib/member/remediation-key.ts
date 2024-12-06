@@ -63,7 +63,7 @@ export class MemberRemediationKey extends Construct {
 
     new StringParameter(scope, 'SHARR Key Alias', {
       description: 'KMS Customer Managed Key that will encrypt data for remediations',
-      parameterName: `/Solutions/${props.solutionId}/CMK_ARN`,
+      parameterName: `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`,
       stringValue: kmsKey.keyArn,
     });
   }
