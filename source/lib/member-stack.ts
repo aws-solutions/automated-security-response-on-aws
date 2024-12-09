@@ -27,9 +27,9 @@ export class MemberStack extends Stack {
 
     const adminAccountParam = new AdminAccountParam(this, 'AdminAccountParameter');
 
-    new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
-
     new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
+
+    new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
     new MemberVersion(this, 'MemberVersion', { solutionId: props.solutionId, solutionVersion: props.solutionVersion });
 
