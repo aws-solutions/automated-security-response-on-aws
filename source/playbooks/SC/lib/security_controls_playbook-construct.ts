@@ -4,7 +4,9 @@ import { Stack, CfnMapping, App, StackProps, CfnParameter, Aspects } from 'aws-c
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from '../../../lib/ssmplaybook';
 import { Construct } from 'constructs';
-import { ControlRunbooks } from './control_runbooks-construct';
+import { ControlRunbooks as ControlRunbooksOriginal } from './control_runbooks-construct';
+import { ControlRunbooks as ControlRunbooksNew } from './control_runbooks-construct_2';
+
 import AdminAccountParam from '../../../lib/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { IControl } from '../../../lib/sharrplaybook-construct';
@@ -91,7 +93,7 @@ export interface SecurityControlsPlaybookMemberStackProps extends StackProps {
   remediations: IControl[];
 }
 
-export class SecurityControlsPlaybookMemberStack extends Stack {
+export class SecurityControlsPlaybookMemberStackOriginal extends Stack {
   constructor(scope: App, id: string, props: SecurityControlsPlaybookMemberStackProps) {
     super(scope, id, props);
 
@@ -108,7 +110,48 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
 
     Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
 
-    const controlRunbooks = new ControlRunbooks(this, 'ControlRunbooks', {
+    const controlRunbooks = new ControlRunbooksOriginal(this, 'ControlRunbooksOriginal', {
+      standardShortName: props.securityStandard,
+      standardLongName: props.securityStandardLongName,
+      standardVersion: props.securityStandardVersion,
+      runtimePython: Runtime.PYTHON_3_8, // Newest runtime for SSM automations
+      solutionId: props.solutionId,
+      solutionAcronym: 'ASR',
+      solutionVersion: props.solutionVersion,
+    });
+
+    // Make sure all known controls have runbooks
+    for (const remediation of props.remediations) {
+      // Skip remapped controls
+      if (remediation.executes && remediation.executes !== remediation.control) {
+        continue;
+      }
+
+      if (!controlRunbooks.has(remediation.control)) {
+        throw new Error(`No control runbook implemented for ${remediation.control}`);
+      }
+    }
+  }
+}
+
+export class SecurityControlsPlaybookMemberStackNew extends Stack {
+  constructor(scope: App, id: string, props: SecurityControlsPlaybookMemberStackProps) {
+    super(scope, id, props);
+
+    // Not used, but required by top-level member stack
+    new AdminAccountParam(this, 'AdminAccountParameter');
+
+    const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
+
+    const waitProvider = WaitProvider.fromServiceToken(
+      this,
+      'WaitProvider',
+      waitProviderServiceTokenParam.valueAsString
+    );
+
+    Aspects.of(this).add(new SsmDocRateLimit(waitProvider));
+
+    const controlRunbooks = new ControlRunbooksNew(this, 'ControlRunbooksNew', {
       standardShortName: props.securityStandard,
       standardLongName: props.securityStandardLongName,
       standardVersion: props.securityStandardVersion,
