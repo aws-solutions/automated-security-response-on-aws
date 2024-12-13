@@ -11,7 +11,7 @@ import { MemberBucketEncryption } from './member/bucket-encryption';
 import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 import { WaitProvider } from './wait-provider';
-import { MemberPlaybook } from './member-playbook';
+import { MemberPlaybook, MemberPlaybookNew } from './member-playbook';
 import { standardPlaybookProps, scPlaybookProps } from '../playbooks/playbook-index';
 
 export interface SolutionProps extends StackProps {
@@ -81,7 +81,7 @@ export class MemberStack extends Stack {
       }
     });
 
-    const scPlaybook = new MemberPlaybook(this, {
+    const scPlaybook = new MemberPlaybookNew(this, {
       name: scPlaybookProps.name,
       defaultState: scPlaybookProps.defaultParameterValue,
       description: scPlaybookProps.description,
