@@ -120,7 +120,7 @@ def expected():
                 }
             },
         },
-        "resource_region": None,
+        "resource_region": "us-east-1",
         "aws_config_rule": {
             "ConfigRuleName": "s3-bucket-server-side-encryption-enabled",
             "ConfigRuleArn": "arn:aws:config:us-east-1:111111111111:config-rule/config-rule-vye3dl",

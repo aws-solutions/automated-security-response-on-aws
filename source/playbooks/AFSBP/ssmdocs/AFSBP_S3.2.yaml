@@ -68,7 +68,7 @@ mainSteps:
       DocumentName: ASR-ConfigureS3BucketPublicAccessBlock
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketPublicAccessBlock'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-ConfigureS3BucketPublicAccessBlock%%'
         RestrictPublicBuckets: true
         BlockPublicAcls: true
         IgnorePublicAcls: true

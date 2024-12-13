@@ -21,8 +21,7 @@ export class UpdateSecretRotationPeriodDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         maxDaysSinceRotation: 90,
@@ -30,8 +29,7 @@ export class UpdateSecretRotationPeriodDocument extends ControlRunbookDocument {
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const EventTypes: Output = {
       name: 'MaxDaysSinceRotation',
       outputType: DataTypeEnum.STRING_LIST,
@@ -43,9 +41,7 @@ export class UpdateSecretRotationPeriodDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.MaxDaysSinceRotation = StringListVariable.of('GetInputParams.MaxDaysSinceRotation');

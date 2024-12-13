@@ -254,6 +254,11 @@ class SHARRNotification(object):
 
     severity = "INFO"
     message = ""
+    remediation_output = ""
+    remediation_status = ""
+    remediation_account_alias = ""
+    finding_link = ""
+    ticket_url = ""
     logdata: Any = []
     send_to_sns = False
     finding_info: Union[dict[str, Any], str] = {}
@@ -292,10 +297,17 @@ class SHARRNotification(object):
         Send notifications to the application CW Logs stream and sns
         """
         sns_notify_json = {
-            "severity": self.severity,
-            "message": self.message,
-            "finding": self.finding_info,
+            "Remediation_Status": self.remediation_status,
+            "Severity": self.severity,
+            "Account_Alias": self.remediation_account_alias,
+            "Remediation_Output": self.remediation_output,
+            "Message": self.message,
+            "Finding_Link": self.finding_link,
+            "Finding": self.finding_info,
         }
+
+        if self.ticket_url:
+            sns_notify_json["Ticket_URL"] = self.ticket_url
 
         if self.send_to_sns:
             sent_id = publish_to_sns(

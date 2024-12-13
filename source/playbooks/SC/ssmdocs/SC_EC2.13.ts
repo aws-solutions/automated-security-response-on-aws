@@ -37,8 +37,7 @@ export class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookD
     });
   }
 
-  /** @override */
-  protected getRemediationStep(): AutomationStep {
+  protected override getRemediationStep(): AutomationStep {
     return new ExecuteAutomationStep(this, 'Remediation', {
       documentName: HardCodedString.of(`AWS-${this.remediationName}`),
       runtimeParameters: HardCodedStringMap.of(this.getRemediationParams()),

@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the SSM.4 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-BlockSSMDocumentPublicAccess'
+    default: '%%ROLE=SO0111-BlockSSMDocumentPublicAccess%%'
     allowedPattern: '^[\w+=,.@-]+$'
 outputs:
   - ParseInput.AffectedObject

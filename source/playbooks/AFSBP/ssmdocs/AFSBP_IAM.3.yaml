@@ -37,7 +37,7 @@ parameters:
     default: "90"
   RemediationRoleName:
     type: String
-    default: "SO0111-RevokeUnrotatedKeys"
+    default: "%%ROLE=SO0111-RevokeUnrotatedKeys%%"
     allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
   - name: ParseInput

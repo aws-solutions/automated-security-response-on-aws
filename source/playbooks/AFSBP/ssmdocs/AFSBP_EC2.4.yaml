@@ -26,7 +26,7 @@ parameters:
     description: The input from the Orchestrator Step function for the EC2.4 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-TerminateEC2Instance'
+    default: '%%ROLE=SO0111-TerminateEC2Instance%%'
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

@@ -1,0 +1,98 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-PCI_3.2.1_SSM.3
+
+  ## What does this document do?
+  This document adds the necessary permissions for SSM to begin managing the EC2 Instance.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * RemediationRoleName: (Optional) The name of the role that allows Automation to remediate the finding on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output
+
+  ## Documentation Links
+  * [PCI 3.2.1 SSM.3](https://docs.aws.amazon.com/securityhub/latest/userguide/ssm-controls.html#ssm-1)
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for the PCI.SSM.3 finding
+  RemediationRoleName:
+    type: 'String'
+    default: '%%ROLE=SO0111-AttachSSMPermissionsToEC2%%'
+    allowedPattern: '^[\w+=,.@-]+$'
+outputs:
+  - ParseInput.AffectedObject
+  - Remediation.Output
+
+mainSteps:
+  -
+    name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: FindingId
+        Selector: $.Payload.finding.Id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.finding.ProductArn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: InstanceArn
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: RemediationRegion
+        Selector: $.Payload.resource_region
+        Type: String
+      - Name: RemediationAccount
+        Selector: $.Payload.account_id
+        Type: String
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: ''
+        expected_control_id:
+          - 'PCI.SSM.3'
+      Runtime: python3.11
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=common/parse_input.py%%
+
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    inputs:
+      DocumentName: ASR-AttachSSMPermissionsToEC2
+      TargetLocations:
+        - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
+          Regions: [ '{{ParseInput.RemediationRegion}}' ]
+          ExecutionRoleName: '{{RemediationRoleName}}'
+      RuntimeParameters:
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
+        InstanceArn: '{{ ParseInput.InstanceArn }}'
+        RemediationRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}-RemediationRole'
+        InstanceProfile: '{{RemediationRoleName}}-InstanceProfile'
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+        - Id: '{{ParseInput.FindingId}}'
+          ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'AmazonSSMManagedInstanceCore IAM Policy attached to EC2 Instance.'
+        UpdatedBy: 'ASR-PCI_3.2.1_SSM.3'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding

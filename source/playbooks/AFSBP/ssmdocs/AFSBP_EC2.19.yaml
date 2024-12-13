@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the EC2.19 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-DisableUnrestrictedAccessToHighRiskPorts'
+    default: '%%ROLE=SO0111-DisableUnrestrictedAccessToHighRiskPorts%%'
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

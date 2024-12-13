@@ -6,8 +6,9 @@ import {
   SecurityControlsPlaybookMemberStack,
   SecurityControlsPlaybookPrimaryStack,
 } from '../lib/security_controls_playbook-construct';
+import { omitWaitResourceHash } from '../../../test/utils';
 
-function getTestStack(): Stack {
+function getPrimaryStack(): Stack {
   const app = new App();
   const stack = new SecurityControlsPlaybookPrimaryStack(app, 'stack', {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -16,7 +17,11 @@ function getTestStack(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     solutionDistName: 'automated-security-response-on-aws',
-    remediations: [{ control: 'Example.3' }, { control: 'Example.5' }, { control: 'Example.1' }],
+    remediations: [
+      { control: 'Example.3', versionAdded: '2.1.0' },
+      { control: 'Example.5', versionAdded: '2.2.0' },
+      { control: 'Example.1', versionAdded: '2.2.1' },
+    ],
     securityStandard: 'SC',
     securityStandardLongName: 'security-control',
     securityStandardVersion: '2.0.0',
@@ -25,7 +30,12 @@ function getTestStack(): Stack {
 }
 
 test('admin stack', () => {
-  expect(Template.fromStack(getTestStack())).toMatchSnapshot();
+  const stack = getPrimaryStack();
+  const template = Template.fromStack(stack);
+
+  const templateJSON = template.toJSON();
+  omitWaitResourceHash(template, templateJSON);
+  expect(templateJSON).toMatchSnapshot();
 });
 
 function getMemberStack(): Stack {
@@ -37,7 +47,11 @@ function getMemberStack(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     ssmdocs: 'playbooks/NEWPLAYBOOK/ssmdocs',
-    remediations: [{ control: 'AutoScaling.1' }, { control: 'CloudTrail.5' }, { control: 'Config.1' }],
+    remediations: [
+      { control: 'AutoScaling.1', versionAdded: '2.1.0' },
+      { control: 'CloudTrail.5', versionAdded: '2.2.0' },
+      { control: 'Config.1', versionAdded: '2.1.1' },
+    ],
     securityStandard: 'PCI',
     securityStandardLongName: 'pci-dss',
     securityStandardVersion: '3.2.1',
@@ -47,5 +61,10 @@ function getMemberStack(): Stack {
 }
 
 test('member stack', () => {
-  expect(Template.fromStack(getMemberStack())).toMatchSnapshot();
+  const stack = getMemberStack();
+  const template = Template.fromStack(stack);
+
+  const templateJSON = template.toJSON();
+  omitWaitResourceHash(template, templateJSON);
+  expect(templateJSON).toMatchSnapshot();
 });

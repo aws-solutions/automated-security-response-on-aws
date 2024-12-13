@@ -1,0 +1,65 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-AttachSSMPermissionsToEC2
+
+  ## What does this document do?
+  This document adds the necessary permissions for SSM to begin managing the EC2 Instance.
+  If the EC2 instance has an existing instance profile, it will add SSM permissions to the existing role if they are not already present.
+  If the EC2 instance does not have an existing instance profile, it will attach a new profile and role with the correct permissions.
+
+  ## Input Parameters
+  * InstanceArn: (Required) EC2 Instance ARN
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0:   SSM.1
+  * PCI:            PCI.SSM.3
+
+  ## Output Parameters
+  * AttachSSMPermissionsToEC2.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  InstanceArn:
+    type: String
+    description: (Required) The document ARN.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:instance\/(i-[0-9a-f]*)$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  RemediationRole:
+    type: String
+    description: (Required) The ARN of the role that with SSM managed permissions for EC2.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  InstanceProfile:
+    type: String
+    description: (Required) The name of the Instance profile with SSM managed permissions for EC2.
+    allowedPattern: '^.+-AttachSSMPermissionsToEC2-InstanceProfile-.+$'
+outputs:
+  - AttachSSMPermissionsToEC2.Output
+mainSteps:
+  -
+    name: AttachSSMPermissionsToEC2
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Adds necessary permissions for SSM to begin managing the EC2 Instance.
+    isEnd: true
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        InstanceArn: '{{InstanceArn}}'
+        RemediationRole: '{{RemediationRole}}'
+        InstanceProfile: '{{InstanceProfile}}'
+      Runtime: python3.11
+      Handler: lambda_handler
+      Script: |-
+        %%SCRIPT=AttachSSMPermissionsToEC2.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

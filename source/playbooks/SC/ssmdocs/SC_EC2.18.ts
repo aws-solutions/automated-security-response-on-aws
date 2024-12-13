@@ -22,8 +22,7 @@ export class RevokeUnauthorizedInboundRulesDocument extends ControlRunbookDocume
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         authorizedTcpPorts: ['80', '443'],
@@ -32,8 +31,7 @@ export class RevokeUnauthorizedInboundRulesDocument extends ControlRunbookDocume
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const AuthorizedTcpPorts: Output = {
       name: 'authorizedTcpPorts',
       outputType: DataTypeEnum.STRING_LIST,
@@ -50,11 +48,8 @@ export class RevokeUnauthorizedInboundRulesDocument extends ControlRunbookDocume
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.AuthorizedTcpPorts = StringListVariable.of('GetInputParams.authorizedTcpPorts');
     params.AuthorizedUdpPorts = StringListVariable.of('GetInputParams.authorizedUdpPorts');

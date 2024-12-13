@@ -29,11 +29,11 @@ parameters:
     description: The input from the Orchestrator Step function for the SNS.2 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-EnableDeliveryStatusLoggingForSNSTopic'
+    default: '%%ROLE=SO0111-EnableDeliveryStatusLoggingForSNSTopic%%'
     allowedPattern: '^[\w+=,.@-]+$'
   LoggingRole:
     type: 'String'
-    default: 'SO0111-SNS2DeliveryStatusLogging-remediationRole'
+    default: '%%ROLE=SO0111-SNS2DeliveryStatusLogging-remediationRole%%'
     allowedPattern: '^[\w+=,.@-]+$'
 outputs:
   - ParseInput.AffectedObject

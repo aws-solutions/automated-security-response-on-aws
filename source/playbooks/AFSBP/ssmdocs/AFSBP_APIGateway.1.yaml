@@ -1,0 +1,121 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-AFSBP_1.0.0_APIGateway.1
+
+  ## What does this document do?
+  This document enables logging in the given API Gateway Stage.
+
+  ## Input Parameters
+  * Finding: (Required) Security Hub finding details JSON
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * Remediation.Output
+
+  ## Documentation Links
+  * [AWS AFSBP APIGateway.1](https://docs.aws.amazon.com/securityhub/latest/userguide/apigateway-controls.html#apigateway-1)
+
+
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - Remediation.Output
+  - ParseInput.AffectedObject
+parameters:
+  Finding:
+    type: StringMap
+    description: The input from the Orchestrator Step function for the APIGateway.1 finding
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  RemediationRoleName:
+    type: String
+    default: "%%ROLE=SO0111-EnableAPIGatewayExecutionLogs%%"
+    allowedPattern: '^[\w+=,.@-]+$'
+mainSteps:
+  - name: ParseInput
+    action: 'aws:executeScript'
+    outputs:
+      - Name: APIGatewayStageArnSuffix
+        Selector: $.Payload.resource_id
+        Type: String
+      - Name: FindingId
+        Selector: $.Payload.finding_id
+        Type: String
+      - Name: ProductArn
+        Selector: $.Payload.product_arn
+        Type: String
+      - Name: AffectedObject
+        Selector: $.Payload.object
+        Type: StringMap
+      - Name: RemediationRegion
+        Selector: $.Payload.resource_region
+        Type: String
+      - Name: RemediationAccount
+        Selector: $.Payload.account_id
+        Type: String
+      - Name: SecHubInputParams
+        Selector: $.Payload.input_params
+        Type: StringMap
+    inputs:
+      InputPayload:
+        Finding: '{{Finding}}'
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::(\/restapis\/(.+)\/stages\/(.+)|\/apis\/(.+)\/stages\/(.+))$'
+        expected_control_id:
+          - 'APIGateway.1'
+      Runtime: python3.11
+      Handler: parse_event
+      Script: |-
+        %%SCRIPT=common/parse_input.py%%
+    isEnd: false
+
+  - name: GetInputParams
+    action: 'aws:executeScript'
+    outputs:
+      - Name: LoggingLevel
+        Selector: $.Payload.loggingLevel
+        Type: String
+    inputs:
+      InputPayload:
+        SecHubInputParams: '{{ParseInput.SecHubInputParams}}'
+        DefaultParams: {
+          "loggingLevel": [ "INFO" ],
+        }
+        expected_control_id: [ 'APIGateway.1' ]
+      Runtime: python3.11
+      Handler: get_input_params
+      Script: |-
+        %%SCRIPT=common/get_input_params.py%%
+
+  - name: Remediation
+    action: 'aws:executeAutomation'
+    isEnd: false
+    inputs:
+      DocumentName: ASR-EnableAPIGatewayExecutionLogs
+      TargetLocations:
+        - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
+          Regions: [ '{{ParseInput.RemediationRegion}}' ]
+          ExecutionRoleName: '{{ RemediationRoleName }}'
+      RuntimeParameters:
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
+        APIGatewayStageArnSuffix: '{{ParseInput.APIGatewayStageArnSuffix}}'
+        LoggingLevel: '{{GetInputParams.LoggingLevel}}'
+
+  - name: UpdateFinding
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: securityhub
+      Api: BatchUpdateFindings
+      FindingIdentifiers:
+        - Id: '{{ParseInput.FindingId}}'
+          ProductArn: '{{ParseInput.ProductArn}}'
+      Note:
+        Text: 'Set log level to {{GetInputParams.LoggingLevel}} for API Gateway Stage'
+        UpdatedBy: 'ASR-AFSBP_1.0.0_APIGateway.1'
+      Workflow:
+        Status: RESOLVED
+    description: Update finding
+    isEnd: true

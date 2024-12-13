@@ -1,10 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
+import { omitWaitResourceHash } from '../../../test/utils';
 
-function getTestStack(): Stack {
+function getPrimaryStack() {
   const app = new App();
   const stack = new PlaybookPrimaryStack(app, 'stack', {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -13,7 +14,11 @@ function getTestStack(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     solutionDistName: 'automated-security-response-on-aws',
-    remediations: [{ control: 'PCI.AutoScaling.1' }, { control: 'PCI.EC2.6' }, { control: 'PCI.IAM.8' }],
+    remediations: [
+      { control: 'PCI.AutoScaling.1', versionAdded: '2.1.0' },
+      { control: 'PCI.EC2.6', versionAdded: '2.1.0' },
+      { control: 'PCI.IAM.8', versionAdded: '2.1.0' },
+    ],
     securityStandard: 'PCI',
     securityStandardLongName: 'pci-dss',
     securityStandardVersion: '3.2.1',
@@ -22,10 +27,15 @@ function getTestStack(): Stack {
 }
 
 test('default stack', () => {
-  expect(Template.fromStack(getTestStack())).toMatchSnapshot();
+  const stack = getPrimaryStack();
+  const template = Template.fromStack(stack);
+
+  const templateJSON = template.toJSON();
+  omitWaitResourceHash(template, templateJSON);
+  expect(templateJSON).toMatchSnapshot();
 });
 
-function getMemberStack(): Stack {
+function getMemberStack() {
   const app = new App();
   const stack = new PlaybookMemberStack(app, 'memberStack', {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -38,11 +48,20 @@ function getMemberStack(): Stack {
     securityStandardLongName: 'pci-dss',
     ssmdocs: 'playbooks/PCI321/ssmdocs',
     commonScripts: 'playbooks/common',
-    remediations: [{ control: 'PCI.AutoScaling.1' }, { control: 'PCI.EC2.6' }, { control: 'PCI.IAM.8' }],
+    remediations: [
+      { control: 'PCI.AutoScaling.1', versionAdded: '2.1.0' },
+      { control: 'PCI.EC2.6', versionAdded: '2.1.0' },
+      { control: 'PCI.IAM.8', versionAdded: '2.1.0' },
+    ],
   });
   return stack;
 }
 
 test('default stack', () => {
-  expect(Template.fromStack(getMemberStack())).toMatchSnapshot();
+  const stack = getMemberStack();
+  const template = Template.fromStack(stack);
+
+  const templateJSON = template.toJSON();
+  omitWaitResourceHash(template, templateJSON);
+  expect(templateJSON).toMatchSnapshot();
 });

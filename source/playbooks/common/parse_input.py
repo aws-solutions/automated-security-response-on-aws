@@ -135,6 +135,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index

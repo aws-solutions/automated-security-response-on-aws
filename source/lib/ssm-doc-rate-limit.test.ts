@@ -159,8 +159,7 @@ describe('SSM doc rate limit aspect with conditional documents', function () {
         if (dummyResourceLogicalIds.includes(value)) {
           const dummyResource = dummyResources[value];
           Object.entries(dummyResource.Metadata).forEach(function (meta: [string, unknown]) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            documentSet.push((meta[1] as { [_: string]: any })['Fn::If'][1].Ref);
+            documentSet.push((meta[1] as Record<string, any>)['Fn::If'][1].Ref);
           });
         }
       });
@@ -186,8 +185,7 @@ describe('SSM doc rate limit aspect with conditional documents', function () {
   });
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Resources = { [_: string]: { [_: string]: any } };
+type Resources = { [_: string]: Record<string, any> };
 
 // do the resources depend on each other in a serial manner
 // this isn't foolproof, but it should be enough for simple cases

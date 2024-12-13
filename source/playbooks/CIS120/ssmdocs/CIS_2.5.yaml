@@ -73,7 +73,7 @@ mainSteps:
       RuntimeParameters:
         SNSTopicName: 'SO0111-SHARR-AWSConfigNotification'
         KMSKeyArn: '{{KMSKeyArn}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableAWSConfig'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-EnableAWSConfig%%'
 
   -
     name: UpdateFinding

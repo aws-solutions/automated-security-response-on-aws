@@ -23,6 +23,7 @@ function getSsmPlaybook(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'solutionstest',
     solutionId: 'SO0111',
+    namespace: 'myNamespace',
   });
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
@@ -76,6 +77,7 @@ function getSsmRemediationRunbook(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'solutionstest',
     solutionId: 'SO0111',
+    namespace: 'myNamespace',
   });
   return stack;
 }
@@ -190,6 +192,16 @@ test('Test SsmRole Generation', () => {
       ],
       Version: '2012-10-17',
     },
-    RoleName: 'SHARR-RemediationRoleName',
+    RoleName: {
+      'Fn::Join': [
+        '',
+        [
+          'SHARR-RemediationRoleName-',
+          {
+            Ref: 'Namespace',
+          },
+        ],
+      ],
+    },
   });
 });

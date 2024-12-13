@@ -1,0 +1,8 @@
+{
+  "app": "npx ts-node bin/app.ts",
+  "versionReporting": false,
+  "context": {
+    "aws-cdk:enableDiffNoFail": "true",
+    "@aws-cdk/aws-iam:standardizedServicePrincipals": true
+  }
+}

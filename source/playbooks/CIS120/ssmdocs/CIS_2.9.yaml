@@ -66,8 +66,8 @@ mainSteps:
       DocumentName: ASR-EnableVPCFlowLogs
       RuntimeParameters:
         VPC: '{{ParseInput.VPC}}'
-        RemediationRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableVPCFlowLogs-remediationRole'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableVPCFlowLogs'
+        RemediationRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-EnableVPCFlowLogs-remediationRole%%'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-EnableVPCFlowLogs%%'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

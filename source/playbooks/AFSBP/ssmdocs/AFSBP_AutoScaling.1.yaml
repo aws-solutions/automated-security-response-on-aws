@@ -79,9 +79,9 @@ mainSteps:
       TargetLocations:
         - Accounts: [ '{{ParseInput.RemediationAccount}}' ]
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
-          ExecutionRoleName: 'SO0111-EnableAutoScalingGroupELBHealthCheck'
+          ExecutionRoleName: '%%ROLE=SO0111-EnableAutoScalingGroupELBHealthCheck%%'
       RuntimeParameters:
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableAutoScalingGroupELBHealthCheck'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-EnableAutoScalingGroupELBHealthCheck%%'
         AutoScalingGroupName: '{{ParseInput.AutoScalingGroupName}}'
 
   - name: UpdateFinding

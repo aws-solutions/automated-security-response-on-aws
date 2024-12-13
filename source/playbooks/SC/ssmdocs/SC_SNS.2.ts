@@ -21,14 +21,12 @@ export class EnableDeliveryLoggingForSNSTopicDocument extends ControlRunbookDocu
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
     params.SNSTopicArn = StringVariable.of('ParseInput.SNSTopicArn');
 
     params.LoggingRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-SNS2DeliveryStatusLogging-remediationRole`,
+      `arn:%s:iam::%s:role/${this.solutionId}-SNS2DeliveryStatusLogging-remediationRole-${this.namespace}`,
       [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
 

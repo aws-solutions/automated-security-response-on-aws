@@ -20,7 +20,7 @@ description: |
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
   ## Output Parameters
-  * GetPublicAccessBlock.Output - JSON formatted response from the GetPublicAccessBlock API call.
+  * ConfigureS3PublicAccessBlock.Output - JSON formatted response from the ConfigureS3PublicAccessBlock script.
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
@@ -50,42 +50,21 @@ parameters:
     description: (Optional) Specifies whether Amazon S3 should block public bucket policies for buckets in this account. Setting this element to TRUE causes Amazon S3 to reject calls to PUT Bucket policy if the specified bucket policy allows public access.
     default: true
 outputs:
-  - GetPublicAccessBlock.Output
+  - ConfigureS3PublicAccessBlock.Output
 mainSteps:
-  -
-    name: PutAccountPublicAccessBlock
-    action: "aws:executeAwsApi"
-    description: |
-      ## PutAccountPublicAccessBlock
-      Creates or modifies the S3 PublicAccessBlock configuration for an AWS account.
-    timeoutSeconds: 600
-    isEnd: false
-    inputs:
-      Service: s3control
-      Api: PutPublicAccessBlock
-      AccountId: "{{ AccountId }}"
-      PublicAccessBlockConfiguration:
-        RestrictPublicBuckets: "{{ RestrictPublicBuckets }}"
-        BlockPublicAcls: "{{ BlockPublicAcls }}"
-        IgnorePublicAcls: "{{ IgnorePublicAcls }}"
-        BlockPublicPolicy: "{{ BlockPublicPolicy }}"
-    outputs:
-      - Name: PutAccountPublicAccessBlockResponse
-        Selector: $
-        Type: StringMap
-  -
-    name: GetPublicAccessBlock
+  - name: ConfigureS3PublicAccessBlock
     action: "aws:executeScript"
     description: |
-      ## GetPublicAccessBlock
-      Retrieves the S3 PublicAccessBlock configuration for an AWS account.
+      ## ConfigureS3PublicAccessBlock
+      Configures the S3 account-level PublicAccessBlock.
       ## Outputs
-      * Output: JSON formatted response from the GetPublicAccessBlock API call.
+      * Output: Response from the ConfigureS3PublicAccessBlock script.
     timeoutSeconds: 600
+    isCritical: true
     isEnd: true
     inputs:
       Runtime: python3.11
-      Handler: handler
+      Handler: handle_account
       InputPayload:
         AccountId: "{{ AccountId }}"
         RestrictPublicBuckets: "{{ RestrictPublicBuckets }}"
@@ -93,47 +72,8 @@ mainSteps:
         IgnorePublicAcls: "{{ IgnorePublicAcls }}"
         BlockPublicPolicy: "{{ BlockPublicPolicy }}"
       Script: |-
-        import boto3
-        from time import sleep
-
-        def verify_s3_public_access_block(account_id, restrict_public_buckets, block_public_acls, ignore_public_acls, block_public_policy):
-           s3control_client = boto3.client('s3control')
-           wait_time = 30
-           max_time = 480
-           retry_count = 1
-           max_retries = max_time/wait_time
-           while retry_count <= max_retries:
-               sleep(wait_time)
-               retry_count = retry_count + 1
-               get_public_access_response = s3control_client.get_public_access_block(AccountId=account_id)
-               updated_block_acl = get_public_access_response['PublicAccessBlockConfiguration']['BlockPublicAcls']
-               updated_ignore_acl = get_public_access_response['PublicAccessBlockConfiguration']['IgnorePublicAcls']
-               updated_block_policy = get_public_access_response['PublicAccessBlockConfiguration']['BlockPublicPolicy']
-               updated_restrict_buckets = get_public_access_response['PublicAccessBlockConfiguration']['RestrictPublicBuckets']
-               if updated_block_acl == block_public_acls and updated_ignore_acl == ignore_public_acls \
-                         and updated_block_policy == block_public_policy and updated_restrict_buckets == restrict_public_buckets:
-                           return {
-                               "output": {
-                                   "message": "Verification successful. S3 Public Access Block Updated.",
-                                   "HTTPResponse": get_public_access_response["PublicAccessBlockConfiguration"]
-                               },
-                           }
-           raise Exception(
-                 "VERFICATION FAILED. S3 GetPublicAccessBlock CONFIGURATION VALUES "
-                 "DO NOT MATCH WITH PARAMETERS PROVIDED VALUES "
-                 "RestrictPublicBuckets: {}, BlockPublicAcls: {}, IgnorePublicAcls: {}, BlockPublicPolicy: {}"
-                 .format(updated_restrict_buckets, updated_block_acl, updated_ignore_acl, updated_block_policy)
-           )
-
-        def handler(event, context):
-          account_id = event["AccountId"]
-          restrict_public_buckets = event["RestrictPublicBuckets"]
-          block_public_acls = event["BlockPublicAcls"]
-          ignore_public_acls = event["IgnorePublicAcls"]
-          block_public_policy = event["BlockPublicPolicy"]
-          return verify_s3_public_access_block(account_id, restrict_public_buckets, block_public_acls, ignore_public_acls, block_public_policy)
-
+        %%SCRIPT=ConfigureS3PublicAccessBlock.py%%
     outputs:
       - Name: Output
-        Selector: $.Payload.output
+        Selector: $.Payload
         Type: StringMap

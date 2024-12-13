@@ -34,8 +34,8 @@ export class SetIAMPasswordPolicyDocument extends ControlRunbookDocument {
       ),
     });
   }
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         AllowUsersToChangePassword: 'True',
@@ -51,8 +51,7 @@ export class SetIAMPasswordPolicyDocument extends ControlRunbookDocument {
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const AllowUsersToChangePasswordOutput: Output = {
       name: 'AllowUsersToChangePassword',
       outputType: DataTypeEnum.BOOLEAN,
@@ -114,11 +113,8 @@ export class SetIAMPasswordPolicyDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.AllowUsersToChangePassword = BooleanVariable.of('GetInputParams.AllowUsersToChangePassword');
     params.HardExpiry = BooleanVariable.of('GetInputParams.HardExpiry');

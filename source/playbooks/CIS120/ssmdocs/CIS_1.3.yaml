@@ -68,7 +68,7 @@ mainSteps:
       DocumentName: ASR-RevokeUnusedIAMUserCredentials
       RuntimeParameters:
         IAMResourceId: '{{ ParseInput.IAMResourceId }}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-RevokeUnusedIAMUserCredentials%%'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

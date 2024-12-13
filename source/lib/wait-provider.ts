@@ -23,8 +23,7 @@ export interface WaitResourceProps {
   readonly createIntervalSeconds: number;
   readonly updateIntervalSeconds: number;
   readonly deleteIntervalSeconds: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly extraResourceProps?: { [_: string]: any };
+  readonly extraResourceProps?: Record<string, any>;
 }
 
 export class WaitProvider extends Construct {

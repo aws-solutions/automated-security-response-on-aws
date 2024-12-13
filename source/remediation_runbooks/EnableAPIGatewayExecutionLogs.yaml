@@ -1,0 +1,54 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-EnableAPIGatewayExecutionLogs
+
+  ## What does this document do?
+    This document enables logging on the given API Gateway Stage.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * APIGatewayStageArnSuffix: (Required) The suffix of the API Gateway stage ARN.
+  * LoggingLevel: (Required) The log level which should be set in the Stage.
+
+  ## Security Standards / Controls
+  * AFSBP: APIGateway.1
+
+assumeRole: '{{ AutomationAssumeRole }}'
+outputs:
+  - 'EnableAPIGatewayExecutionLogs.Output'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  APIGatewayStageArnSuffix:
+    type: String
+    description: (Required) The suffix of the API Gateway stage ARN.
+    allowedPattern: '\/apis\/(.+)\/stages\/(.+)|\/restapis\/(.+)\/stages\/(.+)'
+  LoggingLevel:
+    type: String
+    description: (Required) The logging level to set in the Stage.
+    allowedPattern: 'INFO|ERROR'
+mainSteps:
+  - name: 'EnableAPIGatewayExecutionLogs'
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Enable logging in the API Gateway Stage
+    isEnd: true
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        APIGatewayStageArnSuffix: '{{ APIGatewayStageArnSuffix }}'
+        LoggingLevel: '{{ LoggingLevel }}'
+      Runtime: 'python3.11'
+      Handler: 'handler'
+      Script: |-
+        %%SCRIPT=EnableAPIGatewayExecutionLogs.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

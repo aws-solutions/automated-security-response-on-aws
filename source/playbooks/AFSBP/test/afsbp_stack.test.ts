@@ -3,6 +3,7 @@
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
+import { omitWaitResourceHash } from '../../../test/utils';
 
 function getPrimaryStack(): Stack {
   const app = new App();
@@ -13,7 +14,11 @@ function getPrimaryStack(): Stack {
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     solutionDistName: 'automated-security-response-on-aws',
-    remediations: [{ control: 'Example.3' }, { control: 'Example.5' }, { control: 'Example.1' }],
+    remediations: [
+      { control: 'Example.3', versionAdded: '2.1.0' },
+      { control: 'Example.5', versionAdded: '2.2.0' },
+      { control: 'Example.1', versionAdded: '2.2.1' },
+    ],
     securityStandard: 'AFSBP',
     securityStandardLongName: 'aws-foundational-security-best-practices',
     securityStandardVersion: '1.0.0',
@@ -22,7 +27,12 @@ function getPrimaryStack(): Stack {
 }
 
 test('Primary Stack - AFSBP', () => {
-  expect(Template.fromStack(getPrimaryStack())).toMatchSnapshot();
+  const stack = getPrimaryStack();
+  const template = Template.fromStack(stack);
+
+  const templateJSON = template.toJSON();
+  omitWaitResourceHash(template, templateJSON);
+  expect(templateJSON).toMatchSnapshot();
 });
 
 function getMemberStack(): Stack {
@@ -38,11 +48,20 @@ function getMemberStack(): Stack {
     securityStandardVersion: '1.0.0',
     ssmdocs: 'playbooks/AFSBP/ssmdocs',
     commonScripts: 'playbooks/common',
-    remediations: [{ control: 'EC2.1' }, { control: 'RDS.1' }, { control: 'Lambda.1' }],
+    remediations: [
+      { control: 'EC2.1', versionAdded: '2.1.0' },
+      { control: 'RDS.1', versionAdded: '2.2.0' },
+      { control: 'Lambda.1', versionAdded: '2.2.1' },
+    ],
   });
   return stack;
 }
 
 test('Member Stack - AFSBP', () => {
-  expect(Template.fromStack(getMemberStack())).toMatchSnapshot();
+  const stack = getMemberStack();
+  const template = Template.fromStack(stack);
+
+  const templateJSON = template.toJSON();
+  omitWaitResourceHash(template, templateJSON);
+  expect(templateJSON).toMatchSnapshot();
 });

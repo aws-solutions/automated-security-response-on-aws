@@ -67,7 +67,7 @@ mainSteps:
   inputs:
     DocumentName: ASR-EnableCloudFrontDefaultRootObject
     RuntimeParameters:
-      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-EnableCloudFrontDefaultRootObject'
+      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-EnableCloudFrontDefaultRootObject%%'
       CloudFrontDistribution: '{{ ParseInput.CloudFrontDistribution }}'
 - name: 'UpdateFinding'
   action: 'aws:executeAwsApi'

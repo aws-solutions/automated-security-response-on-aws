@@ -30,7 +30,7 @@ parameters:
     description: The input from the Orchestrator Step function for the EC2.18 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-RevokeUnauthorizedInboundRules'
+    default: '%%ROLE=SO0111-RevokeUnauthorizedInboundRules%%'
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

@@ -5,11 +5,12 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Trigger } from '../../../lib/ssmplaybook';
 import { Construct } from 'constructs';
 import { ControlRunbooks } from './control_runbooks-construct';
-import AdminAccountParam from '../../../lib/admin-account-param';
+import AdminAccountParam from '../../../lib/parameters/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { IControl } from '../../../lib/sharrplaybook-construct';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
+import NamespaceParam from '../../../lib/parameters/namespace-param';
 
 export interface SecurityControlsPlaybookProps extends StackProps {
   solutionId: string;
@@ -98,6 +99,8 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
     // Not used, but required by top-level member stack
     new AdminAccountParam(this, 'AdminAccountParameter');
 
+    const namespaceParam = new NamespaceParam(this, 'Namespace');
+
     const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
 
     const waitProvider = WaitProvider.fromServiceToken(
@@ -112,10 +115,12 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
       standardShortName: props.securityStandard,
       standardLongName: props.securityStandardLongName,
       standardVersion: props.securityStandardVersion,
-      runtimePython: Runtime.PYTHON_3_8, // Newest runtime for SSM automations
+      runtimePython: Runtime.PYTHON_3_11,
       solutionId: props.solutionId,
       solutionAcronym: 'ASR',
       solutionVersion: props.solutionVersion,
+      namespace: namespaceParam.value,
+      remediations: props.remediations,
     });
 
     // Make sure all known controls have runbooks

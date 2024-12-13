@@ -38,8 +38,7 @@ export class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDoc
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -51,8 +50,7 @@ export class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDoc
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     const checkSsmParamStepName = 'CheckIfSSMParameterWithS3BucketNameIsAvailable';
     const bucketNameOutputName = 'BucketName';
     const updateFindingNotConfiguredStepName = 'UpdateFindingThatS3BucketNameIsNotConfigured';
@@ -104,9 +102,7 @@ export class EnableRedshiftClusterAuditLoggingDocument extends ControlRunbookDoc
     ];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.BucketName = StringVariable.of('CheckIfSSMParameterWithS3BucketNameIsAvailable.BucketName');

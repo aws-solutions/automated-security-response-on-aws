@@ -3,7 +3,7 @@
 import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import AdminAccountParam from './admin-account-param';
+import AdminAccountParam from '../admin-account-param';
 
 function createAdminAccountParamStack(): Stack {
   const app = new App();

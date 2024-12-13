@@ -69,7 +69,7 @@ mainSteps:
       DocumentName: ASR-MakeEBSSnapshotsPrivate
       RuntimeParameters:
         AccountId: '{{ParseInput.AccountId}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-MakeEBSSnapshotsPrivate'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-MakeEBSSnapshotsPrivate%%'
         TestMode: '{{ParseInput.TestMode}}'
     isEnd: false
 

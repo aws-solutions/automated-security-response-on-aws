@@ -22,14 +22,11 @@ export class EnableVPCFlowLogsDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.RemediationRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-EnableVPCFlowLogs-remediationRole`,
+      `arn:%s:iam::%s:role/${this.solutionId}-EnableVPCFlowLogs-remediationRole-${this.namespace}`,
       [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
 

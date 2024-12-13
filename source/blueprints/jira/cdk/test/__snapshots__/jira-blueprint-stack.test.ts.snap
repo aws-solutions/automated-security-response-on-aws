@@ -1,0 +1,277 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`JiraBlueprintStack Matches snapshot 1`] = `
+{
+  "Description": "ASR Blueprint Stack",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Jira Project Information",
+          },
+          "Parameters": [
+            "InstanceURI",
+            "JiraProjectKey",
+          ],
+        },
+        {
+          "Label": {
+            "default": "Jira API Credentials",
+          },
+          "Parameters": [
+            "SecretArn",
+          ],
+        },
+      ],
+    },
+  },
+  "Outputs": {
+    "TicketGeneratorLambdaFunction": {
+      "Description": "ARN of the ticket generator lambda function.",
+      "Value": {
+        "Fn::GetAtt": [
+          "JiraTicketGenerator1415A6A6",
+          "Arn",
+        ],
+      },
+    },
+  },
+  "Parameters": {
+    "InstanceURI": {
+      "AllowedPattern": "^https:\\/\\/.+\\.atlassian\\.net$",
+      "Description": "The URI of your Jira instance. For example: https://my-jira-instance.atlassian.net",
+      "Type": "String",
+    },
+    "JiraProjectKey": {
+      "Description": "The key of your Jira project where tickets will be created.",
+      "Type": "String",
+    },
+    "SecretArn": {
+      "AllowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):secretsmanager:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:secret:.+$",
+      "Description": "The ARN of the Secrets Manager secret where you have stored your API credentials. This must be a JSON secret with the following keys: Username,Password.",
+      "Type": "String",
+    },
+  },
+  "Resources": {
+    "ASRBlueprintLayerJira1FC744E7": {
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.11",
+        ],
+        "Content": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "my-solution-tmn/v9.9.9/lambda/blueprints/python.zip",
+        },
+        "Description": "Layer created by my-solution-tmn to package dependencies necessary for Blueprint ticket generator functions.",
+        "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "JiraTicketGenerator1415A6A6": {
+      "DependsOn": [
+        "TicketGeneratorRoleJiraDefaultPolicy7C042A1B",
+        "TicketGeneratorRoleJira07D9B356",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "my-solution-tmn/v9.9.9/lambda/blueprints/jira_ticket_generator.py.zip",
+        },
+        "Description": "Creates a ticket in the provided Jira project with remediation details.",
+        "Environment": {
+          "Variables": {
+            "INSTANCE_URI": {
+              "Ref": "InstanceURI",
+            },
+            "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_SERVICE_NAME": "my-solution-tmn",
+            "PROJECT_NAME": {
+              "Ref": "JiraProjectKey",
+            },
+            "SECRET_ARN": {
+              "Ref": "SecretArn",
+            },
+            "SOLUTION_ID": "SO9999",
+          },
+        },
+        "FunctionName": "Jira-Function-Name",
+        "Handler": "jira_ticket_generator.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "ASRBlueprintLayerJira1FC744E7",
+          },
+        ],
+        "MemorySize": 256,
+        "ReservedConcurrentExecutions": 2,
+        "Role": {
+          "Fn::GetAtt": [
+            "TicketGeneratorRoleJira07D9B356",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.11",
+        "Timeout": 15,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TicketGeneratorLogsJira2EE6F401": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": "/aws/lambda/Jira-Function-Name",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TicketGeneratorPolicyJira9E5DAA96": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "applies_to": [
+                "Resource::*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "Resource * is required to create CloudWatch logs.",
+            },
+          ],
+        },
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W12",
+              "reason": "Resource * is required to create CloudWatch logs.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "secretsmanager:GetSecretValue",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SecretArn",
+              },
+            },
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": "organizations:ListAccounts",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TicketGeneratorPolicyJira9E5DAA96",
+        "Roles": [
+          {
+            "Ref": "TicketGeneratorRoleJira07D9B356",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TicketGeneratorRoleJira07D9B356": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role created by my-solution-tmn to grant permissions to the JiraTicketGenerator Lambda.",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TicketGeneratorRoleJiraDefaultPolicy7C042A1B": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TicketGeneratorRoleJiraDefaultPolicy7C042A1B",
+        "Roles": [
+          {
+            "Ref": "TicketGeneratorRoleJira07D9B356",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+}
+`;

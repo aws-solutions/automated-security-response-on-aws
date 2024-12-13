@@ -1,6 +1,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-from layer.utils import partition_from_region, resource_from_arn
+import boto3
+from layer.utils import get_account_alias, partition_from_region, resource_from_arn
+from moto import mock_aws
+
+MOTO_ACCOUNT_ID = "123456789012"
 
 
 def test_resource_from_arn():
@@ -18,3 +22,20 @@ def test_partition_from_region():
     # Note: does not validate region name. default expected
     assert partition_from_region("foo") == "aws"
     assert partition_from_region("eu-west-1") == "aws"
+
+
+@mock_aws
+def test_get_account_alias():
+    client = boto3.client("organizations", region_name="us-east-1")
+    client.create_organization(FeatureSet="ALL")
+
+    account_alias = get_account_alias(MOTO_ACCOUNT_ID)
+
+    assert account_alias == "master"
+
+
+@mock_aws
+def test_get_account_alias_error():
+    account_alias = get_account_alias(MOTO_ACCOUNT_ID)
+
+    assert account_alias == "Unknown"

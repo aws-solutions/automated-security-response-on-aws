@@ -6,12 +6,30 @@ import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { MemberStack } from './member-stack';
 import { AppRegister } from './appregistry/applyAppRegistry';
+import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
+import { NIST80053_REMEDIATIONS } from '../playbooks/NIST80053/lib/nist80053_remediations';
+import { AFSBP_REMEDIATIONS } from '../playbooks/AFSBP/lib/afsbp_remediations';
 
+const SC_MEMBER_STACK_LIMIT = Number(process.env['SC_MEMBER_STACK_LIMIT']);
+const NIST_MEMBER_STACK_LIMIT = Number(process.env['NIST_MEMBER_STACK_LIMIT']);
+const AFSBP_MEMBER_STACK_LIMIT = Number(process.env['AFSBP_MEMBER_STACK_LIMIT']);
 const description = 'ASR Member Stack';
 const solutionId = 'SO9999';
-const solutionTMN = 'my-solution-tmn';
+const solutionTradeMarkName = 'my-solution-tmn';
 const solutionVersion = 'v9.9.9';
 const solutionDistBucket = 'sharrbukkit';
+
+const memberStackLimitsRecord: Record<string, number> = {
+  SC: SC_MEMBER_STACK_LIMIT,
+  NIST80053: NIST_MEMBER_STACK_LIMIT,
+  AFSBP: AFSBP_MEMBER_STACK_LIMIT,
+};
+
+const totalRemediationsRecord: Record<string, number> = {
+  SC: SC_REMEDIATIONS.length,
+  NIST80053: NIST80053_REMEDIATIONS.length,
+  AFSBP: AFSBP_REMEDIATIONS.length,
+};
 
 function getMemberStack(): Stack {
   const app = new App();
@@ -28,12 +46,14 @@ function getMemberStack(): Stack {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description,
     solutionId,
-    solutionTMN,
+    solutionTradeMarkName,
     solutionVersion,
     solutionDistBucket,
-    runtimePython: Runtime.PYTHON_3_9,
+    runtimePython: Runtime.PYTHON_3_11,
+    SNSTopicName: 'SHARR_Topic',
+    cloudTrailLogGroupName: 'SO0111-ASR-CloudTrailEvents',
   });
-  appregistry.applyAppRegistryToStacks(stack, stack.nestedStacksWithAppRegistry);
+  appregistry.applyAppRegistry(stack, stack.nestedStacksWithAppRegistry, stack.getPrimarySolutionSNSTopicARN());
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
@@ -313,7 +333,7 @@ describe('member stack', function () {
     it('source code mapping is present', function () {
       template.hasMapping(mappingName, {
         [mappingKeyName]: {
-          [keyPrefixKeyName]: `${solutionTMN}/${solutionVersion}`,
+          [keyPrefixKeyName]: `${solutionTradeMarkName}/${solutionVersion}`,
           [bucketKeyName]: solutionDistBucket,
         },
       });
@@ -379,6 +399,40 @@ describe('member stack', function () {
         });
       });
     });
+
+    expectedPlaybooks.forEach(function (playbook: string) {
+      describe('for split member stacks', function () {
+        if (memberStackLimitsRecord[playbook]) {
+          const numDivisions = Math.ceil(totalRemediationsRecord[playbook] / memberStackLimitsRecord[playbook]);
+          for (let stackIndex = 1; stackIndex < numDivisions; stackIndex++) {
+            const templateParameterName = 'LoadSCMemberStack';
+            const conditionName = `loadSC${stackIndex}Cond`;
+
+            it('has a template parameter', function () {
+              template.hasParameter(templateParameterName, expectedTemplateParameterProperties);
+            });
+
+            it('has a condition', function () {
+              template.hasCondition(conditionName, {
+                ['Fn::Equals']: [{ Ref: templateParameterName }, 'yes'],
+              });
+            });
+
+            it('is present', function () {
+              template.hasResource('AWS::CloudFormation::Stack', {
+                Condition: conditionName,
+                Properties: {
+                  Parameters: {
+                    SecHubAdminAccount: { Ref: 'SecHubAdminAccount' },
+                  },
+                  TemplateURL: getExpectedTemplateURL(`playbooks/SCMemberStack${stackIndex}.template`),
+                },
+              });
+            });
+          }
+        }
+      });
+    });
   });
 
   it('solution version SSM parameter is present', function () {
@@ -386,117 +440,6 @@ describe('member stack', function () {
       Name: `/Solutions/${solutionId}/member-version`,
       Type: 'String',
       Value: solutionVersion,
-    });
-  });
-
-  interface Resource {
-    [_: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  }
-
-  interface GraphNode {
-    readonly logicalId: string;
-    dependencies: string[]; // _outgoing_ dependencies, _incoming_ edges
-  }
-
-  interface NodeTypes {
-    readonly startingNodes: { [_: string]: Resource };
-    readonly remainingNodes: { [_: string]: GraphNode };
-  }
-
-  function getNodeTypes(gates: { [_: string]: Resource }, stacks: { [_: string]: Resource }): NodeTypes {
-    // make a list of all nodes with no incoming edges
-    const startingNodes: { [_: string]: Resource } = {};
-    const remainingNodes: { [_: string]: GraphNode } = {};
-    for (const [logicalId, stack] of Object.entries(stacks)) {
-      const node: GraphNode = { logicalId, dependencies: [] };
-      remainingNodes[logicalId] = node;
-      stack.DependsOn?.forEach(function (dependencyLogicalId: string) {
-        // add the dependency if it's a stack
-        if (dependencyLogicalId in stacks) {
-          node.dependencies.push(dependencyLogicalId);
-        }
-        // also add all conditional dependencies created through a gate
-        if (dependencyLogicalId in gates) {
-          const gate = gates[dependencyLogicalId];
-          const conditionalDependencies = getConditionalDependencyLogicalIds(gate, stacks);
-          node.dependencies.push(...conditionalDependencies);
-        }
-      });
-
-      // if this node has no incoming edges (outgoing dependencies), it's a candidate starter node
-      if (node.dependencies.length === 0) {
-        startingNodes[logicalId] = node;
-      }
-    }
-
-    return { startingNodes, remainingNodes };
-  }
-
-  function getConditionalDependencyLogicalIds(gate: Resource, stacks: { [_: string]: Resource }): string[] {
-    const result: string[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const [_, value] of Object.entries(gate.Metadata)) {
-      const metadata = value as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-      const conditionalDependencyLogicalId: string = metadata['Fn::If'][1].Ref;
-      if (conditionalDependencyLogicalId in stacks) {
-        result.push(conditionalDependencyLogicalId);
-      }
-    }
-    return result;
-  }
-
-  it('creates stacks serially', function () {
-    const stacks = template.findResources('AWS::CloudFormation::Stack');
-    const gates = template.findResources('AWS::CloudFormation::WaitConditionHandle');
-
-    const { startingNodes, remainingNodes } = getNodeTypes(gates, stacks);
-
-    // create a deep copy to check edges later
-    const allNodes: { [_: string]: GraphNode } = JSON.parse(JSON.stringify(remainingNodes));
-
-    // if stacks are serial, there should be only one starting node
-    expect(Object.getOwnPropertyNames(startingNodes)).toHaveLength(1);
-
-    const sortedNodes: GraphNode[] = [];
-
-    // topological sort - Kahn's algorithm
-    while (Object.getOwnPropertyNames(startingNodes).length > 0) {
-      const logicalId = Object.getOwnPropertyNames(startingNodes)[0];
-      delete startingNodes[logicalId];
-      const node = remainingNodes[logicalId];
-      sortedNodes.push(node);
-      delete remainingNodes[logicalId];
-      for (const [otherLogicalId, otherNode] of Object.entries(remainingNodes)) {
-        // remove this node from other nodes' dependencies
-        const index = otherNode.dependencies.indexOf(logicalId);
-        if (index > -1) {
-          otherNode.dependencies.splice(index, 1);
-        }
-        // if this node has no incoming edges, add it as a candidate next node
-        if (otherNode.dependencies.length === 0) {
-          startingNodes[otherLogicalId] = otherNode;
-        }
-      }
-    }
-
-    // no remaining stacks
-    expect(Object.getOwnPropertyNames(remainingNodes)).toHaveLength(0);
-    // no remaining edges
-    sortedNodes.forEach(function (node) {
-      expect(node.dependencies).toHaveLength(0);
-    });
-
-    // in a serial dependency structure, a node must depend on all nodes before itself
-    sortedNodes.forEach(function (node: GraphNode, i: number) {
-      // use the deep copy from before, since we removed edges from the graph
-      const dependencies = allNodes[node.logicalId].dependencies;
-      if (i === 0) {
-        expect(dependencies).toHaveLength(0);
-      } else {
-        for (let j = 0; j < i; ++j) {
-          expect(dependencies).toContain(sortedNodes[j].logicalId);
-        }
-      }
     });
   });
 });

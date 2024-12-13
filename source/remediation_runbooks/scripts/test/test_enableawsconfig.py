@@ -1,346 +1,179 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-import json
-
 import boto3
-import botocore.session
 import EnableAWSConfig_createconfigbucket as createconfigbucket
 import EnableAWSConfig_createtopic as createtopic
 import EnableAWSConfig_enableconfig as enableconfig
-import EnableAWSConfig_summary as summary
 from botocore.config import Config
-from botocore.stub import ANY, Stubber
+from moto import mock_aws
 
-my_session = boto3.session.Session()
-my_region = my_session.region_name
+REGION = "us-east-1"
+BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name="us-east-1")
 
 
-def test_create_config_bucket(mocker):
-    event = {
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+def setup_key_and_logging_bucket():
+    s3_client = boto3.client("s3", config=BOTO_CONFIG)
+    s3_client.create_bucket(
+        Bucket="my-logging-bucket",
+    )
+    s3_client.put_bucket_acl(
+        Bucket="my-logging-bucket",
+        ACL="log-delivery-write",
+    )
+
+    kms_client = boto3.client("kms", config=BOTO_CONFIG)
+    response = kms_client.create_key()
+    return response["KeyMetadata"]["Arn"]
+
+
+def setup_recorder(recorder_name):
+    config_service_role_arn = "arn:aws:iam::123456789012:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig"
+
+    config_client = boto3.client("config", config=BOTO_CONFIG)
+    config_client.put_configuration_recorder(
+        ConfigurationRecorder={
+            "name": recorder_name,
+            "roleARN": config_service_role_arn,
+            "recordingGroup": {
+                "allSupported": True,
+                "includeGlobalResourceTypes": False,
+            },
+        }
+    )
+
+
+def setup_delivery_channel():
+    config_client = boto3.client("config", config=BOTO_CONFIG)
+    config_client.put_delivery_channel(
+        DeliveryChannel={
+            "name": "default",
+            "s3BucketName": "my-config-bucket",
+            "s3KeyPrefix": "123456789012",
+            "snsTopicARN": "arn:aws:sns:us-east-1:123456789012:sharr-test",
+            "configSnapshotDeliveryProperties": {"deliveryFrequency": "Twelve_Hours"},
+        }
+    )
+
+
+def start_recording(recorder_name):
+    config_client = boto3.client("config", config=BOTO_CONFIG)
+    config_client.start_configuration_recorder(ConfigurationRecorderName=recorder_name)
+
+
+def verify_config_enabled_with_all_resources(recorder_name):
+    config_client = boto3.client("config", config=BOTO_CONFIG)
+    recorder_status_response = config_client.describe_configuration_recorder_status(
+        ConfigurationRecorderNames=[
+            recorder_name,
+        ]
+    )
+    assert recorder_status_response["ConfigurationRecordersStatus"][0]["recording"]
+
+    recorders_response = config_client.describe_configuration_recorders(
+        ConfigurationRecorderNames=[
+            recorder_name,
+        ]
+    )
+    assert recorders_response["ConfigurationRecorders"][0]["recordingGroup"][
+        "allSupported"
+    ]
+    assert recorders_response["ConfigurationRecorders"][0]["recordingGroup"][
+        "includeGlobalResourceTypes"
+    ]
+    assert not recorders_response["ConfigurationRecorders"][0]["recordingGroup"][
+        "exclusionByResourceTypes"
+    ]["resourceTypes"]
+
+
+@mock_aws(config={"iam": {"load_aws_managed_policies": True}})
+def test_enable_config():
+    kms_key_arn = setup_key_and_logging_bucket()
+
+    create_topic_event = {"kms_key_arn": kms_key_arn, "topic_name": "sharr-test"}
+    create_bucket_event = {
+        "kms_key_arn": kms_key_arn,
         "partition": "aws",
-        "account": "111111111111",
-        "region": "us-west-2",
-        "logging_bucket": "mahfakebukkit",
+        "account": "123456789012",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
     }
-    bucket = f'so0111-aws-config-{event["region"]}-{event["account"]}'
-
-    bucket_policy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": "AWSConfigBucketPermissionsCheck",
-                "Effect": "Allow",
-                "Principal": {"Service": ["config.amazonaws.com"]},
-                "Action": "s3:GetBucketAcl",
-                "Resource": f'arn:{event["partition"]}:s3:::{bucket}',
-            },
-            {
-                "Sid": "AWSConfigBucketExistenceCheck",
-                "Effect": "Allow",
-                "Principal": {"Service": ["config.amazonaws.com"]},
-                "Action": "s3:ListBucket",
-                "Resource": f'arn:{event["partition"]}:s3:::{bucket}',
-            },
-            {
-                "Sid": "AWSConfigBucketDelivery",
-                "Effect": "Allow",
-                "Principal": {"Service": ["config.amazonaws.com"]},
-                "Action": "s3:PutObject",
-                "Resource": f'arn:{event["partition"]}:s3:::{bucket}/*',
-                "Condition": {
-                    "StringEquals": {"s3:x-amz-acl": "bucket-owner-full-control"}
-                },
-            },
-        ],
-    }
-
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
-    s3_stubber = Stubber(s3)
-
-    s3_stubber.add_response(
-        "create_bucket",
-        {},
-        {
-            "ACL": "private",
-            "Bucket": bucket,
-            "CreateBucketConfiguration": {"LocationConstraint": event["region"]},
-        },
-    )
-
-    s3_stubber.add_response(
-        "put_bucket_encryption",
-        {},
-        {
-            "Bucket": bucket,
-            "ServerSideEncryptionConfiguration": {
-                "Rules": [
-                    {
-                        "ApplyServerSideEncryptionByDefault": {
-                            "SSEAlgorithm": "aws:kms",
-                            "KMSMasterKeyID": "1234abcd-12ab-34cd-56ef-1234567890ab",
-                        }
-                    }
-                ]
-            },
-        },
-    )
-
-    s3_stubber.add_response(
-        "put_public_access_block",
-        {},
-        {
-            "Bucket": bucket,
-            "PublicAccessBlockConfiguration": {
-                "BlockPublicAcls": True,
-                "IgnorePublicAcls": True,
-                "BlockPublicPolicy": True,
-                "RestrictPublicBuckets": True,
-            },
-        },
-    )
-
-    s3_stubber.add_response(
-        "put_bucket_logging",
-        {},
-        {
-            "Bucket": bucket,
-            "BucketLoggingStatus": {
-                "LoggingEnabled": {
-                    "TargetBucket": event["logging_bucket"],
-                    "TargetPrefix": f"access-logs/{bucket}",
-                }
-            },
-        },
-    )
-
-    s3_stubber.add_response(
-        "put_bucket_policy", {}, {"Bucket": bucket, "Policy": json.dumps(bucket_policy)}
-    )
-
-    s3_stubber.activate()
-    mocker.patch("EnableAWSConfig_createconfigbucket.connect_to_s3", return_value=s3)
-    createconfigbucket.create_encrypted_bucket(event, {})
-    s3_stubber.assert_no_pending_responses()
-    s3_stubber.deactivate()
-
-
-def test_bucket_already_exists(mocker):
-    event = {
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+    enable_config_event = {
         "partition": "aws",
-        "account": "111111111111",
-        "region": "us-west-2",
-        "logging_bucket": "mahfakebukkit",
-    }
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
-
-    s3_stubber = Stubber(s3)
-
-    s3_stubber.add_client_error("create_bucket", "BucketAlreadyExists")
-
-    s3_stubber.activate()
-    mocker.patch("EnableAWSConfig_createconfigbucket.connect_to_s3", return_value=s3)
-    createconfigbucket.create_encrypted_bucket(event, {})
-    s3_stubber.assert_no_pending_responses()
-    s3_stubber.deactivate()
-
-
-def test_create_topic(mocker):
-    event = {
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
-        "topic_name": "sharr-test",
+        "account": "123456789012",
+        "config_bucket": "so0111-aws-config-us-east-1-123456789012",
+        "topic_arn": "arn:aws:sns:us-east-1:123456789012:sharr-test",
+        "aws_service_role": "aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig",
     }
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    sns = botocore.session.get_session().create_client("sns", config=BOTO_CONFIG)
-    mocker.patch("EnableAWSConfig_createtopic.connect_to_sns", return_value=sns)
-    sns_stubber = Stubber(sns)
+    createconfigbucket.create_encrypted_bucket(create_bucket_event, {})
+    createtopic.create_encrypted_topic(create_topic_event, {})
+    response = enableconfig.enable_config(enable_config_event, {})
 
-    ssm = botocore.session.get_session().create_client("ssm", config=BOTO_CONFIG)
-    mocker.patch("EnableAWSConfig_createtopic.connect_to_ssm", return_value=ssm)
-    ssm_stubber = Stubber(ssm)
-
-    sns_stubber.add_response(
-        "create_topic",
-        {"TopicArn": "arn:aws:sns:us-west-2:111111111111:sharr-test"},
-        {
-            "Name": event["topic_name"],
-            "Attributes": {"KmsMasterKeyId": event["kms_key_arn"].split("key/")[1]},
-        },
-    )
-
-    ssm_stubber.add_response(
-        "put_parameter",
-        {},
-        {
-            "Name": "/Solutions/SO0111/SNS_Topic_Config.1",
-            "Description": "SNS Topic for AWS Config updates",
-            "Type": "String",
-            "Overwrite": True,
-            "Value": "arn:aws:sns:us-west-2:111111111111:sharr-test",
-        },
-    )
-
-    sns_stubber.add_response(
-        "set_topic_attributes",
-        {},
-        {
-            "TopicArn": "arn:aws:sns:us-west-2:111111111111:sharr-test",
-            "AttributeName": "Policy",
-            "AttributeValue": ANY,
-        },
-    )
-
-    sns_stubber.activate()
-    ssm_stubber.activate()
-
-    createtopic.create_encrypted_topic(event, {})
-
-    sns_stubber.assert_no_pending_responses()
-    ssm_stubber.assert_no_pending_responses()
-    sns_stubber.deactivate()
-    ssm_stubber.deactivate()
+    verify_config_enabled_with_all_resources("default")
+    assert response["Message"]
 
 
-def test_create_topic_already_exists(mocker):
-    event = {
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
-        "topic_name": "sharr-test",
-    }
+@mock_aws(config={"iam": {"load_aws_managed_policies": True}})
+def test_enable_config_already_enabled():
+    kms_key_arn = setup_key_and_logging_bucket()
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    sns = botocore.session.get_session().create_client("sns", config=BOTO_CONFIG)
-    mocker.patch("EnableAWSConfig_createtopic.connect_to_sns", return_value=sns)
-    sns_stubber = Stubber(sns)
-
-    sns_stubber.add_client_error("create_topic", "InvalidParameter")
-
-    sns_stubber.add_response(
-        "create_topic",
-        {"TopicArn": "arn:aws:sns:us-west-2:111111111111:sharr-test"},
-        {"Name": event["topic_name"]},
-    )
-
-    sns_stubber.add_response(
-        "set_topic_attributes",
-        {},
-        {
-            "TopicArn": "arn:aws:sns:us-west-2:111111111111:sharr-test",
-            "AttributeName": "Policy",
-            "AttributeValue": ANY,
-        },
-    )
-
-    sns_stubber.activate()
-
-    createtopic.create_encrypted_topic(event, {})
-
-    sns_stubber.assert_no_pending_responses()
-    sns_stubber.deactivate()
-
-
-def test_enable_config(mocker):
-    event = {
+    create_topic_event = {"kms_key_arn": kms_key_arn, "topic_name": "sharr-test"}
+    create_bucket_event = {
+        "kms_key_arn": kms_key_arn,
         "partition": "aws",
-        "account": "111111111111",
-        "config_bucket": "mahfakebukkit",
-        "topic_arn": "arn:aws:sns:us-west-2:111111111111:sharr-test",
-        "aws_service_role": "foobarbaz",
+        "account": "123456789012",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
     }
-
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    cfg = botocore.session.get_session().create_client("config", config=BOTO_CONFIG)
-    mocker.patch("EnableAWSConfig_enableconfig.connect_to_config", return_value=cfg)
-    cfg_stubber = Stubber(cfg)
-
-    cfg_stubber.add_response(
-        "put_configuration_recorder",
-        {},
-        {
-            "ConfigurationRecorder": {
-                "name": "default",
-                "roleARN": f'arn:aws:iam::{event["account"]}:role/{event["aws_service_role"]}',
-                "recordingGroup": {
-                    "allSupported": True,
-                    "includeGlobalResourceTypes": True,
-                },
-            }
-        },
-    )
-
-    cfg_stubber.add_response(
-        "put_delivery_channel",
-        {},
-        {
-            "DeliveryChannel": {
-                "name": "default",
-                "s3BucketName": event["config_bucket"],
-                "s3KeyPrefix": event["account"],
-                "snsTopicARN": event["topic_arn"],
-                "configSnapshotDeliveryProperties": {
-                    "deliveryFrequency": "Twelve_Hours"
-                },
-            }
-        },
-    )
-
-    cfg_stubber.add_response(
-        "start_configuration_recorder", {}, {"ConfigurationRecorderName": "default"}
-    )
-
-    cfg_stubber.activate()
-
-    enableconfig.enable_config(event, {})
-
-    cfg_stubber.assert_no_pending_responses()
-    cfg_stubber.deactivate()
-
-
-def test_enable_config_already_enabled(mocker):
-    event = {
+    enable_config_event = {
         "partition": "aws",
-        "account": "111111111111",
-        "config_bucket": "mahfakebukkit",
-        "topic_arn": "arn:aws:sns:us-west-2:111111111111:sharr-test",
-        "aws_service_role": "foobarbaz",
+        "account": "123456789012",
+        "config_bucket": "so0111-aws-config-us-east-1-123456789012",
+        "topic_arn": "arn:aws:sns:us-east-1:123456789012:sharr-test",
+        "aws_service_role": "aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig",
     }
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    cfg = botocore.session.get_session().create_client("config", config=BOTO_CONFIG)
-    mocker.patch("EnableAWSConfig_enableconfig.connect_to_config", return_value=cfg)
-    cfg_stubber = Stubber(cfg)
+    createconfigbucket.create_encrypted_bucket(create_bucket_event, {})
+    createtopic.create_encrypted_topic(create_topic_event, {})
 
-    cfg_stubber.add_client_error(
-        "put_configuration_recorder",
-        "MaxNumberOfConfigurationRecordersExceededException",
-    )
+    # setup existing recorder & channel
+    setup_recorder("my-recorder")
+    setup_delivery_channel()
+    start_recording("my-recorder")
 
-    cfg_stubber.add_client_error(
-        "put_delivery_channel", "MaxNumberOfDeliveryChannelsExceededException"
-    )
+    response = enableconfig.enable_config(enable_config_event, {})
 
-    cfg_stubber.add_response(
-        "start_configuration_recorder", {}, {"ConfigurationRecorderName": "default"}
-    )
-
-    cfg_stubber.activate()
-
-    enableconfig.enable_config(event, {})
-
-    cfg_stubber.assert_no_pending_responses()
-    cfg_stubber.deactivate()
+    verify_config_enabled_with_all_resources("my-recorder")
+    assert response["Message"]
 
 
-def test_summary():
-    event = {
-        "config_bucket": "mahfakebukkit",
-        "logging_bucket": "loggingbukkit",
-        "sns_topic_arn": "arn:aws:sns:us-west-2:111111111111:sharr-test",
+@mock_aws(config={"iam": {"load_aws_managed_policies": True}})
+def test_enable_config_with_existing_recorder():
+    kms_key_arn = setup_key_and_logging_bucket()
+
+    create_topic_event = {"kms_key_arn": kms_key_arn, "topic_name": "sharr-test"}
+    create_bucket_event = {
+        "kms_key_arn": kms_key_arn,
+        "partition": "aws",
+        "account": "123456789012",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
+    }
+    enable_config_event = {
+        "partition": "aws",
+        "account": "123456789012",
+        "config_bucket": "so0111-aws-config-us-east-1-123456789012",
+        "topic_arn": "arn:aws:sns:us-east-1:123456789012:sharr-test",
+        "aws_service_role": "aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig",
     }
 
-    assert summary.process_results(event, {}) == {
-        "response": {"message": "AWS Config successfully enabled", "status": "Success"}
-    }
+    createconfigbucket.create_encrypted_bucket(create_bucket_event, {})
+    createtopic.create_encrypted_topic(create_topic_event, {})
+
+    # setup existing recorder, do not start recording
+    setup_recorder("my-recorder")
+
+    response = enableconfig.enable_config(enable_config_event, {})
+
+    verify_config_enabled_with_all_resources("my-recorder")
+    assert response["Message"]

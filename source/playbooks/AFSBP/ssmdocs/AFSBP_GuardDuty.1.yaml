@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the GuardDuty.1 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-EnableGuardDuty'
+    default: '%%ROLE=SO0111-EnableGuardDuty%%'
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

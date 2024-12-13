@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the RDS.13 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableMinorVersionUpgradeOnRDSDBInstance"
+    default: "%%ROLE=SO0111-EnableMinorVersionUpgradeOnRDSDBInstance%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

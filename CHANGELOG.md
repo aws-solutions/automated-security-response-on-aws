@@ -5,22 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.4] - 2024-11-18
+## [2.2.0] - 2024-12-16
+
+### Added
+
+- Option to integrate an external ticket system by providing a lambda function name at deployment time
+- Integration stacks for Jira and ServiceNow as external ticketing systems
+- Widget "Total successful remediations" on the CloudWatch Dashboard
+- Detailed success/failure metrics on the CloudWatch Dashboard grouped by control id
+- Detailed log of account management actions taken by ASR on the CloudWatch Dashboard
+- Remediations for additional control ids
+- Playbook for CIS 3.0 standard
+- Integrated Poetry for python dependency management
+- Integration with AWS Lambda Powertools Logger & Tracer
+- Deletion protection and autoscaling to scheduling table
+
 ### Changed
+
+- More detailed notifications
+- Added namespace to member roles to avoid name conflicts when reinstalling the solution
+- Removed CloudFormation retention policies for member IAM roles where unnecessary
+
+### Fixed
+
+- Config.1 remediation script to allow non-"default" Config recorder name
+- parse_non_string_types.py script to allow boolean values
+
+
+## [2.1.4] - 2024-11-18
+
+### Changed
+
 - Upgraded python runtimes in all control runbooks from python3.8 to python3.11.
-  - Upgrade is done at build-time temporarily, until the `cdklabs/cdk-ssm-documents` package adds support for newer python runtimes. 
+  - Upgrade is done at build-time temporarily, until the `cdklabs/cdk-ssm-documents` package adds support for newer python runtimes.
+
 ### Security
+
 - Upgraded cross-spawn to mitigate [CVE-2024-21538](https://avd.aquasec.com/nvd/cve-2024-21538)
 
 ## [2.1.3] - 2024-09-18
 
 ### Fixed
+
 - Resolved an issue in the remediation scripts for EC2.18 and EC2.19 where security group rules with IpProtocol set to "-1" were being incorrectly ignored.
 
 ### Changed
+
 - Upgraded all Python runtimes in remediation SSM documents from Python 3.8 to Python 3.11.
 
 ### Security
+
 - Upgraded micromatch package to mitigate [CVE-2024-4067](https://avd.aquasec.com/nvd/2024/cve-2024-4067/)
 
 ## [2.1.2] - 2024-06-20
@@ -32,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Updated braces package version for CVE-2024-4068 - https://avd.aquasec.com/nvd/cve-2024-4068
+- Updated braces package version for [CVE-2024-4068](https://avd.aquasec.com/nvd/cve-2024-4068)
 
 ## [2.1.1] - 2024-04-10
 

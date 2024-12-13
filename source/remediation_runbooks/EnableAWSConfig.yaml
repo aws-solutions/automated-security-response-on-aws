@@ -67,7 +67,7 @@ mainSteps:
       DocumentName: ASR-CreateAccessLoggingBucket
       RuntimeParameters:
         BucketName: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-CreateAccessLoggingBucket%%'
 
   - name: CreateConfigBucket
     action: 'aws:executeScript'
@@ -92,8 +92,8 @@ mainSteps:
     name: EnableConfig
     action: 'aws:executeScript'
     outputs:
-      - Name: ConfigBucketName
-        Selector: $.Payload.config_bucket
+      - Name: OutputMessage
+        Selector: $.Payload.Message
         Type: String
     inputs:
       InputPayload:
@@ -121,6 +121,7 @@ mainSteps:
         config_bucket: '{{CreateConfigBucket.ConfigBucketName}}'
         logging_bucket: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
         sns_topic_arn: '{{CreateTopic.TopicArn}}'
+        enable_config_message: '{{EnableConfig.OutputMessage}}'
       Runtime: python3.11
       Handler: process_results
       Script: |-

@@ -26,8 +26,7 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
     this.maxCredentialUsageAge = props.parameterToPass ?? '90';
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs: Output[] = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -39,11 +38,8 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.IAMResourceId = StringVariable.of('ParseInput.IAMResourceId');
     params.MaxCredentialUsageAge = HardCodedString.of(this.maxCredentialUsageAge as string);

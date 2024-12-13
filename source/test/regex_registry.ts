@@ -50,7 +50,7 @@ export class RegexMatchTestCase extends RegexTestCase {
     this._matchTestCases = [];
   }
 
-  runTests() {
+  override runTests() {
     super.runTests();
     if (this._disabled) {
       return;
@@ -199,7 +199,7 @@ export function getRegexRegistry(): RegexRegistry {
 
   registry.addCase(new RegexTestCase(String.raw`^[A-Za-z0-9][A-Za-z0-9\-_]{1,254}$`, 'CodeBuild project name', [], []));
 
-  registry.addCase(new RegexTestCase(String.raw`^vpc-[0-9a-f]{8,17}`, 'VPC ID', [], []));
+  registry.addCase(new RegexTestCase(String.raw`^vpc-[0-9a-f]{8,17}$`, 'VPC ID', [], []));
 
   registry.addCase(new RegexTestCase(String.raw`sg-[a-z0-9]+$`, 'Security group ID', [], []));
 
@@ -392,6 +392,11 @@ export function getRegexRegistry(): RegexRegistry {
   addTransitGatewayIdTestCases(registry);
   addTransitGatewayARNTestCases(registry);
   addSecretsManagerArnTestCases(registry);
+  addGuardDutyResourceTestCases(registry);
+  addCloudWatchLogGroupArnTestCases(registry);
+  addAttachSSMPermissionsToEC2Cases(registry);
+  addAPIGatewayStageArnTestCases(registry);
+  addAthenaWorkGroupTestCases(registry);
 
   return registry;
 }
@@ -744,6 +749,23 @@ function addTransitGatewayARNTestCases(registry: RegexRegistry) {
   registry.addCase(keyIdTestCase);
 }
 
+function addGuardDutyResourceTestCases(registry: RegexRegistry) {
+  const guardDutyArnTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`(arn:(?:aws|aws-cn|aws-us-gov):guardduty:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:detector\/.*)`,
+    'Guard Duty resource ARN',
+    ['arn:aws:guardduty:us-east-1:111111111111:detector/ecc6abbcc9780bb749aea6256c2f5676/filter/my-filter'],
+    ['arn:aws:guardduty:us-east-1:111111111111:resource/my-resource'],
+  );
+  const guardDutyTagTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^((?!aws:)[a-zA-Z+-=._:\/]+)(,\s?(?!aws:)[a-zA-Z+-=._:\/]+)*$`,
+    'list of Guard Duty filter tag keys',
+    ['my_key, my-second_keY', 'my_key'],
+    ['my_invalid_key, '],
+  );
+  registry.addCase(guardDutyArnTestCase);
+  registry.addCase(guardDutyTagTestCase);
+}
+
 function addSecretsManagerArnTestCases(registry: RegexRegistry) {
   const keyIdTestCase: RegexMatchTestCase = new RegexMatchTestCase(
     String.raw`^arn:(?:aws|aws-cn|aws-us-gov):secretsmanager:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:secret:([A-Za-z0-9\/_+=.@-]+)$`,
@@ -752,4 +774,90 @@ function addSecretsManagerArnTestCases(registry: RegexRegistry) {
     ['arn:aws:secretsmanager:us-east-1:111111111111:not-secret:test'],
   );
   registry.addCase(keyIdTestCase);
+}
+
+function addCloudWatchLogGroupArnTestCases(registry: RegexRegistry) {
+  const keyIdTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^(arn:(?:aws|aws-cn|aws-us-gov):logs:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:log-group:[A-Za-z0-9\/\-_#]{1,512}:\*)$`,
+    'Cloud Watch Log Group ARN',
+    ['arn:aws:logs:us-east-1:111111111111:log-group:#namespace/log-group-name:*'],
+    ['arn:aws:logs:us-east-1:111111111111:log-group:!invalid-log-group!:*'],
+  );
+  registry.addCase(keyIdTestCase);
+}
+
+function addAttachSSMPermissionsToEC2Cases(registry: RegexRegistry) {
+  const keyIdTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^.+-AttachSSMPermissionsToEC2-InstanceProfile-.+$`,
+    'Remediation instance profile name',
+    ['SO0111-AttachSSMPermissionsToEC2-InstanceProfile-namespace'],
+    ['SO0111-invalid-profile-name'],
+  );
+  registry.addCase(keyIdTestCase);
+}
+
+function addAPIGatewayStageArnTestCases(registry: RegexRegistry) {
+  const apiGatewayStageArnTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::\/restapis\/([a-z0-9]+)\/stages\/.+)$`,
+    'API Gateway Stage ARN',
+    ['arn:aws:apigateway:us-east-1::/restapis/l8yxbxvo83/stages/test_stage'],
+    ['arn:aws:apigateway:us-east-1::/restapis/l8yxbxvo83/stages/'],
+  );
+  registry.addCase(apiGatewayStageArnTestCase);
+
+  const apiGatewayStageArnSuffixTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::(\/restapis\/(.+)\/stages\/(.+)|\/apis\/(.+)\/stages\/(.+))$`,
+    'API Gateway Stage ARN suffix (REST & WebSocket APIs)',
+    [
+      'arn:aws:apigateway:us-east-1::/apis/api-id/stages/stage-name',
+      'arn:aws:apigateway:us-east-1::/restapis/api-id/stages/stage-name',
+    ],
+    ['arn:aws:apigateway:us-east-1::/someotherapi/l8yxbxvo83/stages/!invalid_stage'],
+  );
+  registry.addCase(apiGatewayStageArnSuffixTestCase);
+
+  const extractedApiGatewayStageSuffix: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`\/apis\/(.+)\/stages\/(.+)|\/restapis\/(.+)\/stages\/(.+)`,
+    'Suffix for a WebSocket or REST API Stage ARN',
+    ['/apis/api-id/stages/stage-name', '/restapis/api-id/stages/stage-name'],
+    ['/someotherapi/l8yxbxvo83/stages/!invalid_stage'],
+  );
+  registry.addCase(extractedApiGatewayStageSuffix);
+
+  const apiGatewayLoggingLevels: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`INFO|ERROR`,
+    'API Gateway Stage logging levels',
+    ['INFO', 'ERROR'],
+    ['DEBUG'],
+  );
+  registry.addCase(apiGatewayLoggingLevels);
+
+  const apiGatewayStageNameTestCase: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^[a-zA-Z0-9_-]+$|^\$default$`,
+    'API Gateway Stage Name',
+    ['test_stage', 'test-stage-name', '$default'],
+    ['!invalid_stage', '$invalid', ''],
+  );
+  registry.addCase(apiGatewayStageNameTestCase);
+}
+
+function addAthenaWorkGroupTestCases(registry: RegexRegistry) {
+  const athenaWorkGroupARN: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):athena:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:workgroup\/(.+)$`,
+    'Athena work group ARN',
+    [
+      'arn:aws:athena:us-east-1:123456789012:workgroup/primary',
+      'arn:aws:athena:us-west-1:123456789015:workgroup/my-work-GroUp',
+    ],
+    ['arn:aws:athena:us-west-1:123456789015:workgroup/'],
+  );
+  registry.addCase(athenaWorkGroupARN);
+
+  const athenaWorkGroupName: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^[a-zA-Z0-9._-]{1,128}$`,
+    'Athena work group name',
+    ['myworkgroup', 'work-group-name'],
+    ['my-work-group!!'],
+  );
+  registry.addCase(athenaWorkGroupName);
 }

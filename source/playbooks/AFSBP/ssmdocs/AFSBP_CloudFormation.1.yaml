@@ -69,9 +69,9 @@ mainSteps:
     TargetLocations:
     - Accounts: ['{{ ParseInput.RemediationAccount }}']
       Regions: ['{{ ParseInput.RemediationRegion }}']
-      ExecutionRoleName: 'SO0111-ConfigureSNSTopicForStack'
+      ExecutionRoleName: '%%ROLE=SO0111-ConfigureSNSTopicForStack%%'
     RuntimeParameters:
-      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-ConfigureSNSTopicForStack'
+      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-ConfigureSNSTopicForStack%%'
       StackArn: '{{ ParseInput.StackArn }}'
 - name: 'UpdateFinding'
   action: 'aws:executeAwsApi'

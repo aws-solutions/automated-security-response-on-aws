@@ -28,7 +28,7 @@ parameters:
     description: The input from the Orchestrator Step function for the RDS.6 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableEnhancedMonitoringOnRDSInstance"
+    default: "%%ROLE=SO0111-EnableEnhancedMonitoringOnRDSInstance%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
@@ -79,7 +79,7 @@ mainSteps:
     inputs:
       Service: iam
       Api: GetRole
-      RoleName: 'SO0111-RDSMonitoring-remediationRole'
+      RoleName: '%%ROLE=SO0111-RDSMonitoring-remediationRole%%'
     outputs:
     - Name: Arn
       Selector: $.Role.Arn

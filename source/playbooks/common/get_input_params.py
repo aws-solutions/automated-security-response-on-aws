@@ -7,9 +7,9 @@ def parse_non_string_types(param):
     if re.match("^\d+$", str(param)):
         param = int(param)
         return param
-    if param == "true" or param == "True":
+    if str(param).lower() == "true":
         return True
-    if param == "false" or param == "False":
+    if str(param).lower() == "false":
         return False
     if isinstance(param, list):
         return param

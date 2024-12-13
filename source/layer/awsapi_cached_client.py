@@ -106,8 +106,11 @@ class BotoSession:
         """
 
         session: Final = Session()
+        china_domain_suffix = (
+            ".cn" if session.region_name in ["cn-north-1", "cn-northwest-1"] else ""
+        )
         sts_regional_endpoint: Final = str.format(
-            "https://sts.{}.amazonaws.com", session.region_name
+            "https://sts.{}.amazonaws.com{}", session.region_name, china_domain_suffix
         )
         # STS client __must__ use a regional endpoint so that tokens are version 2.
         # version 1 tokens are not valid in opt-in regions unless enabled on an

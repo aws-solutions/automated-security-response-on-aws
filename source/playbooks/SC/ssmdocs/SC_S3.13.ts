@@ -29,8 +29,7 @@ export class SetS3LifecyclePolicyDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         targetTransitionDays: 30,
@@ -40,8 +39,7 @@ export class SetS3LifecyclePolicyDocument extends ControlRunbookDocument {
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const TargetTransitionDays: Output = {
       name: 'targetTransitionDays',
       outputType: DataTypeEnum.INTEGER,
@@ -63,11 +61,8 @@ export class SetS3LifecyclePolicyDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.TargetTransitionDays = NumberVariable.of('GetInputParams.targetTransitionDays');
     params.TargetExpirationDays = NumberVariable.of('GetInputParams.targetExpirationDays');

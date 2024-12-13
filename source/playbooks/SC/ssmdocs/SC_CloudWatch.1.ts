@@ -78,8 +78,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     this.standardVersion = props.standardVersion;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -91,8 +90,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     const getMetricFilterAndAlarmInputValueStep = new ExecuteScriptStep(this, 'GetMetricFilterAndAlarmInputValue', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'verify'),
       code: ScriptCode.fromFile(
@@ -145,9 +143,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     return [getMetricFilterAndAlarmInputValueStep];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.FilterName = StringVariable.of('GetMetricFilterAndAlarmInputValue.FilterName');

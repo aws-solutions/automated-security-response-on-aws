@@ -33,7 +33,7 @@ parameters:
     description: The input from the Orchestrator Step function for the PCI.EC2.2 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-RemoveVPCDefaultSecurityGroupRules"
+    default: "%%ROLE=SO0111-RemoveVPCDefaultSecurityGroupRules%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:

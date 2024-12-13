@@ -4,7 +4,7 @@ import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { AwsSolutionsChecks } from 'cdk-nag';
-import { SolutionDeployStack } from '../lib/solution_deploy-stack';
+import { AdministratorStack } from '../lib/administrator-stack';
 import { AppRegister } from '../lib/appregistry/applyAppRegistry';
 
 function getTestStack(): Stack {
@@ -18,7 +18,7 @@ function getTestStack(): Stack {
     appRegistryApplicationName: appName,
     applicationType: 'AWS-Solutions',
   });
-  const stack = new SolutionDeployStack(app, 'stack', {
+  const stack = new AdministratorStack(app, 'stack', {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     env: envEU,
     solutionId: 'SO0111',
@@ -26,10 +26,12 @@ function getTestStack(): Stack {
     solutionDistBucket: 'solutions',
     solutionTMN: 'automated-security-response-on-aws',
     solutionName: 'AWS Security Hub Automated Response & Remediation',
-    runtimePython: Runtime.PYTHON_3_9,
-    orchLogGroup: 'ORCH_LOG_GROUP',
+    runtimePython: Runtime.PYTHON_3_11,
+    orchestratorLogGroup: 'ORCH_LOG_GROUP',
+    SNSTopicName: 'SHARR_Topic',
+    cloudTrailLogGroupName: 'some-loggroup-name',
   });
-  appregistry.applyAppRegistryToStacks(stack, stack.nestedStacksWithAppRegistry);
+  appregistry.applyAppRegistry(stack, stack.nestedStacksWithAppRegistry, stack.getPrimarySolutionSNSTopicARN());
   Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }

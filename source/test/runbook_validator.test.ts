@@ -9,7 +9,7 @@ class RunbookTestHelper {
   _file: string;
   _contents: string | undefined;
   _contentsAsLines: string[] | undefined;
-  _contentsAsObject: any | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+  _contentsAsObject: any | undefined;
   _validVariables: Set<string> | undefined;
 
   constructor(file: string) {
@@ -39,7 +39,6 @@ class RunbookTestHelper {
     return this._contentsAsLines || [];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getObject(): any {
     if (this._contentsAsObject === undefined) {
       this._contentsAsObject = yaml.load(this.getContents());
@@ -251,14 +250,13 @@ test.each(runbooks)('%s description has explanation', (runbook: RunbookTestHelpe
   expect(descriptionHasExplanation(description)).toBe(true);
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function descriptionDocumentsInputParameters(description: string, parameters: any): boolean {
   if (!parameters) {
     return true;
   }
   const expectedDoc: Set<string> = new Set();
   for (const [name, details] of Object.entries(parameters)) {
-    expectedDoc.add(`* ${name}: ${(details as any).description}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+    expectedDoc.add(`* ${name}: ${(details as any).description}`);
   }
   const lines: string[] = description.split('\n');
   let inputParametersHeaderFound = false;
@@ -288,7 +286,7 @@ function descriptionDocumentsInputParameters(description: string, parameters: an
 
 test.skip.each(runbooks)('%s description documents input parameters', (runbook: RunbookTestHelper) => {
   const description: string = runbook.getObject().description;
-  const parameters: any = runbook.getObject().parameters; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const parameters: any = runbook.getObject().parameters;
   expect(descriptionDocumentsInputParameters(description, parameters)).toBe(true);
 });
 
@@ -328,7 +326,7 @@ function descriptionDocumentsOutputParameters(description: string, outputs: stri
 
 test.skip.each(runbooks)('%s description documents output parameters', (runbook: RunbookTestHelper) => {
   const description: string = runbook.getObject().description;
-  const outputs: any = runbook.getObject().outputs; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const outputs: any = runbook.getObject().outputs;
   expect(descriptionDocumentsOutputParameters(description, outputs)).toBe(true);
 });
 
@@ -386,13 +384,13 @@ test.each(controlRunbooks)('%s takes finding as parameter', (runbook: RunbookTes
 
 test.each(runbooks)('%s takes valid parameters', (runbook: RunbookTestHelper) => {
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-doc-syntax.html
-  const parameters: any = runbook.getObject().parameters; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const parameters: any = runbook.getObject().parameters;
   if (!parameters) {
     return;
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const [_, detailsObj] of Object.entries(parameters)) {
-    const details = detailsObj as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const details = detailsObj as any;
     switch (details.type) {
       case 'String':
         // String parameters must be validated
@@ -422,7 +420,7 @@ test.each(runbooks)('%s takes valid parameters', (runbook: RunbookTestHelper) =>
 });
 
 test.each(controlRunbooks)('%s has valid parse input step', (runbook: RunbookTestHelper) => {
-  const steps: any = runbook.getObject().mainSteps; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const steps: any = runbook.getObject().mainSteps;
   const parseStep = steps[0];
   expect(parseStep.name).toStrictEqual('ParseInput');
   expect(parseStep.action).toStrictEqual('aws:executeScript');
@@ -435,14 +433,13 @@ test.each(controlRunbooks)('%s has valid parse input step', (runbook: RunbookTes
     // Patterns must be tested
     expect(regexRegistry.has(parseIdPattern)).toBe(true);
   }
-  const expectedControlId: any = parseStep.inputs.InputPayload.expected_control_id; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const expectedControlId: any = parseStep.inputs.InputPayload.expected_control_id;
   expect(Array.isArray(expectedControlId)).toBe(true);
   expect(expectedControlId as string[]).toEqual(expect.arrayContaining([runbook.getControlName()]));
   // TODO match known outputs of parse_input and types
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function validateScriptStep(runbook: RunbookTestHelper, step: any) {
+function validateScriptStep(_runbook: RunbookTestHelper, step: any) {
   if (step.outputs) {
     for (const output of step.outputs) {
       // capturing the entire output with '$' is ok
@@ -457,7 +454,7 @@ function validateScriptStep(runbook: RunbookTestHelper, step: any) {
 }
 
 test.each(runbooks)('%s has valid steps', (runbook: RunbookTestHelper) => {
-  const steps: any[] = runbook.getObject().mainSteps; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const steps: any[] = runbook.getObject().mainSteps;
   // Must have at least one step
   expect(steps.length).toBeGreaterThan(0);
   for (const step of steps) {
@@ -494,7 +491,6 @@ function isSsmParameter(parameter: string): boolean {
   return parameter.startsWith('ssm:/');
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateTemplateVariablesRecursive(obj: any, runbook: RunbookTestHelper) {
   if (obj === undefined || obj === null) {
     return;

@@ -36,8 +36,7 @@ export class EnableDefaultEncryptionS3Document extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -49,9 +48,7 @@ export class EnableDefaultEncryptionS3Document extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.AccountId = StringVariable.of('ParseInput.RemediationAccount');

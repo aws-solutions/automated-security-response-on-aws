@@ -30,7 +30,9 @@ main() {
         -x "deployment/temp/*" \
         -x "deployment/test/*" \
         -x ".viperlightrc.*" \
-        -x "codescan-*.sh"
+        -x "codescan-*.sh" \
+        -x "Config" \
+        -x ".nightswatch/*"
     popd
 }
 
