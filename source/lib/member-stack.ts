@@ -11,8 +11,8 @@ import { MemberBucketEncryption } from './member/bucket-encryption';
 import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 import { WaitProvider } from './wait-provider';
-import { MemberPlaybook, MemberPlaybookNew } from './member-playbook';
-import { standardPlaybookProps, scPlaybookProps } from '../playbooks/playbook-index';
+import { MemberPlaybookNew } from './member-playbook';
+import { scPlaybookProps } from '../playbooks/playbook-index';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -61,26 +61,6 @@ export class MemberStack extends Stack {
 
     this.nestedStacksWithAppRegistry.push(nestedStackNoRoles as Stack);
 
-    const securityStandardPlaybookNames: string[] = [];
-    standardPlaybookProps.forEach((playbookProps: any) => {
-      const playbook = new MemberPlaybook(this, {
-        name: playbookProps.name,
-        defaultState: playbookProps.defaultParameterValue,
-        description: playbookProps.description,
-        nestedStackFactory,
-        parameters: {
-          SecHubAdminAccount: adminAccountParam.value,
-          WaitProviderServiceToken: waitProvider.serviceToken,
-        },
-      });
-
-      securityStandardPlaybookNames.push(playbook.parameterName);
-
-      if (playbookProps.useAppRegistry) {
-        this.nestedStacksWithAppRegistry.push(playbook.playbookStack);
-      }
-    });
-
     const scPlaybook = new MemberPlaybookNew(this, {
       name: scPlaybookProps.name,
       defaultState: scPlaybookProps.defaultParameterValue,
@@ -92,7 +72,7 @@ export class MemberStack extends Stack {
       },
     });
 
-    const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
+    this.nestedStacksWithAppRegistry.push(...scPlaybook.playbookStacks);
 
     /********************
      ** Metadata
@@ -107,10 +87,6 @@ export class MemberStack extends Stack {
           {
             Label: { default: 'Consolidated control finding Playbook' },
             Parameters: [scPlaybook.parameterName],
-          },
-          {
-            Label: { default: 'Security Standard Playbooks' },
-            Parameters: sortedPlaybookNames,
           },
           {
             Label: { default: 'Configuration' },

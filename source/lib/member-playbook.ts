@@ -59,8 +59,8 @@ export class MemberPlaybookNew {
     const cfnStackNew = newNestedStack.nestedStackResource as CfnResource;
     cfnStackNew.cfnStack.overrideLogicalId(`PlaybookMemberStackNew${props.name}`);
 
-    this.playbookStacks.push(originalNestedStack)
-    this.playbookStacks.push(newNestedStack)
+    this.playbookStacks.push(originalNestedStack as Stack)
+    this.playbookStacks.push(newNestedStack as Stack)
   }
 }
 
