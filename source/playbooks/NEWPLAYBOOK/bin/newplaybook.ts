@@ -23,7 +23,7 @@ cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 
 // Creates one rule per control Id. The Step Function determines what document to run based on
 // Security Standard and Control Id. See cis-member-stack
-const remediations: IControl[] = [{ control: 'RDS.6' }];
+const remediations: IControl[] = [{ control: 'RDS.6', versionAdded: '2.1.0' }];
 
 const adminStack = new PlaybookPrimaryStack(app, 'NPBStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

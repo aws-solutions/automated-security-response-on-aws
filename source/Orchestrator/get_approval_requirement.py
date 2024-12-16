@@ -16,7 +16,7 @@ import re
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from layer import utils
+from layer import tracer_utils, utils
 from layer.awsapi_cached_client import BotoSession
 from layer.logger import Logger
 from layer.sechub_findings import Finding
@@ -24,6 +24,8 @@ from layer.sechub_findings import Finding
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
 LOGGER = Logger(loglevel=LOG_LEVEL)
+
+tracer = tracer_utils.init_tracer()
 # If env WORKFLOW_RUNBOOK is set and not blank then all remediations will be
 # executed through this runbook, if it is present and enabled in the member
 # account.
@@ -130,6 +132,7 @@ def _doc_is_active(doc, account):
         return False
 
 
+@tracer.capture_lambda_handler
 def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     answer.update(

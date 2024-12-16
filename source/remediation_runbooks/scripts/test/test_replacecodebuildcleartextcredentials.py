@@ -23,18 +23,18 @@ class Case:
     def __init__(self, env_vars):
         self._env_vars = env_vars
         self._project_name = "invoke-codebuild-2"
-        self._service_role = f"codebuild-{ self._project_name }-service-role"
+        self._service_role = f"codebuild-{self._project_name}-service-role"
         self._policy_name = (
-            f"CodeBuildSSMParameterPolicy-{ self._project_name }-{ get_region() }"
+            f"CodeBuildSSMParameterPolicy-{self._project_name}-{get_region()}"
         )
-        self._policy_arn = f"arn:aws:iam::111111111111:policy/{ self._policy_name }"
+        self._policy_arn = f"arn:aws:iam::111111111111:policy/{self._policy_name}"
         self._policy_modtime = datetime.now()
 
     def event(self):
         return {
             "ProjectInfo": {
                 "name": self._project_name,
-                "arn": f"arn:aws:codebuild:{get_region()}:111111111111:project/{ self._project_name }",
+                "arn": f"arn:aws:codebuild:{get_region()}:111111111111:project/{self._project_name}",
                 "source": {
                     "type": "NO_SOURCE",
                     "gitCloneDepth": 1,
@@ -54,7 +54,7 @@ class Case:
                     "privilegedMode": False,
                     "imagePullCredentialsType": "CODEBUILD",
                 },
-                "serviceRole": f"arn:aws:iam::111111111111:role/service-role/{ self._service_role }",
+                "serviceRole": f"arn:aws:iam::111111111111:role/service-role/{self._service_role}",
                 "timeoutInMinutes": 60,
                 "queuedTimeoutInMinutes": 480,
                 "encryptionKey": f"arn:aws:kms:{get_region()}:111111111111:alias/aws/s3",
@@ -72,7 +72,7 @@ class Case:
         }
 
     def parameter_name(self, env_var_name):
-        return f"{ remediation.get_project_ssm_namespace(self._project_name) }/env/{ env_var_name }"
+        return f"{remediation.get_project_ssm_namespace(self._project_name)}/env/{env_var_name}"
 
     def policy(self):
         return {

@@ -147,7 +147,7 @@ mainSteps:
     inputs:
       DocumentName: ASR-CreateLogMetricFilterAndAlarm
       RuntimeParameters:
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateLogMetricFilterAndAlarm'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-CreateLogMetricFilterAndAlarm%%'
         FilterName: '{{ GetMetricFilterAndAlarmInputValue.FilterName }}'
         FilterPattern: '{{ GetMetricFilterAndAlarmInputValue.FilterPattern }}'
         MetricName: '{{ GetMetricFilterAndAlarmInputValue.MetricName }}'

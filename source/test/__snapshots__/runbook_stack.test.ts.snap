@@ -1,9 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Global Roles Stack 1`] = `
+exports[`MemberRoleStack tests Global Roles Stack 1`] = `
 {
   "Description": "test;",
   "Parameters": {
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
+      "Type": "String",
+    },
     "SecHubAdminAccount": {
       "AllowedPattern": "^\\d{12}$",
       "Description": "Admin account number",
@@ -229,15 +237,463 @@ exports[`Global Roles Stack 1`] = `
 }
 `;
 
-exports[`Regional Documents 1`] = `
+exports[`MemberRoleStack tests Regional Documents 1`] = `
 {
   "Description": "test;",
   "Parameters": {
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
+      "Type": "String",
+    },
     "WaitProviderServiceToken": {
       "Type": "String",
     },
   },
   "Resources": {
+    "ASRAttachSSMPermissionsToEC2": {
+      "DependsOn": [
+        "CreateWait9",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-AttachSSMPermissionsToEC2
+
+## What does this document do?
+This document adds the necessary permissions for SSM to begin managing the EC2 Instance.
+If the EC2 instance has an existing instance profile, it will add SSM permissions to the existing role if they are not already present.
+If the EC2 instance does not have an existing instance profile, it will attach a new profile and role with the correct permissions.
+
+## Input Parameters
+* InstanceArn: (Required) EC2 Instance ARN
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Security Standards / Controls
+* AWS FSBP v1.0.0:   SSM.1
+* PCI:            PCI.SSM.3
+
+## Output Parameters
+* AttachSSMPermissionsToEC2.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Adds necessary permissions for SSM to begin managing the EC2 Instance.
+",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "InstanceArn": "{{InstanceArn}}",
+                  "InstanceProfile": "{{InstanceProfile}}",
+                  "RemediationRole": "{{RemediationRole}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import Optional
+
+import boto3
+from botocore.config import Config
+
+SSM_MANAGED_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+def connect_to_iam():
+    return boto3.client("iam", config=boto_config)
+
+
+def connect_to_ec2():
+    return boto3.client("ec2", config=boto_config)
+
+
+def lambda_handler(event, _):
+    """
+    Remediates SSM.1 by attaching the required
+    permissions to the EC2 Instance to enable
+    SSM management.
+    """
+    try:
+        instance_arn = event["InstanceArn"]
+        instance_id = instance_arn.split("/")[1]
+        remediation_role = event["RemediationRole"]
+        remediation_instance_profile_name = event["InstanceProfile"]
+
+        existing_instance_profile = get_existing_instance_profile(instance_id)
+        existing_iam_role_from_instance_profile = (
+            get_iam_role_from_instance_profile(existing_instance_profile)
+            if existing_instance_profile
+            else None
+        )
+
+        if existing_iam_role_from_instance_profile:
+            attach_ssm_managed_iam_policy(existing_iam_role_from_instance_profile)
+
+        ssm_management_iam_role = (
+            existing_iam_role_from_instance_profile or remediation_role
+        )
+
+        instance_profile = (
+            existing_instance_profile or remediation_instance_profile_name
+        )
+
+        if existing_instance_profile and not existing_iam_role_from_instance_profile:
+            setup_instance_profile(ssm_management_iam_role, instance_profile)
+
+        if not existing_instance_profile:
+            attach_instance_profile(instance_profile, instance_id)
+
+        return {
+            "message": f"Successfully added SSM permissions to instance {instance_id}.",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(f"Encountered error remediating SSM.1: {str(e)}")
+
+
+def get_existing_instance_profile(instance_id: str) -> Optional[str]:
+    ec2_client = connect_to_ec2()
+
+    try:
+        response = ec2_client.describe_iam_instance_profile_associations(
+            Filters=[
+                {"Name": "instance-id", "Values": [instance_id]},
+                {"Name": "state", "Values": ["associated"]},
+            ]
+        )
+        if response["IamInstanceProfileAssociations"]:
+            return response["IamInstanceProfileAssociations"][0]["IamInstanceProfile"][
+                "Arn"
+            ].split("/")[1]
+        else:
+            return None
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to describe profile attached to instance {instance_id}: {str(e)}"
+        )
+
+
+def get_iam_role_from_instance_profile(profile_name: str) -> Optional[str]:
+    iam_client = connect_to_iam()
+
+    try:
+        response = iam_client.get_instance_profile(InstanceProfileName=profile_name)
+        if response["InstanceProfile"]["Roles"]:
+            # there can only be one role attached to an instance profile
+            return response["InstanceProfile"]["Roles"][0]["RoleName"]
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to get role from instance profile {profile_name}: {str(e)}"
+        )
+
+    return None
+
+
+def attach_ssm_managed_iam_policy(role_name: str) -> None:
+    iam_client = connect_to_iam()
+
+    try:
+        if not is_ssm_managed_policy_attached(role_name):
+            iam_client.attach_role_policy(
+                RoleName=role_name,
+                PolicyArn=SSM_MANAGED_POLICY_ARN,
+            )
+    except Exception as e:
+        raise RuntimeError(f"Failed to attach SSM managed policy to IAM role: {str(e)}")
+
+
+def is_ssm_managed_policy_attached(role_name: str) -> bool:
+    iam_client = connect_to_iam()
+
+    try:
+        paginator = iam_client.get_paginator("list_attached_role_policies")
+        page_iterator = paginator.paginate(RoleName=role_name)
+
+        attached_policies = []
+        for page in page_iterator:
+            attached_policies.extend(page["AttachedPolicies"])
+
+        for policy in attached_policies:
+            if policy["PolicyArn"] == SSM_MANAGED_POLICY_ARN:
+                return True
+    except Exception as e:
+        print(f"Failed to list attached policies for IAM role {role_name}: {str(e)}")
+
+    return False
+
+
+def setup_instance_profile(role_name: str, instance_profile_name: str) -> None:
+    iam_client = connect_to_iam()
+
+    try:
+        iam_client.add_role_to_instance_profile(
+            InstanceProfileName=instance_profile_name,
+            RoleName=role_name,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to add role {role_name} to instance profile {instance_profile_name}: {str(e)}"
+        )
+
+
+def attach_instance_profile(profile_name: str, instance_id: str) -> None:
+    ec2_client = connect_to_ec2()
+    try:
+        ec2_client.associate_iam_instance_profile(
+            IamInstanceProfile={"Name": profile_name},
+            InstanceId=instance_id,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to associate instance profile {profile_name} with instance {instance_id}: {str(e)}\\n It is "
+            f"likely that there is already an instance profile associated with the Instance, "
+            f"use the describe-iam-instance-profile-associations command to verify."
+        )",
+              },
+              "isEnd": true,
+              "name": "AttachSSMPermissionsToEC2",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "AttachSSMPermissionsToEC2.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "InstanceArn": {
+              "allowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):ec2:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:instance\\/(i-[0-9a-f]*)$",
+              "description": "(Required) The document ARN.",
+              "type": "String",
+            },
+            "InstanceProfile": {
+              "allowedPattern": "^.+-AttachSSMPermissionsToEC2-InstanceProfile-.+$",
+              "description": "(Required) The name of the Instance profile with SSM managed permissions for EC2.",
+              "type": "String",
+            },
+            "RemediationRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that with SSM managed permissions for EC2.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-AttachSSMPermissionsToEC2",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASRAttachServiceVPCEndpoint": {
+      "DependsOn": [
+        "CreateWait9",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-AttachServiceVPCEndpoint
+
+## Overview
+This document creates and attaches a service interface endpoint to the VPC.
+
+## Pre-requisites
+* None
+
+## What does this document do?
+Creates and attaches service interface endpoint to VPC; by default, all subnets in the VPC are given access to the endpoint.
+
+## Input Parameters
+* ResourceArn: (Required) VPC to be remediated.
+* ServiceName: (Required) Name of the AWS Service for which an endpoint should be created (e.g. 'ec2').
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* AttachServiceVPCEndpoint.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Creates and attaches service interface endpoint to VPC.
+",
+              "inputs": {
+                "Handler": "handler",
+                "InputPayload": {
+                  "Region": "{{global:REGION}}",
+                  "ServiceName": "{{ServiceName}}",
+                  "VPCId": "{{VPCId}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import List, Optional, TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+def connect_to_ec2():
+    return boto3.client("ec2", config=boto_config)
+
+
+class Event(TypedDict):
+    ServiceName: str
+    Region: str
+    VPCId: str
+
+
+def handler(event: Event, _):
+    """
+    Remediates by creating and attaching
+    an AWS service endpoint to the VPC.
+    """
+    try:
+        service_name = event["ServiceName"]
+        aws_region = event["Region"]
+        vpc_id = event["VPCId"]
+
+        subnets = get_subnets(vpc_id)
+        service_endpoint_name = get_service_endpoint_name(aws_region, service_name)
+
+        vpc_endpoint_id = attach_vpc_endpoint(vpc_id, subnets, service_endpoint_name)
+        return {
+            "Message": (
+                f"Successfully attached service endpoint {service_endpoint_name} to VPC {vpc_id}."
+            ),
+            "Status": "success",
+            "VpcEndpointId": vpc_endpoint_id,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error while attaching service endpoint to VPC: {str(e)}"
+        )
+
+
+def get_subnets(vpc_id: str) -> Optional[List[str]]:
+    ec2_client = connect_to_ec2()
+    try:
+        paginator = ec2_client.get_paginator("describe_subnets")
+        page_iterator = paginator.paginate(
+            Filters=[
+                {
+                    "Name": "vpc-id",
+                    "Values": [vpc_id],
+                }
+            ]
+        )
+        subnets = [
+            subnet["SubnetId"]
+            for page in page_iterator
+            for subnet in page["Subnets"]
+            if "SubnetId" in subnet
+        ]
+        return subnets
+    except Exception as e:
+        raise RuntimeError(f"Failed to list subnets in VPC {vpc_id}: {str(e)}")
+
+
+def get_service_endpoint_name(aws_region: str, service_name: str) -> str:
+    prefix = "cn." if aws_region in ["cn-north-1", "cn-northwest-1"] else ""
+    return f"{prefix}com.amazonaws.{aws_region}.{service_name}"
+
+
+def attach_vpc_endpoint(
+    vpc_id: str, subnets: List[str], service_endpoint_name: str
+) -> str:
+    ec2_client = connect_to_ec2()
+    try:
+        dns_enabled = is_dns_enabled(vpc_id)
+        response = ec2_client.create_vpc_endpoint(
+            VpcEndpointType="Interface",
+            VpcId=vpc_id,
+            ServiceName=service_endpoint_name,
+            SubnetIds=subnets,
+            PrivateDnsEnabled=dns_enabled,
+        )
+        return response["VpcEndpoint"]["VpcEndpointId"]
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to attach service endpoint {service_endpoint_name} to VPC {vpc_id}: {str(e)}"
+        )
+
+
+def is_dns_enabled(vpc_id: str) -> bool:
+    ec2_client = connect_to_ec2()
+    try:
+        dns_support_enabled = ec2_client.describe_vpc_attribute(
+            Attribute="enableDnsSupport",
+            VpcId=vpc_id,
+        )["EnableDnsSupport"]["Value"]
+
+        dns_hostnames_enabled = ec2_client.describe_vpc_attribute(
+            Attribute="enableDnsHostnames",
+            VpcId=vpc_id,
+        )["EnableDnsHostnames"]["Value"]
+
+        return dns_support_enabled and dns_hostnames_enabled
+    except Exception as e:
+        raise RuntimeError(f"Failed to get VPC attributes for {vpc_id}: {str(e)}")",
+              },
+              "name": "AttachServiceVPCEndpoint",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "AttachServiceVPCEndpoint.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "ServiceName": {
+              "allowedPattern": "^[A-Za-z0-9]*$",
+              "description": "(Required) Name of the AWS Service for which an endpoint should be created (e.g. 'ec2').",
+              "type": "String",
+            },
+            "VPCId": {
+              "allowedPattern": "^vpc-[0-9a-f]{8,17}$",
+              "description": "(Required) The VPC resource ARN.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-AttachServiceVPCEndpoint",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRBlockSSMDocumentPublicAccess": {
       "DependsOn": [
         "CreateWait9",
@@ -371,6 +827,611 @@ def modify_document_permissions(document_name):
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRConfigureAutoScalingLaunchConfigNoPublicIP": {
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-ConfigureAutoScalingLaunchConfigNoPublicIP
+
+## What does this document do?
+  This document configures AutoScaling Launch Configuration to not assign a public IP address
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* LaunchConfigurationName: (Required) The Name of the Launch Configuration.
+
+## Security Standards / Controls
+* NIST 800-53 Rev5: AutoScaling.5
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "DescribeLaunchConfigurations",
+                "LaunchConfigurationNames": [
+                  "{{LaunchConfigurationName}}",
+                ],
+                "Service": "autoscaling",
+              },
+              "isEnd": false,
+              "name": "GetLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "LaunchConfiguration",
+                  "Selector": "$.LaunchConfigurations[0]",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "append_suffix",
+                "InputPayload": {
+                  "MaxLen": 255,
+                  "OriginalString": "{{LaunchConfigurationName}}",
+                  "Suffix": "-NoPublicIP",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+
+class AppendSuffixEvent(TypedDict):
+    OriginalString: str
+    MaxLen: int
+    Suffix: str
+
+
+def append_suffix(event: AppendSuffixEvent, _) -> str:
+    prefix_len = event["MaxLen"] - len(event["Suffix"])
+    new_name = event["OriginalString"][:prefix_len] + event["Suffix"]
+    return new_name",
+              },
+              "name": "GetNewLaunchConfigurationName",
+              "outputs": [
+                {
+                  "Name": "LaunchConfigurationName",
+                  "Selector": "$.Payload",
+                  "Type": "String",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "event_handler",
+                "InputPayload": {
+                  "LaunchConfiguration": "{{GetLaunchConfiguration.LaunchConfiguration}}",
+                  "LaunchConfigurationName": "{{GetNewLaunchConfigurationName.LaunchConfigurationName}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import Dict, TypedDict
+
+
+class Event(TypedDict):
+    LaunchConfiguration: Dict
+    LaunchConfigurationName: str
+
+
+def event_handler(event: Event, _):
+    launch_configuration = event["LaunchConfiguration"]
+    launch_configuration["LaunchConfigurationName"] = event["LaunchConfigurationName"]
+    launch_configuration["AssociatePublicIpAddress"] = False
+    del launch_configuration["LaunchConfigurationARN"]
+    del launch_configuration["CreatedTime"]
+    return launch_configuration",
+              },
+              "name": "UpdateLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "LaunchConfiguration",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "create_auto_scaling_launch_configuration",
+                "InputPayload": {
+                  "LaunchConfiguration": "{{UpdateLaunchConfiguration.LaunchConfiguration}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import TYPE_CHECKING, Dict, TypedDict
+
+if TYPE_CHECKING:
+    from mypy_boto3_apigateway import AutoScalingClient
+else:
+    AutoScalingClient = object
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_auto_scaling(boto_config: Config) -> AutoScalingClient:
+    return boto3.client("autoscaling", config=boto_config)
+
+
+class Event(TypedDict):
+    LaunchConfiguration: Dict
+
+
+def create_auto_scaling_launch_configuration(event: Event, _):
+    try:
+        # If these are blank, the api call will fail
+        if event["LaunchConfiguration"]["KernelId"] == "":
+            del event["LaunchConfiguration"]["KernelId"]
+
+        if event["LaunchConfiguration"]["RamdiskId"] == "":
+            del event["LaunchConfiguration"]["RamdiskId"]
+
+        autoscaling_client = connect_to_auto_scaling(
+            Config(retries={"mode": "standard"})
+        )
+        autoscaling_client.create_launch_configuration(**event["LaunchConfiguration"])
+
+        return {
+            "message": "Successfully created auto scaling launch configuration",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered an error creating auto scaling launch configuration: {str(e)}"
+        )",
+              },
+              "isEnd": false,
+              "name": "CreateNewLaunchConfiguration",
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "update_auto_scaling_groups_with_launch_configuration",
+                "InputPayload": {
+                  "NewLaunchConfigurationName": "{{GetNewLaunchConfigurationName.LaunchConfigurationName}}",
+                  "OldLaunchConfigurationName": "{{LaunchConfigurationName}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from mypy_boto3_apigateway import AutoScalingClient
+else:
+    AutoScalingClient = object
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_auto_scaling(boto_config: Config) -> AutoScalingClient:
+    return boto3.client("autoscaling", config=boto_config)
+
+
+class Event(TypedDict):
+    OldLaunchConfigurationName: str
+    NewLaunchConfigurationName: str
+
+
+def update_auto_scaling_groups_with_launch_configuration(event: Event, _):
+    try:
+        auto_scaling_groups = get_auto_scaling_groups()
+        update_auto_scaling_groups(
+            auto_scaling_groups,
+            event["OldLaunchConfigurationName"],
+            event["NewLaunchConfigurationName"],
+        )
+
+        return {
+            "message": "Successfully updated auto scaling groups with launch configuration",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered an error updating auto scaling groups: {str(e)}"
+        )
+
+
+def get_auto_scaling_groups():
+    autoscaling_client = connect_to_auto_scaling(Config(retries={"mode": "standard"}))
+    paginator = autoscaling_client.get_paginator("describe_auto_scaling_groups")
+    page_iterator = paginator.paginate()
+
+    auto_scaling_groups = []
+    for page in page_iterator:
+        auto_scaling_groups += page["AutoScalingGroups"]
+
+    return auto_scaling_groups
+
+
+def update_auto_scaling_groups(
+    auto_scaling_groups,
+    old_launch_configuration_name: str,
+    new_launch_configuation_name: str,
+):
+    autoscaling_client = connect_to_auto_scaling(Config(retries={"mode": "standard"}))
+
+    for auto_scaling_group in auto_scaling_groups:
+        if (
+            auto_scaling_group["LaunchConfigurationName"]
+            != old_launch_configuration_name
+        ):
+            continue
+
+        autoscaling_client.update_auto_scaling_group(
+            AutoScalingGroupName=auto_scaling_group["AutoScalingGroupName"],
+            LaunchConfigurationName=new_launch_configuation_name,
+        )",
+              },
+              "isEnd": false,
+              "name": "UpdateAutoScalingGroupsWithLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "DeleteLaunchConfiguration",
+                "LaunchConfigurationName": "{{LaunchConfigurationName}}",
+                "Service": "autoscaling",
+              },
+              "isEnd": true,
+              "name": "DeleteLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "LaunchConfigurationName": {
+              "allowedPattern": "^.{1,255}$",
+              "description": "(Required) The name of the Launch Configuration.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-ConfigureAutoScalingLaunchConfigNoPublicIP",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASRConfigureAutoScalingLaunchConfigToRequireIMDSv2": {
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-ConfigureAutoScalingLaunchConfigToRequireIMDSv2
+
+## What does this document do?
+  This document configures AutoScaling Launch Configuration to use IMDSv2
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* LaunchConfigurationName: (Required) The Name of the Launch Configuration.
+
+## Security Standards / Controls
+* NIST 800-53 Rev5: AutoScaling.3
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "DescribeLaunchConfigurations",
+                "LaunchConfigurationNames": [
+                  "{{LaunchConfigurationName}}",
+                ],
+                "Service": "autoscaling",
+              },
+              "isEnd": false,
+              "name": "GetLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "LaunchConfiguration",
+                  "Selector": "$.LaunchConfigurations[0]",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "append_suffix",
+                "InputPayload": {
+                  "MaxLen": 255,
+                  "OriginalString": "{{LaunchConfigurationName}}",
+                  "Suffix": "-IMDSv2",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+
+class AppendSuffixEvent(TypedDict):
+    OriginalString: str
+    MaxLen: int
+    Suffix: str
+
+
+def append_suffix(event: AppendSuffixEvent, _) -> str:
+    prefix_len = event["MaxLen"] - len(event["Suffix"])
+    new_name = event["OriginalString"][:prefix_len] + event["Suffix"]
+    return new_name",
+              },
+              "name": "GetNewLaunchConfigurationName",
+              "outputs": [
+                {
+                  "Name": "LaunchConfigurationName",
+                  "Selector": "$.Payload",
+                  "Type": "String",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "update_launch_configuration",
+                "InputPayload": {
+                  "LaunchConfiguration": "{{GetLaunchConfiguration.LaunchConfiguration}}",
+                  "LaunchConfigurationName": "{{GetNewLaunchConfigurationName.LaunchConfigurationName}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+
+class UpdateLaunchConfigurationEvent(TypedDict):
+    LaunchConfiguration: dict
+    LaunchConfigurationName: str
+
+
+def update_launch_configuration(event: UpdateLaunchConfigurationEvent, _) -> dict:
+    launch_configuration = event["LaunchConfiguration"]
+    launch_configuration["LaunchConfigurationName"] = event["LaunchConfigurationName"]
+    launch_configuration["MetadataOptions"] = {
+        "HttpTokens": "required",
+        "HttpEndpoint": "enabled",
+    }
+    del launch_configuration["LaunchConfigurationARN"]
+    del launch_configuration["CreatedTime"]
+    return launch_configuration",
+              },
+              "name": "UpdateLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "LaunchConfiguration",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "create_auto_scaling_launch_configuration",
+                "InputPayload": {
+                  "LaunchConfiguration": "{{UpdateLaunchConfiguration.LaunchConfiguration}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import TYPE_CHECKING, Dict, TypedDict
+
+if TYPE_CHECKING:
+    from mypy_boto3_apigateway import AutoScalingClient
+else:
+    AutoScalingClient = object
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_auto_scaling(boto_config: Config) -> AutoScalingClient:
+    return boto3.client("autoscaling", config=boto_config)
+
+
+class Event(TypedDict):
+    LaunchConfiguration: Dict
+
+
+def create_auto_scaling_launch_configuration(event: Event, _):
+    try:
+        # If these are blank, the api call will fail
+        if event["LaunchConfiguration"]["KernelId"] == "":
+            del event["LaunchConfiguration"]["KernelId"]
+
+        if event["LaunchConfiguration"]["RamdiskId"] == "":
+            del event["LaunchConfiguration"]["RamdiskId"]
+
+        autoscaling_client = connect_to_auto_scaling(
+            Config(retries={"mode": "standard"})
+        )
+        autoscaling_client.create_launch_configuration(**event["LaunchConfiguration"])
+
+        return {
+            "message": "Successfully created auto scaling launch configuration",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered an error creating auto scaling launch configuration: {str(e)}"
+        )",
+              },
+              "isEnd": false,
+              "name": "CreateNewLaunchConfiguration",
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "update_auto_scaling_groups_with_launch_configuration",
+                "InputPayload": {
+                  "NewLaunchConfigurationName": "{{GetNewLaunchConfigurationName.LaunchConfigurationName}}",
+                  "OldLaunchConfigurationName": "{{LaunchConfigurationName}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from mypy_boto3_apigateway import AutoScalingClient
+else:
+    AutoScalingClient = object
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_auto_scaling(boto_config: Config) -> AutoScalingClient:
+    return boto3.client("autoscaling", config=boto_config)
+
+
+class Event(TypedDict):
+    OldLaunchConfigurationName: str
+    NewLaunchConfigurationName: str
+
+
+def update_auto_scaling_groups_with_launch_configuration(event: Event, _):
+    try:
+        auto_scaling_groups = get_auto_scaling_groups()
+        update_auto_scaling_groups(
+            auto_scaling_groups,
+            event["OldLaunchConfigurationName"],
+            event["NewLaunchConfigurationName"],
+        )
+
+        return {
+            "message": "Successfully updated auto scaling groups with launch configuration",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered an error updating auto scaling groups: {str(e)}"
+        )
+
+
+def get_auto_scaling_groups():
+    autoscaling_client = connect_to_auto_scaling(Config(retries={"mode": "standard"}))
+    paginator = autoscaling_client.get_paginator("describe_auto_scaling_groups")
+    page_iterator = paginator.paginate()
+
+    auto_scaling_groups = []
+    for page in page_iterator:
+        auto_scaling_groups += page["AutoScalingGroups"]
+
+    return auto_scaling_groups
+
+
+def update_auto_scaling_groups(
+    auto_scaling_groups,
+    old_launch_configuration_name: str,
+    new_launch_configuation_name: str,
+):
+    autoscaling_client = connect_to_auto_scaling(Config(retries={"mode": "standard"}))
+
+    for auto_scaling_group in auto_scaling_groups:
+        if (
+            auto_scaling_group["LaunchConfigurationName"]
+            != old_launch_configuration_name
+        ):
+            continue
+
+        autoscaling_client.update_auto_scaling_group(
+            AutoScalingGroupName=auto_scaling_group["AutoScalingGroupName"],
+            LaunchConfigurationName=new_launch_configuation_name,
+        )",
+              },
+              "isEnd": false,
+              "name": "UpdateAutoScalingGroupsWithLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "DeleteLaunchConfiguration",
+                "LaunchConfigurationName": "{{LaunchConfigurationName}}",
+                "Service": "autoscaling",
+              },
+              "isEnd": true,
+              "name": "DeleteLaunchConfiguration",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "LaunchConfigurationName": {
+              "allowedPattern": "^.{1,255}$",
+              "description": "(Required) The name of the Launch Configuration.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-ConfigureAutoScalingLaunchConfigToRequireIMDSv2",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRConfigureS3BucketPublicAccessBlock": {
       "DependsOn": [
         "CreateWait4",
@@ -396,42 +1457,20 @@ This document is used to create or modify the PublicAccessBlock configuration fo
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
 ## Output Parameters
-* GetBucketPublicAccessBlock.Output - JSON formatted response from the GetPublicAccessBlock API call
+* ConfigureS3PublicAccessBlock.Output - JSON formatted response from the ConfigureS3PublicAccessBlock script.
 
 ## Note: this is a local copy of the AWS-owned document to enable support in aws-cn and aws-us-gov partitions.
 ",
           "mainSteps": [
             {
-              "action": "aws:executeAwsApi",
-              "description": "## PutBucketPublicAccessBlock
-Creates or modifies the PublicAccessBlock configuration for a S3 Bucket.
-",
-              "inputs": {
-                "Api": "PutPublicAccessBlock",
-                "Bucket": "{{BucketName}}",
-                "PublicAccessBlockConfiguration": {
-                  "BlockPublicAcls": "{{ BlockPublicAcls }}",
-                  "BlockPublicPolicy": "{{ BlockPublicPolicy }}",
-                  "IgnorePublicAcls": "{{ IgnorePublicAcls }}",
-                  "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
-                },
-                "Service": "s3",
-              },
-              "isCritical": true,
-              "isEnd": false,
-              "maxAttempts": 2,
-              "name": "PutBucketPublicAccessBlock",
-              "timeoutSeconds": 600,
-            },
-            {
               "action": "aws:executeScript",
-              "description": "## GetBucketPublicAccessBlock
-Retrieves the S3 PublicAccessBlock configuration for a S3 Bucket.
+              "description": "## ConfigureS3PublicAccessBlock
+Configures the S3 bucket PublicAccessBlock.
 ## Outputs
-* Output: JSON formatted response from the GetPublicAccessBlock API call.
+* Output: Response from the ConfigureS3PublicAccessBlock script.
 ",
               "inputs": {
-                "Handler": "validate_s3_bucket_publicaccessblock",
+                "Handler": "handle_s3_bucket",
                 "InputPayload": {
                   "BlockPublicAcls": "{{ BlockPublicAcls }}",
                   "BlockPublicPolicy": "{{ BlockPublicPolicy }}",
@@ -440,47 +1479,259 @@ Retrieves the S3 PublicAccessBlock configuration for a S3 Bucket.
                   "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from time import sleep
+from typing import Optional, TypedDict
 
-def validate_s3_bucket_publicaccessblock(event, context):
-  s3_client = boto3.client("s3")
-  bucket = event["Bucket"]
-  restrict_public_buckets = event["RestrictPublicBuckets"]
-  block_public_acls = event["BlockPublicAcls"]
-  ignore_public_acls = event["IgnorePublicAcls"]
-  block_public_policy = event["BlockPublicPolicy"]
+import boto3
+from botocore.config import Config
 
-  output = s3_client.get_public_access_block(Bucket=bucket)
-  updated_block_acl = output["PublicAccessBlockConfiguration"]["BlockPublicAcls"]
-  updated_ignore_acl = output["PublicAccessBlockConfiguration"]["IgnorePublicAcls"]
-  updated_block_policy = output["PublicAccessBlockConfiguration"]["BlockPublicPolicy"]
-  updated_restrict_buckets = output["PublicAccessBlockConfiguration"]["RestrictPublicBuckets"]
+boto_config = Config(retries={"mode": "standard"})
 
-  if updated_block_acl == block_public_acls and updated_ignore_acl == ignore_public_acls \\
-  and updated_block_policy == block_public_policy and updated_restrict_buckets == restrict_public_buckets:
-    return {
-      "output":
-        {
-          "message": "Bucket public access block configuration successfully set.",
-          "configuration": output["PublicAccessBlockConfiguration"]
+
+class PublicAccessConfiguration(TypedDict):
+    BlockPublicAcls: bool
+    IgnorePublicAcls: bool
+    BlockPublicPolicy: bool
+    RestrictPublicBuckets: bool
+
+
+class ValidateBucketPublicAccessBlockResponse(TypedDict):
+    Message: str
+    Valid: bool
+    PublicAccessConfig: Optional[PublicAccessConfiguration]
+
+
+class BucketEvent(TypedDict):
+    Bucket: str
+    RestrictPublicBuckets: bool
+    BlockPublicAcls: bool
+    IgnorePublicAcls: bool
+    BlockPublicPolicy: bool
+
+
+class AccountEvent(TypedDict):
+    AccountId: str
+    RestrictPublicBuckets: bool
+    BlockPublicAcls: bool
+    IgnorePublicAcls: bool
+    BlockPublicPolicy: bool
+
+
+class HandlerResponse(TypedDict):
+    Message: str
+    Status: str
+    PublicAccessConfig: Optional[PublicAccessConfiguration]
+
+
+def connect_to_service(service):
+    return boto3.client(service, config=boto_config)
+
+
+def handle_account(event: AccountEvent, _) -> HandlerResponse:
+    """
+    Configures the S3 account-level public access block.
+    """
+    try:
+        account_id = event["AccountId"]
+        public_access_block_config = {
+            "BlockPublicAcls": event["BlockPublicAcls"],
+            "IgnorePublicAcls": event["IgnorePublicAcls"],
+            "BlockPublicPolicy": event["BlockPublicPolicy"],
+            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
         }
-    }
-  else:
-      info = "CONFIGURATION VALUES DO NOT MATCH WITH PARAMETERS PROVIDED VALUES RestrictPublicBuckets: {}, BlockPublicAcls: {}, IgnorePublicAcls: {}, BlockPublicPolicy: {}".format(
-                restrict_public_buckets,
-                block_public_acls,
-                ignore_public_acls,
-                block_public_policy
-              )
-      raise Exception(info)",
+        put_account_public_access_block(account_id, public_access_block_config)
+
+        valid_account_public_access_block = validate_account_public_access_block(
+            account_id, public_access_block_config
+        )
+
+        if valid_account_public_access_block["Valid"]:
+            return {
+                "Message": f"Account {account_id} public access block configuration successfully set.",
+                "Status": "Success",
+                "PublicAccessConfig": valid_account_public_access_block[
+                    "PublicAccessConfig"
+                ],
+            }
+        else:
+            expected_config = public_access_block_config
+            return {
+                "Message": f"Account {account_id} public access block configuration does not match with parameters "
+                f"provided. \\nExpected: {str(expected_config)}",
+                "Status": "Failed",
+                "PublicAccessConfig": None,
+            }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error configuring public access block for account: {str(e)}"
+        )
+
+
+def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
+    """
+    Configures the public access block for an S3 bucket.
+    """
+    try:
+        bucket = event["Bucket"]
+        public_access_block_config = {
+            "BlockPublicAcls": event["BlockPublicAcls"],
+            "IgnorePublicAcls": event["IgnorePublicAcls"],
+            "BlockPublicPolicy": event["BlockPublicPolicy"],
+            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        }
+        put_s3_bucket_public_access_block(bucket, public_access_block_config)
+
+        valid_bucket_public_access_block = validate_bucket_public_access_block(
+            bucket, public_access_block_config
+        )
+
+        if valid_bucket_public_access_block["Valid"]:
+            return {
+                "Message": f"Bucket {bucket} public access block configuration successfully set.",
+                "Status": "Success",
+                "PublicAccessConfig": valid_bucket_public_access_block[
+                    "PublicAccessConfig"
+                ],
+            }
+        else:
+            actual_config = valid_bucket_public_access_block["PublicAccessConfig"]
+            expected_config = public_access_block_config
+            return {
+                "Message": f"Bucket {bucket} public access block configuration does not match with parameters provided."
+                f"\\nExpected: {str(expected_config)}\\nActual: {str(actual_config)}",
+                "Status": "Failed",
+                "PublicAccessConfig": actual_config,
+            }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error configuring public access block for S3 Bucket: {str(e)}"
+        )
+
+
+def put_account_public_access_block(
+    account_id: str,
+    public_access_block_config: PublicAccessConfiguration,
+) -> None:
+    s3_client = connect_to_service("s3control")
+    try:
+        s3_client.put_public_access_block(
+            AccountId=account_id,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
+                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
+                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
+                "RestrictPublicBuckets": public_access_block_config[
+                    "RestrictPublicBuckets"
+                ],
+            },
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error putting public access block on account {account_id}: {str(e)}"
+        )
+
+
+def put_s3_bucket_public_access_block(
+    bucket_name: str,
+    public_access_block_config: PublicAccessConfiguration,
+) -> None:
+    s3_client = connect_to_service("s3")
+    try:
+        s3_client.put_public_access_block(
+            Bucket=bucket_name,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
+                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
+                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
+                "RestrictPublicBuckets": public_access_block_config[
+                    "RestrictPublicBuckets"
+                ],
+            },
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error putting public access block on bucket {bucket_name}: {str(e)}"
+        )
+
+
+def validate_account_public_access_block(
+    account_id,
+    expected_public_access_block_config,
+) -> ValidateBucketPublicAccessBlockResponse:
+    s3control_client = boto3.client("s3control")
+    wait_time = 30
+    max_time = 480
+    max_retries = max_time // wait_time
+    try:
+        for _ in range(max_retries):
+            sleep(wait_time)
+
+            configuration = s3control_client.get_public_access_block(
+                AccountId=account_id
+            )["PublicAccessBlockConfiguration"]
+
+            config_matches_expected = all(
+                configuration.get(config_name)
+                == expected_public_access_block_config.get(config_name)
+                for config_name in expected_public_access_block_config
+            )
+            if config_matches_expected:
+                return {
+                    "Message": "Account public access block configuration successfully set.",
+                    "Valid": True,
+                    "PublicAccessConfig": configuration,
+                }
+        return {
+            "Message": "Account public access block configuration does not match expected configuration.",
+            "Valid": False,
+            "PublicAccessConfig": None,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error validating account-level public access block for {account_id}: {str(e)}"
+        )
+
+
+def validate_bucket_public_access_block(
+    bucket_name: str,
+    expected_public_access_block_config,
+) -> ValidateBucketPublicAccessBlockResponse:
+    s3_client = connect_to_service("s3")
+    try:
+        configuration: PublicAccessConfiguration = s3_client.get_public_access_block(
+            Bucket=bucket_name
+        )["PublicAccessBlockConfiguration"]
+
+        for configuration_name, actual_configuration in configuration.items():
+            if (
+                actual_configuration
+                != expected_public_access_block_config[configuration_name]
+            ):
+                return {
+                    "Message": "Bucket public access block configuration does not match expected configuration.",
+                    "Valid": False,
+                    "PublicAccessConfig": configuration,
+                }
+
+        return {
+            "Message": "Bucket public access block configuration successfully set.",
+            "Valid": True,
+            "PublicAccessConfig": configuration,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error validating s3 bucket {bucket_name} public access block: {str(e)}"
+        )",
               },
               "isCritical": true,
               "isEnd": true,
-              "name": "GetBucketPublicAccessBlock",
+              "name": "ConfigureS3BucketPublicAccessBlock",
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$.Payload.output",
+                  "Selector": "$.Payload",
                   "Type": "StringMap",
                 },
               ],
@@ -488,7 +1739,7 @@ def validate_s3_bucket_publicaccessblock(event, context):
             },
           ],
           "outputs": [
-            "GetBucketPublicAccessBlock.Output",
+            "ConfigureS3BucketPublicAccessBlock.Output",
           ],
           "parameters": {
             "AutomationAssumeRole": {
@@ -572,45 +1823,18 @@ This document is used to create or modify the S3 [PublicAccessBlock](https://doc
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
 ## Output Parameters
-* GetPublicAccessBlock.Output - JSON formatted response from the GetPublicAccessBlock API call.
+* ConfigureS3PublicAccessBlock.Output - JSON formatted response from the ConfigureS3PublicAccessBlock script.
 ",
           "mainSteps": [
             {
-              "action": "aws:executeAwsApi",
-              "description": "## PutAccountPublicAccessBlock
-Creates or modifies the S3 PublicAccessBlock configuration for an AWS account.
-",
-              "inputs": {
-                "AccountId": "{{ AccountId }}",
-                "Api": "PutPublicAccessBlock",
-                "PublicAccessBlockConfiguration": {
-                  "BlockPublicAcls": "{{ BlockPublicAcls }}",
-                  "BlockPublicPolicy": "{{ BlockPublicPolicy }}",
-                  "IgnorePublicAcls": "{{ IgnorePublicAcls }}",
-                  "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
-                },
-                "Service": "s3control",
-              },
-              "isEnd": false,
-              "name": "PutAccountPublicAccessBlock",
-              "outputs": [
-                {
-                  "Name": "PutAccountPublicAccessBlockResponse",
-                  "Selector": "$",
-                  "Type": "StringMap",
-                },
-              ],
-              "timeoutSeconds": 600,
-            },
-            {
               "action": "aws:executeScript",
-              "description": "## GetPublicAccessBlock
-Retrieves the S3 PublicAccessBlock configuration for an AWS account.
+              "description": "## ConfigureS3PublicAccessBlock
+Configures the S3 account-level PublicAccessBlock.
 ## Outputs
-* Output: JSON formatted response from the GetPublicAccessBlock API call.
+* Output: Response from the ConfigureS3PublicAccessBlock script.
 ",
               "inputs": {
-                "Handler": "handler",
+                "Handler": "handle_account",
                 "InputPayload": {
                   "AccountId": "{{ AccountId }}",
                   "BlockPublicAcls": "{{ BlockPublicAcls }}",
@@ -619,52 +1843,259 @@ Retrieves the S3 PublicAccessBlock configuration for an AWS account.
                   "RestrictPublicBuckets": "{{ RestrictPublicBuckets }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 from time import sleep
+from typing import Optional, TypedDict
 
-def verify_s3_public_access_block(account_id, restrict_public_buckets, block_public_acls, ignore_public_acls, block_public_policy):
-   s3control_client = boto3.client('s3control')
-   wait_time = 30
-   max_time = 480
-   retry_count = 1
-   max_retries = max_time/wait_time
-   while retry_count <= max_retries:
-       sleep(wait_time)
-       retry_count = retry_count + 1
-       get_public_access_response = s3control_client.get_public_access_block(AccountId=account_id)
-       updated_block_acl = get_public_access_response['PublicAccessBlockConfiguration']['BlockPublicAcls']
-       updated_ignore_acl = get_public_access_response['PublicAccessBlockConfiguration']['IgnorePublicAcls']
-       updated_block_policy = get_public_access_response['PublicAccessBlockConfiguration']['BlockPublicPolicy']
-       updated_restrict_buckets = get_public_access_response['PublicAccessBlockConfiguration']['RestrictPublicBuckets']
-       if updated_block_acl == block_public_acls and updated_ignore_acl == ignore_public_acls \\
-                 and updated_block_policy == block_public_policy and updated_restrict_buckets == restrict_public_buckets:
-                   return {
-                       "output": {
-                           "message": "Verification successful. S3 Public Access Block Updated.",
-                           "HTTPResponse": get_public_access_response["PublicAccessBlockConfiguration"]
-                       },
-                   }
-   raise Exception(
-         "VERFICATION FAILED. S3 GetPublicAccessBlock CONFIGURATION VALUES "
-         "DO NOT MATCH WITH PARAMETERS PROVIDED VALUES "
-         "RestrictPublicBuckets: {}, BlockPublicAcls: {}, IgnorePublicAcls: {}, BlockPublicPolicy: {}"
-         .format(updated_restrict_buckets, updated_block_acl, updated_ignore_acl, updated_block_policy)
-   )
+import boto3
+from botocore.config import Config
 
-def handler(event, context):
-  account_id = event["AccountId"]
-  restrict_public_buckets = event["RestrictPublicBuckets"]
-  block_public_acls = event["BlockPublicAcls"]
-  ignore_public_acls = event["IgnorePublicAcls"]
-  block_public_policy = event["BlockPublicPolicy"]
-  return verify_s3_public_access_block(account_id, restrict_public_buckets, block_public_acls, ignore_public_acls, block_public_policy)",
+boto_config = Config(retries={"mode": "standard"})
+
+
+class PublicAccessConfiguration(TypedDict):
+    BlockPublicAcls: bool
+    IgnorePublicAcls: bool
+    BlockPublicPolicy: bool
+    RestrictPublicBuckets: bool
+
+
+class ValidateBucketPublicAccessBlockResponse(TypedDict):
+    Message: str
+    Valid: bool
+    PublicAccessConfig: Optional[PublicAccessConfiguration]
+
+
+class BucketEvent(TypedDict):
+    Bucket: str
+    RestrictPublicBuckets: bool
+    BlockPublicAcls: bool
+    IgnorePublicAcls: bool
+    BlockPublicPolicy: bool
+
+
+class AccountEvent(TypedDict):
+    AccountId: str
+    RestrictPublicBuckets: bool
+    BlockPublicAcls: bool
+    IgnorePublicAcls: bool
+    BlockPublicPolicy: bool
+
+
+class HandlerResponse(TypedDict):
+    Message: str
+    Status: str
+    PublicAccessConfig: Optional[PublicAccessConfiguration]
+
+
+def connect_to_service(service):
+    return boto3.client(service, config=boto_config)
+
+
+def handle_account(event: AccountEvent, _) -> HandlerResponse:
+    """
+    Configures the S3 account-level public access block.
+    """
+    try:
+        account_id = event["AccountId"]
+        public_access_block_config = {
+            "BlockPublicAcls": event["BlockPublicAcls"],
+            "IgnorePublicAcls": event["IgnorePublicAcls"],
+            "BlockPublicPolicy": event["BlockPublicPolicy"],
+            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        }
+        put_account_public_access_block(account_id, public_access_block_config)
+
+        valid_account_public_access_block = validate_account_public_access_block(
+            account_id, public_access_block_config
+        )
+
+        if valid_account_public_access_block["Valid"]:
+            return {
+                "Message": f"Account {account_id} public access block configuration successfully set.",
+                "Status": "Success",
+                "PublicAccessConfig": valid_account_public_access_block[
+                    "PublicAccessConfig"
+                ],
+            }
+        else:
+            expected_config = public_access_block_config
+            return {
+                "Message": f"Account {account_id} public access block configuration does not match with parameters "
+                f"provided. \\nExpected: {str(expected_config)}",
+                "Status": "Failed",
+                "PublicAccessConfig": None,
+            }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error configuring public access block for account: {str(e)}"
+        )
+
+
+def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
+    """
+    Configures the public access block for an S3 bucket.
+    """
+    try:
+        bucket = event["Bucket"]
+        public_access_block_config = {
+            "BlockPublicAcls": event["BlockPublicAcls"],
+            "IgnorePublicAcls": event["IgnorePublicAcls"],
+            "BlockPublicPolicy": event["BlockPublicPolicy"],
+            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        }
+        put_s3_bucket_public_access_block(bucket, public_access_block_config)
+
+        valid_bucket_public_access_block = validate_bucket_public_access_block(
+            bucket, public_access_block_config
+        )
+
+        if valid_bucket_public_access_block["Valid"]:
+            return {
+                "Message": f"Bucket {bucket} public access block configuration successfully set.",
+                "Status": "Success",
+                "PublicAccessConfig": valid_bucket_public_access_block[
+                    "PublicAccessConfig"
+                ],
+            }
+        else:
+            actual_config = valid_bucket_public_access_block["PublicAccessConfig"]
+            expected_config = public_access_block_config
+            return {
+                "Message": f"Bucket {bucket} public access block configuration does not match with parameters provided."
+                f"\\nExpected: {str(expected_config)}\\nActual: {str(actual_config)}",
+                "Status": "Failed",
+                "PublicAccessConfig": actual_config,
+            }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error configuring public access block for S3 Bucket: {str(e)}"
+        )
+
+
+def put_account_public_access_block(
+    account_id: str,
+    public_access_block_config: PublicAccessConfiguration,
+) -> None:
+    s3_client = connect_to_service("s3control")
+    try:
+        s3_client.put_public_access_block(
+            AccountId=account_id,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
+                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
+                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
+                "RestrictPublicBuckets": public_access_block_config[
+                    "RestrictPublicBuckets"
+                ],
+            },
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error putting public access block on account {account_id}: {str(e)}"
+        )
+
+
+def put_s3_bucket_public_access_block(
+    bucket_name: str,
+    public_access_block_config: PublicAccessConfiguration,
+) -> None:
+    s3_client = connect_to_service("s3")
+    try:
+        s3_client.put_public_access_block(
+            Bucket=bucket_name,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
+                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
+                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
+                "RestrictPublicBuckets": public_access_block_config[
+                    "RestrictPublicBuckets"
+                ],
+            },
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error putting public access block on bucket {bucket_name}: {str(e)}"
+        )
+
+
+def validate_account_public_access_block(
+    account_id,
+    expected_public_access_block_config,
+) -> ValidateBucketPublicAccessBlockResponse:
+    s3control_client = boto3.client("s3control")
+    wait_time = 30
+    max_time = 480
+    max_retries = max_time // wait_time
+    try:
+        for _ in range(max_retries):
+            sleep(wait_time)
+
+            configuration = s3control_client.get_public_access_block(
+                AccountId=account_id
+            )["PublicAccessBlockConfiguration"]
+
+            config_matches_expected = all(
+                configuration.get(config_name)
+                == expected_public_access_block_config.get(config_name)
+                for config_name in expected_public_access_block_config
+            )
+            if config_matches_expected:
+                return {
+                    "Message": "Account public access block configuration successfully set.",
+                    "Valid": True,
+                    "PublicAccessConfig": configuration,
+                }
+        return {
+            "Message": "Account public access block configuration does not match expected configuration.",
+            "Valid": False,
+            "PublicAccessConfig": None,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error validating account-level public access block for {account_id}: {str(e)}"
+        )
+
+
+def validate_bucket_public_access_block(
+    bucket_name: str,
+    expected_public_access_block_config,
+) -> ValidateBucketPublicAccessBlockResponse:
+    s3_client = connect_to_service("s3")
+    try:
+        configuration: PublicAccessConfiguration = s3_client.get_public_access_block(
+            Bucket=bucket_name
+        )["PublicAccessBlockConfiguration"]
+
+        for configuration_name, actual_configuration in configuration.items():
+            if (
+                actual_configuration
+                != expected_public_access_block_config[configuration_name]
+            ):
+                return {
+                    "Message": "Bucket public access block configuration does not match expected configuration.",
+                    "Valid": False,
+                    "PublicAccessConfig": configuration,
+                }
+
+        return {
+            "Message": "Bucket public access block configuration successfully set.",
+            "Valid": True,
+            "PublicAccessConfig": configuration,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error validating s3 bucket {bucket_name} public access block: {str(e)}"
+        )",
               },
+              "isCritical": true,
               "isEnd": true,
-              "name": "GetPublicAccessBlock",
+              "name": "ConfigureS3PublicAccessBlock",
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$.Payload.output",
+                  "Selector": "$.Payload",
                   "Type": "StringMap",
                 },
               ],
@@ -672,7 +2103,7 @@ def handler(event, context):
             },
           ],
           "outputs": [
-            "GetPublicAccessBlock.Output",
+            "ConfigureS3PublicAccessBlock.Output",
           ],
           "parameters": {
             "AccountId": {
@@ -1579,8 +3010,9 @@ class Response(TypedDict):
     RoleName: Literal["aws_incident_support_role"]
 
 
-responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {}
-responses["CreateIAMRoleResponse"] = []
+responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {
+    "CreateIAMRoleResponse": []
+}
 
 
 def connect_to_iam(boto_config):
@@ -1638,27 +3070,16 @@ def create_iam_role(_, __):
     return {"output": "IAM role creation is successful.", "http_responses": responses}
 
 
-def does_role_exist(iam, role_name):
-    """Check if the role name exists.
-
-    Parameters
-    ----------
-    iam: iam client, required
-    role_name: string, required
-
-    Returns
-    ------
-        bool: returns if the role exists
-    """
+def does_role_exist(iam_client, role_name) -> bool:
     role_exists = False
 
     try:
-        response = iam.get_role(RoleName=role_name)
+        response = iam_client.get_role(RoleName=role_name)
 
         if "Role" in response:
             role_exists = True
 
-    except iam.exceptions.NoSuchEntityException:
+    except iam_client.exceptions.NoSuchEntityException:
         role_exists = False
 
     return role_exists",
@@ -2592,7 +4013,7 @@ def lambda_handler(event, _):
     },
     "ASRDisableUnrestrictedAccessToHighRiskPorts": {
       "DependsOn": [
-        "CreateWait9",
+        "CreateWait10",
       ],
       "Properties": {
         "Content": {
@@ -2793,6 +4214,370 @@ def is_open_cidr(rule: dict) -> bool:
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASREnableAPIGatewayCacheDataEncryption": {
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-EnableAPIGatewayCacheDataEncryption
+
+## What does this document do?
+  This document enables encryption on API Gateway REST API cache data
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* APIGatewayStageArn: (Required) The ARN of the API Gateway REST API stage.
+* StageName: (Required) The name of the API Gateway REST API stage.
+* MethodSettings: (Required) The list of method settings for the methods in the API Gateway stage.
+
+## Security Standards / Controls
+* NIST 800-53 Rev5: APIGateway.5
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Enable encryption on API Gateway REST API cache data
+",
+              "inputs": {
+                "Handler": "enable_data_encryption",
+                "InputPayload": {
+                  "APIGatewayStageArn": "{{ APIGatewayStageArn }}",
+                  "MethodSettings": "{{ MethodSettings }}",
+                  "StageName": "{{ StageName }}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import TYPE_CHECKING, List, TypedDict
+
+if TYPE_CHECKING:
+    from mypy_boto3_apigateway import APIGatewayClient
+else:
+    APIGatewayClient = object
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_apigateway(boto_config: Config) -> APIGatewayClient:
+    return boto3.client("apigateway", config=boto_config)
+
+
+class MethodSettings(TypedDict):
+    ResourcePath: str
+    HttpMethod: str
+
+
+class Event(TypedDict):
+    APIGatewayStageArn: str
+    StageName: str
+    MethodSettings: List[MethodSettings]
+
+
+def enable_data_encryption(event: Event, _):
+    boto_config = Config(retries={"mode": "standard"})
+    apigateway = connect_to_apigateway(boto_config)
+
+    try:
+        api_id = event["APIGatewayStageArn"].split("/")[2]
+
+        for method_settings in event["MethodSettings"]:
+            resource_path = method_settings["ResourcePath"]
+            http_method = method_settings["HttpMethod"]
+
+            apigateway.update_stage(
+                restApiId=api_id,
+                stageName=event["StageName"],
+                patchOperations=[
+                    {
+                        "op": "replace",
+                        "path": f"/{resource_path}/{http_method}/caching/dataEncrypted",
+                        "value": "true",
+                    },
+                ],
+            )
+
+        return {
+            "message": "Successfully enabled cache data encryption.",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(f"Encountered error setting cache data encryption: {str(e)}")",
+              },
+              "isEnd": true,
+              "name": "EnableAPIGatewayCacheDataEncryption",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "parameters": {
+            "APIGatewayStageArn": {
+              "allowedPattern": "^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::\\/restapis\\/([a-z0-9]+)\\/stages\\/.+)$",
+              "description": "(Required) The ARN of the API Gateway stage.",
+              "type": "String",
+            },
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "MethodSettings": {
+              "description": "(Required) The list of method settings for the methods in the API Gateway stage.",
+              "type": "MapList",
+            },
+            "StageName": {
+              "allowedPattern": "^[a-zA-Z0-9_-]+$|^\\$default$",
+              "description": "(Required) The name of the API Gateway stage.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableAPIGatewayCacheDataEncryption",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableAPIGatewayExecutionLogs": {
+      "DependsOn": [
+        "CreateWait13",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-EnableAPIGatewayExecutionLogs
+
+## What does this document do?
+  This document enables logging on the given API Gateway Stage.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* APIGatewayStageArnSuffix: (Required) The suffix of the API Gateway stage ARN.
+* LoggingLevel: (Required) The log level which should be set in the Stage.
+
+## Security Standards / Controls
+* AFSBP: APIGateway.1
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Enable logging in the API Gateway Stage
+",
+              "inputs": {
+                "Handler": "handler",
+                "InputPayload": {
+                  "APIGatewayStageArnSuffix": "{{ APIGatewayStageArnSuffix }}",
+                  "LoggingLevel": "{{ LoggingLevel }}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import logging
+import re
+import traceback
+from typing import Any, TypedDict
+
+import boto3
+from botocore.config import Config
+
+logger = logging.getLogger()
+boto_config = Config(retries={"mode": "standard"})
+
+
+def connect_to_service(client: str) -> Any:
+    return boto3.client(client, config=boto_config)
+
+
+class Event(TypedDict):
+    APIGatewayStageArnSuffix: str
+    LoggingLevel: str  # Security Hub parameter
+
+
+class Response(TypedDict):
+    Message: str
+    LoggingLevel: str
+    ApiId: str
+    StageName: str
+    ApiType: str  # REST or WebSocket
+
+
+class APIStageDetails(TypedDict):
+    StageName: str
+    ApiId: str
+
+
+def handler(event: Event, _):
+    stage_arn_suffix = event["APIGatewayStageArnSuffix"]
+    logging_level = event["LoggingLevel"]
+
+    stage_is_rest_api = is_rest_api(stage_arn_suffix)
+    api_stage_details: APIStageDetails = extract_details_from_arn_suffix(
+        stage_arn_suffix, stage_is_rest_api
+    )
+
+    if stage_is_rest_api:
+        enable_rest_execution_logging(api_stage_details, logging_level)
+    else:
+        enable_websocket_execution_logging(api_stage_details, logging_level)
+
+    stage_name = api_stage_details["StageName"]
+    api_id = api_stage_details["ApiId"]
+    return {
+        "Message": f"successfully enabled execution logging at {logging_level} for stage {stage_name} in API {api_id}",
+        "LoggingLevel": logging_level,
+        "ApiId": api_id,
+        "StageName": stage_name,
+        "ApiType": "REST" if stage_is_rest_api else "WebSocket",
+    }
+
+
+def is_rest_api(arn_suffix: str) -> bool:
+    if arn_suffix.startswith("/restapis/"):
+        return True
+    return False
+
+
+def extract_details_from_arn_suffix(arn_suffix: str, is_rest: bool) -> APIStageDetails:
+    regex_pattern = (
+        r"^/restapis/(?P<api_id>.+)/stages/(?P<stage_name>.+)$"
+        if is_rest
+        else r"^/apis/(?P<api_id>.+)/stages/(?P<stage_name>.+)$"
+    )
+    match = re.fullmatch(regex_pattern, arn_suffix)
+
+    if (
+        not match
+        or "api_id" not in match.groupdict()
+        or "stage_name" not in match.groupdict()
+    ):
+        raise RuntimeError(
+            f"Encountered malformed API stage ARN: {arn_suffix}\\n Expected to be a REST or WebSocket API of the form "
+            f"/apis/api-id/stages/stage-name OR /restapis/api-id/stages/stage-name"
+        )
+    return {"ApiId": match.group("api_id"), "StageName": match.group("stage_name")}
+
+
+def enable_rest_execution_logging(
+    stage_details: APIStageDetails, log_level: str
+) -> None:
+    rest_apigateway_client = connect_to_service("apigateway")
+    api_id = stage_details["ApiId"]
+    stage_name = stage_details["StageName"]
+    try:
+        rest_apigateway_client.update_stage(
+            restApiId=api_id,
+            stageName=stage_name,
+            patchOperations=[
+                {
+                    "op": "replace",
+                    "path": "/*/*/logging/loglevel",
+                    "value": log_level,
+                },
+            ],
+        )
+
+        logger.info(
+            f"Set log level to {log_level} for all routes in stage {stage_name} in REST API {api_id}"
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered exception enabling execution logging for REST API stage {stage_name} in API {api_id}: {str(e)}\\n\\n{traceback.format_exc()}"
+        )
+
+
+def enable_websocket_execution_logging(
+    stage_details: APIStageDetails, log_level: str
+) -> None:
+    websocket_apigateway_client = connect_to_service("apigatewayv2")
+    api_id = stage_details["ApiId"]
+    stage_name = stage_details["StageName"]
+    try:
+        response = websocket_apigateway_client.get_stage(
+            ApiId=api_id, StageName=stage_name
+        )  # fetch all routes in this stage that don't meet logging requirements
+        routes_to_update = [
+            route
+            for route, route_setting in response["RouteSettings"].items()
+            if "LoggingLevel" not in route_setting
+            or route_setting["LoggingLevel"] != log_level
+        ]
+        route_settings = {
+            route: {"LoggingLevel": log_level} for route in routes_to_update
+        }
+
+        websocket_apigateway_client.update_stage(
+            ApiId=api_id,
+            DefaultRouteSettings={
+                "LoggingLevel": log_level,
+            },
+            RouteSettings=route_settings,
+            StageName=stage_name,
+        )
+
+        updated_routes = [*routes_to_update, "default"]
+        logger.info(
+            f"Updated the following routes to log level {log_level} in stage {stage_name} in WebSocket API {api_id}: {str(updated_routes)}"
+        )
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered exception enabling execution logging for WebSocket API stage {stage_name} in API {api_id}: {str(e)}\\n\\n{traceback.format_exc()}"
+        )",
+              },
+              "isEnd": true,
+              "name": "EnableAPIGatewayExecutionLogs",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EnableAPIGatewayExecutionLogs.Output",
+          ],
+          "parameters": {
+            "APIGatewayStageArnSuffix": {
+              "allowedPattern": "\\/apis\\/(.+)\\/stages\\/(.+)|\\/restapis\\/(.+)\\/stages\\/(.+)",
+              "description": "(Required) The suffix of the API Gateway stage ARN.",
+              "type": "String",
+            },
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "LoggingLevel": {
+              "allowedPattern": "INFO|ERROR",
+              "description": "(Required) The logging level to set in the Stage.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableAPIGatewayExecutionLogs",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASREnableAWSConfig": {
       "DependsOn": [
         "CreateWait0",
@@ -2932,7 +4717,17 @@ def create_topic_policy(topic_arn):
               "inputs": {
                 "DocumentName": "ASR-CreateAccessLoggingBucket",
                 "RuntimeParameters": {
-                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket",
+                  "AutomationAssumeRole": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket-",
+                        {
+                          "Ref": "Namespace",
+                        },
+                      ],
+                    ],
+                  },
                   "BucketName": "so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}",
                 },
               },
@@ -3077,6 +4872,17 @@ def create_bucket_policy(config_bucket, aws_partition):
                         "StringEquals": {"s3:x-amz-acl": "bucket-owner-full-control"}
                     },
                 },
+                {
+                    "Sid": "AllowSSLRequestsOnly",
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Resource": [
+                        "arn:" + aws_partition + ":s3:::" + config_bucket + "/*",
+                        "arn:" + aws_partition + ":s3:::" + config_bucket,
+                    ],
+                    "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                    "Principal": "*",
+                },
             ],
         }
         s3.put_bucket_policy(Bucket=config_bucket, Policy=json.dumps(bucket_policy))
@@ -3127,19 +4933,117 @@ def create_encrypted_bucket(event, _):
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import logging
+import traceback
+from typing import Any, TypedDict
+
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+
+logger = logging.getLogger()
+
+DEFAULT_CHANNEL_NAME = DEFAULT_RECORDER_NAME = "default"
 
 boto_config = Config(retries={"mode": "standard"})
 
 
-def connect_to_config(boto_config):
+class Event(TypedDict):
+    account: str
+    partition: str
+    aws_service_role: str
+    config_bucket: str
+    topic_arn: str
+
+
+class Response(TypedDict):
+    Message: str
+
+
+class ExistingRecorderDetails(TypedDict):
+    name: str
+    recording: bool
+
+
+def connect_to_config() -> Any:
     return boto3.client("config", config=boto_config)
 
 
-def create_config_recorder(aws_partition, aws_account, aws_service_role):
-    cfgsvc = connect_to_config(boto_config)
+def enable_config(event: Event, _: Any):
+    aws_account = event["account"]
+    aws_partition = event["partition"]
+    aws_service_role = event["aws_service_role"]
+    config_bucket = event["config_bucket"]
+    topic_arn = event["topic_arn"]
+
+    existing_recorder_details = get_existing_config_recorder()
+    existing_recorder = existing_recorder_details["name"]
+    existing_recorder_is_recording = existing_recorder_details["recording"]
+
+    create_or_update_config_recorder(
+        aws_partition, aws_account, aws_service_role, existing_recorder
+    )
+
+    if not has_existing_delivery_channel():
+        create_delivery_channel(config_bucket, aws_account, topic_arn)
+
+    if (not existing_recorder) or (
+        existing_recorder and not existing_recorder_is_recording
+    ):
+        start_recorder(existing_recorder)
+
+    return {
+        "Message": f"Successfully completed setting up recorder {existing_recorder or DEFAULT_RECORDER_NAME}"
+    }
+
+
+def get_existing_config_recorder() -> ExistingRecorderDetails:
+    config_client = connect_to_config()
+    try:
+        recorder_name = ""
+        recording = False
+        describe_recorder_response = config_client.describe_configuration_recorders()
+        if (
+            describe_recorder_response
+            and "ConfigurationRecorders" in describe_recorder_response
+        ):
+            recorder_name = describe_recorder_response["ConfigurationRecorders"][0][
+                "name"
+            ]  # there is only ever 1 configuration recorder per account per region
+
+        if recorder_name:
+            describe_recorder_status_response = (
+                config_client.describe_configuration_recorder_status(
+                    ConfigurationRecorderNames=[
+                        recorder_name,
+                    ]
+                )
+            )
+            recording = (
+                describe_recorder_status_response["ConfigurationRecordersStatus"][0][
+                    "recording"
+                ]
+                if "ConfigurationRecordersStatus" in describe_recorder_response
+                else False
+            )
+
+        return {"name": recorder_name, "recording": recording}
+    except Exception as e:
+        logger.warning(
+            f"Encountered an error fetching existing Config Recorder - continuing to create a new recorder: {str(e)} \\n\\n {traceback.format_exc()}"
+        )
+        return {"name": "", "recording": False}
+
+
+def create_or_update_config_recorder(
+    aws_partition: str,
+    aws_account: str,
+    aws_service_role: str,
+    recorder_name: str,
+) -> None:
+    if not recorder_name:
+        recorder_name = DEFAULT_RECORDER_NAME
+
+    config_client = connect_to_config()
     try:
         config_service_role_arn = (
             "arn:"
@@ -3149,9 +5053,9 @@ def create_config_recorder(aws_partition, aws_account, aws_service_role):
             + ":role/"
             + aws_service_role
         )
-        cfgsvc.put_configuration_recorder(
+        config_client.put_configuration_recorder(
             ConfigurationRecorder={
-                "name": "default",
+                "name": recorder_name,
                 "roleARN": config_service_role_arn,
                 "recordingGroup": {
                     "allSupported": True,
@@ -3159,25 +5063,36 @@ def create_config_recorder(aws_partition, aws_account, aws_service_role):
                 },
             }
         )
-    except ClientError as ex:
-        exception_type = ex.response["Error"]["Code"]
-        # recorder already exists - continue
-        if exception_type in ["MaxNumberOfConfigurationRecordersExceededException"]:
-            print("Config Recorder already exists. Continuing.")
-        else:
-            exit(
-                f"ERROR: Boto3 ClientError enabling Config: {exception_type} - {str(ex)}"
-            )
     except Exception as e:
-        exit(f"ERROR enabling AWS Config - create_config_recorder: {str(e)}")
+        raise RuntimeError(
+            f"Encountered an error putting {recorder_name} config recorder: {str(e)} \\n\\n{traceback.format_exc()}"
+        )
 
 
-def create_delivery_channel(config_bucket, aws_account, topic_arn):
-    cfgsvc = connect_to_config(boto_config)
+def has_existing_delivery_channel() -> bool:
+    config_client = connect_to_config()
     try:
-        cfgsvc.put_delivery_channel(
+        response = config_client.describe_delivery_channels()
+        if response and "DeliveryChannels" in response:
+            return (
+                len(response["DeliveryChannels"]) > 0
+            )  # there is only ever one delivery channel per account per region
+        return False
+    except Exception as e:
+        logger.warning(
+            f"Encountered an error fetching existing delivery channel - continuing to create a new channel: {str(e)} \\n\\n {traceback.format_exc()}"
+        )
+        return False
+
+
+def create_delivery_channel(
+    config_bucket: str, aws_account: str, topic_arn: str
+) -> None:
+    config_client = connect_to_config()
+    try:
+        config_client.put_delivery_channel(
             DeliveryChannel={
-                "name": "default",
+                "name": DEFAULT_CHANNEL_NAME,
                 "s3BucketName": config_bucket,
                 "s3KeyPrefix": aws_account,
                 "snsTopicARN": topic_arn,
@@ -3186,44 +5101,31 @@ def create_delivery_channel(config_bucket, aws_account, topic_arn):
                 },
             }
         )
-    except ClientError as ex:
-        exception_type = ex.response["Error"]["Code"]
-        # delivery channel already exists - return
-        if exception_type in ["MaxNumberOfDeliveryChannelsExceededException"]:
-            print("DeliveryChannel already exists")
-        else:
-            exit(
-                f"ERROR: Boto3 ClientError enabling Config: {exception_type} - {str(ex)}"
-            )
     except Exception as e:
-        exit(f"ERROR enabling AWS Config - create_delivery_channel: {str(e)}")
+        raise RuntimeError(
+            f"Encountered an error creating delivery channel 'default': {str(e)} \\n\\n{traceback.format_exc()}"
+        )
 
 
-def start_recorder():
-    cfgsvc = connect_to_config(boto_config)
+def start_recorder(recorder_name: str) -> None:
+    if not recorder_name:
+        recorder_name = DEFAULT_RECORDER_NAME
+    config_client = connect_to_config()
     try:
-        cfgsvc.start_configuration_recorder(ConfigurationRecorderName="default")
+        config_client.start_configuration_recorder(
+            ConfigurationRecorderName=recorder_name
+        )
     except Exception as e:
-        exit(f"ERROR enabling AWS Config: {str(e)}")
-
-
-def enable_config(event, _):
-    aws_account = event["account"]
-    aws_partition = event["partition"]
-    aws_service_role = event["aws_service_role"]
-    config_bucket = event["config_bucket"]
-    topic_arn = event["topic_arn"]
-
-    create_config_recorder(aws_partition, aws_account, aws_service_role)
-    create_delivery_channel(config_bucket, aws_account, topic_arn)
-    start_recorder()",
+        raise RuntimeError(
+            f"Encountered an error starting config recorder 'default': {str(e)} \\n\\n{traceback.format_exc()}"
+        )",
               },
               "isEnd": false,
               "name": "EnableConfig",
               "outputs": [
                 {
-                  "Name": "ConfigBucketName",
-                  "Selector": "$.Payload.config_bucket",
+                  "Name": "OutputMessage",
+                  "Selector": "$.Payload.Message",
                   "Type": "String",
                 },
               ],
@@ -3234,6 +5136,7 @@ def enable_config(event, _):
                 "Handler": "process_results",
                 "InputPayload": {
                   "config_bucket": "{{CreateConfigBucket.ConfigBucketName}}",
+                  "enable_config_message": "{{EnableConfig.OutputMessage}}",
                   "logging_bucket": "so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}",
                   "sns_topic_arn": "{{CreateTopic.TopicArn}}",
                 },
@@ -3246,10 +5149,8 @@ def process_results(event, _):
     print(
         f'Created access logging for Config bucket in bucket {event["logging_bucket"]}'
     )
-    print("Enabled AWS Config by creating a default recorder")
-    return {
-        "response": {"message": "AWS Config successfully enabled", "status": "Success"}
-    }",
+    remediation_message = event["enable_config_message"]
+    return {"Message": remediation_message, "Status": "Success"}",
               },
               "isEnd": true,
               "name": "Remediation",
@@ -3291,6 +5192,81 @@ def process_results(event, _):
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
         "Name": "ASR-EnableAWSConfig",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableAthenaWorkGroupLogging": {
+      "DependsOn": [
+        "CreateWait13",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-AttachServiceVPCEndpoint
+
+## Overview
+This document enables logging in the given Athena WorkGroup.
+
+## Pre-requisites
+* None
+
+## What does this document do?
+  This document enables CloudWatch logging for the given Athena Work Group.
+
+## Input Parameters
+* WorkGroupName: (Required) Athena Work Group to be remediated.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableWorkGroupLogging.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "description": "## Remediation
+Creates and attaches service interface endpoint to VPC.
+",
+              "inputs": {
+                "Api": "UpdateWorkGroup",
+                "ConfigurationUpdates": {
+                  "PublishCloudWatchMetricsEnabled": true,
+                },
+                "Service": "athena",
+                "WorkGroup": "{{WorkGroupName}}",
+              },
+              "isEnd": true,
+              "maxAttempts": 2,
+              "name": "EnableWorkGroupLogging",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+          ],
+          "outputs": [
+            "EnableWorkGroupLogging.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "WorkGroupName": {
+              "allowedPattern": "^[a-zA-Z0-9._-]{1,128}$",
+              "description": "(Required) The WorkGroup name.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableAthenaWorkGroupLogging",
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
@@ -3433,7 +5409,7 @@ def verify(event, _):
     },
     "ASREnableAutoSecretRotation": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -3620,14 +5596,17 @@ The runbook enables automatic snapshots on a Redshift cluster.
             {
               "action": "aws:executeScript",
               "inputs": {
-                "Handler": "event_handler",
+                "Handler": "cast_to_string",
                 "InputPayload": {
+                  "DesiredParameter": "RetentionPeriod",
                   "RetentionPeriod": "{{QueryRetentionPeriod.CurrentRetentionPeriod}}",
                 },
                 "Runtime": "python3.11",
-                "Script": "def event_handler(event, context):
-    return str(event['RetentionPeriod'])
-",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+def cast_to_string(event, _) -> str:
+    parameter_to_cast = event["DesiredParameter"]
+    return str(event[parameter_to_cast])",
               },
               "name": "CastCurrentRetentionPeriodToString",
               "outputs": [
@@ -3686,14 +5665,17 @@ The runbook enables automatic snapshots on a Redshift cluster.
             {
               "action": "aws:executeScript",
               "inputs": {
-                "Handler": "event_handler",
+                "Handler": "cast_to_string",
                 "InputPayload": {
+                  "DesiredParameter": "RetentionPeriod",
                   "RetentionPeriod": "{{MinRetentionPeriod}}",
                 },
                 "Runtime": "python3.11",
-                "Script": "def event_handler(event, context):
-    return str(event['RetentionPeriod'])
-",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+def cast_to_string(event, _) -> str:
+    parameter_to_cast = event["DesiredParameter"]
+    return str(event[parameter_to_cast])",
               },
               "name": "CastRetentionPeriodToString",
               "outputs": [
@@ -3804,14 +5786,17 @@ The runbook enables automatic version upgrade on a Redshift cluster.
             {
               "action": "aws:executeScript",
               "inputs": {
-                "Handler": "event_handler",
+                "Handler": "cast_to_string",
                 "InputPayload": {
                   "AllowVersionUpgrade": "{{AllowVersionUpgrade}}",
+                  "DesiredParameter": "AllowVersionUpgrade",
                 },
                 "Runtime": "python3.11",
-                "Script": "def event_handler(event, context):
-    return str(event['AllowVersionUpgrade'])
-",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+def cast_to_string(event, _) -> str:
+    parameter_to_cast = event["DesiredParameter"]
+    return str(event[parameter_to_cast])",
               },
               "name": "CastAllowVersionUpgradeToString",
               "outputs": [
@@ -4144,7 +6129,9 @@ Configures the default root object for the CloudFront distribution you specify i
                   "root_object": "{{ DefaultRootObject }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import datetime
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import datetime
 import json
 
 import boto3
@@ -5479,41 +7466,74 @@ Checks that the enhanced monitoring is enabled on RDS Instance in the previous s
                   "MonitoringInterval": "{{ MonitoringInterval }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
-import time
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
 
-def handler(event, context):
-    rds_client = boto3.client("rds")
-    db_instance_id = event["DBIdentifier"]
-    monitoring_interval = event["MonitoringInterval"]
+import boto3
+from botocore.config import Config
 
+boto_config = Config(retries={"mode": "standard"})
+
+
+def connect_to_service(service):
+    return boto3.client(service, config=boto_config)
+
+
+class Event(TypedDict):
+    MonitoringInterval: int
+    DBIdentifier: str
+
+
+class HandlerResponse(TypedDict):
+    Status: str
+    Message: str
+    DBMonitoringInterval: str
+
+
+def handler(event, _):
+    """
+    Verifies that the enhanced monitoring is enabled on the RDS Instance.
+    """
     try:
+        rds_client = connect_to_service("rds")
+        db_instance_id = event["DBIdentifier"]
+        monitoring_interval = event["MonitoringInterval"]
+
         rds_waiter = rds_client.get_waiter("db_instance_available")
         rds_waiter.wait(DBInstanceIdentifier=db_instance_id)
 
         db_instances = rds_client.describe_db_instances(
-            DBInstanceIdentifier=db_instance_id)
-
-        for db_instance in db_instances.get("DBInstances", [{}]):
-            db_monitoring_interval = db_instance.get("MonitoringInterval")
+            DBInstanceIdentifier=db_instance_id
+        )
+        db_monitoring_interval = db_instances.get("DBInstances")[0].get(
+            "MonitoringInterval"
+        )
 
         if db_monitoring_interval == monitoring_interval:
             return {
-                      "output": db_instances["ResponseMetadata"]
-                    }
+                "Status": "Success",
+                "Message": f"Verified enhanced monitoring on RDS Instance {db_instance_id}.",
+                "DBMonitoringInterval": str(db_monitoring_interval),
+            }
         else:
-            info = "VERIFICATION FAILED. RDS INSTANCE MONITORING INTERVAL {} IS NOT ENABLED WITH THE REQUIRED VALUE {}".format(
-                    db_monitoring_interval, monitoring_interval)
-            raise Exception(info)
+            return {
+                "Status": "Failed",
+                "Message": f"RDS Instance {db_instance_id} does not have correct monitoring interval.\\n "
+                f"Expected: {monitoring_interval}\\n Actual: {db_monitoring_interval}",
+                "DBMonitoringInterval": str(db_monitoring_interval),
+            }
     except Exception as e:
-        raise e",
+        raise RuntimeError(
+            f"Encountered error verifying enhanced monitoring on RDS Instance: {str(e)}"
+        )",
               },
               "isEnd": true,
               "name": "VerifyEnhancedMonitoringEnabled",
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$.Payload.output",
+                  "Selector": "$.Payload",
                   "Type": "StringMap",
                 },
               ],
@@ -5564,7 +7584,7 @@ def handler(event, context):
     },
     "ASREnableGuardDuty": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -5883,6 +7903,69 @@ Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
         "Name": "ASR-EnableKeyRotation",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableMacie": {
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - EnableMacie
+
+## What does this document do?
+This document enables AWS Macie.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableMacie.Output: The standard HTTP response from the EnableMacie API.
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "description": "## EnableMacie
+Enables AWS Macie with publishing frequency set to the maximum allowed (six hours).
+## Outputs
+* EnableMacieResponse: The standard HTTP response from the EnableMacie API.
+",
+              "inputs": {
+                "Api": "EnableMacie",
+                "Service": "macie2",
+                "findingPublishingFrequency": "SIX_HOURS",
+                "status": "ENABLED",
+              },
+              "isEnd": true,
+              "name": "EnableMacie",
+              "outputs": [
+                {
+                  "Name": "EnableMacieResponse",
+                  "Selector": "$",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EnableMacie.EnableMacieResponse",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableMacie",
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
@@ -6250,7 +8333,7 @@ Verifies that the RDS Instance's \`PendingModifiedValues.MultiAZ\` value is \`Tr
     },
     "ASREnablePrivateRepositoryScanning": {
       "DependsOn": [
-        "CreateWait9",
+        "CreateWait10",
       ],
       "Properties": {
         "Content": {
@@ -6988,7 +9071,7 @@ def enable_flow_logs(event, _):
               "type": "String",
             },
             "VPC": {
-              "allowedPattern": "^vpc-[0-9a-f]{8,17}",
+              "allowedPattern": "^vpc-[0-9a-f]{8,17}$",
               "description": "The VPC ID of the VPC",
               "type": "String",
             },
@@ -8028,35 +10111,76 @@ Removes all rules from the default security group.
                   "GroupId": "{{ GroupId }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
-from botocore.exceptions import ClientError
-from time import sleep
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import Optional, TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
 
 
-ec2_client = boto3.client("ec2")
+def connect_to_service(service):
+    return boto3.client(service, config=boto_config)
 
 
-def get_permissions(group_id):
-    default_group = ec2_client.describe_security_groups(GroupIds=[group_id]).get("SecurityGroups")[0]
-    return default_group.get("IpPermissions"), default_group.get("IpPermissionsEgress")
+class Event(TypedDict):
+    GroupId: str
 
 
-def handler(event, context):
-    group_id = event.get("GroupId")
-    ingress_permissions, egress_permissions = get_permissions(group_id)
+class GetPermissionsResponse(TypedDict):
+    IngressPermissions: Optional[list]
+    EgressPermissions: Optional[list]
 
-    if ingress_permissions:
-        ec2_client.revoke_security_group_ingress(GroupId=group_id, IpPermissions=ingress_permissions)
-    if egress_permissions:
-        ec2_client.revoke_security_group_egress(GroupId=group_id, IpPermissions=egress_permissions)
 
-    ingress_permissions, egress_permissions = get_permissions(group_id)
-    if ingress_permissions or egress_permissions:
-        raise Exception(f"VERIFICATION FAILED. SECURITY GROUP {group_id} NOT CLOSED.")
+class HandlerResponse(TypedDict):
+    Status: str
+    Message: str
 
-    return {
-        "output": "Security group closed successfully."
-    }",
+
+def handler(event: Event, _) -> HandlerResponse:
+    try:
+        ec2_client = connect_to_service("ec2")
+        group_id = event.get("GroupId")
+
+        ip_permissions = get_permissions(group_id)
+        ingress_permissions = ip_permissions.get("IngressPermissions")
+        egress_permissions = ip_permissions.get("EgressPermissions")
+
+        if ingress_permissions:
+            ec2_client.revoke_security_group_ingress(
+                GroupId=group_id, IpPermissions=ingress_permissions
+            )
+        if egress_permissions:
+            ec2_client.revoke_security_group_egress(
+                GroupId=group_id, IpPermissions=egress_permissions
+            )
+
+        return {
+            "Status": "Success",
+            "Message": f"Removed VPC default security group rules from group {group_id}",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error removing VPC default security group rules: {str(e)}"
+        )
+
+
+def get_permissions(group_id: str) -> GetPermissionsResponse:
+    ec2_client = connect_to_service("ec2")
+    try:
+        default_group = ec2_client.describe_security_groups(GroupIds=[group_id]).get(
+            "SecurityGroups"
+        )[0]
+        return {
+            "IngressPermissions": default_group.get("IpPermissions"),
+            "EgressPermissions": default_group.get("IpPermissionsEgress"),
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error fetching permissions for security group {group_id}: {str(e)}"
+        )",
               },
               "isCritical": true,
               "isEnd": true,
@@ -8066,8 +10190,8 @@ def handler(event, context):
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$.Payload.output",
-                  "Type": "String",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
                 },
               ],
               "timeoutSeconds": 180,
@@ -8189,12 +10313,12 @@ def is_clear_text_credential(env_var):
 
 
 def get_project_ssm_namespace(project_name):
-    return f"/CodeBuild/{ project_name }"
+    return f"/CodeBuild/{project_name}"
 
 
 def create_parameter(project_name, env_var):
     env_var_name = env_var.get("name")
-    parameter_name = f"{ get_project_ssm_namespace(project_name) }/env/{ env_var_name }"
+    parameter_name = f"{get_project_ssm_namespace(project_name)}/env/{env_var_name}"
 
     ssm_client = connect_to_ssm(boto_config)
     try:
@@ -8210,21 +10334,21 @@ def create_parameter(project_name, env_var):
         exception_type = client_exception.response["Error"]["Code"]
         if exception_type == "ParameterAlreadyExists":
             print(
-                f"Parameter { parameter_name } already exists. This remediation may have been run before."
+                f"Parameter {parameter_name} already exists. This remediation may have been run before."
             )
             print("Ignoring exception - remediation continues.")
             response = None
         else:
-            exit(f"ERROR: Unhandled client exception: { client_exception }")
+            exit(f"ERROR: Unhandled client exception: {client_exception}")
     except Exception as e:
-        exit(f"ERROR: could not create SSM parameter { parameter_name }: { str(e) }")
+        exit(f"ERROR: could not create SSM parameter {parameter_name}: {str(e)}")
 
     return response, parameter_name
 
 
 def create_policy(region, account, partition, project_name):
     iam_client = connect_to_iam(boto_config)
-    policy_resource_filter = f"arn:{ partition }:ssm:{ region }:{ account }:parameter{ get_project_ssm_namespace(project_name) }/*"
+    policy_resource_filter = f"arn:{partition}:ssm:{region}:{account}:parameter{get_project_ssm_namespace(project_name)}/*"
     policy_document = {
         "Version": "2012-10-17",
         "Statement": [
@@ -8235,7 +10359,7 @@ def create_policy(region, account, partition, project_name):
             }
         ],
     }
-    policy_name = f"CodeBuildSSMParameterPolicy-{ project_name }-{ region }"
+    policy_name = f"CodeBuildSSMParameterPolicy-{project_name}-{region}"
     try:
         response = iam_client.create_policy(
             Description="Automatically created by ASR",
@@ -8246,19 +10370,19 @@ def create_policy(region, account, partition, project_name):
         exception_type = client_exception.response["Error"]["Code"]
         if exception_type == "EntityAlreadyExists":
             print(
-                f'Policy { "" } already exists. This remediation may have been run before.'
+                f'Policy {""} already exists. This remediation may have been run before.'
             )
             print("Ignoring exception - remediation continues.")
             # Attach needs to know the ARN of the created policy
             response = {
                 "Policy": {
-                    "Arn": f"arn:{ partition }:iam::{ account }:policy/{ policy_name }"
+                    "Arn": f"arn:{partition}:iam::{account}:policy/{policy_name}"
                 }
             }
         else:
-            exit(f"ERROR: Unhandled client exception: { client_exception }")
+            exit(f"ERROR: Unhandled client exception: {client_exception}")
     except Exception as e:
-        exit(f"ERROR: could not create access policy { policy_name }: { str(e) }")
+        exit(f"ERROR: could not create access policy {policy_name}: {str(e)}")
     return response
 
 
@@ -8269,10 +10393,10 @@ def attach_policy(policy_arn, service_role_name):
             PolicyArn=policy_arn, RoleName=service_role_name
         )
     except ClientError as client_exception:
-        exit(f"ERROR: Unhandled client exception: { client_exception }")
+        exit(f"ERROR: Unhandled client exception: {client_exception}")
     except Exception as e:
         exit(
-            f"ERROR: could not attach policy { policy_arn } to role { service_role_name }: { str(e) }"
+            f"ERROR: could not attach policy {policy_arn} to role {service_role_name}: {str(e)}"
         )
     return response
 
@@ -8526,11 +10650,11 @@ def get_security_group_rules(security_group_id: str) -> list:
 
 def check_unauthorized_ports(authorized_ports: set, rule: dict) -> bool:
     for port in range(rule["FromPort"], rule["ToPort"] + 1):
-        if port not in authorized_ports:
-            if ("CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4) or (
-                "CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6
-            ):
-                return True
+        if (port not in authorized_ports) and (
+            ("CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4)
+            or ("CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6)
+        ):
+            return True
     return False
 
 
@@ -8851,94 +10975,181 @@ This step deactivates expired IAM User access keys, deletes expired login profil
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
-from datetime import datetime
-from datetime import timedelta
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from datetime import datetime, timezone
+from typing import Optional, TypedDict
 
-iam_client = boto3.client("iam")
-config_client = boto3.client("config")
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
 
-responses = {}
-responses["DeactivateUnusedKeysResponse"] = []
+boto_config = Config(retries={"mode": "standard"})
 
-def list_access_keys(user_name):
-  return iam_client.list_access_keys(UserName=user_name).get("AccessKeyMetadata")
 
-def deactivate_key(user_name, access_key):
-  responses["DeactivateUnusedKeysResponse"].append({"AccessKeyId": access_key, "Response": iam_client.update_access_key(UserName=user_name, AccessKeyId=access_key, Status="Inactive")})
+def connect_to_service(service):
+    return boto3.client(service, config=boto_config)
 
-def deactivate_unused_keys(access_keys, max_credential_usage_age, user_name):
-  for key in access_keys:
-    last_used = iam_client.get_access_key_last_used(AccessKeyId=key.get("AccessKeyId")).get("AccessKeyLastUsed")
-    if last_used.get("LastUsedDate"):
-      last_used_date = last_used.get("LastUsedDate").replace(tzinfo=None)
-      last_used_days = (datetime.now() - last_used_date).days
-      if last_used_days >= max_credential_usage_age:
-        deactivate_key(user_name, key.get("AccessKeyId"))
-    else:
-      create_date = key.get("CreateDate").replace(tzinfo=None)
-      days_since_creation = (datetime.now() - create_date).days
-      if days_since_creation >= max_credential_usage_age:
-        deactivate_key(user_name, key.get("AccessKeyId"))
 
-def get_login_profile(user_name):
-  try:
-    return iam_client.get_login_profile(UserName=user_name)["LoginProfile"]
-  except iam_client.exceptions.NoSuchEntityException:
-    return False
+class Event(TypedDict):
+    IAMResourceId: str
+    MaxCredentialUsageAge: str
 
-def delete_unused_password(user_name, max_credential_usage_age):
-  user = iam_client.get_user(UserName=user_name).get("User")
-  password_last_used_days = 0
-  login_profile = get_login_profile(user_name)
-  if login_profile and user.get("PasswordLastUsed"):
-    password_last_used = user.get("PasswordLastUsed").replace(tzinfo=None)
-    password_last_used_days = (datetime.now() - password_last_used).days
-  elif login_profile and not user.get("PasswordLastUsed"):
-    password_creation_date = login_profile.get("CreateDate").replace(tzinfo=None)
-    password_last_used_days = (datetime.now() - password_creation_date).days
-  if password_last_used_days >= max_credential_usage_age:
-    responses["DeleteUnusedPasswordResponse"] = iam_client.delete_login_profile(UserName=user_name)
 
-def verify_expired_credentials_revoked(responses, user_name):
-  if responses.get("DeactivateUnusedKeysResponse"):
-    for key in responses.get("DeactivateUnusedKeysResponse"):
-      key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name)))
-      if key_data.get("Status") != "Inactive":
-        error_message = "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(key_data.get("AccessKeyId"))
-        raise Exception(error_message)
-  if responses.get("DeleteUnusedPasswordResponse"):
+class HandlerResponse(TypedDict):
+    Message: str
+    Status: str
+    DeactivatedKeys: str
+    DeletedProfile: Optional[str]
+
+
+class LoginProfile(TypedDict):
+    UserName: str
+    CreateDate: datetime
+    PasswordResetRequired: bool
+
+
+def handler(event, _) -> HandlerResponse:
     try:
-      iam_client.get_login_profile(UserName=user_name)
-      error_message = "VERIFICATION FAILED. IAM USER {} LOGIN PROFILE NOT DELETED".format(user_name)
-      raise Exception(error_message)
+        iam_resource_id = event.get("IAMResourceId")
+        user_name = get_user_name(iam_resource_id)
+
+        max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
+
+        access_keys = list_access_keys(user_name)
+        deactivated_keys = deactivate_unused_keys(
+            access_keys, max_credential_usage_age, user_name
+        )
+
+        deleted_profile = delete_unused_password(user_name, max_credential_usage_age)
+
+        return {
+            "Message": "Successfully revoked unused IAM user credentials",
+            "Status": "Success",
+            "DeactivatedKeys": str(deactivated_keys),
+            "DeletedProfile": deleted_profile,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error while revoking unusued IAM user credentials: {str(e)}"
+        )
+
+
+def list_access_keys(user_name: str) -> list:
+    iam_client = connect_to_service("iam")
+    try:
+        paginator = iam_client.get_paginator("list_access_keys")
+        access_keys = []
+
+        for page in paginator.paginate(UserName=user_name):
+            access_keys.extend(page.get("AccessKeyMetadata", []))
+
+        return access_keys
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error listing access keys for user {user_name}: {str(e)}"
+        )
+
+
+def deactivate_key(user_name: str, access_key: str) -> Optional[str]:
+    iam_client = connect_to_service("iam")
+    try:
+        iam_client.update_access_key(
+            UserName=user_name, AccessKeyId=access_key, Status="Inactive"
+        ),
+        return access_key
+    except ClientError:
+        return None
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error deactivating access key {access_key} for user {user_name}: {str(e)}"
+        )
+
+
+def deactivate_unused_keys(
+    access_keys: list, max_credential_usage_age: int, user_name: str
+) -> list[str]:
+    iam_client = connect_to_service("iam")
+    try:
+        deactivated_keys = []
+        for key in access_keys:
+            last_used = iam_client.get_access_key_last_used(
+                AccessKeyId=key.get("AccessKeyId")
+            ).get("AccessKeyLastUsed")
+            if last_used.get("LastUsedDate"):
+                last_used_date = last_used.get("LastUsedDate")
+                days_since_last_used = (
+                    datetime.now(timezone.utc) - last_used_date
+                ).days
+                if days_since_last_used >= max_credential_usage_age:
+                    deactivated_keys.append(
+                        deactivate_key(user_name, key.get("AccessKeyId"))
+                    )
+            else:
+                create_date = key.get("CreateDate")
+                days_since_creation = (datetime.now(timezone.utc) - create_date).days
+                if days_since_creation >= max_credential_usage_age:
+                    deactivated_keys.append(
+                        deactivate_key(user_name, key.get("AccessKeyId"))
+                    )
+        return [key for key in deactivated_keys if key]
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error deactivating unused access keys: {str(e)}"
+        )
+
+
+def get_login_profile(user_name: str) -> Optional[LoginProfile]:
+    iam_client = connect_to_service("iam")
+    try:
+        return iam_client.get_login_profile(UserName=user_name)["LoginProfile"]
     except iam_client.exceptions.NoSuchEntityException:
-      pass
-  return {
-      "output": "Verification of unused IAM User credentials is successful.",
-      "http_responses": responses
-  }
+        return None
 
-def get_user_name(resource_id):
-  list_discovered_resources_response = config_client.list_discovered_resources(
-      resourceType='AWS::IAM::User',
-      resourceIds=[resource_id]
-  )
-  resource_name = list_discovered_resources_response.get("resourceIdentifiers")[0].get("resourceName")
-  return resource_name
 
-def unused_iam_credentials_handler(event, context):
-  iam_resource_id = event.get("IAMResourceId")
-  user_name = get_user_name(iam_resource_id)
+def delete_unused_password(
+    user_name: str, max_credential_usage_age: int
+) -> Optional[str]:
+    iam_client = connect_to_service("iam")
+    try:
+        user = iam_client.get_user(UserName=user_name).get("User")
 
-  max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
+        days_since_password_last_used = 0
+        login_profile = get_login_profile(user_name)
 
-  access_keys = list_access_keys(user_name)
-  unused_keys = deactivate_unused_keys(access_keys, max_credential_usage_age, user_name)
+        if login_profile and user.get("PasswordLastUsed"):
+            password_last_used = user.get("PasswordLastUsed")
+            days_since_password_last_used = (
+                datetime.now(timezone.utc) - password_last_used
+            ).days
+        elif login_profile and not user.get("PasswordLastUsed"):
+            password_creation_date = login_profile.get("CreateDate")
+            days_since_password_last_used = (
+                datetime.now(timezone.utc) - password_creation_date
+            ).days
+        if days_since_password_last_used >= max_credential_usage_age:
+            iam_client.delete_login_profile(UserName=user_name)
+            return user_name
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error deleting unused password for user {user_name}: {str(e)}"
+        )
 
-  delete_unused_password(user_name, max_credential_usage_age)
 
-  return verify_expired_credentials_revoked(responses, user_name)",
+def get_user_name(resource_id: str) -> str:
+    config_client = connect_to_service("config")
+    try:
+        list_discovered_resources_response = config_client.list_discovered_resources(
+            resourceType="AWS::IAM::User", resourceIds=[resource_id]
+        )
+        resource_name = list_discovered_resources_response.get("resourceIdentifiers")[
+            0
+        ].get("resourceName")
+        return resource_name
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error fetching user name for resource {resource_id}: {str(e)}"
+        )",
               },
               "isEnd": true,
               "name": "RevokeUnusedIAMUserCredentialsAndVerify",
@@ -9256,7 +11467,9 @@ def update_bucket_policy(event, _):
                   "Id": "{{ DistributionId }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import boto3
 
 
 def lambda_handler(event, _):
@@ -9384,19 +11597,19 @@ This document sets the AWS Identity and Access Management (IAM) user password po
 * RequireUppercaseCharacters: (Optional) Specifies whether IAM user passwords must contain at least one uppercase character from the ISO basic Latin alphabet (A to Z).
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 ## Output Parameters
-* UpdateAndVerifyIamUserPasswordPolicy.Output
+* UpdateIAMUserPasswordPolicy.Output
 ",
           "mainSteps": [
             {
               "action": "aws:executeScript",
-              "description": "## UpdateAndVerifyIamUserPasswordPolicy
+              "description": "## UpdateIAMUserPasswordPolicy
 Sets or updates the AWS account password policy using input parameters using UpdateAccountPasswordPolicy API.
 Verify AWS account password policy using GetAccountPasswordPolicy API.
 ## Outputs
 * Output: Success message with HTTP Response from GetAccountPasswordPolicy API call or failure exception.
 ",
               "inputs": {
-                "Handler": "update_and_verify_iam_user_password_policy",
+                "Handler": "set_iam_password_policy",
                 "InputPayload": {
                   "AllowUsersToChangePassword": "{{ AllowUsersToChangePassword }}",
                   "HardExpiry": "{{ HardExpiry }}",
@@ -9409,57 +11622,58 @@ Verify AWS account password policy using GetAccountPasswordPolicy API.
                   "RequireUppercaseCharacters": "{{ RequireUppercaseCharacters }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "import boto3
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
 
 
-def update_and_verify_iam_user_password_policy(event, context):
-    iam_client = boto3.client('iam')
+def connect_to_service(service):
+    return boto3.client(service, config=boto_config)
 
+
+class Event(TypedDict):
+    AllowUsersToChangePassword: bool
+    HardExpiry: bool
+    MaxPasswordAge: int
+    MinimumPasswordLength: int
+    PasswordReusePrevention: int
+    RequireLowercaseCharacters: bool
+    RequireNumbers: bool
+    RequireSymbols: bool
+    RequireUppercaseCharacters: bool
+
+
+class Response(TypedDict):
+    Status: str
+    Message: str
+    PasswordPolicy: Event
+
+
+def set_iam_password_policy(event: Event, _) -> Response:
+    iam_client = connect_to_service("iam")
     try:
-        params = dict()
-        params["AllowUsersToChangePassword"] = event["AllowUsersToChangePassword"]
-        if "HardExpiry" in event:
-            params["HardExpiry"] = event["HardExpiry"]
-        if event["MaxPasswordAge"]:
-            params["MaxPasswordAge"] = event["MaxPasswordAge"]
-        if event["PasswordReusePrevention"]:
-            params["PasswordReusePrevention"] = event["PasswordReusePrevention"]
-        params["MinimumPasswordLength"] = event["MinimumPasswordLength"]
-        params["RequireLowercaseCharacters"] = event["RequireLowercaseCharacters"]
-        params["RequireNumbers"] = event["RequireNumbers"]
-        params["RequireSymbols"] = event["RequireSymbols"]
-        params["RequireUppercaseCharacters"] = event["RequireUppercaseCharacters"]
-
-        update_api_response = iam_client.update_account_password_policy(**params)
-
-        # Verifies IAM Password Policy configuration for AWS account using GetAccountPasswordPolicy() api call.
-        response = iam_client.get_account_password_policy()
-        if all([response["PasswordPolicy"]["AllowUsersToChangePassword"] == event["AllowUsersToChangePassword"],
-                response["PasswordPolicy"]["MinimumPasswordLength"] == event["MinimumPasswordLength"],
-                response["PasswordPolicy"]["RequireLowercaseCharacters"] == event["RequireLowercaseCharacters"],
-                response["PasswordPolicy"]["RequireNumbers"] == event["RequireNumbers"],
-                response["PasswordPolicy"]["RequireUppercaseCharacters"] == event["RequireUppercaseCharacters"],
-                ((response["PasswordPolicy"]["HardExpiry"] == event["HardExpiry"]) if "HardExpiry" in event else True),
-                ((response["PasswordPolicy"]["MaxPasswordAge"] == event["MaxPasswordAge"]) if event["MaxPasswordAge"] else True),
-                ((response["PasswordPolicy"]["PasswordReusePrevention"] == event["PasswordReusePrevention"]) if event["PasswordReusePrevention"] else True)]):
-            return {
-                "output": {
-                    "Message": "AWS Account Password Policy setting is SUCCESSFUL.",
-                    "UpdatePolicyHTTPResponse": update_api_response,
-                    "GetPolicyHTTPResponse": response
-                }
-            }
-        raise Exception("VERIFICATION FAILED. AWS ACCOUNT PASSWORD POLICY NOT UPDATED.")
-
-    except iam_client.exceptions.NoSuchEntityException:
-        raise Exception("VERIFICATION FAILED. UNABLE TO UPDATE AWS ACCOUNT PASSWORD POLICY.")",
+        iam_client.update_account_password_policy(**event)
+        return {
+            "Status": "Success",
+            "Message": "IAM user password policy updated successfully",
+            "PasswordPolicy": event,
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error while updating IAM user password policy: {str(e)}"
+        )",
               },
               "isEnd": true,
-              "name": "UpdateAndVerifyIamUserPasswordPolicy",
+              "name": "UpdateIAMUserPasswordPolicy",
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$.Payload.output",
+                  "Selector": "$.Payload",
                   "Type": "StringMap",
                 },
               ],
@@ -9467,7 +11681,7 @@ def update_and_verify_iam_user_password_policy(event, context):
             },
           ],
           "outputs": [
-            "UpdateAndVerifyIamUserPasswordPolicy.Output",
+            "UpdateIAMUserPasswordPolicy.Output",
           ],
           "parameters": {
             "AllowUsersToChangePassword": {
@@ -9499,7 +11713,7 @@ def update_and_verify_iam_user_password_policy(event, context):
             },
             "PasswordReusePrevention": {
               "allowedPattern": "^\\d{0,1}$|^1\\d$|^2[0-4]$",
-              "default": 0,
+              "default": 1,
               "description": "(Optional) Specifies the number of previous passwords that IAM users are prevented from reusing.",
               "type": "Integer",
             },
@@ -9529,6 +11743,116 @@ def update_and_verify_iam_user_password_policy(event, context):
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
         "Name": "ASR-SetIAMPasswordPolicy",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASRSetLogGroupRetentionDays": {
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document name - ASR-SetLogGroupRetentionDays
+
+## What does this document do?
+  This document Sets the CloudWatch Log Group Retention setting to the provided value.
+
+## Input Parameters
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+* LogGroupArn: (Required)  The ARN of the Log Group.
+* RetentionDays: (Optional) The number of days to retain the log events in the specified log group.
+
+## Output Parameters
+* SetLogGroupRetentionDays.Output
+
+## Security Standards / Controls
+* NIST 800-53 Rev5: CloudWatch.16
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "get_log_group_name_from_arn",
+                "InputPayload": {
+                  "Arn": "{{ LogGroupArn }}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+
+class GetLogGroupNameFromArnEvent(TypedDict):
+    Arn: str
+
+
+def get_log_group_name_from_arn(event: GetLogGroupNameFromArnEvent, _) -> str:
+    return event["Arn"].split(":")[6]",
+              },
+              "maxAttempts": 3,
+              "name": "GetLogGroupNameFromArn",
+              "outputs": [
+                {
+                  "Name": "LogGroupName",
+                  "Selector": "$.Payload",
+                  "Type": "String",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "description": "## SetLogGroupRetentionDays
+Sets the retention days for a Log Group.
+",
+              "inputs": {
+                "Api": "PutRetentionPolicy",
+                "Service": "logs",
+                "logGroupName": "{{ GetLogGroupNameFromArn.LogGroupName }}",
+                "retentionInDays": "{{ RetentionDays }}",
+              },
+              "isCritical": true,
+              "isEnd": false,
+              "maxAttempts": 3,
+              "name": "SetLogGroupRetentionDays",
+              "outputs": [
+                {
+                  "Name": "Response",
+                  "Selector": "$",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "SetLogGroupRetentionDays.Response",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "LogGroupArn": {
+              "allowedPattern": "^(arn:(?:aws|aws-cn|aws-us-gov):logs:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:log-group:[A-Za-z0-9\\/\\-_#]{1,512}:\\*)$",
+              "description": "(Required) The name of the log group.",
+              "type": "String",
+            },
+            "RetentionDays": {
+              "allowedPattern": "^\\d{0,4}$",
+              "default": 365,
+              "description": "(Optional) The number of days for the log group's retention period.",
+              "type": "Integer",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-SetLogGroupRetentionDays",
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
@@ -9852,6 +12176,131 @@ def add_ssl_bucket_policy(event, _):
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRTagGuardDutyResource": {
+      "DependsOn": [
+        "CreateWait11",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-TagGuardDutyResource
+
+## Overview
+This document adds required tags to a non-compliant GuardDuty resource.
+
+## Pre-requisites
+* None
+
+## What does this document do?
+Tags the given GuardDuty resource with the required tags specified in Security Hub. If no required tags are specified, adds a default tag to the resource.
+
+## Input Parameters
+* ResourceArn: (Required) GuardDuty resource to be tagged.
+* RequiredTagKeys: (Optional) Security Control Parameters for GuardDuty.2.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* TagGuardDutyResource.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Adds required tags to a non-compliant GuardDuty resource.
+",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "RequiredTagKeys": "{{RequiredTagKeys}}",
+                  "ResourceArn": "{{ResourceArn}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import List
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+def connect_to_guardduty():
+    return boto3.client("guardduty", config=boto_config)
+
+
+def lambda_handler(event, _):
+    """
+    Remediates untagged GuardDuty resources by tagging them with
+    the required tag keys. If no required tag keys are
+    specified, tags them with "SO0111-GuardDutyResource".
+    """
+    try:
+        required_tags = get_required_tags_from_event(event)
+        resource_arn = event["ResourceArn"]
+        tag_guardduty_resource(tags=required_tags, resource_arn=resource_arn)
+        return {
+            "message": "Successfully tagged Guard Duty resource.",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(f"Failed to tag GuardDuty resource: {str(e)}")
+
+
+def tag_guardduty_resource(tags: List[str], resource_arn: str):
+    guardduty_client = connect_to_guardduty()
+    tags_dict = {tag: "" for tag in tags}
+    guardduty_client.tag_resource(ResourceArn=resource_arn, Tags=tags_dict)
+
+
+def get_required_tags_from_event(event):
+    required_tag_keys = event.get("RequiredTagKeys", {})
+    if required_tag_keys:
+        return [tag.strip() for tag in required_tag_keys]
+    return None",
+              },
+              "name": "TagGuardDutyResource",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "TagGuardDutyResource.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "RequiredTagKeys": {
+              "default": [
+                "SO0111-GuardDutyResource",
+              ],
+              "description": "Required tag keys for GuardDuty.2",
+              "type": "StringList",
+            },
+            "ResourceArn": {
+              "allowedPattern": "(arn:(?:aws|aws-cn|aws-us-gov):guardduty:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:detector\\/.*)",
+              "description": "(Required) The GuardDuty resource ARN.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-TagGuardDutyResource",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRUpdateSecretRotationPeriod": {
       "DependsOn": [
         "CreateWait10",
@@ -9997,7 +12446,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "cd718f7ef709f2ed4986efb1624477c91fe91863c8334de63158dcbcc80ac9d3",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10014,7 +12463,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "d3efb770392e2539d37420fd6d5db7e3e844a7def2bedfcf4b00347d57b82e5b",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10031,7 +12480,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "1197767c58642f6627f9ee45c8e4f77c9e90089d5e74c22308b87de1c48aeceb",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10048,7 +12497,41 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "ff4b5cbfcd0d526056620866fb8a32ca261fefb36903e9d947deffbec1b5754d",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait12": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait11",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CreateWait13": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10065,7 +12548,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "e05becb9cc59b6a93430737eab3f7be5bb8be01f54d670cf4b8718ce5ca4270f",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10082,7 +12565,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9c8f5ac5afb252d2bf924cef9ae3ec60853e9503ce686f27bd98044e23f63434",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10099,7 +12582,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "18be80b36f644a54a592e37f6fd47b23f0c3f159ed4062516c850c87842c283f",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10116,7 +12599,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "7bc05425c5c18bd1adece0ccfdb9571f3f57dc6f3140ee00d51fc96ba471bd27",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10133,7 +12616,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "9016a203d38794687cb1055102cc61861fce733e7d6b27dde309ee8d8f633251",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10150,7 +12633,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "56533afcb5106bb6e797383861e5d3674097858a675fd07b95aba5bb86b9fade",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10167,7 +12650,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "08195a0ef2bb796fce934fab9179c8d63f4935ec925f3bbeeb8f2a2826594a8f",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10184,7 +12667,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "af2cca06fc147ac0ad0322306c2142aa7cfc01b5bb69dfdc2e12828d4ee628e4",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10205,7 +12688,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "cd718f7ef709f2ed4986efb1624477c91fe91863c8334de63158dcbcc80ac9d3",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10227,7 +12710,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "d3efb770392e2539d37420fd6d5db7e3e844a7def2bedfcf4b00347d57b82e5b",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10240,8 +12723,8 @@ def lambda_handler(event, _):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "ASRDisableTGWAutoAcceptSharedAttachments",
-        "ASREnableAutoSecretRotation",
-        "ASREnableGuardDuty",
+        "ASRDisableUnrestrictedAccessToHighRiskPorts",
+        "ASREnablePrivateRepositoryScanning",
         "ASRSetS3LifecyclePolicy",
         "ASRUpdateSecretRotationPeriod",
         "DeletWait9",
@@ -10249,7 +12732,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "1197767c58642f6627f9ee45c8e4f77c9e90089d5e74c22308b87de1c48aeceb",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10261,14 +12744,58 @@ def lambda_handler(event, _):
     "DeletWait11": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "ASREnableAutoSecretRotation",
+        "ASREnableGuardDuty",
         "ASRRemoveUnusedSecret",
         "ASRRevokeUnauthorizedInboundRules",
+        "ASRTagGuardDutyResource",
         "DeletWait10",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "ff4b5cbfcd0d526056620866fb8a32ca261fefb36903e9d947deffbec1b5754d",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait12": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRConfigureAutoScalingLaunchConfigNoPublicIP",
+        "ASRConfigureAutoScalingLaunchConfigToRequireIMDSv2",
+        "ASREnableAPIGatewayCacheDataEncryption",
+        "ASREnableMacie",
+        "ASRSetLogGroupRetentionDays",
+        "DeletWait11",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait13": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASREnableAPIGatewayExecutionLogs",
+        "ASREnableAthenaWorkGroupLogging",
+        "DeletWait12",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10290,7 +12817,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "e05becb9cc59b6a93430737eab3f7be5bb8be01f54d670cf4b8718ce5ca4270f",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10312,7 +12839,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9c8f5ac5afb252d2bf924cef9ae3ec60853e9503ce686f27bd98044e23f63434",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10334,7 +12861,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "18be80b36f644a54a592e37f6fd47b23f0c3f159ed4062516c850c87842c283f",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10356,7 +12883,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "7bc05425c5c18bd1adece0ccfdb9571f3f57dc6f3140ee00d51fc96ba471bd27",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10378,7 +12905,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "9016a203d38794687cb1055102cc61861fce733e7d6b27dde309ee8d8f633251",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10400,7 +12927,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "56533afcb5106bb6e797383861e5d3674097858a675fd07b95aba5bb86b9fade",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10422,7 +12949,7 @@ def lambda_handler(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "08195a0ef2bb796fce934fab9179c8d63f4935ec925f3bbeeb8f2a2826594a8f",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -10434,17 +12961,17 @@ def lambda_handler(event, _):
     "DeletWait9": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "ASRAttachServiceVPCEndpoint",
+        "ASRAttachSSMPermissionsToEC2",
         "ASRBlockSSMDocumentPublicAccess",
-        "ASRDisableUnrestrictedAccessToHighRiskPorts",
         "ASREnableBucketEventNotifications",
-        "ASREnablePrivateRepositoryScanning",
         "ASRSetCloudFrontOriginDomain",
         "DeletWait8",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "af2cca06fc147ac0ad0322306c2142aa7cfc01b5bb69dfdc2e12828d4ee628e4",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

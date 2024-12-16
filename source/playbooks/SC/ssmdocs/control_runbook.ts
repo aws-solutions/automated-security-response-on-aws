@@ -70,6 +70,7 @@ export interface ControlRunbookDocumentProps extends AutomationDocumentProps, Co
   resourceIdName?: string;
   resourceIdRegex?: string;
   updateDescription: IStringVariable;
+  namespace: string;
 }
 
 export abstract class ControlRunbookDocument extends AutomationDocument {
@@ -82,6 +83,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   protected readonly updateDescription: IStringVariable;
   protected readonly runtimePython: Runtime;
   protected readonly solutionId: string;
+  protected readonly namespace: string;
   protected readonly solutionAcronym: string;
 
   constructor(stage: Construct, id: string, props: ControlRunbookDocumentProps) {
@@ -101,7 +103,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
 
     // If the derived class specified inputs, retain them
     const docInputs = props.docInputs ?? [];
-    docInputs.push(...getInputs(props.controlId, props.remediationName, props.solutionId));
+    docInputs.push(...getInputs(props.controlId, props.remediationName, props.solutionId, props.namespace));
     // Likewise, if the derived class specified outputs, retain them
     const docOutputs = props.docOutputs ?? [];
     docOutputs.push(...getOutputs());
@@ -124,6 +126,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
     this.runtimePython = props.runtimePython;
     this.solutionId = props.solutionId;
     this.solutionAcronym = props.solutionAcronym;
+    this.namespace = props.namespace;
 
     this.cfnDocument.name = this.documentName;
     this.cfnDocument.updateMethod = 'NewVersion';
@@ -137,8 +140,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
     return this.controlId;
   }
 
-  /** @override */
-  public collectedSteps(): AutomationStep[] {
+  public override collectedSteps(): AutomationStep[] {
     this.builder.steps.push(this.getParseInputStep());
     this.builder.steps.push(...this.getExtraSteps());
     this.builder.steps.push(this.getRemediationStep());
@@ -166,8 +168,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
    * @virtual
    * @returns The `getInputParams` step to parse any user customized input parameters.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getInputParamsStep(defaultParameters: { [_: string]: any }): AutomationStep {
+  protected getInputParamsStep(defaultParameters: Record<string, any>): AutomationStep {
     const getInputParamsStep = new ExecuteScriptStep(this, 'GetInputParams', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'get_input_params'),
       code: ScriptCode.fromFile(fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'get_input_params.py'))),
@@ -182,8 +183,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
    * @virtual
    * @returns The inputs to the `get_input_params.py` script
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getInputParamsStepInputs(defaultParameters: { [_: string]: any }): { [_: string]: IGenericVariable } {
+  protected getInputParamsStepInputs(defaultParameters: Record<string, any>): { [_: string]: IGenericVariable } {
     return {
       SecHubInputParams: StringMapVariable.of('ParseInput.InputParams'),
       DefaultParams: HardCodedStringMap.of(defaultParameters),
@@ -311,10 +311,8 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
    * @virtual
    * @returns The parameters for the `Remediation` automation document.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = {
+  protected getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = {
       AutomationAssumeRole: new StringFormat(`arn:%s:iam::%s:role/%s`, [
         StringVariable.of('global:AWS_PARTITION'),
         StringVariable.of('global:ACCOUNT_ID'),
@@ -357,12 +355,12 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   }
 }
 
-function getInputs(controlId: string, remediationName: string, solutionId: string): Input[] {
+function getInputs(controlId: string, remediationName: string, solutionId: string, namespace: string): Input[] {
   const inputs: Input[] = [];
 
   inputs.push(getFindingInput(controlId));
   inputs.push(getAutomationAssumeRoleInput());
-  inputs.push(getRemediationRoleNameInput(remediationName, solutionId));
+  inputs.push(getRemediationRoleNameInput(remediationName, solutionId, namespace));
 
   return inputs;
 }
@@ -381,9 +379,9 @@ function getAutomationAssumeRoleInput(): Input {
   });
 }
 
-function getRemediationRoleNameInput(remediationName: string, solutionId: string): Input {
+function getRemediationRoleNameInput(remediationName: string, solutionId: string, namespace: string): Input {
   const resourcePrefix = solutionId.replace(/^DEV-/, '');
-  const remediationRoleName = `${resourcePrefix}-${remediationName}`;
+  const remediationRoleName = `${resourcePrefix}-${remediationName}-${namespace}`;
   const remediationRoleNameRegex = String.raw`^[\w+=,.@-]+$`;
   return Input.ofTypeString('RemediationRoleName', {
     allowedPattern: remediationRoleNameRegex,

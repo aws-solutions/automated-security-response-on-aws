@@ -94,7 +94,7 @@ def expected():
         "details": {},
         "testmode": False,
         "resource": event().get("Finding").get("Resources")[0],
-        "resource_region": None,
+        "resource_region": "us-east-2",
         "aws_config_rule": {
             "ConfigRuleName": "s3-bucket-server-side-encryption-enabled",
             "ConfigRuleArn": "arn:aws:config:us-east-1:111111111111:config-rule/config-rule-vye3dl",

@@ -71,7 +71,7 @@ mainSteps:
     inputs:
       DocumentName: ASR-CreateCloudTrailMultiRegionTrail
       RuntimeParameters:
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateCloudTrailMultiRegionTrail'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-CreateCloudTrailMultiRegionTrail%%'
         AWSPartition: '{{global:AWS_PARTITION}}'
 
   -

@@ -33,8 +33,7 @@ export class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRu
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -46,8 +45,7 @@ export class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRu
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       new ExecuteScriptStep(this, 'ExtractConfigRuleParameters', {
         language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'event_handler'),
@@ -64,9 +62,7 @@ export class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRu
     ];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.MinRetentionPeriod = StringVariable.of('ExtractConfigRuleParameters.MinRetentionPeriod');

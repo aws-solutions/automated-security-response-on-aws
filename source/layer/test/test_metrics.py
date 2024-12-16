@@ -106,13 +106,15 @@ def test_get_metrics_from_finding(mocker):
         + "::product/aws/securityhub",
         "finding_triggered_by": "unit-test",
         "region": mocker.ANY,
+        "custom_action_name": "MyCustomAction",
     }
 
-    finding = (
-        utils.load_test_data(test_data + "CIS-1.3.json", get_region())
+    event = {
+        "Finding": utils.load_test_data(test_data + "CIS-1.3.json", get_region())
         .get("detail")
-        .get("findings")[0]
-    )
+        .get("findings")[0],
+        "CustomActionName": "MyCustomAction",
+    }
 
     ssmc = boto3.client("ssm", region_name=get_region())
     ssmc_s = Stubber(ssmc)
@@ -125,7 +127,7 @@ def test_get_metrics_from_finding(mocker):
 
     metrics = Metrics("unit-test")
 
-    assert metrics.get_metrics_from_finding(finding) == expected_response
+    assert metrics.get_metrics_from_event(event) == expected_response
 
 
 # ------------------------------------------------------------------------------
@@ -161,15 +163,17 @@ def test_send_metrics(mocker):
             "productArn": mocker.ANY,
             "finding_triggered_by": "unit-test",
             "region": mocker.ANY,
+            "custom_action_name": "MyCustomAction",
         },
         "Version": "v1.2.0TEST",
     }
 
-    finding = (
-        utils.load_test_data(test_data + "CIS-1.3.json", get_region())
+    event = {
+        "Finding": utils.load_test_data(test_data + "CIS-1.3.json", get_region())
         .get("detail")
-        .get("findings")[0]
-    )
+        .get("findings")[0],
+        "CustomActionName": "MyCustomAction",
+    }
 
     ssmc = boto3.client("ssm", region_name=get_region())
     ssmc_s = Stubber(ssmc)
@@ -182,13 +186,14 @@ def test_send_metrics(mocker):
     mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
 
     metrics = Metrics("unit-test")
-    metrics_data = metrics.get_metrics_from_finding(finding)
+    metrics_data = metrics.get_metrics_from_event(event)
     assert metrics_data == {
         "generator_id": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
         "type": "1.3 Ensure credentials unused for 90 days or greater are disabled",
         "productArn": f"arn:aws:securityhub:{get_region()}::product/aws/securityhub",
         "finding_triggered_by": "unit-test",
         "region": get_region(),
+        "custom_action_name": "MyCustomAction",
     }
 
     send_metrics = mocker.patch(
@@ -206,11 +211,12 @@ def test_send_metrics(mocker):
 # then send metrics is enabled.
 # ------------------------------------------------------------------------------
 def test_do_not_send_metrics(mocker):
-    finding = (
-        utils.load_test_data(test_data + "CIS-1.3.json", get_region())
+    event = {
+        "Finding": utils.load_test_data(test_data + "CIS-1.3.json", get_region())
         .get("detail")
-        .get("findings")[0]
-    )
+        .get("findings")[0],
+        "CustomActionName": "MyCustomAction",
+    }
 
     ssmc = boto3.client("ssm", region_name=get_region())
     ssmc_s = Stubber(ssmc)
@@ -223,13 +229,14 @@ def test_do_not_send_metrics(mocker):
     mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
 
     metrics = Metrics("unit-test")
-    metrics_data = metrics.get_metrics_from_finding(finding)
+    metrics_data = metrics.get_metrics_from_event(event)
     assert metrics_data == {
         "generator_id": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
         "type": "1.3 Ensure credentials unused for 90 days or greater are disabled",
         "productArn": f"arn:aws:securityhub:{get_region()}::product/aws/securityhub",
         "finding_triggered_by": "unit-test",
         "region": get_region(),
+        "custom_action_name": "MyCustomAction",
     }
 
     send_metrics = mocker.patch(

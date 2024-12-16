@@ -67,36 +67,8 @@ mainSteps:
       InputPayload:
         GroupId: "{{ GroupId }}"
       Script: |-
-        import boto3
-        from botocore.exceptions import ClientError
-        from time import sleep
-
-
-        ec2_client = boto3.client("ec2")
-
-
-        def get_permissions(group_id):
-            default_group = ec2_client.describe_security_groups(GroupIds=[group_id]).get("SecurityGroups")[0]
-            return default_group.get("IpPermissions"), default_group.get("IpPermissionsEgress")
-
-
-        def handler(event, context):
-            group_id = event.get("GroupId")
-            ingress_permissions, egress_permissions = get_permissions(group_id)
-
-            if ingress_permissions:
-                ec2_client.revoke_security_group_ingress(GroupId=group_id, IpPermissions=ingress_permissions)
-            if egress_permissions:
-                ec2_client.revoke_security_group_egress(GroupId=group_id, IpPermissions=egress_permissions)
-
-            ingress_permissions, egress_permissions = get_permissions(group_id)
-            if ingress_permissions or egress_permissions:
-                raise Exception(f"VERIFICATION FAILED. SECURITY GROUP {group_id} NOT CLOSED.")
-
-            return {
-                "output": "Security group closed successfully."
-            }
+        %%SCRIPT=RemoveVPCDefaultSecurityGroupRules.py%%
     outputs:
       - Name: Output
-        Selector: $.Payload.output
-        Type: String
+        Selector: $.Payload
+        Type: StringMap

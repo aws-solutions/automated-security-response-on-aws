@@ -4,7 +4,7 @@ import os
 
 import boto3
 from botocore.exceptions import ClientError
-from layer import utils
+from layer import tracer_utils, utils
 from layer.awsapi_cached_client import BotoSession
 from layer.cloudwatch_metrics import CloudWatchMetrics
 from layer.logger import Logger
@@ -17,6 +17,8 @@ LOG_LEVEL = os.getenv("log_level", "info")
 LOGGER = Logger(loglevel=LOG_LEVEL)
 session = boto3.session.Session()
 AWS_REGION = session.region_name
+
+tracer = tracer_utils.init_tracer()
 
 
 def _get_ssm_client(account, role, region=""):
@@ -103,6 +105,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
         LOGGER.error(answer.message)
 
 
+@tracer.capture_lambda_handler
 def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()  # holds the response to the step function
     LOGGER.info(event)
@@ -149,12 +152,18 @@ def lambda_handler(event, _):
 
     answer.update(
         {
-            "securitystandard": finding.standard_shortname,
+            "securitystandard": (
+                finding.standard_shortname
+                if finding.standard_shortname != "error"
+                else finding.standard_name
+            ),
             "securitystandardversion": finding.standard_version,
             "controlid": finding.standard_control,
             "standardsupported": finding.standard_version_supported,
             "accountid": finding.account_id,
             "resourceregion": finding.resource_region,
+            "remediationrole": "",
+            "automationdocid": "",
         }
     )
 

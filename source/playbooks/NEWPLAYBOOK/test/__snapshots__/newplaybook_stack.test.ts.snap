@@ -87,6 +87,13 @@ exports[`admin stack 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "PCIExample1EventsRuleRoleD486082E",
@@ -180,6 +187,13 @@ exports[`admin stack 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "PCIExample3EventsRuleRoleA99F7A6B",
@@ -273,6 +287,13 @@ exports[`admin stack 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "PCIExample5EventsRuleRole5B9B7CC6",
@@ -367,6 +388,14 @@ exports[`member stack 1`] = `
       ],
       "Default": "Available",
       "Description": "Enable/disable availability of remediation for NPB version 3.2.1 Control RDS.6 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
       "Type": "String",
     },
     "SecHubAdminAccount": {
@@ -545,6 +574,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -691,7 +722,17 @@ def parse_event(event, _):
 ",
               "inputs": {
                 "Api": "GetRole",
-                "RoleName": "SO0111-ASR-RDSEnhancedMonitoring",
+                "RoleName": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "SO0111-ASR-RDSEnhancedMonitoring-",
+                      {
+                        "Ref": "Namespace",
+                      },
+                    ],
+                  ],
+                },
                 "Service": "iam",
               },
               "isEnd": false,
@@ -801,7 +842,7 @@ def verify_remediation(event, context):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "064a40f60c0e87b763d57f5ed9643da2d18bc9b2c3ecdca980f13b6d5064c868",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -818,7 +859,7 @@ def verify_remediation(event, context):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "064a40f60c0e87b763d57f5ed9643da2d18bc9b2c3ecdca980f13b6d5064c868",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

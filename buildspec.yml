@@ -4,10 +4,6 @@ phases:
     runtime-versions:
       nodejs: 18
       python: 3.11
-    commands:
-    - python3 -m pip install -U pip setuptools
-    - npm install -g npm@9
-    - pyenv install -s 3.8 3.9 3.10 3.11
   pre_build:
     commands:
     - cd ./source
@@ -15,6 +11,10 @@ phases:
     - cd ..
   build:
     commands:
+    - export POETRY_HOME=/opt/poetry
+    - python3 -m venv $POETRY_HOME
+    - $POETRY_HOME/bin/pip install poetry==1.8.3
+    - $POETRY_HOME/bin/poetry --version
     - cd ./deployment
     - ./build-s3-dist.sh -b $DIST_OUTPUT_BUCKET -v $VERSION
     - ./build-open-source-dist.sh
@@ -22,6 +22,7 @@ phases:
   post_build:
     commands:
     - cd ./deployment
+    - export AWS_DEFAULT_REGION=us-east-1
     - ./run-unit-tests.sh
     - cd ..
 artifacts:

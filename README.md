@@ -18,6 +18,7 @@ standards:
 - AWS Foundational Security Best Practices (FSBP) v1.0.0
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0
+- Center for Internet Security (CIS) AWS Foundations Benchmark v3.0.0
 - Payment Card Industry (PCI) Data Security Standard (DSS) v3.2.1
 - National Institute of Standards and Technology (NIST) Special Publication 800-53 Revision 5
 
@@ -42,13 +43,11 @@ Implementation Guide. Instructions for creating an entirely new Playbook are bel
 
 - a Linux client with the following software
   - AWS CLI v2
-  - Python 3.7+ with pip
-  - AWS CDK 1.155.0+
-  - Node.js with npm
+  - Python 3.11+ with pip
+  - AWS CDK 2.171.1+
+  - Node.js 20+ with npm
 - source code downloaded from GitHub
-- two S3 buckets (minimum): 1 global and 1 for each region where you will deploy
-  - An Amazon S3 Bucket for solution templates - accessed globally via https.
-  - An Amazon S3 Bucket for source code - regional.
+
 
 #### Obtaining Source Code
 
@@ -164,13 +163,25 @@ robust and self-documenting. Each definition creates an IAM role and an SSM runb
 ### Build and Deploy
 
 AWS Solutions use two buckets: a bucket for global access to templates, which is accessed via HTTPS, and regional
-buckets for access to assets within the region, such as Lambda code. You will need:
+buckets for access to assets within the region, such as Lambda code. 
 
-- One global bucket that is access via the http end point. AWS CloudFormation templates are stored here. It must end
-  with "-reference. Ex. "mybucket-reference"
-- One regional bucket for each region where you plan to deploy using the name of the global bucket as the root, and
-  suffixed with the region name. Ex. "mybucket-us-east-1"
+- Pick a unique bucket name, `e.g. asr-staging`. Set two environment variables on your terminal, one should be the base bucket name with `-reference` as suffix, the other with your intended deployment region as suffix:
+
+```bash
+export BASE_BUCKET_NAME=asr-staging-$(date +%s)
+export TEMPLATE_BUCKET_NAME=$BASE_BUCKET_NAME-reference
+export REGION=us-east-1
+export ASSET_BUCKET_NAME=$BASE_BUCKET_NAME-$REGION
+```
+
+- In your AWS account, create two buckets with these names,
+  e.g. `asr-staging-reference` and `asr-staging-us-east-1`. (The reference bucket will hold the CloudFormation templates, the regional bucket will hold all other assets like the lambda code bundle.)
 - Your buckets should be encrypted and disallow public access
+
+```bash
+aws s3 mb s3://$TEMPLATE_BUCKET_NAME/
+aws s3 mb s3://$ASSET_BUCKET_NAME/
+```
 
 **Note**: When creating your buckets, ensure they are not publicly accessible. Use random bucket names. Disable public
 access. Use KMS encryption. And verify bucket ownership before uploading.
@@ -185,7 +196,9 @@ downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
 
 ```bash
 chmod +x build-s3-dist.sh
-build-s3-dist.sh -b <bucketname> -v <version>
+export SOLUTION_NAME=automated-security-response-on-aws
+export SOLUTION_VERSION=v1.0.0.mybuild
+./build-s3-dist.sh -b $BASE_BUCKET_NAME -v $SOLUTION_VERSION
 ```
 
 #### Run Unit Tests
@@ -207,18 +220,78 @@ Confirm that all unit tests pass.
 **Note**: Verify bucket ownership before uploading.
 
 By default, the templates created by build-s3-dist.sh expect the software to be stored in
-**automated-security-response-on-aws/v\<version\>**. If in doubt, view the template.
+**automated-security-response-on-aws/\<version\>**. If in doubt, view the template.
 
-Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the
-regional bucket.
+Upload the build artifacts from `global-s3-assets/` to the template bucket and the artifacts from `regional-s3-assets/` to the regional bucket:
+
+```bash
+aws s3 ls s3://$TEMPLATE_BUCKET_NAME # test that bucket exists - should not give an error
+aws s3 ls s3://$ASSET_BUCKET_NAME # test that bucket exists - should not give an error
+cd ./deployment
+aws s3 cp global-s3-assets/  s3://$TEMPLATE_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control
+aws s3 cp regional-s3-assets/  s3://$ASSET_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control
+```
+
+_✅ All assets are now staged on your S3 buckets. You or any user may use S3 links for deployments_
 
 ## Deploy
 
-See the [Automated Security Response on AWS Implementation
-Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for
-deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for
-AWS Solutions. Ex.
-https://mybucket-reference.s3.amazonaws.com/automated-security-response-on-aws/v1.3.0.mybuild/aws-sharr-deploy.template
+Consult the [Automated Security Response on AWS Implementation
+Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for detailed 
+deployment instructions and set all deployment parameters according to your needs. 
+When following the instructions, keep in mind to use the URLs to the templates in your own bucket.
+
+If you anticipate that you will need to deploy multiple times during your development iterations, you can alternatively compose an `aws cloudformation create-stack` command with your desired parameter values, and deploy from the terminal.
+For example:
+
+```bash
+  export ADMIN_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/aws-sharr-deploy.template
+  aws cloudformation create-stack \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --stack-name ASR-Admin-$(date +%s) \
+  --template-url $ADMIN_TEMPLATE_URL \
+  --parameters \
+    ParameterKey=LoadSCAdminStack,ParameterValue=yes \
+    ParameterKey=LoadAFSBPAdminStack,ParameterValue=no \
+    ParameterKey=LoadCIS120AdminStack,ParameterValue=no \
+    ParameterKey=LoadCIS140AdminStack,ParameterValue=no \
+    ParameterKey=LoadCIS300AdminStack,ParameterValue=no \
+    ParameterKey=LoadNIST80053AdminStack,ParameterValue=no \
+    ParameterKey=LoadPCI321AdminStack,ParameterValue=no \
+    ParameterKey=ReuseOrchestratorLogGroup,ParameterValue=no \
+    ParameterKey=UseCloudWatchMetrics,ParameterValue=yes \
+    ParameterKey=UseCloudWatchMetricsAlarms,ParameterValue=yes \
+    ParameterKey=RemediationFailureAlarmThreshold,ParameterValue=5 \
+    ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no \
+    ParameterKey=TicketGenFunctionName,ParameterValue= 
+    
+  export NAMESPACE=$(date +%s | tail -c 9)
+  export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/aws-sharr-member.template
+  aws cloudformation create-stack \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --stack-name ASR-Member-$(date +%s) \
+  --template-url $MEMBER_TEMPLATE_URL \
+  --parameters \
+    ParameterKey=LoadSCMemberStack,ParameterValue=yes \
+    ParameterKey=LoadAFSBPMemberStack,ParameterValue=no \
+    ParameterKey=LoadCIS120MemberStack,ParameterValue=no \
+    ParameterKey=LoadCIS140MemberStack,ParameterValue=no \
+    ParameterKey=LoadNIST80053MemberStack,ParameterValue=no \
+    ParameterKey=LoadPCI321MemberStack,ParameterValue=no \
+    ParameterKey=CreateS3BucketForRedshiftAuditLogging,ParameterValue=no \
+    ParameterKey=LogGroupName,ParameterValue=random-log-group-123456789012 \
+    ParameterKey=Namespace,ParameterValue=$NAMESPACE \
+    ParameterKey=SecHubAdminAccount,ParameterValue=123456789012
+    
+  export MEMBER_ROLES_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/aws-sharr-member-roles.template
+  aws cloudformation create-stack \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --stack-name ASR-Member-Roles-$(date +%s) \
+  --template-url $MEMBER_ROLES_TEMPLATE_URL \
+  --parameters \
+    ParameterKey=Namespace,ParameterValue=$NAMESPACE \
+    ParameterKey=SecHubAdminAccount,ParameterValue=123456789012
+```
 
 ## Directory structure
 

@@ -6,7 +6,7 @@ import re
 from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, Any, Optional
 
-from layer import utils
+from layer import tracer_utils, utils
 from layer.awsapi_cached_client import BotoSession
 from layer.logger import Logger
 from layer.metrics import Metrics
@@ -21,6 +21,8 @@ ORCH_ROLE_NAME = "SO0111-SHARR-Orchestrator-Member"  # role to use for cross-acc
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
 LOGGER = Logger(loglevel=LOG_LEVEL)
+
+tracer = tracer_utils.init_tracer()
 
 
 def _get_ssm_client(account: str, role: str, region: str = "") -> SSMClient:
@@ -151,15 +153,24 @@ def get_remediation_status(response_data, exec_status):
 
 def get_remediation_message(response_data, remediation_status):
     message = f"Remediation status: {remediation_status} - please verify remediation"
+    message_key = next((key for key in response_data if key.lower() == "message"), None)
     if "Payload" in response_data and "response" in response_data["Payload"]:
         message = response_data["Payload"]["response"].get("status", "UNKNOWN")
-    elif "message" in response_data:
-        message = response_data["message"]
+    elif message_key:
+        message = response_data[message_key]
     return message
 
 
+def get_remediation_output(response_data: dict[str, str]) -> str:
+    message_key = next((key for key in response_data if key.lower() == "message"), "")
+    if message_key:
+        response_data.pop(
+            message_key, ""
+        )  # Delete 'message' if it is present, since it will be included in the remediation message
+    return str(response_data)
+
+
 def get_remediation_response(remediation_response_raw):
-    # Remediation.Response is a list, if present. Only the first item should exist.
     remediation_response = {}
     if isinstance(remediation_response_raw, list):
         try:
@@ -171,9 +182,12 @@ def get_remediation_response(remediation_response_raw):
             print("Unhandled error")
     elif isinstance(remediation_response_raw, str):
         remediation_response = {"message": remediation_response_raw}
+    elif isinstance(remediation_response_raw, dict):
+        remediation_response = remediation_response_raw
     return remediation_response
 
 
+@tracer.capture_lambda_handler
 def lambda_handler(event, _):
     answer = utils.StepFunctionLambdaAnswer()
     automation_doc = event["AutomationDocument"]
@@ -199,7 +213,7 @@ def lambda_handler(event, _):
         )
 
     metrics_obj = Metrics(event["EventType"])
-    metrics_data = metrics_obj.get_metrics_from_finding(event["Finding"])
+    metrics_data = metrics_obj.get_metrics_from_event(event)
 
     try:
         automation_exec_info = AutomationExecution(
@@ -256,6 +270,8 @@ def lambda_handler(event, _):
             remediation_response, status_for_message
         )
 
+        remediation_output = get_remediation_output(remediation_response)
+
         remediation_logdata = get_execution_log(remediation_response)
 
         # FailureMessage is only set when the remediation was another SSM doc, not
@@ -267,6 +283,7 @@ def lambda_handler(event, _):
                 "status": automation_exec_info.status,
                 "remediation_status": status_for_message,
                 "message": remediation_message,
+                "remediation_output": remediation_output,
                 "executionid": SSM_EXEC_ID,
                 "affected_object": affected_object,
                 "logdata": json.dumps(remediation_logdata, default=str),
@@ -286,6 +303,7 @@ def lambda_handler(event, _):
                 "status": automation_exec_info.status,
                 "remediation_status": "running",
                 "message": "Waiting for completion",
+                "remediation_output": "",
                 "executionid": SSM_EXEC_ID,
                 "affected_object": "",
                 "logdata": [],

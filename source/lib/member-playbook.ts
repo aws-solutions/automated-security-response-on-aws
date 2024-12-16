@@ -8,43 +8,74 @@ import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 export interface MemberPlaybookProps {
   readonly name: string;
   readonly nestedStackFactory: SerializedNestedStackFactory;
-  readonly parameters?: { [_: string]: string };
+  readonly totalControls: number;
+  readonly parameters?: Record<string, string>;
   readonly stackDependencies?: CfnResource[];
   readonly defaultState?: 'yes' | 'no';
   readonly description?: string;
+  readonly stackLimit?: number;
 }
 
 export class MemberPlaybook {
   parameterName = '';
-  playbookStack: Stack;
+  playbookPrimaryStack: Stack;
+  playbookOverflowStacks: Stack[];
+  stackOption: CfnParameter;
 
   constructor(scope: Construct, props: MemberPlaybookProps) {
     const templateFile = `${props.name}MemberStack.template`;
+    const logicalId = `PlaybookMemberStack${props.name}`;
     const illegalChars = /[\\._]/g;
     const playbookName = props.name.replace(illegalChars, '');
     this.parameterName = `Load${playbookName}MemberStack`;
+    this.playbookOverflowStacks = [];
 
     //---------------------------------------------------------------------
     // Playbook Template Nested Stack
     //
-    const stackOption = new CfnParameter(scope, `LoadMemberStack${playbookName}`, {
+    this.stackOption = new CfnParameter(scope, `LoadMemberStack${playbookName}`, {
       type: 'String',
       description:
         props.description ?? `Install the member components for automated remediation of ${props.name} controls?`,
       default: props.defaultState ?? 'no',
       allowedValues: ['yes', 'no'],
     });
-    stackOption.overrideLogicalId(this.parameterName);
+    this.stackOption.overrideLogicalId(this.parameterName);
 
-    this.playbookStack = props.nestedStackFactory.addNestedStack(`PlaybookMemberStack${playbookName}`, {
+    this.playbookPrimaryStack = this.createPlaybookStack(templateFile, playbookName, logicalId, scope, props);
+
+    if (props.stackLimit) {
+      const numDivisions = Math.ceil(props.totalControls / props.stackLimit);
+      for (let stackIndex = 1; stackIndex < numDivisions; stackIndex++) {
+        const splitPlaybookStack = this.createPlaybookStack(
+          `${props.name}MemberStack${stackIndex}.template`,
+          `${playbookName}${stackIndex}`,
+          `${logicalId}${stackIndex}`,
+          scope,
+          props,
+        );
+        this.playbookOverflowStacks.push(splitPlaybookStack);
+      }
+    }
+  }
+
+  private createPlaybookStack(
+    templateFile: string,
+    playbookName: string,
+    logicalId: string,
+    scope: Construct,
+    props: MemberPlaybookProps,
+  ) {
+    const playbookStack = props.nestedStackFactory.addNestedStack(`PlaybookMemberStack${playbookName}`, {
       templateRelativePath: `playbooks/${templateFile}`,
       parameters: props.parameters,
       condition: new CfnCondition(scope, `load${playbookName}Cond`, {
-        expression: Fn.conditionEquals(stackOption, 'yes'),
+        expression: Fn.conditionEquals(this.stackOption, 'yes'),
       }),
     });
 
-    const cfnStack = this.playbookStack.nestedStackResource as CfnResource;
-    cfnStack.overrideLogicalId(`PlaybookMemberStack${props.name}`);
+    const cfnStack = playbookStack.nestedStackResource as CfnResource;
+    cfnStack.overrideLogicalId(logicalId);
+    return playbookStack;
   }
 }

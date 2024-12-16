@@ -79,11 +79,11 @@ def get_security_group_rules(security_group_id: str) -> list:
 
 def check_unauthorized_ports(authorized_ports: set, rule: dict) -> bool:
     for port in range(rule["FromPort"], rule["ToPort"] + 1):
-        if port not in authorized_ports:
-            if ("CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4) or (
-                "CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6
-            ):
-                return True
+        if (port not in authorized_ports) and (
+            ("CidrIpv4" in rule and rule["CidrIpv4"] == OPENIPV4)
+            or ("CidrIpv6" in rule and rule["CidrIpv6"] == OPENIPV6)
+        ):
+            return True
     return False
 
 

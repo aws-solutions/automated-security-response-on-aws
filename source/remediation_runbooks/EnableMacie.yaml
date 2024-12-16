@@ -1,0 +1,45 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: "0.3"
+description: |
+  ### Document name - EnableMacie
+
+  ## What does this document do?
+  This document enables AWS Macie.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableMacie.Output: The standard HTTP response from the EnableMacie API.
+
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+
+outputs:
+  - EnableMacie.EnableMacieResponse
+mainSteps:
+  -
+    name: EnableMacie
+    action: aws:executeAwsApi
+    description: |
+      ## EnableMacie
+      Enables AWS Macie with publishing frequency set to the maximum allowed (six hours).
+      ## Outputs
+      * EnableMacieResponse: The standard HTTP response from the EnableMacie API.
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Service: macie2
+      Api: EnableMacie
+      findingPublishingFrequency: "SIX_HOURS"
+      status: "ENABLED"
+    outputs:
+      - Name: EnableMacieResponse
+        Selector: $
+        Type: StringMap

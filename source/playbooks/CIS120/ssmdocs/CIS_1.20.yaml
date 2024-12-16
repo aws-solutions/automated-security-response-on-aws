@@ -63,7 +63,7 @@ mainSteps:
     inputs:
       DocumentName: ASR-CreateIAMSupportRole
       RuntimeParameters:
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateIAMSupportRole'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-CreateIAMSupportRole%%'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

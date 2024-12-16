@@ -5,7 +5,7 @@ import os
 import re
 
 from botocore.exceptions import ClientError
-from layer import utils
+from layer import tracer_utils, utils
 from layer.awsapi_cached_client import BotoSession
 from layer.logger import Logger
 
@@ -17,6 +17,8 @@ SOLUTION_ID = re.sub(r"^DEV-", "", SOLUTION_ID)
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
 LOGGER = Logger(loglevel=LOG_LEVEL)
+
+tracer = tracer_utils.init_tracer()
 
 
 def _get_ssm_client(account, role, region=""):
@@ -53,6 +55,7 @@ def lambda_role_exists(account, rolename):
         exit("An unhandled error occurred: " + str(e))
 
 
+@tracer.capture_lambda_handler
 def lambda_handler(event, _):
     # Expected:
     # {
@@ -165,6 +168,7 @@ def lambda_handler(event, _):
             "status": "QUEUED",
             "message": f'{exec_id}: {automation_doc["ControlId"]} remediation was successfully invoked via AWS Systems Manager in account {automation_doc["AccountId"]} {execution_region}',
             "executionid": exec_id,
+            "remediation_output": "No output available because remediation has not yet finished executing.",
             "executionregion": execution_region,
             "executionaccount": execution_account,
         }

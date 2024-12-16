@@ -25,7 +25,7 @@ parameters:
     description: The input from the Orchestrator Step function for the EC2.8 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableIMDSV2OnInstance"
+    default: "%%ROLE=SO0111-EnableIMDSV2OnInstance%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

@@ -1,0 +1,278 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
+{
+  "Description": "ASR Blueprint Stack",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "ServiceNow Project Information",
+          },
+          "Parameters": [
+            "InstanceURI",
+            "ServiceNowTableName",
+          ],
+        },
+        {
+          "Label": {
+            "default": "ServiceNow API Credentials",
+          },
+          "Parameters": [
+            "SecretArn",
+          ],
+        },
+      ],
+    },
+  },
+  "Outputs": {
+    "TicketGeneratorLambdaFunction": {
+      "Description": "ARN of the ticket generator lambda function.",
+      "Value": {
+        "Fn::GetAtt": [
+          "ServiceNowTicketGenerator9B7AB557",
+          "Arn",
+        ],
+      },
+    },
+  },
+  "Parameters": {
+    "InstanceURI": {
+      "AllowedPattern": "^https:\\/\\/.+\\.atlassian\\.net$",
+      "Description": "The URI of your ServiceNow instance. For example: https://my-jira-instance.atlassian.net",
+      "Type": "String",
+    },
+    "SecretArn": {
+      "AllowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):secretsmanager:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:secret:.+$",
+      "Description": "The ARN of the Secrets Manager secret where you have stored your API credentials. This must be a JSON secret with the following keys: API_Key.",
+      "Type": "String",
+    },
+    "ServiceNowTableName": {
+      "Default": "incident",
+      "Description": "Enter the name of your ServiceNow Table where tickets should be created.",
+      "Type": "String",
+    },
+  },
+  "Resources": {
+    "ASRBlueprintLayerServiceNow09EC510C": {
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.11",
+        ],
+        "Content": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "my-solution-tmn/v9.9.9/lambda/blueprints/python.zip",
+        },
+        "Description": "Layer created by my-solution-tmn to package dependencies necessary for Blueprint ticket generator functions.",
+        "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "ServiceNowTicketGenerator9B7AB557": {
+      "DependsOn": [
+        "TicketGeneratorRoleServiceNowDefaultPolicyE80B4839",
+        "TicketGeneratorRoleServiceNow63F7FA57",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": "my-solution-tmn/v9.9.9/lambda/blueprints/servicenow_ticket_generator.py.zip",
+        },
+        "Description": "Creates a ticket in the provided ServiceNow table with remediation details.",
+        "Environment": {
+          "Variables": {
+            "INSTANCE_URI": {
+              "Ref": "InstanceURI",
+            },
+            "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_SERVICE_NAME": "my-solution-tmn",
+            "SECRET_ARN": {
+              "Ref": "SecretArn",
+            },
+            "SOLUTION_ID": "SO9999",
+            "TABLE_NAME": {
+              "Ref": "ServiceNowTableName",
+            },
+          },
+        },
+        "FunctionName": "ServiceNow-Function-Name",
+        "Handler": "servicenow_ticket_generator.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "ASRBlueprintLayerServiceNow09EC510C",
+          },
+        ],
+        "MemorySize": 256,
+        "ReservedConcurrentExecutions": 2,
+        "Role": {
+          "Fn::GetAtt": [
+            "TicketGeneratorRoleServiceNow63F7FA57",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.11",
+        "Timeout": 15,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "TicketGeneratorLogsServiceNow0BDB33F0": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "LogGroupName": "/aws/lambda/ServiceNow-Function-Name",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "TicketGeneratorPolicyServiceNowC2AAD6A7": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "applies_to": [
+                "Resource::*",
+              ],
+              "id": "AwsSolutions-IAM5",
+              "reason": "Resource * is required to create CloudWatch logs.",
+            },
+          ],
+        },
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W12",
+              "reason": "Resource * is required to create CloudWatch logs.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "secretsmanager:GetSecretValue",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SecretArn",
+              },
+            },
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": "organizations:ListAccounts",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TicketGeneratorPolicyServiceNowC2AAD6A7",
+        "Roles": [
+          {
+            "Ref": "TicketGeneratorRoleServiceNow63F7FA57",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "TicketGeneratorRoleServiceNow63F7FA57": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role created by my-solution-tmn to grant permissions to the ServiceNowTicketGenerator Lambda.",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "TicketGeneratorRoleServiceNowDefaultPolicyE80B4839": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "TicketGeneratorRoleServiceNowDefaultPolicyE80B4839",
+        "Roles": [
+          {
+            "Ref": "TicketGeneratorRoleServiceNow63F7FA57",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+}
+`;

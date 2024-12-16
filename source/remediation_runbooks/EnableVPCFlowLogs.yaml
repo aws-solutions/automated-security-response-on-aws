@@ -26,7 +26,7 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   VPC:
     type: String
-    allowedPattern: '^vpc-[0-9a-f]{8,17}'
+    allowedPattern: '^vpc-[0-9a-f]{8,17}$'
     description: The VPC ID of the VPC
   RemediationRole:
     type: String

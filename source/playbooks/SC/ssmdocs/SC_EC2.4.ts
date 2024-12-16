@@ -29,15 +29,12 @@ export class TerminateEC2InstanceDocument extends ControlRunbookDocument {
     });
   }
 
-  solutionAcronym = 'AWS';
+  override solutionAcronym = 'AWS';
 
-  docOutputs = this.getOutputs();
+  override docOutputs = this.getOutputs();
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = {
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = {
       AutomationAssumeRole: new StringFormat(`arn:%s:iam::%s:role/%s`, [
         StringVariable.of('global:AWS_PARTITION'),
         StringVariable.of('global:ACCOUNT_ID'),
@@ -53,7 +50,6 @@ export class TerminateEC2InstanceDocument extends ControlRunbookDocument {
     return params;
   }
 
-  /** @override */
   protected getOutputs(): DocumentOutput[] {
     return [{ name: 'ParseInput.AffectedObject', outputType: DataTypeEnum.STRING_MAP }];
   }

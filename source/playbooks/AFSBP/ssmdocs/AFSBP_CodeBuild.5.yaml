@@ -31,7 +31,7 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RemediationRoleName:
     type: String
-    default: "SO0111-RemoveCodeBuildPrivilegedMode"
+    default: "%%ROLE=SO0111-RemoveCodeBuildPrivilegedMode%%"
     allowedPattern: '^[\w+=,.@-]+$'
 mainSteps:
   - name: ParseInput
@@ -74,7 +74,7 @@ mainSteps:
           ExecutionRoleName: '{{RemediationRoleName}}'      
       RuntimeParameters:
         ProjectName: '{{ ParseInput.ProjectName }}'
-        AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-RemoveCodeBuildPrivilegedMode'
+        AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-RemoveCodeBuildPrivilegedMode%%'
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:

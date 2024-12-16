@@ -6,12 +6,14 @@ from datetime import datetime, timezone
 
 import boto3
 from botocore.config import Config
-from layer.cloudwatch_metrics import CloudWatchMetrics
+from layer import tracer_utils
 from layer.logger import Logger
 
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
 LOGGER = Logger(loglevel=LOG_LEVEL)
+
+tracer = tracer_utils.init_tracer()
 
 boto_config = Config(retries={"mode": "standard", "max_attempts": 10})
 
@@ -24,6 +26,7 @@ def connect_to_sfn():
     return boto3.client("stepfunctions", config=boto_config)
 
 
+@tracer.capture_lambda_handler
 def lambda_handler(event, _):
     """
     Schedules a remediation for execution.
@@ -78,13 +81,11 @@ def lambda_handler(event, _):
                 ConditionExpression="LastExecutedTimestamp = :timestamp",
                 ExpressionAttributeValues={":timestamp": {"S": found_timestamp_string}},
             )
-            create_and_send_metric(new_timestamp, current_timestamp)
             return send_success_to_step_function(
                 sfn_client, task_token, new_timestamp, remediation_details
             )
         else:
             put_initial_in_dynamodb(table_name, table_key, current_timestamp)
-            create_and_send_metric(current_timestamp, current_timestamp)
             return send_success_to_step_function(
                 sfn_client,
                 task_token,
@@ -152,16 +153,3 @@ def send_success_to_step_function(
         output=json.dumps(output_dict),
     )
     return f"Remediation scheduled to execute at {planned_timestamp}"
-
-
-def create_and_send_metric(new_timestamp, current_timestamp):
-    try:
-        cloudwatch_metrics = CloudWatchMetrics()
-        cloudwatch_metric = {
-            "MetricName": "RemediationSchedulingDelay",
-            "Unit": "Seconds",
-            "Value": new_timestamp - current_timestamp,
-        }
-        cloudwatch_metrics.send_metric(cloudwatch_metric)
-    except Exception:
-        LOGGER.debug("Did not send Cloudwatch metric")

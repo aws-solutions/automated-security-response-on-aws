@@ -175,6 +175,7 @@ def test_failed_remediation(mocker):
         "affected_object": "No output available yet because the step is not successfully executed",
         "executionid": "43374019-a309-4627-b8a2-c641e0140262",
         "logdata": ANY,
+        "remediation_output": "{}",
         "remediation_status": "Failed",
         "status": "Failed",
         "message": "See Automation Execution output for details",
@@ -217,6 +218,7 @@ def test_successful_remediation(mocker):
         "logdata": "[]",
         "message": '{"ModifyAccount.EnableEbsEncryptionByDefaultResponse": ["{\\"EbsEncryptionByDefault\\":true,\\"ResponseMetadata\\":{\\"RequestId\\":\\"c45a9839-5a40-472e-ac83-d0058987948c\\",\\"HTTPStatusCode\\":200,\\"HTTPHeaders\\":{\\"x-amzn-requestid\\":\\"c45a9839-5a40-472e-ac83-d0058987948c\\",\\"cache-control\\":\\"no-cache, no-store\\",\\"strict-transport-security\\":\\"max-age\\\\u003d31536000; includeSubDomains\\",\\"content-type\\":\\"text/xml;charset\\\\u003dUTF-8\\",\\"transfer-encoding\\":\\"chunked\\",\\"vary\\":\\"accept-encoding\\",\\"date\\":\\"Thu, 06 May 2021 19:16:14 GMT\\",\\"server\\":\\"AmazonEC2\\"},\\"RetryAttempts\\":0}}"]}',
         "remediation_status": "Success",
+        "remediation_output": "{}",
         "status": "Success",
     }
 
@@ -239,7 +241,7 @@ def test_successful_remediation(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
     mocker.patch("check_ssm_execution.Metrics.send_metrics", return_value=False)
     mocker.patch(
-        "check_ssm_execution.Metrics.get_metrics_from_finding", return_value=False
+        "check_ssm_execution.Metrics.get_metrics_from_event", return_value=False
     )
     mocker.patch("check_ssm_execution.Metrics.__init__", return_value=None)
 
@@ -359,7 +361,7 @@ def test_missing_account_id(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
     mocker.patch("check_ssm_execution.Metrics.send_metrics", return_value=False)
     mocker.patch(
-        "check_ssm_execution.Metrics.get_metrics_from_finding", return_value=False
+        "check_ssm_execution.Metrics.get_metrics_from_event", return_value=False
     )
     mocker.patch("check_ssm_execution.Metrics.__init__", return_value=None)
 
@@ -401,7 +403,7 @@ def test_missing_region(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
     mocker.patch("check_ssm_execution.Metrics.send_metrics", return_value=False)
     mocker.patch(
-        "check_ssm_execution.Metrics.get_metrics_from_finding", return_value=False
+        "check_ssm_execution.Metrics.get_metrics_from_event", return_value=False
     )
     mocker.patch("check_ssm_execution.Metrics.__init__", return_value=None)
 

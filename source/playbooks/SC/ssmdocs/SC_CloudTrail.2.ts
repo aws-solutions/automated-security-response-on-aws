@@ -29,15 +29,12 @@ export class EnableCloudTrailEncryptionDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.TrailRegion = StringVariable.of('ParseInput.RemediationRegion');

@@ -25,6 +25,7 @@ import * as cis_140_3_8 from '../ssmdocs/CIS140_3.8';
 import * as cis_140_3_9 from '../ssmdocs/CIS140_3.9';
 import * as cis_140_4_1 from '../ssmdocs/CIS140_4.1';
 import * as cis_140_5_3 from '../ssmdocs/CIS140_5.3';
+import { IControl } from '../../../lib/sharrplaybook-construct';
 
 export interface ControlRunbooksProps {
   standardShortName: string;
@@ -34,7 +35,32 @@ export interface ControlRunbooksProps {
   solutionId: string;
   solutionAcronym: string;
   solutionVersion: string;
+  remediations: IControl[];
+  namespace: string;
 }
+
+const controlRunbooksRecord: Record<string, any> = {
+  '1.8': cis_140_1_8.createControlRunbook,
+  '1.12': cis_140_1_12.createControlRunbook,
+  '1.14': cis_140_1_14.createControlRunbook,
+  '1.17': cis_140_1_17.createControlRunbook,
+  '2.1.1': cis_140_2_1_1.createControlRunbook,
+  '2.1.2': cis_140_2_1_2.createControlRunbook,
+  '2.1.5.1': cis_140_2_1_5_1.createControlRunbook, //NOSONAR This is not an IP Address.
+  '2.1.5.2': cis_140_2_1_5_2.createControlRunbook, //NOSONAR This is not an IP Address.
+  '2.2.1': cis_140_2_2_1.createControlRunbook,
+  '3.1': cis_140_3_1.createControlRunbook,
+  '3.2': cis_140_3_2.createControlRunbook,
+  '3.3': cis_140_3_3.createControlRunbook,
+  '3.4': cis_140_3_4.createControlRunbook,
+  '3.5': cis_140_3_5.createControlRunbook,
+  '3.6': cis_140_3_6.createControlRunbook,
+  '3.7': cis_140_3_7.createControlRunbook,
+  '3.8': cis_140_3_8.createControlRunbook,
+  '3.9': cis_140_3_9.createControlRunbook,
+  '4.1': cis_140_4_1.createControlRunbook,
+  '5.3': cis_140_5_3.createControlRunbook,
+};
 
 export class ControlRunbooks extends Construct {
   protected readonly standardLongName: string;
@@ -47,26 +73,12 @@ export class ControlRunbooks extends Construct {
     this.standardLongName = props.standardLongName;
     this.standardVersion = props.standardVersion;
 
-    this.add(cis_140_1_8.createControlRunbook(this, '1.8', props));
-    this.add(cis_140_1_12.createControlRunbook(this, '1.12', props));
-    this.add(cis_140_1_14.createControlRunbook(this, '1.14', props));
-    this.add(cis_140_1_17.createControlRunbook(this, '1.17', props));
-    this.add(cis_140_2_1_1.createControlRunbook(this, '2.1.1', props));
-    this.add(cis_140_2_1_2.createControlRunbook(this, '2.1.2', props));
-    this.add(cis_140_2_1_5_1.createControlRunbook(this, '2.1.5.1', props)); //NOSONAR This is not an IP Address.
-    this.add(cis_140_2_1_5_2.createControlRunbook(this, '2.1.5.2', props)); //NOSONAR This is not an IP Address.
-    this.add(cis_140_2_2_1.createControlRunbook(this, '2.2.1', props));
-    this.add(cis_140_3_1.createControlRunbook(this, '3.1', props));
-    this.add(cis_140_3_2.createControlRunbook(this, '3.2', props));
-    this.add(cis_140_3_3.createControlRunbook(this, '3.3', props));
-    this.add(cis_140_3_4.createControlRunbook(this, '3.4', props));
-    this.add(cis_140_3_5.createControlRunbook(this, '3.5', props));
-    this.add(cis_140_3_6.createControlRunbook(this, '3.6', props));
-    this.add(cis_140_3_7.createControlRunbook(this, '3.7', props));
-    this.add(cis_140_3_8.createControlRunbook(this, '3.8', props));
-    this.add(cis_140_3_9.createControlRunbook(this, '3.9', props));
-    this.add(cis_140_4_1.createControlRunbook(this, '4.1', props));
-    this.add(cis_140_5_3.createControlRunbook(this, '5.3', props));
+    for (const remediation of props.remediations) {
+      const controlId = remediation.control;
+
+      if (remediation.executes) continue; // Skip remediations that map to other controls
+      this.add(controlRunbooksRecord[controlId](this, controlId, props));
+    }
   }
 
   protected add(document: ControlRunbookDocument) {

@@ -28,8 +28,7 @@ export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunboo
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -41,14 +40,13 @@ export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunboo
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       new AwsApiStep(this, 'GetMonitoringRoleArn', {
         timeoutSeconds: 600,
         service: AwsService.IAM,
         pascalCaseApi: 'GetRole',
-        apiParams: { RoleName: `${this.solutionId}-RDSMonitoring-remediationRole` },
+        apiParams: { RoleName: `${this.solutionId}-RDSMonitoring-remediationRole-${this.namespace}` },
         outputs: [
           {
             name: 'Arn',
@@ -60,9 +58,7 @@ export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunboo
     ];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.ResourceId = StringVariable.of('ParseInput.DbiResourceId');

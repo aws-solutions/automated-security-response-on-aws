@@ -5,7 +5,12 @@ import { Construct } from 'constructs';
 import { ControlRunbookDocument } from '../ssmdocs/control_runbook';
 import { CfnCondition, CfnParameter, Fn } from 'aws-cdk-lib';
 
+import * as apigateway_1 from '../ssmdocs/SC_APIGateway.1';
+import * as apigateway_5 from '../ssmdocs/SC_APIGateway.5';
 import * as autoscaling_1 from '../ssmdocs/SC_AutoScaling.1';
+import * as autoscaling_3 from '../ssmdocs/SC_AutoScaling.3';
+import * as autoscaling_5 from '../ssmdocs/SC_Autoscaling.5'; // intentionally different casing to match SecurityHub generator id
+import * as athena_4 from '../ssmdocs/SC_Athena.4';
 import * as cloudformation_1 from '../ssmdocs/SC_CloudFormation.1';
 import * as cloudfront_1 from '../ssmdocs/SC_CloudFront.1';
 import * as cloudfront_12 from '../ssmdocs/SC_CloudFront.12';
@@ -16,6 +21,7 @@ import * as cloudtrail_5 from '../ssmdocs/SC_CloudTrail.5';
 import * as cloudtrail_6 from '../ssmdocs/SC_CloudTrail.6';
 import * as cloudtrail_7 from '../ssmdocs/SC_CloudTrail.7';
 import * as cloudwatch_1 from '../ssmdocs/SC_CloudWatch.1';
+import * as cloudwatch_16 from '../ssmdocs/SC_CloudWatch.16';
 import * as codebuild_2 from '../ssmdocs/SC_CodeBuild.2';
 import * as codebuild_5 from '../ssmdocs/SC_CodeBuild.5';
 import * as config_1 from '../ssmdocs/SC_Config.1';
@@ -25,6 +31,7 @@ import * as ec2_4 from '../ssmdocs/SC_EC2.4';
 import * as ec2_6 from '../ssmdocs/SC_EC2.6';
 import * as ec2_7 from '../ssmdocs/SC_EC2.7';
 import * as ec2_8 from '../ssmdocs/SC_EC2.8';
+import * as ec2_10 from '../ssmdocs/SC_EC2.10';
 import * as ec2_13 from '../ssmdocs/SC_EC2.13';
 import * as ec2_15 from '../ssmdocs/SC_EC2.15';
 import * as ec2_18 from '../ssmdocs/SC_EC2.18';
@@ -32,6 +39,7 @@ import * as ec2_19 from '../ssmdocs/SC_EC2.19';
 import * as ec2_23 from '../ssmdocs/SC_EC2.23';
 import * as ecr_1 from '../ssmdocs/SC_ECR.1';
 import * as guardduty_1 from '../ssmdocs/SC_GuardDuty.1';
+import * as guardduty_2 from '../ssmdocs/SC_GuardDuty.2';
 import * as iam_3 from '../ssmdocs/SC_IAM.3';
 import * as iam_7 from '../ssmdocs/SC_IAM.7';
 import * as iam_8 from '../ssmdocs/SC_IAM.8';
@@ -65,7 +73,10 @@ import * as secretsmanager_4 from '../ssmdocs/SC_SecretsManager.4';
 import * as sqs_1 from '../ssmdocs/SC_SQS.1';
 import * as sns_1 from '../ssmdocs/SC_SNS.1';
 import * as sns_2 from '../ssmdocs/SC_SNS.2';
+import * as ssm_1 from '../ssmdocs/SC_SSM.1';
 import * as ssm_4 from '../ssmdocs/SC_SSM.4';
+import * as macie_1 from '../ssmdocs/SC_Macie.1';
+import { IControl } from '../../../lib/sharrplaybook-construct';
 
 export interface PlaybookProps {
   standardShortName: string;
@@ -75,7 +86,83 @@ export interface PlaybookProps {
   solutionId: string;
   solutionAcronym: string;
   solutionVersion: string;
+  namespace: string;
+  remediations: IControl[];
 }
+
+const controlRunbooksRecord: Record<string, any> = {
+  'Athena.4': athena_4.createControlRunbook,
+  'APIGateway.1': apigateway_1.createControlRunbook,
+  'APIGateway.5': apigateway_5.createControlRunbook,
+  'AutoScaling.1': autoscaling_1.createControlRunbook,
+  'AutoScaling.3': autoscaling_3.createControlRunbook,
+  'Autoscaling.5': autoscaling_5.createControlRunbook,
+  'CloudFormation.1': cloudformation_1.createControlRunbook,
+  'CloudFront.1': cloudfront_1.createControlRunbook,
+  'CloudFront.12': cloudfront_12.createControlRunbook,
+  'CloudTrail.1': cloudtrail_1.createControlRunbook,
+  'CloudTrail.2': cloudtrail_2.createControlRunbook,
+  'CloudTrail.4': cloudtrail_4.createControlRunbook,
+  'CloudTrail.5': cloudtrail_5.createControlRunbook,
+  'CloudTrail.6': cloudtrail_6.createControlRunbook,
+  'CloudTrail.7': cloudtrail_7.createControlRunbook,
+  'CloudWatch.1': cloudwatch_1.createControlRunbook,
+  'CloudWatch.16': cloudwatch_16.createControlRunbook,
+  'CodeBuild.2': codebuild_2.createControlRunbook,
+  'CodeBuild.5': codebuild_5.createControlRunbook,
+  'Config.1': config_1.createControlRunbook,
+  'EC2.1': ec2_1.createControlRunbook,
+  'EC2.2': ec2_2.createControlRunbook,
+  'EC2.4': ec2_4.createControlRunbook,
+  'EC2.6': ec2_6.createControlRunbook,
+  'EC2.7': ec2_7.createControlRunbook,
+  'EC2.8': ec2_8.createControlRunbook,
+  'EC2.10': ec2_10.createControlRunbook,
+  'EC2.13': ec2_13.createControlRunbook,
+  'EC2.15': ec2_15.createControlRunbook,
+  'EC2.18': ec2_18.createControlRunbook,
+  'EC2.19': ec2_19.createControlRunbook,
+  'EC2.23': ec2_23.createControlRunbook,
+  'ECR.1': ecr_1.createControlRunbook,
+  'GuardDuty.1': guardduty_1.createControlRunbook,
+  'GuardDuty.2': guardduty_2.createControlRunbook,
+  'IAM.3': iam_3.createControlRunbook,
+  'IAM.7': iam_7.createControlRunbook,
+  'IAM.8': iam_8.createControlRunbook,
+  'IAM.18': iam_18.createControlRunbook,
+  'IAM.22': iam_22.createControlRunbook,
+  'KMS.4': kms_4.createControlRunbook,
+  'Lambda.1': lambda_1.createControlRunbook,
+  'RDS.1': rds_1.createControlRunbook,
+  'RDS.2': rds_2.createControlRunbook,
+  'RDS.4': rds_4.createControlRunbook,
+  'RDS.5': rds_5.createControlRunbook,
+  'RDS.6': rds_6.createControlRunbook,
+  'RDS.7': rds_7.createControlRunbook,
+  'RDS.8': rds_8.createControlRunbook,
+  'RDS.13': rds_13.createControlRunbook,
+  'RDS.16': rds_16.createControlRunbook,
+  'Redshift.1': redshift_1.createControlRunbook,
+  'Redshift.3': redshift_3.createControlRunbook,
+  'Redshift.4': redshift_4.createControlRunbook,
+  'Redshift.6': redshift_6.createControlRunbook,
+  'S3.1': s3_1.createControlRunbook,
+  'S3.2': s3_2.createControlRunbook,
+  'S3.4': s3_4.createControlRunbook,
+  'S3.5': s3_5.createControlRunbook,
+  'S3.6': s3_6.createControlRunbook,
+  'S3.11': s3_11.createControlRunbook,
+  'S3.13': s3_13.createControlRunbook,
+  'SecretsManager.1': secretsmanager_1.createControlRunbook,
+  'SecretsManager.3': secretsmanager_3.createControlRunbook,
+  'SecretsManager.4': secretsmanager_4.createControlRunbook,
+  'SQS.1': sqs_1.createControlRunbook,
+  'SNS.1': sns_1.createControlRunbook,
+  'SNS.2': sns_2.createControlRunbook,
+  'SSM.1': ssm_1.createControlRunbook,
+  'SSM.4': ssm_4.createControlRunbook,
+  'Macie.1': macie_1.createControlRunbook,
+};
 
 export class ControlRunbooks extends Construct {
   protected readonly standardLongName: string;
@@ -88,67 +175,12 @@ export class ControlRunbooks extends Construct {
     this.standardLongName = props.standardLongName;
     this.standardVersion = props.standardVersion;
 
-    this.add(autoscaling_1.createControlRunbook(this, 'AutoScaling.1', props));
-    this.add(cloudformation_1.createControlRunbook(this, 'CloudFormation.1', props));
-    this.add(cloudfront_1.createControlRunbook(this, 'CloudFront.1', props));
-    this.add(cloudfront_12.createControlRunbook(this, 'CloudFront.12', props));
-    this.add(cloudtrail_1.createControlRunbook(this, 'CloudTrail.1', props));
-    this.add(cloudtrail_2.createControlRunbook(this, 'CloudTrail.2', props));
-    this.add(cloudtrail_4.createControlRunbook(this, 'CloudTrail.4', props));
-    this.add(cloudtrail_5.createControlRunbook(this, 'CloudTrail.5', props));
-    this.add(cloudtrail_6.createControlRunbook(this, 'CloudTrail.6', props));
-    this.add(cloudtrail_7.createControlRunbook(this, 'CloudTrail.7', props));
-    this.add(cloudwatch_1.createControlRunbook(this, 'CloudWatch.1', props));
-    this.add(codebuild_2.createControlRunbook(this, 'CodeBuild.2', props));
-    this.add(codebuild_5.createControlRunbook(this, 'CodeBuild.5', props));
-    this.add(config_1.createControlRunbook(this, 'Config.1', props));
-    this.add(ec2_1.createControlRunbook(this, 'EC2.1', props));
-    this.add(ec2_2.createControlRunbook(this, 'EC2.2', props));
-    this.add(ec2_4.createControlRunbook(this, 'EC2.4', props));
-    this.add(ec2_6.createControlRunbook(this, 'EC2.6', props));
-    this.add(ec2_7.createControlRunbook(this, 'EC2.7', props));
-    this.add(ec2_8.createControlRunbook(this, 'EC2.8', props));
-    this.add(ec2_13.createControlRunbook(this, 'EC2.13', props));
-    this.add(ec2_15.createControlRunbook(this, 'EC2.15', props));
-    this.add(ec2_18.createControlRunbook(this, 'EC2.18', props));
-    this.add(ec2_19.createControlRunbook(this, 'EC2.19', props));
-    this.add(ec2_23.createControlRunbook(this, 'EC2.23', props));
-    this.add(ecr_1.createControlRunbook(this, 'ECR.1', props));
-    this.add(guardduty_1.createControlRunbook(this, 'GuardDuty.1', props));
-    this.add(iam_3.createControlRunbook(this, 'IAM.3', props));
-    this.add(iam_7.createControlRunbook(this, 'IAM.7', props));
-    this.add(iam_8.createControlRunbook(this, 'IAM.8', props));
-    this.add(iam_18.createControlRunbook(this, 'IAM.18', props));
-    this.add(iam_22.createControlRunbook(this, 'IAM.22', props));
-    this.add(kms_4.createControlRunbook(this, 'KMS.4', props));
-    this.add(lambda_1.createControlRunbook(this, 'Lambda.1', props));
-    this.add(rds_1.createControlRunbook(this, 'RDS.1', props));
-    this.add(rds_2.createControlRunbook(this, 'RDS.2', props));
-    this.add(rds_4.createControlRunbook(this, 'RDS.4', props));
-    this.add(rds_5.createControlRunbook(this, 'RDS.5', props));
-    this.add(rds_6.createControlRunbook(this, 'RDS.6', props));
-    this.add(rds_7.createControlRunbook(this, 'RDS.7', props));
-    this.add(rds_8.createControlRunbook(this, 'RDS.8', props));
-    this.add(rds_13.createControlRunbook(this, 'RDS.13', props));
-    this.add(rds_16.createControlRunbook(this, 'RDS.16', props));
-    this.add(redshift_1.createControlRunbook(this, 'Redshift.1', props));
-    this.add(redshift_3.createControlRunbook(this, 'Redshift.3', props));
-    this.add(redshift_4.createControlRunbook(this, 'Redshift.4', props));
-    this.add(redshift_6.createControlRunbook(this, 'Redshift.6', props));
-    this.add(s3_1.createControlRunbook(this, 'S3.1', props));
-    this.add(s3_2.createControlRunbook(this, 'S3.2', props));
-    this.add(s3_4.createControlRunbook(this, 'S3.4', props));
-    this.add(s3_5.createControlRunbook(this, 'S3.5', props));
-    this.add(s3_6.createControlRunbook(this, 'S3.6', props));
-    this.add(s3_11.createControlRunbook(this, 'S3.11', props));
-    this.add(s3_13.createControlRunbook(this, 'S3.13', props));
-    this.add(secretsmanager_1.createControlRunbook(this, 'SecretsManager.1', props));
-    this.add(secretsmanager_3.createControlRunbook(this, 'SecretsManager.3', props));
-    this.add(secretsmanager_4.createControlRunbook(this, 'SecretsManager.4', props));
-    this.add(sqs_1.createControlRunbook(this, 'SQS.1', props));
-    this.add(sns_1.createControlRunbook(this, 'SNS.1', props));
-    this.add(sns_2.createControlRunbook(this, 'SNS.2', props));
-    this.add(ssm_4.createControlRunbook(this, 'SSM.4', props));
+    for (const remediation of props.remediations) {
+      const controlId = remediation.control;
+
+      if (remediation.executes) continue; // Skip remediations that map to other controls
+      this.add(controlRunbooksRecord[controlId](this, controlId, props));
+    }
   }
 
   protected add(document: ControlRunbookDocument) {

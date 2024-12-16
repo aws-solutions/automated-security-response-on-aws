@@ -40,8 +40,7 @@ export class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepInputs(): { [_: string]: IGenericVariable } {
+  protected override getParseInputStepInputs(): { [_: string]: IGenericVariable } {
     const inputs = super.getParseInputStepInputs();
 
     inputs.resource_index = HardCodedNumber.of(2);
@@ -49,8 +48,7 @@ export class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
     return inputs;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push(
@@ -74,9 +72,7 @@ export class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.SourceDBSnapshotIdentifier = StringVariable.of('ParseInput.SourceDBSnapshotIdentifier');

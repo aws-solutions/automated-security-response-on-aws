@@ -70,7 +70,7 @@ mainSteps:
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
         AccountId: '{{ParseInput.AccountId}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetSSLBucketPolicy'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-SetSSLBucketPolicy%%'
             
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

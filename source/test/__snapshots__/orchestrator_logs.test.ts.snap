@@ -62,7 +62,7 @@ exports[`Global Roles Stack 1`] = `
         "no",
       ],
       "Default": "no",
-      "Description": "Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no"",
+      "Description": "Reuse existing Orchestrator Log Group? Choose "yes" if you have deployed this stack before, otherwise "no"",
       "Type": "String",
     },
   },

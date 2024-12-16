@@ -20,8 +20,7 @@ export class EnableRDSInstanceDeletionProtectionDocument extends ControlRunbookD
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -33,9 +32,7 @@ export class EnableRDSInstanceDeletionProtectionDocument extends ControlRunbookD
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.DbInstanceResourceId = StringVariable.of('ParseInput.DbiResourceId');

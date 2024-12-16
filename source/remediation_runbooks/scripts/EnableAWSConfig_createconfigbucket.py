@@ -124,6 +124,17 @@ def create_bucket_policy(config_bucket, aws_partition):
                         "StringEquals": {"s3:x-amz-acl": "bucket-owner-full-control"}
                     },
                 },
+                {
+                    "Sid": "AllowSSLRequestsOnly",
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Resource": [
+                        "arn:" + aws_partition + ":s3:::" + config_bucket + "/*",
+                        "arn:" + aws_partition + ":s3:::" + config_bucket,
+                    ],
+                    "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                    "Principal": "*",
+                },
             ],
         }
         s3.put_bucket_policy(Bucket=config_bucket, Policy=json.dumps(bucket_policy))

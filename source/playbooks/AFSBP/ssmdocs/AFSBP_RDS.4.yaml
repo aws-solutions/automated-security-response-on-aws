@@ -30,7 +30,7 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-EncryptRDSSnapshot'
+    default: '%%ROLE=SO0111-EncryptRDSSnapshot%%'
     allowedPattern: '^[\w+=,.@-]+$'
   KMSKeyId:
     type: 'String'

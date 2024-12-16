@@ -1,0 +1,109 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-ConfigureAutoScalingLaunchConfigToRequireIMDSv2
+
+  ## What does this document do?
+    This document configures AutoScaling Launch Configuration to use IMDSv2
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * LaunchConfigurationName: (Required) The Name of the Launch Configuration.
+
+  ## Security Standards / Controls
+  * NIST 800-53 Rev5: AutoScaling.3
+
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  LaunchConfigurationName:
+    type: String
+    description: (Required) The name of the Launch Configuration.
+    allowedPattern: '^.{1,255}$'
+mainSteps:
+  - name: 'GetLaunchConfiguration'
+    action: 'aws:executeAwsApi'
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: autoscaling
+      Api: DescribeLaunchConfigurations
+      LaunchConfigurationNames:
+        - '{{LaunchConfigurationName}}'
+    outputs:
+      - Name: LaunchConfiguration
+        Selector: $.LaunchConfigurations[0]
+        Type: StringMap
+  - name: 'GetNewLaunchConfigurationName'
+    action: 'aws:executeScript'
+    inputs:
+      Runtime: 'python3.11'
+      Handler: 'append_suffix'
+      InputPayload:
+        OriginalString: '{{LaunchConfigurationName}}'
+        MaxLen: 255
+        Suffix: '-IMDSv2'
+      Script: |-
+        %%SCRIPT=AppendSuffix.py%%
+    outputs:
+      - Name: LaunchConfigurationName
+        Selector: '$.Payload'
+        Type: 'String'
+  - name: 'UpdateLaunchConfiguration'
+    action: 'aws:executeScript'
+    inputs:
+      Runtime: 'python3.11'
+      Handler: 'update_launch_configuration'
+      InputPayload:
+        LaunchConfiguration: '{{GetLaunchConfiguration.LaunchConfiguration}}'
+        LaunchConfigurationName: '{{GetNewLaunchConfigurationName.LaunchConfigurationName}}'
+      Script: |-
+        %%SCRIPT=UpdateLaunchConfigurationToRequireIMDSv2.py%%
+    outputs:
+      - Name: 'LaunchConfiguration'
+        Selector: '$.Payload'
+        Type: 'StringMap'
+  - name: 'CreateNewLaunchConfiguration'
+    action: 'aws:executeScript'
+    isEnd: false
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        LaunchConfiguration: '{{UpdateLaunchConfiguration.LaunchConfiguration}}'
+      Runtime: 'python3.11'
+      Handler: 'create_auto_scaling_launch_configuration'
+      Script: |-
+        %%SCRIPT=CreateAutoScalingLaunchConfiguration.py%%
+  - name: 'UpdateAutoScalingGroupsWithLaunchConfiguration'
+    action: 'aws:executeScript'
+    isEnd: false
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        OldLaunchConfigurationName: '{{LaunchConfigurationName}}'
+        NewLaunchConfigurationName: '{{GetNewLaunchConfigurationName.LaunchConfigurationName}}'
+      Runtime: 'python3.11'
+      Handler: 'update_auto_scaling_groups_with_launch_configuration'
+      Script: |-
+        %%SCRIPT=UpdateAutoScalingGroupsWithLaunchConfiguration.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+  - name: 'DeleteLaunchConfiguration'
+    action: 'aws:executeAwsApi'
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Service: autoscaling
+      Api: DeleteLaunchConfiguration
+      LaunchConfigurationName: '{{LaunchConfigurationName}}'
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

@@ -30,12 +30,12 @@ def is_clear_text_credential(env_var):
 
 
 def get_project_ssm_namespace(project_name):
-    return f"/CodeBuild/{ project_name }"
+    return f"/CodeBuild/{project_name}"
 
 
 def create_parameter(project_name, env_var):
     env_var_name = env_var.get("name")
-    parameter_name = f"{ get_project_ssm_namespace(project_name) }/env/{ env_var_name }"
+    parameter_name = f"{get_project_ssm_namespace(project_name)}/env/{env_var_name}"
 
     ssm_client = connect_to_ssm(boto_config)
     try:
@@ -51,21 +51,21 @@ def create_parameter(project_name, env_var):
         exception_type = client_exception.response["Error"]["Code"]
         if exception_type == "ParameterAlreadyExists":
             print(
-                f"Parameter { parameter_name } already exists. This remediation may have been run before."
+                f"Parameter {parameter_name} already exists. This remediation may have been run before."
             )
             print("Ignoring exception - remediation continues.")
             response = None
         else:
-            exit(f"ERROR: Unhandled client exception: { client_exception }")
+            exit(f"ERROR: Unhandled client exception: {client_exception}")
     except Exception as e:
-        exit(f"ERROR: could not create SSM parameter { parameter_name }: { str(e) }")
+        exit(f"ERROR: could not create SSM parameter {parameter_name}: {str(e)}")
 
     return response, parameter_name
 
 
 def create_policy(region, account, partition, project_name):
     iam_client = connect_to_iam(boto_config)
-    policy_resource_filter = f"arn:{ partition }:ssm:{ region }:{ account }:parameter{ get_project_ssm_namespace(project_name) }/*"
+    policy_resource_filter = f"arn:{partition}:ssm:{region}:{account}:parameter{get_project_ssm_namespace(project_name)}/*"
     policy_document = {
         "Version": "2012-10-17",
         "Statement": [
@@ -76,7 +76,7 @@ def create_policy(region, account, partition, project_name):
             }
         ],
     }
-    policy_name = f"CodeBuildSSMParameterPolicy-{ project_name }-{ region }"
+    policy_name = f"CodeBuildSSMParameterPolicy-{project_name}-{region}"
     try:
         response = iam_client.create_policy(
             Description="Automatically created by ASR",
@@ -87,19 +87,19 @@ def create_policy(region, account, partition, project_name):
         exception_type = client_exception.response["Error"]["Code"]
         if exception_type == "EntityAlreadyExists":
             print(
-                f'Policy { "" } already exists. This remediation may have been run before.'
+                f'Policy {""} already exists. This remediation may have been run before.'
             )
             print("Ignoring exception - remediation continues.")
             # Attach needs to know the ARN of the created policy
             response = {
                 "Policy": {
-                    "Arn": f"arn:{ partition }:iam::{ account }:policy/{ policy_name }"
+                    "Arn": f"arn:{partition}:iam::{account}:policy/{policy_name}"
                 }
             }
         else:
-            exit(f"ERROR: Unhandled client exception: { client_exception }")
+            exit(f"ERROR: Unhandled client exception: {client_exception}")
     except Exception as e:
-        exit(f"ERROR: could not create access policy { policy_name }: { str(e) }")
+        exit(f"ERROR: could not create access policy {policy_name}: {str(e)}")
     return response
 
 
@@ -110,10 +110,10 @@ def attach_policy(policy_arn, service_role_name):
             PolicyArn=policy_arn, RoleName=service_role_name
         )
     except ClientError as client_exception:
-        exit(f"ERROR: Unhandled client exception: { client_exception }")
+        exit(f"ERROR: Unhandled client exception: {client_exception}")
     except Exception as e:
         exit(
-            f"ERROR: could not attach policy { policy_arn } to role { service_role_name }: { str(e) }"
+            f"ERROR: could not attach policy {policy_arn} to role {service_role_name}: {str(e)}"
         )
     return response
 

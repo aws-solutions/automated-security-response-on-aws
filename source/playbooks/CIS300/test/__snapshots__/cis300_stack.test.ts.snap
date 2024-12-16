@@ -1,0 +1,1829 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CISv3.0.0 member stack snapshot 1`] = `
+{
+  "Conditions": {
+    "ControlRunbooksEnable18ConditionF6303E01": {
+      "Fn::Equals": [
+        {
+          "Ref": "ControlRunbooksEnable181C318FC3",
+        },
+        "Available",
+      ],
+    },
+    "ControlRunbooksEnable211ConditionB51DDAA2": {
+      "Fn::Equals": [
+        {
+          "Ref": "ControlRunbooksEnable2114BB0FE33",
+        },
+        "Available",
+      ],
+    },
+    "ControlRunbooksEnable214Condition63988B9B": {
+      "Fn::Equals": [
+        {
+          "Ref": "ControlRunbooksEnable2142FEB3684",
+        },
+        "Available",
+      ],
+    },
+  },
+  "Description": "test;",
+  "Parameters": {
+    "ControlRunbooksEnable181C318FC3": {
+      "AllowedValues": [
+        "Available",
+        "NOT Available",
+      ],
+      "Default": "Available",
+      "Description": "Enable/disable availability of remediation for cis-aws-foundations-benchmark version 3.0.0 Control 1.8 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "ControlRunbooksEnable2114BB0FE33": {
+      "AllowedValues": [
+        "Available",
+        "NOT Available",
+      ],
+      "Default": "Available",
+      "Description": "Enable/disable availability of remediation for cis-aws-foundations-benchmark version 3.0.0 Control 2.1.1 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "ControlRunbooksEnable2142FEB3684": {
+      "AllowedValues": [
+        "Available",
+        "NOT Available",
+      ],
+      "Default": "Available",
+      "Description": "Enable/disable availability of remediation for cis-aws-foundations-benchmark version 3.0.0 Control 2.1.4 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
+      "Type": "String",
+    },
+    "SecHubAdminAccount": {
+      "AllowedPattern": "^\\d{12}$",
+      "Description": "Admin account number",
+      "Type": "String",
+    },
+    "WaitProviderServiceToken": {
+      "Type": "String",
+    },
+  },
+  "Resources": {
+    "ControlRunbooks18982107CE": {
+      "Condition": "ControlRunbooksEnable18ConditionF6303E01",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-AFSBP_1.0.0_IAM.7
+
+## What does this document do?
+This document establishes a default password policy.
+
+## Security Standards and Controls
+* AWS FSBP IAM.7
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+## Output Parameters
+* Remediation.Output
+
+## Documentation Links
+* [AWS FSBP IAM.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-7)
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "parse_event",
+                "InputPayload": {
+                  "Finding": "{{ Finding }}",
+                  "expected_control_id": [
+                    "1.8",
+                    "1.9",
+                  ],
+                  "parse_id_pattern": "",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import json
+import re
+from typing import Any
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_config(boto_config):
+    return boto3.client("config", config=boto_config)
+
+
+def connect_to_ssm(boto_config):
+    return boto3.client("ssm", config=boto_config)
+
+
+def get_solution_id():
+    return "SO0111"
+
+
+def get_solution_version():
+    ssm = connect_to_ssm(
+        Config(
+            retries={"mode": "standard"},
+            user_agent_extra=f"AwsSolution/{get_solution_id()}/unknown",
+        )
+    )
+    solution_version = "unknown"
+    try:
+        ssm_parm_value = ssm.get_parameter(
+            Name=f"/Solutions/{get_solution_id()}/member-version"
+        )["Parameter"].get("Value", "unknown")
+        solution_version = ssm_parm_value
+    except Exception as e:
+        print(e)
+        print("ERROR getting solution version")
+    return solution_version
+
+
+def get_shortname(long_name):
+    short_name = {
+        "aws-foundational-security-best-practices": "AFSBP",
+        "cis-aws-foundations-benchmark": "CIS",
+        "pci-dss": "PCI",
+        "security-control": "SC",
+    }
+    return short_name.get(long_name, None)
+
+
+def get_config_rule(rule_name):
+    boto_config = Config(
+        retries={"mode": "standard"},
+        user_agent_extra=f"AwsSolution/{get_solution_id()}/{get_solution_version()}",
+    )
+    config_rule = None
+    try:
+        configsvc = connect_to_config(boto_config)
+        config_rule = configsvc.describe_config_rules(ConfigRuleNames=[rule_name]).get(
+            "ConfigRules", []
+        )[0]
+    except Exception as e:
+        print(e)
+        exit(f"ERROR getting config rule {rule_name}")
+    return config_rule
+
+
+class FindingEvent:
+    """
+    Finding object returns the parse fields from an input finding json object
+    """
+
+    def _get_resource_id(self, parse_id_pattern, resource_index):
+        identifier_raw = self.finding_json["Resources"][0]["Id"]
+        self.resource_id = identifier_raw
+        self.resource_id_matches = []
+
+        if parse_id_pattern:
+            identifier_match = re.match(parse_id_pattern, identifier_raw)
+
+            if identifier_match:
+                for group in range(1, len(identifier_match.groups()) + 1):
+                    self.resource_id_matches.append(identifier_match.group(group))
+                self.resource_id = identifier_match.group(resource_index)
+            else:
+                exit(f"ERROR: Invalid resource Id {identifier_raw}")
+
+    def _get_sc_check(self):
+        match_finding_id = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
+            + "security-control/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            self.finding_json["Id"],
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname("security-control")
+            self.control_id = match_finding_id.group(1)
+
+        return match_finding_id
+
+    def _get_standard_info(self):
+        match_finding_id = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
+            + "subscription/(.*?)/v/(\\d+\\.\\d+\\.\\d+)/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            self.finding_json["Id"],
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname(match_finding_id.group(1))
+            self.standard_version = match_finding_id.group(2)
+            self.control_id = match_finding_id.group(3)
+        else:
+            match_sc_finding_id = self._get_sc_check()
+            if not match_sc_finding_id:
+                self.valid_finding = False
+                self.invalid_finding_reason = (
+                    f'Finding Id is invalid: {self.finding_json["Id"]}'
+                )
+
+    def _get_aws_config_rule(self):
+        # config_rule_id refers to the AWS Config Rule that produced the finding
+        if (
+            "RelatedAWSResources:0/type" in self.finding_json["ProductFields"]
+            and self.finding_json["ProductFields"]["RelatedAWSResources:0/type"]
+            == "AWS::Config::ConfigRule"
+        ):
+            self.aws_config_rule_id = self.finding_json["ProductFields"][
+                "RelatedAWSResources:0/name"
+            ]
+            self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
+
+    def _get_region_from_resource_id(self):
+        check_for_region = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
+            self.finding_json["Resources"][0]["Id"],
+        )
+        if check_for_region:
+            self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
+
+    def __init__(
+        self, finding_json, parse_id_pattern, expected_control_id, resource_index
+    ):
+        self.valid_finding = True
+        self.resource_region = None
+        self.control_id = None
+        self.aws_config_rule_id = None
+        self.aws_config_rule = {}
+        self.input_params = {}
+
+        """Populate fields"""
+        # v1.5
+        self.finding_json: Any = finding_json
+        self._get_resource_id(
+            parse_id_pattern, resource_index
+        )  # self.resource_id, self.resource_id_matches
+        self._get_standard_info()  # self.standard_id, self.standard_version, self.control_id
+
+        # V1.4
+        self.account_id = self.finding_json.get(
+            "AwsAccountId", None
+        )  # deprecate - get Finding.AwsAccountId
+        if not re.match(r"^\\d{12}$", self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
+        self.finding_id = self.finding_json.get("Id", None)  # deprecate
+        self.product_arn = self.finding_json.get("ProductArn", None)
+        if not re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+            self.product_arn,
+        ):
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = (
+                    f"ProductArn is invalid: {self.product_arn}"
+                )
+        self.details = self.finding_json["Resources"][0].get("Details", {})
+        # Test mode is used with fabricated finding data to tell the
+        # remediation runbook to run in test more (where supported)
+        # Currently not widely-used and perhaps should be deprecated.
+        self.testmode = bool("testmode" in self.finding_json)
+        self.resource = self.finding_json["Resources"][0]
+        self._get_region_from_resource_id()
+        self._get_aws_config_rule()
+
+        if "InputParameters" in self.aws_config_rule:
+            self.input_params = json.loads(self.aws_config_rule["InputParameters"])
+
+        self.affected_object = {
+            "Type": self.resource["Type"],
+            "Id": self.resource_id,
+            "OutputKey": "Remediation.Output",
+        }
+
+        # Validate control_id
+        if not self.control_id:
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]} - missing Control Id'
+        elif (
+            self.control_id not in expected_control_id
+        ):  # ControlId is the expected value
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
+
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = (
+                "Resource Id is missing from the finding json Resources (Id)"
+            )
+
+        if not self.valid_finding:
+            # Error message and return error data
+            msg = f"ERROR: {self.invalid_finding_reason}"
+            exit(msg)
+
+    def __str__(self):
+        return json.dumps(self.__dict__)
+
+
+"""
+MAIN
+"""
+
+
+def parse_event(event, _):
+    finding_event = FindingEvent(
+        event["Finding"],
+        event["parse_id_pattern"],
+        event["expected_control_id"],
+        event.get("resource_index", 1),
+    )
+
+    if not finding_event.valid_finding:
+        exit("ERROR: Finding is not valid")
+
+    return {
+        "account_id": finding_event.account_id,
+        "resource_id": finding_event.resource_id,
+        "finding_id": finding_event.finding_id,  # Deprecate v1.5.0+
+        "control_id": finding_event.control_id,
+        "product_arn": finding_event.product_arn,  # Deprecate v1.5.0+
+        "object": finding_event.affected_object,
+        "matches": finding_event.resource_id_matches,
+        "details": finding_event.details,  # Deprecate v1.5.0+
+        "testmode": finding_event.testmode,  # Deprecate v1.5.0+
+        "resource": finding_event.resource,
+        "resource_region": finding_event.resource_region,
+        "finding": finding_event.finding_json,
+        "aws_config_rule": finding_event.aws_config_rule,
+        "input_params": finding_event.input_params,
+    }
+",
+              },
+              "name": "ParseInput",
+              "outputs": [
+                {
+                  "Name": "FindingId",
+                  "Selector": "$.Payload.finding_id",
+                  "Type": "String",
+                },
+                {
+                  "Name": "ProductArn",
+                  "Selector": "$.Payload.product_arn",
+                  "Type": "String",
+                },
+                {
+                  "Name": "AffectedObject",
+                  "Selector": "$.Payload.object",
+                  "Type": "StringMap",
+                },
+                {
+                  "Name": "InputParams",
+                  "Selector": "$.Payload.input_params",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "get_input_params",
+                "InputPayload": {
+                  "DefaultParams": {
+                    "AllowUsersToChangePassword": "True",
+                    "HardExpiry": "True",
+                    "MaxPasswordAge": "90",
+                    "MinimumPasswordLength": "14",
+                    "PasswordReusePrevention": "24",
+                    "RequireLowercaseCharacters": "True",
+                    "RequireNumbers": "True",
+                    "RequireSymbols": "True",
+                    "RequireUppercaseCharacters": "True",
+                  },
+                  "SecHubInputParams": "{{ ParseInput.InputParams }}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import re
+
+
+def parse_non_string_types(param):
+    if re.match("^\\d+$", str(param)):
+        param = int(param)
+        return param
+    if str(param).lower() == "true":
+        return True
+    if str(param).lower() == "false":
+        return False
+    if isinstance(param, list):
+        return param
+    if len(param.split(",")) > 1:
+        return param.split(",")
+    return param
+
+
+def get_input_params(event, _):
+    security_hub_input_params = event["SecHubInputParams"]
+
+    default_params = event["DefaultParams"]
+
+    input_params = {}
+
+    for param in default_params:
+        if param in security_hub_input_params:
+            converted_param = parse_non_string_types(security_hub_input_params[param])
+            input_params[param] = converted_param
+        else:
+            converted_param = parse_non_string_types(default_params[param])
+            input_params[param] = converted_param
+
+    return input_params
+",
+              },
+              "name": "GetInputParams",
+              "outputs": [
+                {
+                  "Name": "AllowUsersToChangePassword",
+                  "Selector": "$.Payload.AllowUsersToChangePassword",
+                  "Type": "Boolean",
+                },
+                {
+                  "Name": "HardExpiry",
+                  "Selector": "$.Payload.HardExpiry",
+                  "Type": "Boolean",
+                },
+                {
+                  "Name": "MaxPasswordAge",
+                  "Selector": "$.Payload.MaxPasswordAge",
+                  "Type": "Integer",
+                },
+                {
+                  "Name": "MinimumPasswordLength",
+                  "Selector": "$.Payload.MinimumPasswordLength",
+                  "Type": "Integer",
+                },
+                {
+                  "Name": "RequireSymbols",
+                  "Selector": "$.Payload.RequireSymbols",
+                  "Type": "Boolean",
+                },
+                {
+                  "Name": "RequireNumbers",
+                  "Selector": "$.Payload.RequireNumbers",
+                  "Type": "Boolean",
+                },
+                {
+                  "Name": "RequireUppercaseCharacters",
+                  "Selector": "$.Payload.RequireUppercaseCharacters",
+                  "Type": "Boolean",
+                },
+                {
+                  "Name": "RequireLowercaseCharacters",
+                  "Selector": "$.Payload.RequireLowercaseCharacters",
+                  "Type": "Boolean",
+                },
+                {
+                  "Name": "PasswordReusePrevention",
+                  "Selector": "$.Payload.PasswordReusePrevention",
+                  "Type": "Integer",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeAutomation",
+              "inputs": {
+                "DocumentName": "ASR-SetIAMPasswordPolicy",
+                "RuntimeParameters": {
+                  "AllowUsersToChangePassword": "{{ GetInputParams.AllowUsersToChangePassword }}",
+                  "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
+                  "HardExpiry": "{{ GetInputParams.HardExpiry }}",
+                  "MaxPasswordAge": "{{ GetInputParams.MaxPasswordAge }}",
+                  "MinimumPasswordLength": "{{ GetInputParams.MinimumPasswordLength }}",
+                  "PasswordReusePrevention": "{{ GetInputParams.PasswordReusePrevention }}",
+                  "RequireLowercaseCharacters": "{{ GetInputParams.RequireLowercaseCharacters }}",
+                  "RequireNumbers": "{{ GetInputParams.RequireNumbers }}",
+                  "RequireSymbols": "{{ GetInputParams.RequireSymbols }}",
+                  "RequireUppercaseCharacters": "{{ GetInputParams.RequireUppercaseCharacters }}",
+                },
+              },
+              "name": "Remediation",
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "BatchUpdateFindings",
+                "FindingIdentifiers": [
+                  {
+                    "Id": "{{ ParseInput.FindingId }}",
+                    "ProductArn": "{{ ParseInput.ProductArn }}",
+                  },
+                ],
+                "Note": {
+                  "Text": "Established a baseline password policy using the ASR-SetIAMPasswordPolicy runbook.",
+                  "UpdatedBy": "ASR-CIS_3.0.0_1.8",
+                },
+                "Service": "securityhub",
+                "Workflow": {
+                  "Status": "RESOLVED",
+                },
+              },
+              "isEnd": true,
+              "name": "UpdateFinding",
+            },
+          ],
+          "outputs": [
+            "Remediation.Output",
+            "ParseInput.AffectedObject",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role\\/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "Finding": {
+              "description": "The input from the Orchestrator Step function for the 1.8 finding",
+              "type": "StringMap",
+            },
+            "RemediationRoleName": {
+              "allowedPattern": "^[\\w+=,.@-]+$",
+              "default": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "SO0111-SetIAMPasswordPolicy-",
+                    {
+                      "Ref": "Namespace",
+                    },
+                  ],
+                ],
+              },
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-CIS_3.0.0_1.8",
+        "Tags": [
+          {
+            "Key": "CdkGenerated",
+            "Value": "true",
+          },
+        ],
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ControlRunbooks211791EFE09": {
+      "Condition": "ControlRunbooksEnable211ConditionB51DDAA2",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-AFSBP_1.0.0_S3.5
+
+## What does this document do?
+This document adds a bucket policy to restrict internet access to https only.
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* Remediation.Output
+
+## Documentation Links
+* [AWS FSBP v1.0.0 S3.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-5)
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "parse_event",
+                "InputPayload": {
+                  "Finding": "{{ Finding }}",
+                  "expected_control_id": [
+                    "2.1.1",
+                  ],
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import json
+import re
+from typing import Any
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_config(boto_config):
+    return boto3.client("config", config=boto_config)
+
+
+def connect_to_ssm(boto_config):
+    return boto3.client("ssm", config=boto_config)
+
+
+def get_solution_id():
+    return "SO0111"
+
+
+def get_solution_version():
+    ssm = connect_to_ssm(
+        Config(
+            retries={"mode": "standard"},
+            user_agent_extra=f"AwsSolution/{get_solution_id()}/unknown",
+        )
+    )
+    solution_version = "unknown"
+    try:
+        ssm_parm_value = ssm.get_parameter(
+            Name=f"/Solutions/{get_solution_id()}/member-version"
+        )["Parameter"].get("Value", "unknown")
+        solution_version = ssm_parm_value
+    except Exception as e:
+        print(e)
+        print("ERROR getting solution version")
+    return solution_version
+
+
+def get_shortname(long_name):
+    short_name = {
+        "aws-foundational-security-best-practices": "AFSBP",
+        "cis-aws-foundations-benchmark": "CIS",
+        "pci-dss": "PCI",
+        "security-control": "SC",
+    }
+    return short_name.get(long_name, None)
+
+
+def get_config_rule(rule_name):
+    boto_config = Config(
+        retries={"mode": "standard"},
+        user_agent_extra=f"AwsSolution/{get_solution_id()}/{get_solution_version()}",
+    )
+    config_rule = None
+    try:
+        configsvc = connect_to_config(boto_config)
+        config_rule = configsvc.describe_config_rules(ConfigRuleNames=[rule_name]).get(
+            "ConfigRules", []
+        )[0]
+    except Exception as e:
+        print(e)
+        exit(f"ERROR getting config rule {rule_name}")
+    return config_rule
+
+
+class FindingEvent:
+    """
+    Finding object returns the parse fields from an input finding json object
+    """
+
+    def _get_resource_id(self, parse_id_pattern, resource_index):
+        identifier_raw = self.finding_json["Resources"][0]["Id"]
+        self.resource_id = identifier_raw
+        self.resource_id_matches = []
+
+        if parse_id_pattern:
+            identifier_match = re.match(parse_id_pattern, identifier_raw)
+
+            if identifier_match:
+                for group in range(1, len(identifier_match.groups()) + 1):
+                    self.resource_id_matches.append(identifier_match.group(group))
+                self.resource_id = identifier_match.group(resource_index)
+            else:
+                exit(f"ERROR: Invalid resource Id {identifier_raw}")
+
+    def _get_sc_check(self):
+        match_finding_id = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
+            + "security-control/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            self.finding_json["Id"],
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname("security-control")
+            self.control_id = match_finding_id.group(1)
+
+        return match_finding_id
+
+    def _get_standard_info(self):
+        match_finding_id = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
+            + "subscription/(.*?)/v/(\\d+\\.\\d+\\.\\d+)/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            self.finding_json["Id"],
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname(match_finding_id.group(1))
+            self.standard_version = match_finding_id.group(2)
+            self.control_id = match_finding_id.group(3)
+        else:
+            match_sc_finding_id = self._get_sc_check()
+            if not match_sc_finding_id:
+                self.valid_finding = False
+                self.invalid_finding_reason = (
+                    f'Finding Id is invalid: {self.finding_json["Id"]}'
+                )
+
+    def _get_aws_config_rule(self):
+        # config_rule_id refers to the AWS Config Rule that produced the finding
+        if (
+            "RelatedAWSResources:0/type" in self.finding_json["ProductFields"]
+            and self.finding_json["ProductFields"]["RelatedAWSResources:0/type"]
+            == "AWS::Config::ConfigRule"
+        ):
+            self.aws_config_rule_id = self.finding_json["ProductFields"][
+                "RelatedAWSResources:0/name"
+            ]
+            self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
+
+    def _get_region_from_resource_id(self):
+        check_for_region = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
+            self.finding_json["Resources"][0]["Id"],
+        )
+        if check_for_region:
+            self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
+
+    def __init__(
+        self, finding_json, parse_id_pattern, expected_control_id, resource_index
+    ):
+        self.valid_finding = True
+        self.resource_region = None
+        self.control_id = None
+        self.aws_config_rule_id = None
+        self.aws_config_rule = {}
+        self.input_params = {}
+
+        """Populate fields"""
+        # v1.5
+        self.finding_json: Any = finding_json
+        self._get_resource_id(
+            parse_id_pattern, resource_index
+        )  # self.resource_id, self.resource_id_matches
+        self._get_standard_info()  # self.standard_id, self.standard_version, self.control_id
+
+        # V1.4
+        self.account_id = self.finding_json.get(
+            "AwsAccountId", None
+        )  # deprecate - get Finding.AwsAccountId
+        if not re.match(r"^\\d{12}$", self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
+        self.finding_id = self.finding_json.get("Id", None)  # deprecate
+        self.product_arn = self.finding_json.get("ProductArn", None)
+        if not re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+            self.product_arn,
+        ):
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = (
+                    f"ProductArn is invalid: {self.product_arn}"
+                )
+        self.details = self.finding_json["Resources"][0].get("Details", {})
+        # Test mode is used with fabricated finding data to tell the
+        # remediation runbook to run in test more (where supported)
+        # Currently not widely-used and perhaps should be deprecated.
+        self.testmode = bool("testmode" in self.finding_json)
+        self.resource = self.finding_json["Resources"][0]
+        self._get_region_from_resource_id()
+        self._get_aws_config_rule()
+
+        if "InputParameters" in self.aws_config_rule:
+            self.input_params = json.loads(self.aws_config_rule["InputParameters"])
+
+        self.affected_object = {
+            "Type": self.resource["Type"],
+            "Id": self.resource_id,
+            "OutputKey": "Remediation.Output",
+        }
+
+        # Validate control_id
+        if not self.control_id:
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]} - missing Control Id'
+        elif (
+            self.control_id not in expected_control_id
+        ):  # ControlId is the expected value
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
+
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = (
+                "Resource Id is missing from the finding json Resources (Id)"
+            )
+
+        if not self.valid_finding:
+            # Error message and return error data
+            msg = f"ERROR: {self.invalid_finding_reason}"
+            exit(msg)
+
+    def __str__(self):
+        return json.dumps(self.__dict__)
+
+
+"""
+MAIN
+"""
+
+
+def parse_event(event, _):
+    finding_event = FindingEvent(
+        event["Finding"],
+        event["parse_id_pattern"],
+        event["expected_control_id"],
+        event.get("resource_index", 1),
+    )
+
+    if not finding_event.valid_finding:
+        exit("ERROR: Finding is not valid")
+
+    return {
+        "account_id": finding_event.account_id,
+        "resource_id": finding_event.resource_id,
+        "finding_id": finding_event.finding_id,  # Deprecate v1.5.0+
+        "control_id": finding_event.control_id,
+        "product_arn": finding_event.product_arn,  # Deprecate v1.5.0+
+        "object": finding_event.affected_object,
+        "matches": finding_event.resource_id_matches,
+        "details": finding_event.details,  # Deprecate v1.5.0+
+        "testmode": finding_event.testmode,  # Deprecate v1.5.0+
+        "resource": finding_event.resource,
+        "resource_region": finding_event.resource_region,
+        "finding": finding_event.finding_json,
+        "aws_config_rule": finding_event.aws_config_rule,
+        "input_params": finding_event.input_params,
+    }
+",
+              },
+              "name": "ParseInput",
+              "outputs": [
+                {
+                  "Name": "FindingId",
+                  "Selector": "$.Payload.finding_id",
+                  "Type": "String",
+                },
+                {
+                  "Name": "ProductArn",
+                  "Selector": "$.Payload.product_arn",
+                  "Type": "String",
+                },
+                {
+                  "Name": "AffectedObject",
+                  "Selector": "$.Payload.object",
+                  "Type": "StringMap",
+                },
+                {
+                  "Name": "InputParams",
+                  "Selector": "$.Payload.input_params",
+                  "Type": "StringMap",
+                },
+                {
+                  "Name": "BucketName",
+                  "Selector": "$.Payload.resource_id",
+                  "Type": "String",
+                },
+                {
+                  "Name": "RemediationAccount",
+                  "Selector": "$.Payload.account_id",
+                  "Type": "String",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeAutomation",
+              "inputs": {
+                "DocumentName": "ASR-SetSSLBucketPolicy",
+                "RuntimeParameters": {
+                  "AccountId": "{{ ParseInput.RemediationAccount }}",
+                  "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
+                  "BucketName": "{{ ParseInput.BucketName }}",
+                },
+              },
+              "name": "Remediation",
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "BatchUpdateFindings",
+                "FindingIdentifiers": [
+                  {
+                    "Id": "{{ ParseInput.FindingId }}",
+                    "ProductArn": "{{ ParseInput.ProductArn }}",
+                  },
+                ],
+                "Note": {
+                  "Text": "Added SSL-only access policy to S3 bucket.",
+                  "UpdatedBy": "ASR-CIS_3.0.0_2.1.1",
+                },
+                "Service": "securityhub",
+                "Workflow": {
+                  "Status": "RESOLVED",
+                },
+              },
+              "isEnd": true,
+              "name": "UpdateFinding",
+            },
+          ],
+          "outputs": [
+            "Remediation.Output",
+            "ParseInput.AffectedObject",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role\\/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "Finding": {
+              "description": "The input from the Orchestrator Step function for the 2.1.1 finding",
+              "type": "StringMap",
+            },
+            "RemediationRoleName": {
+              "allowedPattern": "^[\\w+=,.@-]+$",
+              "default": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "SO0111-SetSSLBucketPolicy-",
+                    {
+                      "Ref": "Namespace",
+                    },
+                  ],
+                ],
+              },
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-CIS_3.0.0_2.1.1",
+        "Tags": [
+          {
+            "Key": "CdkGenerated",
+            "Value": "true",
+          },
+        ],
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ControlRunbooks214267DDF44": {
+      "Condition": "ControlRunbooksEnable214Condition63988B9B",
+      "DependsOn": [
+        "CreateWait0",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-AFSBP_1.0.0_S3.1
+
+## What does this document do?
+This document blocks public access to all buckets by default at the account level.
+
+## Input Parameters
+* Finding: (Required) Security Hub finding details JSON
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* Remediation.Output
+
+## Documentation Links
+* [AWS FSBP v1.0.0 S3.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-1)
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "parse_event",
+                "InputPayload": {
+                  "Finding": "{{ Finding }}",
+                  "expected_control_id": [
+                    "2.1.4",
+                  ],
+                  "parse_id_pattern": "",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import json
+import re
+from typing import Any
+
+import boto3
+from botocore.config import Config
+
+
+def connect_to_config(boto_config):
+    return boto3.client("config", config=boto_config)
+
+
+def connect_to_ssm(boto_config):
+    return boto3.client("ssm", config=boto_config)
+
+
+def get_solution_id():
+    return "SO0111"
+
+
+def get_solution_version():
+    ssm = connect_to_ssm(
+        Config(
+            retries={"mode": "standard"},
+            user_agent_extra=f"AwsSolution/{get_solution_id()}/unknown",
+        )
+    )
+    solution_version = "unknown"
+    try:
+        ssm_parm_value = ssm.get_parameter(
+            Name=f"/Solutions/{get_solution_id()}/member-version"
+        )["Parameter"].get("Value", "unknown")
+        solution_version = ssm_parm_value
+    except Exception as e:
+        print(e)
+        print("ERROR getting solution version")
+    return solution_version
+
+
+def get_shortname(long_name):
+    short_name = {
+        "aws-foundational-security-best-practices": "AFSBP",
+        "cis-aws-foundations-benchmark": "CIS",
+        "pci-dss": "PCI",
+        "security-control": "SC",
+    }
+    return short_name.get(long_name, None)
+
+
+def get_config_rule(rule_name):
+    boto_config = Config(
+        retries={"mode": "standard"},
+        user_agent_extra=f"AwsSolution/{get_solution_id()}/{get_solution_version()}",
+    )
+    config_rule = None
+    try:
+        configsvc = connect_to_config(boto_config)
+        config_rule = configsvc.describe_config_rules(ConfigRuleNames=[rule_name]).get(
+            "ConfigRules", []
+        )[0]
+    except Exception as e:
+        print(e)
+        exit(f"ERROR getting config rule {rule_name}")
+    return config_rule
+
+
+class FindingEvent:
+    """
+    Finding object returns the parse fields from an input finding json object
+    """
+
+    def _get_resource_id(self, parse_id_pattern, resource_index):
+        identifier_raw = self.finding_json["Resources"][0]["Id"]
+        self.resource_id = identifier_raw
+        self.resource_id_matches = []
+
+        if parse_id_pattern:
+            identifier_match = re.match(parse_id_pattern, identifier_raw)
+
+            if identifier_match:
+                for group in range(1, len(identifier_match.groups()) + 1):
+                    self.resource_id_matches.append(identifier_match.group(group))
+                self.resource_id = identifier_match.group(resource_index)
+            else:
+                exit(f"ERROR: Invalid resource Id {identifier_raw}")
+
+    def _get_sc_check(self):
+        match_finding_id = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
+            + "security-control/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            self.finding_json["Id"],
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname("security-control")
+            self.control_id = match_finding_id.group(1)
+
+        return match_finding_id
+
+    def _get_standard_info(self):
+        match_finding_id = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
+            + "subscription/(.*?)/v/(\\d+\\.\\d+\\.\\d+)/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            self.finding_json["Id"],
+        )
+        if match_finding_id:
+            self.standard_id = get_shortname(match_finding_id.group(1))
+            self.standard_version = match_finding_id.group(2)
+            self.control_id = match_finding_id.group(3)
+        else:
+            match_sc_finding_id = self._get_sc_check()
+            if not match_sc_finding_id:
+                self.valid_finding = False
+                self.invalid_finding_reason = (
+                    f'Finding Id is invalid: {self.finding_json["Id"]}'
+                )
+
+    def _get_aws_config_rule(self):
+        # config_rule_id refers to the AWS Config Rule that produced the finding
+        if (
+            "RelatedAWSResources:0/type" in self.finding_json["ProductFields"]
+            and self.finding_json["ProductFields"]["RelatedAWSResources:0/type"]
+            == "AWS::Config::ConfigRule"
+        ):
+            self.aws_config_rule_id = self.finding_json["ProductFields"][
+                "RelatedAWSResources:0/name"
+            ]
+            self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
+
+    def _get_region_from_resource_id(self):
+        check_for_region = re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
+            self.finding_json["Resources"][0]["Id"],
+        )
+        if check_for_region:
+            self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
+
+    def __init__(
+        self, finding_json, parse_id_pattern, expected_control_id, resource_index
+    ):
+        self.valid_finding = True
+        self.resource_region = None
+        self.control_id = None
+        self.aws_config_rule_id = None
+        self.aws_config_rule = {}
+        self.input_params = {}
+
+        """Populate fields"""
+        # v1.5
+        self.finding_json: Any = finding_json
+        self._get_resource_id(
+            parse_id_pattern, resource_index
+        )  # self.resource_id, self.resource_id_matches
+        self._get_standard_info()  # self.standard_id, self.standard_version, self.control_id
+
+        # V1.4
+        self.account_id = self.finding_json.get(
+            "AwsAccountId", None
+        )  # deprecate - get Finding.AwsAccountId
+        if not re.match(r"^\\d{12}$", self.account_id) and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
+        self.finding_id = self.finding_json.get("Id", None)  # deprecate
+        self.product_arn = self.finding_json.get("ProductArn", None)
+        if not re.match(
+            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+            self.product_arn,
+        ):
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = (
+                    f"ProductArn is invalid: {self.product_arn}"
+                )
+        self.details = self.finding_json["Resources"][0].get("Details", {})
+        # Test mode is used with fabricated finding data to tell the
+        # remediation runbook to run in test more (where supported)
+        # Currently not widely-used and perhaps should be deprecated.
+        self.testmode = bool("testmode" in self.finding_json)
+        self.resource = self.finding_json["Resources"][0]
+        self._get_region_from_resource_id()
+        self._get_aws_config_rule()
+
+        if "InputParameters" in self.aws_config_rule:
+            self.input_params = json.loads(self.aws_config_rule["InputParameters"])
+
+        self.affected_object = {
+            "Type": self.resource["Type"],
+            "Id": self.resource_id,
+            "OutputKey": "Remediation.Output",
+        }
+
+        # Validate control_id
+        if not self.control_id:
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]} - missing Control Id'
+        elif (
+            self.control_id not in expected_control_id
+        ):  # ControlId is the expected value
+            if self.valid_finding:
+                self.valid_finding = False
+                self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
+
+        if not self.resource_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = (
+                "Resource Id is missing from the finding json Resources (Id)"
+            )
+
+        if not self.valid_finding:
+            # Error message and return error data
+            msg = f"ERROR: {self.invalid_finding_reason}"
+            exit(msg)
+
+    def __str__(self):
+        return json.dumps(self.__dict__)
+
+
+"""
+MAIN
+"""
+
+
+def parse_event(event, _):
+    finding_event = FindingEvent(
+        event["Finding"],
+        event["parse_id_pattern"],
+        event["expected_control_id"],
+        event.get("resource_index", 1),
+    )
+
+    if not finding_event.valid_finding:
+        exit("ERROR: Finding is not valid")
+
+    return {
+        "account_id": finding_event.account_id,
+        "resource_id": finding_event.resource_id,
+        "finding_id": finding_event.finding_id,  # Deprecate v1.5.0+
+        "control_id": finding_event.control_id,
+        "product_arn": finding_event.product_arn,  # Deprecate v1.5.0+
+        "object": finding_event.affected_object,
+        "matches": finding_event.resource_id_matches,
+        "details": finding_event.details,  # Deprecate v1.5.0+
+        "testmode": finding_event.testmode,  # Deprecate v1.5.0+
+        "resource": finding_event.resource,
+        "resource_region": finding_event.resource_region,
+        "finding": finding_event.finding_json,
+        "aws_config_rule": finding_event.aws_config_rule,
+        "input_params": finding_event.input_params,
+    }
+",
+              },
+              "name": "ParseInput",
+              "outputs": [
+                {
+                  "Name": "FindingId",
+                  "Selector": "$.Payload.finding_id",
+                  "Type": "String",
+                },
+                {
+                  "Name": "ProductArn",
+                  "Selector": "$.Payload.product_arn",
+                  "Type": "String",
+                },
+                {
+                  "Name": "AffectedObject",
+                  "Selector": "$.Payload.object",
+                  "Type": "StringMap",
+                },
+                {
+                  "Name": "InputParams",
+                  "Selector": "$.Payload.input_params",
+                  "Type": "StringMap",
+                },
+                {
+                  "Name": "RemediationAccount",
+                  "Selector": "$.Payload.account_id",
+                  "Type": "String",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeAutomation",
+              "inputs": {
+                "DocumentName": "ASR-ConfigureS3PublicAccessBlock",
+                "RuntimeParameters": {
+                  "AccountId": "{{ ParseInput.RemediationAccount }}",
+                  "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
+                  "BlockPublicAcls": true,
+                  "BlockPublicPolicy": true,
+                  "IgnorePublicAcls": true,
+                  "RestrictPublicBuckets": true,
+                },
+              },
+              "name": "Remediation",
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "BatchUpdateFindings",
+                "FindingIdentifiers": [
+                  {
+                    "Id": "{{ ParseInput.FindingId }}",
+                    "ProductArn": "{{ ParseInput.ProductArn }}",
+                  },
+                ],
+                "Note": {
+                  "Text": "Configured the account to block public S3 access.",
+                  "UpdatedBy": "ASR-CIS_3.0.0_2.1.4",
+                },
+                "Service": "securityhub",
+                "Workflow": {
+                  "Status": "RESOLVED",
+                },
+              },
+              "isEnd": true,
+              "name": "UpdateFinding",
+            },
+          ],
+          "outputs": [
+            "Remediation.Output",
+            "ParseInput.AffectedObject",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role\\/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "Finding": {
+              "description": "The input from the Orchestrator Step function for the 2.1.4 finding",
+              "type": "StringMap",
+            },
+            "RemediationRoleName": {
+              "allowedPattern": "^[\\w+=,.@-]+$",
+              "default": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "SO0111-ConfigureS3PublicAccessBlock-",
+                    {
+                      "Ref": "Namespace",
+                    },
+                  ],
+                ],
+              },
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-CIS_3.0.0_2.1.4",
+        "Tags": [
+          {
+            "Key": "CdkGenerated",
+            "Value": "true",
+          },
+        ],
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "CreateWait0": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait0": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "Gate0",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "Gate0": {
+      "Metadata": {
+        "ControlRunbooks18982107CEReady": {
+          "Fn::If": [
+            "ControlRunbooksEnable18ConditionF6303E01",
+            {
+              "Ref": "ControlRunbooks18982107CE",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooks211791EFE09Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnable211ConditionB51DDAA2",
+            {
+              "Ref": "ControlRunbooks211791EFE09",
+            },
+            "",
+          ],
+        },
+        "ControlRunbooks214267DDF44Ready": {
+          "Fn::If": [
+            "ControlRunbooksEnable214Condition63988B9B",
+            {
+              "Ref": "ControlRunbooks214267DDF44",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+  },
+}
+`;
+
+exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
+{
+  "Description": "test",
+  "Mappings": {
+    "SourceCode": {
+      "General": {
+        "KeyPrefix": "automated-security-response-on-aws/v2.2.0",
+        "S3Bucket": "sharrbukkit",
+      },
+    },
+  },
+  "Parameters": {
+    "CIS30018AutoTrigger": {
+      "AllowedValues": [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 3.0.0 1.8",
+      "Type": "String",
+    },
+    "CIS300211AutoTrigger": {
+      "AllowedValues": [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 3.0.0 2.1.1",
+      "Type": "String",
+    },
+    "CIS300214AutoTrigger": {
+      "AllowedValues": [
+        "ENABLED",
+        "DISABLED",
+      ],
+      "Default": "DISABLED",
+      "Description": "This will fully enable automated remediation for CIS 3.0.0 2.1.4",
+      "Type": "String",
+    },
+    "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/Solutions/SO0111/OrchestratorArn",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "CIS18AutoEventRule30B4F305": {
+      "Properties": {
+        "Description": "Remediate CIS 3.0.0 1.8 automatic remediation trigger event rule.",
+        "EventPattern": {
+          "detail": {
+            "findings": {
+              "Compliance": {
+                "Status": [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "GeneratorId": [
+                "cis-aws-foundations-benchmark/v/3.0.0/1.8",
+              ],
+              "RecordState": [
+                "ACTIVE",
+              ],
+              "Workflow": {
+                "Status": [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": [
+            "Security Hub Findings - Imported",
+          ],
+          "source": [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS_3.0.0_1.8_AutoTrigger",
+        "State": {
+          "Ref": "CIS30018AutoTrigger",
+        },
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
+            "RoleArn": {
+              "Fn::GetAtt": [
+                "CIS18EventsRuleRoleC1B4B61A",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CIS18EventsRuleRoleC1B4B61A": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CIS18EventsRuleRoleDefaultPolicy40AE3E6D": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CIS18EventsRuleRoleDefaultPolicy40AE3E6D",
+        "Roles": [
+          {
+            "Ref": "CIS18EventsRuleRoleC1B4B61A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CIS211AutoEventRuleAA6C5519": {
+      "Properties": {
+        "Description": "Remediate CIS 3.0.0 2.1.1 automatic remediation trigger event rule.",
+        "EventPattern": {
+          "detail": {
+            "findings": {
+              "Compliance": {
+                "Status": [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "GeneratorId": [
+                "cis-aws-foundations-benchmark/v/3.0.0/2.1.1",
+              ],
+              "RecordState": [
+                "ACTIVE",
+              ],
+              "Workflow": {
+                "Status": [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": [
+            "Security Hub Findings - Imported",
+          ],
+          "source": [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS_3.0.0_2.1.1_AutoTrigger",
+        "State": {
+          "Ref": "CIS300211AutoTrigger",
+        },
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
+            "RoleArn": {
+              "Fn::GetAtt": [
+                "CIS211EventsRuleRoleF4B7BF51",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CIS211EventsRuleRoleDefaultPolicy2C0D2642": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CIS211EventsRuleRoleDefaultPolicy2C0D2642",
+        "Roles": [
+          {
+            "Ref": "CIS211EventsRuleRoleF4B7BF51",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CIS211EventsRuleRoleF4B7BF51": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CIS214AutoEventRule64AC657F": {
+      "Properties": {
+        "Description": "Remediate CIS 3.0.0 2.1.4 automatic remediation trigger event rule.",
+        "EventPattern": {
+          "detail": {
+            "findings": {
+              "Compliance": {
+                "Status": [
+                  "FAILED",
+                  "WARNING",
+                ],
+              },
+              "GeneratorId": [
+                "cis-aws-foundations-benchmark/v/3.0.0/2.1.4",
+              ],
+              "RecordState": [
+                "ACTIVE",
+              ],
+              "Workflow": {
+                "Status": [
+                  "NEW",
+                ],
+              },
+            },
+          },
+          "detail-type": [
+            "Security Hub Findings - Imported",
+          ],
+          "source": [
+            "aws.securityhub",
+          ],
+        },
+        "Name": "CIS_3.0.0_2.1.4_AutoTrigger",
+        "State": {
+          "Ref": "CIS300214AutoTrigger",
+        },
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
+            "RoleArn": {
+              "Fn::GetAtt": [
+                "CIS214EventsRuleRole28D2A9C9",
+                "Arn",
+              ],
+            },
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CIS214EventsRuleRole28D2A9C9": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CIS214EventsRuleRoleDefaultPolicyEF080D3E": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CIS214EventsRuleRoleDefaultPolicyEF080D3E",
+        "Roles": [
+          {
+            "Ref": "CIS214EventsRuleRole28D2A9C9",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CISShortNameB8C8810A": {
+      "Properties": {
+        "Description": "Provides a short (1-12) character abbreviation for the standard.",
+        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/3.0.0/shortname",
+        "Type": "String",
+        "Value": "CIS",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "StandardVersionCB2C6951": {
+      "Properties": {
+        "Description": "This parameter controls whether the SHARR step function will process findings for this version of the standard.",
+        "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/3.0.0/status",
+        "Type": "String",
+        "Value": "enabled",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+  },
+}
+`;

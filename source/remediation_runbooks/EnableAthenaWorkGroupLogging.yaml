@@ -1,0 +1,55 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-AttachServiceVPCEndpoint
+
+  ## Overview
+  This document enables logging in the given Athena WorkGroup.
+
+  ## Pre-requisites
+  * None
+  
+  ## What does this document do?
+    This document enables CloudWatch logging for the given Athena Work Group.
+
+  ## Input Parameters
+  * WorkGroupName: (Required) Athena Work Group to be remediated.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableWorkGroupLogging.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  WorkGroupName:
+    type: String
+    description: (Required) The WorkGroup name.
+    allowedPattern: '^[a-zA-Z0-9._-]{1,128}$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnableWorkGroupLogging.Output
+mainSteps:
+  -
+    name: EnableWorkGroupLogging
+    description: |
+      ## Remediation
+      Creates and attaches service interface endpoint to VPC.
+    action: 'aws:executeAwsApi'
+    isEnd: true
+    inputs:
+      Service: athena
+      Api: UpdateWorkGroup
+      WorkGroup: '{{WorkGroupName}}'
+      ConfigurationUpdates:
+        PublishCloudWatchMetricsEnabled: true
+    maxAttempts: 2
+    outputs:
+      - Name: 'Output'
+        Selector: '$'
+        Type: 'StringMap'
+

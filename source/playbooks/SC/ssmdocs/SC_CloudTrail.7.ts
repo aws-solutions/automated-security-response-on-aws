@@ -39,15 +39,14 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     const createAccessLoggingBucketStepName = 'CreateAccessLoggingBucket';
     const createAccessLoggingBucketStep = new ExecuteAutomationStep(this, createAccessLoggingBucketStepName, {
       documentName: HardCodedString.of(`${this.solutionAcronym}-${createAccessLoggingBucketStepName}`),
       runtimeParameters: HardCodedStringMap.of({
         BucketName: getTargetBucketName(this.solutionId),
         AutomationAssumeRole: new StringFormat(
-          `arn:%s:iam::%s:role/${this.solutionId}-${createAccessLoggingBucketStepName}`,
+          `arn:%s:iam::%s:role/${this.solutionId}-${createAccessLoggingBucketStepName}-${this.namespace}`,
           [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
         ),
       }),
@@ -56,17 +55,14 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
     return [createAccessLoggingBucketStep];
   }
 
-  /** @override */
-  protected getRemediationStep(): AutomationStep {
+  protected override getRemediationStep(): AutomationStep {
     return new ExecuteAutomationStep(this, 'Remediation', {
       documentName: HardCodedString.of(`AWS-${this.remediationName}`),
       runtimeParameters: HardCodedStringMap.of(this.getRemediationParams()),
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.GrantedPermission = ['READ'];

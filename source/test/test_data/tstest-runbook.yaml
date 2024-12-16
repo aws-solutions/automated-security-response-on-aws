@@ -20,6 +20,7 @@ assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
     type: String
+    default: '%%ROLE=SO0111-MyIAMRole%%'
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   TrailName:

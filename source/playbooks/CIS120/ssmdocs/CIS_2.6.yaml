@@ -66,7 +66,7 @@ mainSteps:
       DocumentName: ASR-CreateAccessLoggingBucket
       RuntimeParameters:
         BucketName: 'so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateAccessLoggingBucket'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-CreateAccessLoggingBucket%%'
 
   - name: Remediation
     action: 'aws:executeAutomation'
@@ -80,7 +80,7 @@ mainSteps:
         GranteeUri: ['http://acs.amazonaws.com/groups/s3/LogDelivery']
         TargetPrefix: ['{{ParseInput.CloudTrailBucket}}/']
         TargetBucket: ['so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}']
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketLogging'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-ConfigureS3BucketLogging%%'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
@@ -91,7 +91,7 @@ mainSteps:
       - Id: '{{ParseInput.FindingId}}'
         ProductArn: '{{ParseInput.ProductArn}}'
       Note:
-        Text: 'Created S3 bucket so0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}
+        Text: 'Created S3 bucket SO0111-cloudtrailaccesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}
           for logging access to {{ParseInput.CloudTrailBucket}}'
         UpdatedBy: 'ASR-CIS_1.2.0_2.6'
       Workflow:

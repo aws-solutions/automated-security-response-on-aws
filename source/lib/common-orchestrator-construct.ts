@@ -1,6 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Stack, Duration, RemovalPolicy, CfnParameter, CfnResource, Fn, NestedStack } from 'aws-cdk-lib';
+import {
+  Stack,
+  Duration,
+  RemovalPolicy,
+  CfnParameter,
+  CfnResource,
+  Fn,
+  NestedStack,
+  CfnCondition,
+  Aws,
+} from 'aws-cdk-lib';
 import { PolicyDocument, PolicyStatement, Role, Effect, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
@@ -10,6 +20,7 @@ import { Construct } from 'constructs';
 import * as cdk_nag from 'cdk-nag';
 import { Timeout } from 'aws-cdk-lib/aws-stepfunctions';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import TicketingFunctionNameParam from './parameters/ticketing-function-name-param';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface ConstructProps {
@@ -29,17 +40,28 @@ export interface ConstructProps {
 
 export class OrchestratorConstruct extends Construct {
   nestedStack: NestedStack;
+  readonly ticketGenFunctionNameParamId: string;
+  readonly ticketGenFunctionARN: string;
+  readonly ticketingEnabled: CfnCondition;
+
   constructor(scope: Construct, id: string, props: ConstructProps) {
     super(scope, id);
 
     const stack = Stack.of(this);
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
 
+    const ticketGenFunctionNameParam = new TicketingFunctionNameParam(this, 'TicketGenFunctionName');
+
+    const ticketingEnabled = new CfnCondition(this, 'TicketingEnabledCondition', {
+      expression: Fn.conditionNot(Fn.conditionEquals(ticketGenFunctionNameParam.value, '')),
+    });
+
     const extractFindings = new sfn.Pass(this, 'Get Finding Data from Input', {
       comment: 'Extract top-level data needed for remediation',
       parameters: {
         'EventType.$': '$.detail-type',
         'Findings.$': '$.detail.findings',
+        'CustomActionName.$': '$.detail.actionName',
       },
     });
 
@@ -60,6 +82,14 @@ export class OrchestratorConstruct extends Construct {
 
     const notifyFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'notifyFunc', {
       functionArn: props.notifyLambda,
+    });
+
+    const ticketGenerator: lambda.IFunction = lambda.Function.fromFunctionAttributes(this, 'TicketGenerator', {
+      functionArn: Fn.conditionIf(
+        ticketingEnabled.logicalId,
+        ticketGenFunctionNameParam.functionARN,
+        'No Lambda Function ARN available. Ticketing feature is disabled.',
+      ).toString(),
     });
 
     const getApprovalRequirementFunc: lambda.IFunction = lambda.Function.fromFunctionAttributes(
@@ -141,6 +171,7 @@ export class OrchestratorConstruct extends Construct {
       taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultSelector: {
         'ExecState.$': '$.Payload.status',
+        'RemediationOutput.$': '$.Payload.remediation_output',
         'Message.$': '$.Payload.message',
         'ExecId.$': '$.Payload.executionid',
         'Account.$': '$.Payload.executionaccount',
@@ -160,6 +191,7 @@ export class OrchestratorConstruct extends Construct {
         'ExecId.$': '$.Payload.executionid',
         'RemediationState.$': '$.Payload.remediation_status',
         'Message.$': '$.Payload.message',
+        'RemediationOutput.$': '$.Payload.remediation_output',
         'LogData.$': '$.Payload.logdata',
         'AffectedObject.$': '$.Payload.affected_object',
       },
@@ -172,6 +204,32 @@ export class OrchestratorConstruct extends Construct {
       lambdaFunction: notifyFunc,
       heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
       taskTimeout: Timeout.duration(Duration.minutes(5)),
+    });
+
+    const generateTicket = new LambdaInvoke(this, 'Generate Ticket', {
+      comment:
+        'Create ticket using ticket generator function ARN passed to the stack during deployment. ' +
+        'The ARN in this step will be a placeholder string unless you filled in the Ticket Generator Function ARN parameter during Admin stack deployment.',
+      lambdaFunction: ticketGenerator,
+      heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
+      taskTimeout: Timeout.duration(Duration.minutes(5)),
+      resultSelector: {
+        'TicketURL.$': '$.Payload.TicketURL',
+        'Ok.$': '$.Payload.Ok',
+        'ResponseCode.$': '$.Payload.ResponseCode',
+        'ResponseReason.$': '$.Payload.ResponseReason',
+      },
+      payload: sfn.TaskInput.fromObject({
+        RemediationInfo: {
+          'Message.$': '$.Notification.Message',
+          'FindingDescription.$': '$.Finding.Description',
+          'FindingSeverity.$': '$.Finding.Severity.Label',
+          'SecurityControlId.$': '$.Finding.Compliance.SecurityControlId',
+          'FindingAccountId.$': '$.Finding.AwsAccountId',
+          'AffectedResource.$': '$.Notification.AffectedObject',
+        },
+      }),
+      resultPath: '$.GenerateTicket',
     });
 
     const notifyQueued = new LambdaInvoke(this, 'Queued Notification', {
@@ -196,6 +254,7 @@ export class OrchestratorConstruct extends Construct {
       parameters: {
         'Finding.$': '$$.Map.Item.Value',
         'EventType.$': '$.EventType',
+        'CustomActionName.$': '$.CustomActionName',
       },
       itemsPath: '$.Findings',
     });
@@ -215,6 +274,8 @@ export class OrchestratorConstruct extends Construct {
     });
 
     const checkDocState = new sfn.Choice(this, 'Automation Doc Active?');
+
+    const checkCustomActionTrigger = new sfn.Choice(this, 'Which custom action triggered this workflow?', {});
 
     const docStateNotActive = new sfn.Pass(this, 'Automation Document is not Active', {
       parameters: {
@@ -300,6 +361,7 @@ export class OrchestratorConstruct extends Construct {
         Notification: {
           'Message.$':
             "States.Format('Remediation failed for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)",
+          'RemediationOutput.$': '$.Remediation.RemediationOutput',
           'State.$': '$.Remediation.ExecState',
           'Details.$': '$.Remediation.LogData',
           'ExecId.$': '$.Remediation.ExecId',
@@ -313,6 +375,7 @@ export class OrchestratorConstruct extends Construct {
       parameters: {
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
+        'CustomActionName.$': '$.CustomActionName',
         'AccountId.$': '$.AutomationDocument.AccountId',
         'AutomationDocId.$': '$.AutomationDocument.AutomationDocId',
         'RemediationRole.$': '$.AutomationDocument.RemediationRole',
@@ -322,6 +385,7 @@ export class OrchestratorConstruct extends Construct {
         Notification: {
           'Message.$':
             "States.Format('Remediation succeeded for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)",
+          'RemediationOutput.$': '$.Remediation.RemediationOutput',
           'State.$': "States.Format('SUCCESS')",
           'Details.$': '$.Remediation.LogData',
           'ExecId.$': '$.Remediation.ExecId',
@@ -334,6 +398,7 @@ export class OrchestratorConstruct extends Construct {
       comment: 'Set parameters for notification',
       parameters: {
         'EventType.$': '$.EventType',
+        'CustomActionName.$': '$.CustomActionName',
         'Finding.$': '$.Finding',
         'AutomationDocument.$': '$.AutomationDocument',
         'SSMExecution.$': '$.SSMExecution',
@@ -342,6 +407,7 @@ export class OrchestratorConstruct extends Construct {
             "States.Format('Remediation queued for {} control {} in account {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId)",
           'State.$': "States.Format('QUEUED')",
           'ExecId.$': '$.SSMExecution.ExecId',
+          'RemediationOutput.$': '$.SSMExecution.RemediationOutput',
         },
       },
     });
@@ -413,9 +479,17 @@ export class OrchestratorConstruct extends Construct {
 
     remediationFailed.next(notify);
 
-    remediationSucceeded.next(notify);
+    remediationSucceeded.next(checkCustomActionTrigger);
 
-    processFindings.iterator(checkWorkflowNew).next(eoj);
+    checkCustomActionTrigger.when(
+      sfn.Condition.stringEquals('$.CustomActionName', 'ASR:Remediate&Ticket'),
+      generateTicket,
+    );
+    checkCustomActionTrigger.otherwise(notify);
+
+    generateTicket.next(notify);
+
+    processFindings.itemProcessor(checkWorkflowNew).next(eoj);
 
     const orchestratorPolicy = new PolicyDocument();
     orchestratorPolicy.addStatements(
@@ -444,6 +518,11 @@ export class OrchestratorConstruct extends Construct {
           `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${execMonFunc.functionName}`,
           `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${notifyFunc.functionName}`,
           `arn:${stack.partition}:lambda:${stack.region}:${stack.account}:function:${getApprovalRequirementFunc.functionName}`,
+          Fn.conditionIf(
+            ticketingEnabled.logicalId,
+            ticketGenFunctionNameParam.functionARN,
+            Aws.NO_VALUE,
+          ) as unknown as string,
         ],
       }),
     );
@@ -502,6 +581,7 @@ export class OrchestratorConstruct extends Construct {
       stateMachineName: `${RESOURCE_PREFIX}-SHARR-Orchestrator`,
       timeout: Duration.minutes(90),
       role: orchestratorRole,
+      tracingEnabled: true,
     });
 
     new StringParameter(this, 'SHARR_Orchestrator_Arn', {
@@ -540,6 +620,10 @@ export class OrchestratorConstruct extends Construct {
       { id: 'AwsSolutions-SF1', reason: 'False alarm. Logging configuration is overridden to log ALL.' },
       { id: 'AwsSolutions-SF2', reason: 'X-Ray is not needed for this use case.' },
     ]);
+
+    this.ticketGenFunctionNameParamId = ticketGenFunctionNameParam.paramId;
+    this.ticketGenFunctionARN = ticketGenFunctionNameParam.functionARN;
+    this.ticketingEnabled = ticketingEnabled;
   }
 
   private createLogStack(kmsKeyParm: StringParameter): NestedStack {

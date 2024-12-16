@@ -98,6 +98,13 @@ exports[`default stack 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "CIS11EventsRuleRoleB8D228E0",
@@ -202,6 +209,13 @@ exports[`default stack 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "CIS12EventsRuleRoleA8389A61",
@@ -306,6 +320,13 @@ exports[`default stack 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "CIS13EventsRuleRoleFEBE574F",
@@ -434,6 +455,14 @@ exports[`default stack 2`] = `
       ],
       "Default": "Available",
       "Description": "Enable/disable availability of remediation for CIS version 1.2.0 Control 2.1 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Type": "String",
+    },
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
       "Type": "String",
     },
     "SecHubAdminAccount": {
@@ -619,6 +648,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -769,7 +800,17 @@ def parse_event(event, _):
               "inputs": {
                 "DocumentName": "ASR-RevokeUnusedIAMUserCredentials",
                 "RuntimeParameters": {
-                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials",
+                  "AutomationAssumeRole": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-RevokeUnusedIAMUserCredentials-",
+                        {
+                          "Ref": "Namespace",
+                        },
+                      ],
+                    ],
+                  },
                   "IAMResourceId": "{{ ParseInput.IAMResourceId }}",
                 },
               },
@@ -1011,6 +1052,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -1152,7 +1195,17 @@ def parse_event(event, _):
                 "DocumentName": "ASR-SetIAMPasswordPolicy",
                 "RuntimeParameters": {
                   "AllowUsersToChangePassword": true,
-                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetIAMPasswordPolicy",
+                  "AutomationAssumeRole": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetIAMPasswordPolicy-",
+                        {
+                          "Ref": "Namespace",
+                        },
+                      ],
+                    ],
+                  },
                   "HardExpiry": true,
                   "MaxPasswordAge": 90,
                   "MinimumPasswordLength": 14,
@@ -1385,6 +1438,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -1536,7 +1591,17 @@ def parse_event(event, _):
                 "DocumentName": "ASR-CreateCloudTrailMultiRegionTrail",
                 "RuntimeParameters": {
                   "AWSPartition": "{{global:AWS_PARTITION}}",
-                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateCloudTrailMultiRegionTrail",
+                  "AutomationAssumeRole": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-CreateCloudTrailMultiRegionTrail-",
+                        {
+                          "Ref": "Namespace",
+                        },
+                      ],
+                    ],
+                  },
                 },
               },
               "isEnd": false,
@@ -1601,7 +1666,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "01b4fa65e397917ed3e4c3ff8fde39d2da8555a75245e88070f39ec093812333",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1618,7 +1683,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "01b4fa65e397917ed3e4c3ff8fde39d2da8555a75245e88070f39ec093812333",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },

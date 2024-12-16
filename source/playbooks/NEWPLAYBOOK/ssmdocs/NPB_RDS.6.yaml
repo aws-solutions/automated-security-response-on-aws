@@ -63,7 +63,7 @@ mainSteps:
     inputs:
       Service: iam
       Api: GetRole
-      RoleName: 'SO0111-ASR-RDSEnhancedMonitoring'
+      RoleName: '%%ROLE=SO0111-ASR-RDSEnhancedMonitoring%%'
     outputs:
     - Name: Arn
       Selector: $.Role.Arn

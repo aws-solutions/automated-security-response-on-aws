@@ -60,7 +60,7 @@ mainSteps:
       DocumentName: ASR-ReplaceCodeBuildClearTextCredentials
       RuntimeParameters:
         ProjectName: '{{ ParseInput.ProjectName }}'
-        AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-ReplaceCodeBuildClearTextCredentials'
+        AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-ReplaceCodeBuildClearTextCredentials%%'
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:

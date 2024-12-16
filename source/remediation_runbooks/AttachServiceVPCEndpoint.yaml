@@ -1,0 +1,61 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-AttachServiceVPCEndpoint
+
+  ## Overview
+  This document creates and attaches a service interface endpoint to the VPC.
+
+  ## Pre-requisites
+  * None
+
+  ## What does this document do?
+  Creates and attaches service interface endpoint to VPC; by default, all subnets in the VPC are given access to the endpoint.
+
+  ## Input Parameters
+  * ResourceArn: (Required) VPC to be remediated.
+  * ServiceName: (Required) Name of the AWS Service for which an endpoint should be created (e.g. 'ec2').
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * AttachServiceVPCEndpoint.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  VPCId:
+    type: String
+    description: (Required) The VPC resource ARN.
+    allowedPattern: '^vpc-[0-9a-f]{8,17}$'
+  ServiceName:
+    type: String
+    description: (Required) Name of the AWS Service for which an endpoint should be created (e.g. 'ec2').
+    allowedPattern: '^[A-Za-z0-9]*$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - AttachServiceVPCEndpoint.Output
+mainSteps:
+  -
+    name: AttachServiceVPCEndpoint
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Creates and attaches service interface endpoint to VPC.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        ServiceName: '{{ServiceName}}'
+        VPCId: '{{VPCId}}'
+        Region: '{{global:REGION}}'
+      Runtime: python3.11
+      Handler: handler
+      Script: |-
+        %%SCRIPT=AttachServiceVPCEndpoint.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

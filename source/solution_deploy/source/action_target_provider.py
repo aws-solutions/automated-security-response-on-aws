@@ -68,8 +68,10 @@ class CustomAction(object):
             )["ActionTargetArn"]
         except ClientError as error:
             if error.response["Error"]["Code"] == "ResourceConflictException":
-                logger_obj.info("ResourceConflictException: already exists. Continuing")
-                return
+                logger_obj.info(
+                    "ResourceConflictException: already exists. Fetching existing custom action..."
+                )
+                return self.get()
             elif error.response["Error"]["Code"] == "InvalidAccessException":
                 logger_obj.info(
                     "InvalidAccessException - Account is not subscribed to AWS Security Hub."
@@ -79,6 +81,27 @@ class CustomAction(object):
                 logger_obj.error(error)
                 return "FAILED"
         except Exception:
+            return "FAILED"
+
+    def get(self):
+        client = get_securityhub_client()
+        try:
+            action_targets = []
+            paginator = client.get_paginator("describe_action_targets")
+            for page in paginator.paginate():
+                action_targets.extend(page["ActionTargets"])
+            return next(
+                (
+                    action_target["ActionTargetArn"]
+                    for action_target in action_targets
+                    if action_target["Name"] == self.name
+                ),
+                None,
+            )
+        except Exception as e:
+            logger_obj.error(
+                f"Encountered error while fetching existing custom action: {str(e)}"
+            )
             return "FAILED"
 
     def delete(self):

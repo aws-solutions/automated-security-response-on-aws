@@ -21,8 +21,7 @@ export class RemoveUnusedSecretDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         unusedForDays: 90,
@@ -30,8 +29,7 @@ export class RemoveUnusedSecretDocument extends ControlRunbookDocument {
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const EventTypes: Output = {
       name: 'UnusedForDays',
       outputType: DataTypeEnum.STRING_LIST,
@@ -43,9 +41,7 @@ export class RemoveUnusedSecretDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.UnusedForDays = StringListVariable.of('GetInputParams.UnusedForDays');

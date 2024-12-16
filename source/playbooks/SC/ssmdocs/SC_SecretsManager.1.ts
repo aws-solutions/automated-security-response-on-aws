@@ -21,8 +21,7 @@ export class EnableAutoSecretRotationDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         maximumAllowedRotationFrequency: 90,
@@ -30,8 +29,7 @@ export class EnableAutoSecretRotationDocument extends ControlRunbookDocument {
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const MaximumAllowedRotationFrequency: Output = {
       name: 'maximumAllowedRotationFrequency',
       outputType: DataTypeEnum.INTEGER,
@@ -42,11 +40,9 @@ export class EnableAutoSecretRotationDocument extends ControlRunbookDocument {
 
     return outputs;
   }
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.MaximumAllowedRotationFrequency = NumberVariable.of('GetInputParams.maximumAllowedRotationFrequency');
 

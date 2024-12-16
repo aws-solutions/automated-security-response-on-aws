@@ -57,6 +57,14 @@ exports[`Member Stack - AFSBP 1`] = `
       "Description": "Enable/disable availability of remediation for AFSBP version 1.0.0 Control RDS.1 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
       "Type": "String",
     },
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
+      "Type": "String",
+    },
     "SecHubAdminAccount": {
       "AllowedPattern": "^\\d{12}$",
       "Description": "Admin account number",
@@ -237,6 +245,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -388,7 +398,17 @@ def parse_event(event, _):
                 "DocumentName": "ASR-MakeEBSSnapshotsPrivate",
                 "RuntimeParameters": {
                   "AccountId": "{{ParseInput.AccountId}}",
-                  "AutomationAssumeRole": "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-MakeEBSSnapshotsPrivate",
+                  "AutomationAssumeRole": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-MakeEBSSnapshotsPrivate-",
+                        {
+                          "Ref": "Namespace",
+                        },
+                      ],
+                    ],
+                  },
                   "TestMode": "{{ParseInput.TestMode}}",
                 },
               },
@@ -615,6 +635,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -826,7 +848,17 @@ def parse_event(event, _):
             },
             "RemediationRoleName": {
               "allowedPattern": "^[\\w+=,.@-]+$",
-              "default": "SO0111-RemoveLambdaPublicAccess",
+              "default": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "SO0111-RemoveLambdaPublicAccess-",
+                    {
+                      "Ref": "Namespace",
+                    },
+                  ],
+                ],
+              },
               "type": "String",
             },
           },
@@ -1009,6 +1041,8 @@ class FindingEvent:
         )
         if check_for_region:
             self.resource_region = check_for_region.group(1)
+        else:
+            self.resource_region = self.finding_json["Resources"][0]["Region"]
 
     def __init__(
         self, finding_json, parse_id_pattern, expected_control_id, resource_index
@@ -1233,7 +1267,17 @@ def parse_event(event, _):
             },
             "RemediationRoleName": {
               "allowedPattern": "^[\\w+=,.@-]+$",
-              "default": "SO0111-MakeRDSSnapshotPrivate",
+              "default": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "SO0111-MakeRDSSnapshotPrivate-",
+                    {
+                      "Ref": "Namespace",
+                    },
+                  ],
+                ],
+              },
               "type": "String",
             },
           },
@@ -1251,7 +1295,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 1,
         "DeleteIntervalSeconds": 0,
-        "DocumentPropertiesHash": "021635f4d697eec7b8adf4b648135a434784538840467e8736f1e184319b2d2e",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1268,7 +1312,7 @@ def parse_event(event, _):
       "Properties": {
         "CreateIntervalSeconds": 0,
         "DeleteIntervalSeconds": 0.5,
-        "DocumentPropertiesHash": "021635f4d697eec7b8adf4b648135a434784538840467e8736f1e184319b2d2e",
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
         "ServiceToken": {
           "Ref": "WaitProviderServiceToken",
         },
@@ -1400,6 +1444,13 @@ exports[`Primary Stack - AFSBP 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "AFSBPExample1EventsRuleRole2EAEBD38",
@@ -1493,6 +1544,13 @@ exports[`Primary Stack - AFSBP 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "AFSBPExample3EventsRuleRole5956A03B",
@@ -1586,6 +1644,13 @@ exports[`Primary Stack - AFSBP 1`] = `
               "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
             "Id": "Target0",
+            "InputTransformer": {
+              "InputPathsMap": {
+                "detail-findings": "$.detail.findings",
+                "detail-type": "$.detail-type",
+              },
+              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
+            },
             "RoleArn": {
               "Fn::GetAtt": [
                 "AFSBPExample5EventsRuleRole80D6194D",

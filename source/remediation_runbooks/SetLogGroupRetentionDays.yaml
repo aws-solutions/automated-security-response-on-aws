@@ -1,0 +1,72 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-SetLogGroupRetentionDays
+
+  ## What does this document do?
+    This document Sets the CloudWatch Log Group Retention setting to the provided value.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * LogGroupArn: (Required)  The ARN of the Log Group.
+  * RetentionDays: (Optional) The number of days to retain the log events in the specified log group.
+
+  ## Output Parameters
+  * SetLogGroupRetentionDays.Output
+
+  ## Security Standards / Controls
+  * NIST 800-53 Rev5: CloudWatch.16
+
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  LogGroupArn:
+    type: String
+    description: (Required) The name of the log group.
+    allowedPattern: '^(arn:(?:aws|aws-cn|aws-us-gov):logs:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:log-group:[A-Za-z0-9\/\-_#]{1,512}:\*)$'
+  RetentionDays:
+    type: Integer
+    description: (Optional) The number of days for the log group's retention period.
+    allowedPattern: ^\d{0,4}$
+    default: 365
+outputs:
+  - SetLogGroupRetentionDays.Response
+mainSteps:
+  - name: 'GetLogGroupNameFromArn'
+    action: 'aws:executeScript'
+    maxAttempts: 3
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        Arn: '{{ LogGroupArn }}'
+      Runtime: 'python3.11'
+      Handler: 'get_log_group_name_from_arn'
+      Script: |-
+        %%SCRIPT=GetLogGroupNameFromArn.py%%
+    outputs:
+      - Name: LogGroupName
+        Selector: $.Payload
+        Type: String
+  - name: SetLogGroupRetentionDays
+    action: 'aws:executeAwsApi'
+    description: |
+      ## SetLogGroupRetentionDays
+      Sets the retention days for a Log Group.
+    isEnd: false
+    inputs:
+      Service: logs
+      Api: PutRetentionPolicy
+      logGroupName: '{{ GetLogGroupNameFromArn.LogGroupName }}'
+      retentionInDays: '{{ RetentionDays }}'
+    isCritical: true
+    maxAttempts: 3
+    timeoutSeconds: 600
+    outputs:
+      - Name: Response
+        Selector: $
+        Type: StringMap

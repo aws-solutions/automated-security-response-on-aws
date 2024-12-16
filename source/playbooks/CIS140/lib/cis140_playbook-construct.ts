@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Stack, App, StackProps, CfnParameter, Aspects } from 'aws-cdk-lib';
 import { ControlRunbooks } from './control_runbooks-construct';
-import AdminAccountParam from '../../../lib/admin-account-param';
+import AdminAccountParam from '../../../lib/parameters/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
-
-export interface IControl {
-  control: string;
-  executes?: string;
-}
+import { IControl } from '../../../lib/sharrplaybook-construct';
+import NamespaceParam from '../../../lib/parameters/namespace-param';
 
 export interface CIS140PlaybookMemberStackProps extends StackProps {
   solutionId: string;
@@ -31,6 +28,8 @@ export class CIS140PlaybookMemberStack extends Stack {
     // Not used, but required by top-level member stack
     new AdminAccountParam(this, 'AdminAccountParameter');
 
+    const namespaceParam = new NamespaceParam(this, 'Namespace');
+
     const waitProviderServiceTokenParam = new CfnParameter(this, 'WaitProviderServiceToken');
 
     const waitProvider = WaitProvider.fromServiceToken(
@@ -45,10 +44,12 @@ export class CIS140PlaybookMemberStack extends Stack {
       standardShortName: props.securityStandard,
       standardLongName: props.securityStandardLongName,
       standardVersion: props.securityStandardVersion,
-      runtimePython: Runtime.PYTHON_3_8, // Newest runtime for SSM automations
+      runtimePython: Runtime.PYTHON_3_11,
       solutionId: props.solutionId,
       solutionAcronym: 'ASR',
       solutionVersion: props.solutionVersion,
+      remediations: props.remediations,
+      namespace: namespaceParam.value,
     });
 
     // Make sure all known controls have runbooks

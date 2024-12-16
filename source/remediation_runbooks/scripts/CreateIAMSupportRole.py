@@ -14,8 +14,9 @@ class Response(TypedDict):
     RoleName: Literal["aws_incident_support_role"]
 
 
-responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {}
-responses["CreateIAMRoleResponse"] = []
+responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {
+    "CreateIAMRoleResponse": []
+}
 
 
 def connect_to_iam(boto_config):
@@ -73,27 +74,16 @@ def create_iam_role(_, __):
     return {"output": "IAM role creation is successful.", "http_responses": responses}
 
 
-def does_role_exist(iam, role_name):
-    """Check if the role name exists.
-
-    Parameters
-    ----------
-    iam: iam client, required
-    role_name: string, required
-
-    Returns
-    ------
-        bool: returns if the role exists
-    """
+def does_role_exist(iam_client, role_name) -> bool:
     role_exists = False
 
     try:
-        response = iam.get_role(RoleName=role_name)
+        response = iam_client.get_role(RoleName=role_name)
 
         if "Role" in response:
             role_exists = True
 
-    except iam.exceptions.NoSuchEntityException:
+    except iam_client.exceptions.NoSuchEntityException:
         role_exists = False
 
     return role_exists

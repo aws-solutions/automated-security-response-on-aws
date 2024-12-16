@@ -64,7 +64,7 @@ mainSteps:
       DocumentName: AWS-DisablePublicAccessForSecurityGroup
       RuntimeParameters:
         GroupId: '{{ ParseInput.GroupId }}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-DisablePublicAccessForSecurityGroup'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-DisablePublicAccessForSecurityGroup%%'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

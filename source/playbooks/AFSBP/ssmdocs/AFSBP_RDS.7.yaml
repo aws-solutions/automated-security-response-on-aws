@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the RDS.7 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableRDSClusterDeletionProtection"
+    default: "%%ROLE=SO0111-EnableRDSClusterDeletionProtection%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

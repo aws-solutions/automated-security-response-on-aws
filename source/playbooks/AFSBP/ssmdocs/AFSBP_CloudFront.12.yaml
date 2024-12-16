@@ -67,7 +67,7 @@ mainSteps:
   inputs:
     DocumentName: ASR-SetCloudFrontOriginDomain
     RuntimeParameters:
-      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-SetCloudFrontOriginDomain'
+      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-SetCloudFrontOriginDomain%%'
       DistributionId: '{{ ParseInput.DistributionId }}'
 - name: 'UpdateFinding'
   action: 'aws:executeAwsApi'

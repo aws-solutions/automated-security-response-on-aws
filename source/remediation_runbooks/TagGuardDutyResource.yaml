@@ -1,0 +1,60 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-TagGuardDutyResource
+
+  ## Overview
+  This document adds required tags to a non-compliant GuardDuty resource.
+
+  ## Pre-requisites
+  * None
+
+  ## What does this document do?
+  Tags the given GuardDuty resource with the required tags specified in Security Hub. If no required tags are specified, adds a default tag to the resource.
+
+  ## Input Parameters
+  * ResourceArn: (Required) GuardDuty resource to be tagged.
+  * RequiredTagKeys: (Optional) Security Control Parameters for GuardDuty.2.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * TagGuardDutyResource.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  ResourceArn:
+    type: String
+    description: (Required) The GuardDuty resource ARN.
+    allowedPattern: '(arn:(?:aws|aws-cn|aws-us-gov):guardduty:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:detector\/.*)'
+  RequiredTagKeys:
+    type: StringList
+    default: ['SO0111-GuardDutyResource']
+    description: Required tag keys for GuardDuty.2
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - TagGuardDutyResource.Output
+mainSteps:
+  -
+    name: TagGuardDutyResource
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Adds required tags to a non-compliant GuardDuty resource.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        RequiredTagKeys: '{{RequiredTagKeys}}'
+        ResourceArn: '{{ResourceArn}}'
+      Runtime: python3.11
+      Handler: lambda_handler
+      Script: |-
+        %%SCRIPT=TagGuardDutyResource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

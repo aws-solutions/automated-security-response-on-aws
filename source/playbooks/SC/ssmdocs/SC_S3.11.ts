@@ -29,8 +29,7 @@ export class EnableBucketEventNotificationsDocument extends ControlRunbookDocume
     });
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
         eventTypes: [
@@ -49,8 +48,7 @@ export class EnableBucketEventNotificationsDocument extends ControlRunbookDocume
     ];
   }
 
-  /** @override */
-  protected getInputParamsStepOutput(): Output[] {
+  protected override getInputParamsStepOutput(): Output[] {
     const EventTypes: Output = {
       name: 'eventTypes',
       outputType: DataTypeEnum.STRING_LIST,
@@ -62,8 +60,7 @@ export class EnableBucketEventNotificationsDocument extends ControlRunbookDocume
     return outputs;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -75,9 +72,7 @@ export class EnableBucketEventNotificationsDocument extends ControlRunbookDocume
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.AccountId = StringVariable.of('ParseInput.RemediationAccount');

@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the RDS.16 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableCopyTagsToSnapshotOnRDSCluster"
+    default: "%%ROLE=SO0111-EnableCopyTagsToSnapshotOnRDSCluster%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:

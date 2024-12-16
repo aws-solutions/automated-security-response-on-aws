@@ -122,7 +122,10 @@ class Metrics(object):
             print(e)
             raise
 
-    def get_metrics_from_finding(self, finding):
+    def get_metrics_from_event(self, event):
+        finding = event.get("Finding", None)
+        custom_action_name = event.get("CustomActionName", "")
+
         try:
             if finding is not None:
                 metrics_data = {
@@ -131,6 +134,7 @@ class Metrics(object):
                     "productArn": finding.get("ProductArn"),
                     "finding_triggered_by": self.event_type,
                     "region": self.region,
+                    "custom_action_name": custom_action_name,
                 }
             else:
                 metrics_data = {}

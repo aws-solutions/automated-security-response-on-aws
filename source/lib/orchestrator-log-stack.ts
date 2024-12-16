@@ -17,7 +17,7 @@ export class OrchLogStack extends cdk.Stack {
 
     const reuseOrchLogGroup = new cdk.CfnParameter(this, 'Reuse Log Group', {
       type: 'String',
-      description: `Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no"`,
+      description: `Reuse existing Orchestrator Log Group? Choose "yes" if you have deployed this stack before, otherwise "no"`,
       default: 'no',
       allowedValues: ['yes', 'no'],
     });

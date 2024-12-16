@@ -18,6 +18,15 @@ source ./.venv/bin/activate
 python3.11 -m pip install -U pip setuptools
 
 echo 'Installing required Python testing modules'
+if command -v poetry >/dev/null 2>&1; then
+        POETRY_COMMAND="poetry"
+      elif [ -n "$POETRY_HOME" ] && [ -x "$POETRY_HOME/bin/poetry" ]; then
+        POETRY_COMMAND="$POETRY_HOME/bin/poetry"
+      else
+        echo "Poetry is not available. Aborting script." >&2
+        exit 1
+      fi
+"$POETRY_COMMAND" export --with dev -f requirements.txt --output requirements_dev.txt --without-hashes
 pip install -r ./requirements_dev.txt
 
 cd ..
@@ -82,6 +91,47 @@ else
 fi
 
 echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - Orchestrator Lambdas"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/Orchestrator" "Orchestrator"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - SolutionDeploy"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - Blueprints"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/blueprints/jira" "Jira Blueprint"
+run_pytest "${source_dir}/blueprints/servicenow" "ServiceNow Blueprint"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - LambdaLayers"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/layer" "LambdaLayers"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Scripts for Remediation Runbooks"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/remediation_runbooks/scripts" "RemediationRunbooks"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Scripts for Playbook common scripts"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/playbooks/common" "PlaybookCommon"
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Python Scripts for Playbooks"
+echo "------------------------------------------------------------------------------"
+for playbook in `ls ${source_dir}/playbooks`; do
+    if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ]; then
+        run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
+    fi
+done
+
+
+echo "------------------------------------------------------------------------------"
 echo "[Lint] Code Style and Lint"
 echo "------------------------------------------------------------------------------"
 cd $source_dir
@@ -110,39 +160,6 @@ cd "$source_dir"
     fi
 }
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - Orchestrator Lambdas"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/Orchestrator" "Orchestrator"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - SolutionDeploy"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - LambdaLayers"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/layer" "LambdaLayers"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Remediation Runbooks"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/remediation_runbooks/scripts" "RemediationRunbooks"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Playbook common scripts"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/playbooks/common" "PlaybookCommon"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Playbooks"
-echo "------------------------------------------------------------------------------"
-for playbook in `ls ${source_dir}/playbooks`; do
-    if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ]; then
-        run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
-    fi
-done
 
 # The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list
 # with absolute path for the source directories. To avoid dependencies of tools (such as SonarQube) on different

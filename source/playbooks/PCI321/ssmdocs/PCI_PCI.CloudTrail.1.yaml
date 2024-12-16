@@ -73,7 +73,7 @@ mainSteps:
       RuntimeParameters:
         TrailRegion: '{{ParseInput.TrailRegion}}'
         TrailArn: '{{ParseInput.TrailArn}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableCloudTrailEncryption'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-EnableCloudTrailEncryption%%'
         KMSKeyArn: '{{KMSKeyArn}}'
     isEnd: false
 

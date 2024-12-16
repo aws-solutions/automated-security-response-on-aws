@@ -1,0 +1,7 @@
+{
+  "app": "npx ts-node bin/cis300.ts",
+  "versionReporting": false,
+  "context": {
+    "aws-cdk:enableDiffNoFail": "true"
+  }
+}

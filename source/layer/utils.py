@@ -8,8 +8,12 @@ from typing import Any
 import boto3
 from botocore.exceptions import UnknownRegionError
 from layer.awsapi_cached_client import AWSCachedClient
+from layer.logger import Logger
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+
+LOG_LEVEL = os.getenv("log_level", "info")
+LOGGER = Logger(loglevel=LOG_LEVEL)
 
 properties = [
     "status",
@@ -17,6 +21,7 @@ properties = [
     "executionid",
     "affected_object",
     "remediation_status",
+    "remediation_output",
     "logdata",
     "securitystandard",
     "securitystandardversion",
@@ -46,6 +51,7 @@ class StepFunctionLambdaAnswer:
     executionid = ""
     affected_object = ""
     remediation_status = ""
+    remediation_output = ""
     logdata: Any = []
     securitystandard = ""
     securitystandardversion = ""
@@ -109,6 +115,27 @@ def partition_from_region(region_name):
         return "aws"
 
     return partition
+
+
+def get_account_alias(account_id: str) -> str:
+    default_account_alias = "Unknown"
+    if not account_id:
+        return default_account_alias
+    try:
+        aws = AWSCachedClient(AWS_REGION)
+        organizations_client = aws.get_connection("organizations", AWS_REGION)
+        accounts = []
+
+        paginator = organizations_client.get_paginator("list_accounts")
+        for page in paginator.paginate():
+            accounts.extend(page["Accounts"])
+        return next(
+            (account["Name"] for account in accounts if account["Id"] == account_id),
+            default_account_alias,
+        )
+    except Exception as e:
+        LOGGER.error(f"encountered error retrieving account alias: {str(e)}")
+        return default_account_alias
 
 
 def publish_to_sns(topic_name, message, region=""):

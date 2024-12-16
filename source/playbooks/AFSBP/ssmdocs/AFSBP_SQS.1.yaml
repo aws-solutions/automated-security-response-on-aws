@@ -75,10 +75,10 @@ mainSteps:
     TargetLocations:
     - Accounts: ['{{ ParseInput.RemediationAccount }}']
       Regions: ['{{ ParseInput.RemediationRegion }}']
-      ExecutionRoleName: 'SO0111-EnableEncryptionForSQSQueue'
+      ExecutionRoleName: '%%ROLE=SO0111-EnableEncryptionForSQSQueue%%'
     RuntimeParameters:
       KmsKeyArn: '{{ KmsKeyArn }}'
-      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-EnableEncryptionForSQSQueue'
+      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-EnableEncryptionForSQSQueue%%'
       SQSQueueName: '{{ ParseInput.SQSQueueName }}'
 - name: 'UpdateFinding'
   action: 'aws:executeAwsApi'

@@ -78,7 +78,7 @@ mainSteps:
         RequireUppercaseCharacters: True
         RequireLowercaseCharacters: True
         PasswordReusePrevention: 24
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetIAMPasswordPolicy'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-SetIAMPasswordPolicy%%'
 
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

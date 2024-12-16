@@ -1,6 +1,6 @@
 id: SO0111
-name: security-hub-automated-response-and-remediation
-version: 2.1.4
+name: automated-security-response-on-aws
+version: 2.2.0
 cloudformation_templates:
   - template: aws-sharr-deploy.template
     main_template: true
@@ -20,5 +20,7 @@ cloudformation_templates:
   - template: playbooks/SCStack.template
   - template: playbooks/NIST80053MemberStack.template
   - template: playbooks/NIST80053Stack.template
+  - template: blueprints/JiraBlueprintStack.template
+  - template: blueprints/ServiceNowBlueprintStack.template
 build_environment:
   build_image: aws/codebuild/standard:7.0

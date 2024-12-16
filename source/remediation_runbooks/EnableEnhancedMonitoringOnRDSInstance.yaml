@@ -124,35 +124,8 @@ mainSteps:
         MonitoringInterval: "{{ MonitoringInterval }}"
         DBIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
       Script: |-
-        import boto3
-        import time
-
-        def handler(event, context):
-            rds_client = boto3.client("rds")
-            db_instance_id = event["DBIdentifier"]
-            monitoring_interval = event["MonitoringInterval"]
-
-            try:
-                rds_waiter = rds_client.get_waiter("db_instance_available")
-                rds_waiter.wait(DBInstanceIdentifier=db_instance_id)
-
-                db_instances = rds_client.describe_db_instances(
-                    DBInstanceIdentifier=db_instance_id)
-
-                for db_instance in db_instances.get("DBInstances", [{}]):
-                    db_monitoring_interval = db_instance.get("MonitoringInterval")
-
-                if db_monitoring_interval == monitoring_interval:
-                    return {
-                              "output": db_instances["ResponseMetadata"]
-                            }
-                else:
-                    info = "VERIFICATION FAILED. RDS INSTANCE MONITORING INTERVAL {} IS NOT ENABLED WITH THE REQUIRED VALUE {}".format(
-                            db_monitoring_interval, monitoring_interval)
-                    raise Exception(info)
-            except Exception as e:
-                raise e
+        %%SCRIPT=EnableEnhancedMonitoringOnRDSInstance.py%%
     outputs:
       - Name: Output
-        Selector: $.Payload.output
+        Selector: $.Payload
         Type: StringMap
