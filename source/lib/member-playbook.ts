@@ -28,36 +28,43 @@ export class MemberPlaybookNew {
     //---------------------------------------------------------------------
     // Playbook Template Nested Stack
     //
-    const stackOption = new CfnParameter(scope, `LoadMemberStack${playbookName}`, {
+    const stackOptionOriginal = new CfnParameter(scope, `LoadOriginalMemberStack${playbookName}`, {
       type: 'String',
       description:
         props.description ?? `Install the member components for automated remediation of ${props.name} controls?`,
       default: props.defaultState ?? 'no',
       allowedValues: ['yes', 'no'],
     });
-    stackOption.overrideLogicalId(this.parameterName);
+    const stackOptionNew = new CfnParameter(scope, `LoadNewMemberStack${playbookName}`, {
+      type: 'String',
+      description:
+        props.description ?? `Install the member components for automated remediation of ${props.name} controls?`,
+      default: props.defaultState ?? 'no',
+      allowedValues: ['yes', 'no'],
+    });
+    stackOptionOriginal.overrideLogicalId(this.parameterName);
       this.playbookStacks = []
       const originalNestedStack = props.nestedStackFactory.addNestedStack(`PlaybookMemberStackOriginal${playbookName}`, {
         templateRelativePath: `playbooks/${templateFileOriginal}`,
         parameters: props.parameters,
-        condition: new CfnCondition(scope, `load${playbookName}Cond`, {
-          expression: Fn.conditionEquals(stackOption, 'yes'),
+        condition: new CfnCondition(scope, `load${playbookName}CondOriginal`, {
+          expression: Fn.conditionEquals(stackOptionOriginal, 'yes'),
         }),
       });
 
     const cfnStackOriginal = originalNestedStack.nestedStackResource as CfnResource;
-    cfnStackOriginal.cfnStack.overrideLogicalId(`PlaybookMemberStackNew${props.name}`);
+    cfnStackOriginal.overrideLogicalId(`PlaybookMemberStackOriginal${props.name}`);
 
     const newNestedStack = props.nestedStackFactory.addNestedStack(`PlaybookMemberStackNew${playbookName}`, {
       templateRelativePath: `playbooks/${templateFileNew}`,
       parameters: props.parameters,
-      condition: new CfnCondition(scope, `load${playbookName}Cond`, {
-        expression: Fn.conditionEquals(stackOption, 'yes'),
+      condition: new CfnCondition(scope, `load${playbookName}CondNew`, {
+        expression: Fn.conditionEquals(stackOptionNew, 'yes'),
       }),
     });
 
     const cfnStackNew = newNestedStack.nestedStackResource as CfnResource;
-    cfnStackNew.cfnStack.overrideLogicalId(`PlaybookMemberStackNew${props.name}`);
+    cfnStackNew.overrideLogicalId(`PlaybookMemberStackNew${props.name}`);
 
     this.playbookStacks.push(originalNestedStack as Stack)
     this.playbookStacks.push(newNestedStack as Stack)
