@@ -1,9 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCondition, CfnParameter, Fn, RemovalPolicy, Duration } from 'aws-cdk-lib';
+import { CfnCondition, CfnParameter, Fn, RemovalPolicy } from 'aws-cdk-lib';
 import { Effect, PolicyStatement, ServicePrincipal, StarPrincipal } from 'aws-cdk-lib/aws-iam';
-import { BlockPublicAccess, Bucket, BucketEncryption, BucketPolicy, CfnBucket, StorageClass } from 'aws-cdk-lib/aws-s3';
-import { Key } from 'aws-cdk-lib/aws-kms';
+import { BlockPublicAccess, Bucket, BucketEncryption, BucketPolicy, CfnBucket } from 'aws-cdk-lib/aws-s3';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
@@ -16,6 +15,8 @@ export interface RedshiftAuditLoggingProps {
 }
 
 export class RedshiftAuditLogging extends Construct {
+  public readonly paramId: string;
+
   constructor(scope: Construct, id: string, props: RedshiftAuditLoggingProps) {
     super(scope, id);
 
@@ -26,33 +27,18 @@ export class RedshiftAuditLogging extends Construct {
       allowedValues: [ChoiceParam.Yes, ChoiceParam.No],
       description: 'Create S3 Bucket For Redshift Cluster Audit Logging.',
     });
+    this.paramId = templateParam.logicalId;
 
     const condition = new CfnCondition(scope, 'EnableS3BucketForRedShift4', {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
     });
 
-    const kmsKeyArnParameter = StringParameter.fromStringParameterName(
-      this, 
-      'ImportedKmsKeyArn', 
-      `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`
-    );
-    const kmsKeyArn = kmsKeyArnParameter.stringValue;
-    const kmsKey = Key.fromKeyArn(this, 'SHARRRemediationKey', kmsKeyArn);
-
     const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {
-      encryption: BucketEncryption.KMS,
-      encryptionKey: kmsKey,
+      //NOSONAR The policy attached to this bucket enforces SSL.
+      versioned: true,
+      encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      versioned: true,
-      objectLockEnabled: true,
-      lifecycleRules: [{
-        expiration: Duration.days(365), // Set objects to expire after 1 year
-        transitions: [{
-          storageClass: StorageClass.INFREQUENT_ACCESS, // Transition to Infrequent Access after 30 days
-          transitionAfter: Duration.days(30),
-        }],
-      }],
     });
     setCondition(bucket, condition);
 
@@ -86,7 +72,7 @@ export class RedshiftAuditLogging extends Construct {
         principals: [new StarPrincipal()],
         resources: [bucket.bucketArn, bucket.arnForObjects('*')],
         conditions: { Bool: { ['aws:SecureTransport']: 'false' } },
-      })
+      }),
     );
     setCondition(bucketPolicy, condition);
     bucketPolicy.node.addDependency(bucket.node.defaultChild as CfnBucket);
@@ -97,7 +83,7 @@ export class RedshiftAuditLogging extends Construct {
 
     const ssmParam = new StringParameter(scope, 'SSMParameterForS3BucketNameForREDSHIFT4', {
       description:
-        'Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
+        'Parameter to store the S3 bucket name for the remediation FSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
       parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging`,
       stringValue: bucket.bucketName,
     });

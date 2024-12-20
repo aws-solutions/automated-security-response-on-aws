@@ -139,17 +139,31 @@ main() {
 
 	header "[Create] Playbooks"
 
-	for playbook in $(ls "$source_dir"/playbooks); do
-		if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ] || [ $playbook == 'common' ]; then
+	for playbook_dir in "$source_dir"/playbooks/*; do
+    	# Extract just the directory name from the path
+		playbook=$(basename "$playbook_dir")
+		# Skip certain entries
+		if [ "$playbook" = "NEWPLAYBOOK" ] || [ "$playbook" = ".coverage" ] || [ "$playbook" = "common" ]; then
 			continue
 		fi
-		echo Create $playbook playbook
-		pushd "$source_dir"/playbooks/"$playbook"
+		# Check if it's a directory before proceeding
+		if [ ! -d "$playbook_dir" ]; then
+			continue
+		fi
+		echo "Create $playbook playbook"
+		pushd "$playbook_dir"
 		npx cdk synth
-		cd cdk.out
-		for template in $(ls *.template.json); do
-			cp "$template" "$template_dist_dir"/playbooks/${template%.json}
-		done
+		# Navigate to cdk.out if it exists
+		if [ -d "cdk.out" ]; then
+			cd cdk.out
+			# Use globbing instead of `ls` to handle templates
+			for template in *.template.json; do
+				# Ensure that the file actually exists
+				[ -e "$template" ] || continue
+				cp "$template" "$template_dist_dir"/playbooks/"${template%.json}"
+			done
+			cd ..
+		fi
 		popd
 	done
 

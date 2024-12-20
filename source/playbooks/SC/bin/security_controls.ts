@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
   SecurityControlsPlaybookPrimaryStack,
-  SecurityControlsPlaybookMemberStack,
+  SecurityControlsPlaybookMemberStackOriginal,
+  SecurityControlsPlaybookMemberStackNew,
 } from '../lib/security_controls_playbook-construct';
 import { App, Aspects, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
@@ -27,7 +28,7 @@ Aspects.of(app).add(new AwsSolutionsChecks());
 
 // Creates one rule per control Id. The Step Function determines what document to run based on
 // Security Standard and Control Id. See cis-member-stack
-const remediations: IControl[] = [
+const originalRemediations: IControl[] = [
   { control: 'AutoScaling.1' },
   { control: 'CloudFormation.1' },
   { control: 'CloudTrail.1' },
@@ -38,19 +39,6 @@ const remediations: IControl[] = [
   { control: 'CloudTrail.6' },
   { control: 'CloudTrail.7' },
   { control: 'CloudWatch.1' },
-  { control: 'CloudWatch.2', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.3', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.4', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.5', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.6', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.7', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.8', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.9', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.10', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.11', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.12', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.13', executes: 'CloudWatch.1' },
-  { control: 'CloudWatch.14', executes: 'CloudWatch.1' },
   { control: 'CodeBuild.2' },
   { control: 'Config.1' },
   { control: 'EC2.1' },
@@ -65,14 +53,6 @@ const remediations: IControl[] = [
   { control: 'IAM.3' },
   { control: 'IAM.7' },
   { control: 'IAM.8' },
-  { control: 'IAM.10', executes: 'IAM.7' },
-  { control: 'IAM.11', executes: 'IAM.7' },
-  { control: 'IAM.12', executes: 'IAM.7' },
-  { control: 'IAM.13', executes: 'IAM.7' },
-  { control: 'IAM.14', executes: 'IAM.7' },
-  { control: 'IAM.15', executes: 'IAM.7' },
-  { control: 'IAM.16', executes: 'IAM.7' },
-  { control: 'IAM.17', executes: 'IAM.7' },
   { control: 'IAM.18' },
   { control: 'IAM.22' },
   { control: 'KMS.4' },
@@ -92,47 +72,71 @@ const remediations: IControl[] = [
   { control: 'Redshift.6' },
   { control: 'S3.1' },
   { control: 'S3.2' },
-  { control: 'S3.3', executes: 'S3.2' },
   { control: 'S3.4' },
   { control: 'S3.5' },
   { control: 'S3.6' },
-  { control: 'S3.8', executes: 'S3.2' },
   { control: 'S3.9' },
   { control: 'SNS.1' },
   { control: 'SNS.2' },
   { control: 'SQS.1' },
+];
+
+const newRemediations: IControl[] = [
   { control: 'APIGateway.3' },
-  { control: 'CloudFront.5' },
-  { control: 'CloudFront.2' },
-  { control: 'DocumentDB.2' },
-  { control: 'DynamoDB.2' },
-  { control: 'DynamoDB.1' },
-  { control: 'EKS.8' },
-  { control: 'ELB.4' },
-  { control: 'ELB.6' },
-  { control: 'Neptune.2' },
-  { control: 'Neptune.5' },
-  { control: 'Neptune.4' },
-  { control: 'RDS.17' },
-  { control: 'RDS.11' },
-  { control: 'S3.14' },
-  { control: 'StepFunctions.1' },
-  { control: 'WAF.11' },
   { control: 'CloudFront.1' },
+  { control: 'CloudFront.2' },
+  { control: 'CloudFront.5' },
   { control: 'CloudFront.12' },
+  { control: 'CloudWatch.2', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.3', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.4', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.5', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.6', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.7', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.8', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.9', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.10', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.11', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.12', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.13', executes: 'CloudWatch.1' },
+  { control: 'CloudWatch.14', executes: 'CloudWatch.1' },
   { control: 'CodeBuild.5' },
+  { control: 'DocumentDB.2' },
+  { control: 'DynamoDB.1' },
+  { control: 'DynamoDB.2' },
   { control: 'EC2.4' },
   { control: 'EC2.8' },
   { control: 'EC2.18' },
   { control: 'EC2.19' },
   { control: 'EC2.23' },
   { control: 'ECR.1' },
+  { control: 'EKS.8' },
+  { control: 'ELB.4' },
+  { control: 'ELB.6' },
+  { control: 'IAM.10', executes: 'IAM.7' },
+  { control: 'IAM.11', executes: 'IAM.7' },
+  { control: 'IAM.12', executes: 'IAM.7' },
+  { control: 'IAM.13', executes: 'IAM.7' },
+  { control: 'IAM.14', executes: 'IAM.7' },
+  { control: 'IAM.15', executes: 'IAM.7' },
+  { control: 'IAM.16', executes: 'IAM.7' },
+  { control: 'IAM.17', executes: 'IAM.7' },
+  { control: 'Neptune.2' },
+  { control: 'Neptune.4' },
+  { control: 'Neptune.5' },
+  { control: 'RDS.11' },
+  { control: 'RDS.17' },
+  { control: 'S3.3', executes: 'S3.2' },
+  { control: 'S3.8', executes: 'S3.2' },
   { control: 'S3.11' },
   { control: 'S3.13' },
+  { control: 'S3.14' },
   { control: 'SecretsManager.1' },
   { control: 'SecretsManager.3' },
   { control: 'SecretsManager.4' },
   { control: 'SSM.4' },
+  { control: 'StepFunctions.1' },
+  { control: 'WAF.11' },
 ];
 
 const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {
@@ -143,13 +147,13 @@ const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {
   solutionVersion: DIST_VERSION,
   solutionDistBucket: DIST_OUTPUT_BUCKET,
   solutionDistName: DIST_SOLUTION_NAME,
-  remediations: remediations,
+  remediations: [...originalRemediations, ...newRemediations],
   securityStandardLongName: standardLongName,
   securityStandard: standardShortName,
   securityStandardVersion: standardVersion,
 });
 
-const memberStack = new SecurityControlsPlaybookMemberStack(app, 'SCMemberStack', {
+const memberStackOriginal = new SecurityControlsPlaybookMemberStackOriginal(app, 'SCMemberStackOriginal', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${SOLUTION_ID}M) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,
@@ -159,8 +163,23 @@ const memberStack = new SecurityControlsPlaybookMemberStack(app, 'SCMemberStack'
   securityStandard: standardShortName,
   securityStandardVersion: standardVersion,
   securityStandardLongName: standardLongName,
-  remediations: remediations,
+  remediations: originalRemediations,
 });
 
+const memberStackNew = new SecurityControlsPlaybookMemberStackNew(app, 'SCMemberStackNew', {
+  analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
+  synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
+  description: `(${SOLUTION_ID}M) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,
+  solutionId: SOLUTION_ID,
+  solutionVersion: DIST_VERSION,
+  solutionDistBucket: DIST_OUTPUT_BUCKET,
+  securityStandard: standardShortName,
+  securityStandardVersion: standardVersion,
+  securityStandardLongName: standardLongName,
+  remediations: newRemediations,
+});
+
+
 adminStack.templateOptions.templateFormatVersion = '2010-09-09';
-memberStack.templateOptions.templateFormatVersion = '2010-09-09';
+memberStackOriginal.templateOptions.templateFormatVersion = '2010-09-09';
+memberStackNew.templateOptions.templateFormatVersion = '2010-09-09';

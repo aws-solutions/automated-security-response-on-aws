@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { readdirSync } from 'fs';
-import { StackProps, Stack, App, CfnParameter, CfnCondition, Fn, CfnResource } from 'aws-cdk-lib';
+
+import { StackProps, Stack, App, CfnResource } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from './admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
@@ -11,6 +11,8 @@ import { MemberBucketEncryption } from './member/bucket-encryption';
 import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 import { WaitProvider } from './wait-provider';
+import { MemberPlaybookNew } from './member-playbook';
+import { scPlaybookProps } from '../playbooks/playbook-index';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -21,13 +23,13 @@ export interface SolutionProps extends StackProps {
 }
 
 export class MemberStack extends Stack {
-  nestedStacks: Stack[] = [];
+  nestedStacksWithAppRegistry: Stack[] = [];
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
 
     const adminAccountParam = new AdminAccountParam(this, 'AdminAccountParameter');
 
-    new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
+    const redShiftLogging = new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
     new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
 
@@ -57,42 +59,20 @@ export class MemberStack extends Stack {
     const noRolesCfnResource = nestedStackNoRoles.nestedStackResource as CfnResource;
     noRolesCfnResource.overrideLogicalId('RunbookStackNoRoles');
 
-    this.nestedStacks.push(nestedStackNoRoles as Stack);
+    this.nestedStacksWithAppRegistry.push(nestedStackNoRoles as Stack);
 
-    const playbookDirectory = `${__dirname}/../playbooks`;
-    const ignore = ['.DS_Store', 'common', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
-    const illegalChars = /[\\._]/g;
-    const listOfPlaybooks: string[] = [];
-    const items = readdirSync(playbookDirectory);
-    items.forEach((file) => {
-      if (!ignore.includes(file)) {
-        const templateFile = `${file}MemberStack.template`;
-
-        const parmname = file.replace(illegalChars, '');
-        const memberStackOption = new CfnParameter(this, `LoadMemberStack${parmname}`, {
-          type: 'String',
-          description: `Load Playbook member stack for ${file}?`,
-          default: 'yes',
-          allowedValues: ['yes', 'no'],
-        });
-        memberStackOption.overrideLogicalId(`Load${parmname}MemberStack`);
-        listOfPlaybooks.push(memberStackOption.logicalId);
-
-        const nestedStack = nestedStackFactory.addNestedStack(`PlaybookMemberStack${file}`, {
-          templateRelativePath: `playbooks/${templateFile}`,
-          parameters: {
-            SecHubAdminAccount: adminAccountParam.value,
-            WaitProviderServiceToken: waitProvider.serviceToken,
-          },
-          condition: new CfnCondition(this, `load${file}Cond`, {
-            expression: Fn.conditionEquals(memberStackOption, 'yes'),
-          }),
-        });
-        const cfnResource = nestedStack.nestedStackResource as CfnResource;
-        cfnResource.overrideLogicalId(`PlaybookMemberStack${file}`);
-        this.nestedStacks.push(nestedStack as Stack);
-      }
+    const scPlaybook = new MemberPlaybookNew(this, {
+      name: scPlaybookProps.name,
+      defaultState: scPlaybookProps.defaultParameterValue,
+      description: scPlaybookProps.description,
+      nestedStackFactory,
+      parameters: {
+        SecHubAdminAccount: adminAccountParam.value,
+        WaitProviderServiceToken: waitProvider.serviceToken,
+      },
     });
+
+    this.nestedStacksWithAppRegistry.push(...scPlaybook.playbookStacks);
 
     /********************
      ** Metadata
@@ -105,8 +85,12 @@ export class MemberStack extends Stack {
             Parameters: [memberLogGroup.paramId],
           },
           {
-            Label: { default: 'Playbooks' },
-            Parameters: listOfPlaybooks,
+            Label: { default: 'Consolidated control finding Playbook' },
+            Parameters: [scPlaybook.parameterName],
+          },
+          {
+            Label: { default: 'Configuration' },
+            Parameters: [redShiftLogging.paramId, adminAccountParam.paramId],
           },
         ],
         ParameterLabels: {

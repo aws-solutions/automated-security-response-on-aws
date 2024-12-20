@@ -297,7 +297,7 @@ describe('member stack', function () {
 
     it('alias SSM parameter is present', function () {
       template.hasResourceProperties('AWS::SSM::Parameter', {
-        Name: `/Solutions/${solutionId}/CMK_REMEDIATION_ARN`,
+        Name: `/Solutions/${solutionId}/CMK_ARN`,
         Type: 'String',
         Value: { ['Fn::GetAtt']: [keyLogicalId, 'Arn'] },
       });
