@@ -24,7 +24,7 @@ class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
       Input.ofTypeString('KMSKeyId', {
         description:
           '(Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.',
-        defaultValue: 'aws/rds'
+        defaultValue: 'alias/aws/rds',
       }),
     ];
 
