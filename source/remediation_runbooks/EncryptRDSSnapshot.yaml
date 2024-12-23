@@ -54,7 +54,7 @@ parameters:
   KmsKeyId:
     type: 'String'
     description: '(Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.'
-    default: 'aws/rds'
+    default: 'alias/aws/rds'
     allowedPattern: '^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 outputs:
   - 'CopyRdsSnapshotToEncryptedRdsSnapshot.EncryptedSnapshotId'
@@ -139,5 +139,5 @@ mainSteps:
     inputs:
       Service: 'rds'
       Api: 'DeleteDBClusterSnapshot'
-      DBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
+      DBClusterSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
     isEnd: true
