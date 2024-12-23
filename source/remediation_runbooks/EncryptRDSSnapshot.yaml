@@ -139,5 +139,5 @@ mainSteps:
     inputs:
       Service: 'rds'
       Api: 'DeleteDBClusterSnapshot'
-      DBSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
+      DBClusterSnapshotIdentifier: '{{SourceDBSnapshotIdentifier}}'
     isEnd: true
