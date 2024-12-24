@@ -786,7 +786,7 @@ export class SolutionDeployStack extends cdk.Stack {
     // Loop through all of the Playbooks and create an option to load each
     //
     const PB_DIR = `${__dirname}/../playbooks`;
-    const ignore = ['.DS_Store', 'common', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage'];
+    const ignore = ['.DS_Store', 'common', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage', 'playbook-index.ts'];
     const illegalChars = /[\\._]/g;
 
     const standardLogicalNames: string[] = [];
