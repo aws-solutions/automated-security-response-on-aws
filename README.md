@@ -201,14 +201,30 @@ export SOLUTION_VERSION=v1.0.0.mybuild
 ./build-s3-dist.sh -b $BASE_BUCKET_NAME -v $SOLUTION_VERSION
 ```
 
-#### Run Unit Tests
+#### Unit Tests
+
+##### Prerequisites
+
+In order to run the unit tests locally, you must first install and configure Poetry. Poetry is a tool used for managing dependencies and packaging within Python projects.
+We recommend using [pipx](https://pipx.pypa.io/stable/installation/) to install and manage Poetry. You can find other ways to install Poetry in the [Poetry installation guide](https://python-poetry.org/docs/#installation).
+**Note**: You must install Poetry version 1.8.3 to execute the `run-unit-tests.sh` script. The `export` command has been removed in version 2.0.0 of Poetry meaning the script will not execute successfully.
+
+Follow these steps to install and setup Poetry on your local machine:
+- Install version 1.8.3 of Poetry by running `pipx install poetry==1.8.3`
+- Set the `POETRY_HOME` environment variable to be the path to your local installation of Poetry. E.g., `POETRY_HOME=/Users/YOUR_USERNAME/.local/pipx/venvs/poetry`
+
+##### Run Unit Tests
 
 Some Python unit tests execute AWS API calls. The calls that create, read, or modify resources are stubbed, but some
 calls to APIs that do not require any permissions execute against the real AWS APIs (e.g. STS GetCallerIdentity). The
 recommended way to run the unit tests is to configure your credentials for a no-access console role.
 
+All stubbed AWS API calls expect the local partition to be `us-east-1`, meaning you must either run the `export AWS_DEFAULT_REGION=us-east-1` command before running the unit tests, 
+or set your AWS config file to use `us-east-1` region while running the tests.
+
 ```bash
 cd ./deployment
+export AWS_DEFAULT_REGION=us-east-1
 chmod +x ./run-unit-tests.sh
 ./run-unit-tests.sh
 ```
