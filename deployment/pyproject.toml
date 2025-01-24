@@ -26,6 +26,7 @@ aws-lambda-powertools = {extras = ["all"], version = "^3.1.0"}
 aws-xray-sdk = "^2.14.0"
 aws_lambda_context = "^1.1.0"
 openapi_spec_validator = "^0.7.1"
+jinja2="^3.1.5"
 
 [build-system]
 requires = ["poetry-core"]

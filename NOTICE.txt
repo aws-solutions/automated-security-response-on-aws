@@ -816,7 +816,7 @@ py-partiql-parser under the MIT license.
 pycodestyle under the MIT license.
 pycparser under the 0BSD license.
 pydantic under the MIT license.
-pydantic-core under the MIT license.
+pydantic_core under the MIT license.
 pyflakes under the MIT license.
 pyproject-api under the MIT license.
 pytest under the MIT license.
