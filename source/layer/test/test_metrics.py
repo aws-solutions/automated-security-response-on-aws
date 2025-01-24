@@ -1,8 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import json
 import os
+import urllib.parse
+from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 import boto3
+import pytest
 from botocore.stub import Stubber
 from layer.metrics import Metrics
 
@@ -246,3 +251,57 @@ def test_do_not_send_metrics(mocker):
     metrics.send_metrics(metrics_data)
 
     send_metrics.assert_not_called()
+
+
+def test_post_metrics_to_api_http_error():
+    """
+    Test post_metrics_to_api handling of HTTPError
+    """
+    metrics = Metrics()
+    mock_data = {"Solution": "SO0111", "UUID": "test-uuid", "Data": {}}
+
+    with patch("layer.metrics.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = HTTPError(
+            url="test_url", code=404, msg="Not Found", hdrs={}, fp=None  # type: ignore
+        )
+        with pytest.raises(HTTPError):
+            metrics.post_metrics_to_api(mock_data)
+
+
+def test_post_metrics_to_api_successful_request(mocker):
+    """
+    Test that post_metrics_to_api successfully sends a POST request with the correct data and headers.
+    """
+    metrics = Metrics("unit-test")
+    request_data = {
+        "Solution": "SO0111",
+        "UUID": "11111111-1111-1111-1111-111111111111",
+        "Data": {"test": "data"},
+    }
+
+    mock_urlopen = mocker.patch("layer.metrics.urlopen")
+    mock_request = mocker.patch("layer.metrics.Request")
+
+    metrics.post_metrics_to_api(request_data)
+
+    expected_url = "https://metrics.awssolutionsbuilder.com/generic"
+    expected_data = bytes(urllib.parse.quote(json.dumps(request_data)), encoding="utf8")
+    expected_headers = {"Content-Type": "application/json"}
+
+    mock_request.assert_called_once_with(
+        expected_url, method="POST", data=expected_data, headers=expected_headers
+    )
+    mock_urlopen.assert_called_once()
+
+
+def test_post_metrics_to_api_url_error():
+    """
+    Test post_metrics_to_api handling of URLError
+    """
+    metrics = Metrics()
+    mock_data = {"Solution": "SO0111", "UUID": "test-uuid", "Data": {}}
+
+    with patch("layer.metrics.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = URLError("Test URL Error")
+        with pytest.raises(URLError):
+            metrics.post_metrics_to_api(mock_data)

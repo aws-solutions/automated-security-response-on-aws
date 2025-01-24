@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
+import urllib.parse
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -163,10 +164,12 @@ class Metrics(object):
 
     def post_metrics_to_api(self, request_data):
         url = "https://metrics.awssolutionsbuilder.com/generic"
+        url_encoded_request_data = urllib.parse.quote(json.dumps(request_data))
+        print(f"url_encoded_request_data: {url_encoded_request_data}")
         req = Request(
             url,
             method="POST",
-            data=bytes(json.dumps(request_data), encoding="utf8"),
+            data=bytes(url_encoded_request_data, encoding="utf8"),
             headers={"Content-Type": "application/json"},
         )
         urlopen(req)  # nosec

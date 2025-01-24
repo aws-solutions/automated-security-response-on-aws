@@ -16,6 +16,7 @@ interface ActionLogProps {
 export class ActionLog extends Construct {
   constructor(scope: Construct, id: string, props: ActionLogProps) {
     super(scope, id);
+    const orgIdLookup = new OrgIdLookupConstruct(this, 'OrgIdLookup');
 
     // target LogGroup for ASR events. EventProcessor lambdas in member accounts will write filtered CloudTrail event here.
     const logGroup = new LogGroup(scope, 'CloudTrailEventsLogGroup', {
@@ -23,8 +24,6 @@ export class ActionLog extends Construct {
       retention: RetentionDays.ONE_YEAR,
       removalPolicy: RemovalPolicy.DESTROY,
     });
-
-    const orgIdLookup = new OrgIdLookupConstruct(this, 'OrgIdLookup');
 
     addCfnGuardSuppression(logGroup, 'CLOUDWATCH_LOG_GROUP_ENCRYPTED');
 
