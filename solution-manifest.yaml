@@ -1,6 +1,6 @@
 id: SO0111
 name: automated-security-response-on-aws
-version: 2.2.0
+version: v2.2.1
 cloudformation_templates:
   - template: aws-sharr-deploy.template
     main_template: true

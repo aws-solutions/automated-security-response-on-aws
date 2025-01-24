@@ -41,9 +41,15 @@ export class OrgIdLookupConstruct extends Construct {
             responseStatus = 'SUCCESS';
           }
         } catch (error) {
-          console.error('Error:', error);
-          reason = 'Failed to retrieve Organization ID: ' + error.message;
-          physicalResourceId = 'org-id-lookup-failed';
+          if (error.name === "AWSOrganizationsNotInUseException") {
+            responseData = { OrganizationId: 'org-id-unavailable' };
+            physicalResourceId = 'org-id-not-found';
+            responseStatus = 'SUCCESS';
+          } else {
+            console.error('Error:', error);
+            reason = 'Failed to retrieve Organization ID: ' + error.message;
+            physicalResourceId = 'org-id-lookup-failed';
+          }
         }
       
         await sendResponse(event, context, responseStatus, responseData, physicalResourceId, reason);
