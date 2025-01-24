@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Modified the org-id-lookup custom resource to avoid throwing an error when the Admin stack is deployed in a non-Organization account.
 
+### Security
+- Upgrade jinja2 to mitigate [CVE-2024-56201](https://avd.aquasec.com/nvd/cve-2024-56201)
+
 ## [2.2.0] - 2024-12-16
 
 ### Added
