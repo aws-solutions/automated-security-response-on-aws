@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableRDSClusterDeletionProtectionDocument(scope, id, { ...props, controlId: 'RDS.7' });
 }
 
-class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDocument {
+export class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -20,8 +20,7 @@ class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDocument 
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -33,9 +32,7 @@ class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDocument 
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.ClusterId = StringVariable.of('ParseInput.DbiResourceId');

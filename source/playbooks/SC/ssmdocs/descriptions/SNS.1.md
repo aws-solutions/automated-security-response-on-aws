@@ -11,4 +11,4 @@
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 SNS.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-sns-1)
+  * [AWS FSBP v1.0.0 SNS.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-sns-1)

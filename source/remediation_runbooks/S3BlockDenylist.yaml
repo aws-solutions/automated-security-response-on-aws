@@ -45,7 +45,7 @@ mainSteps:
         accountid: '{{global:ACCOUNT_ID}}'
         bucket: '{{BucketName}}'
         denylist: '{{DenyList}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: update_bucket_policy
       Script: |-
         %%SCRIPT=PutS3BucketPolicyDeny.py%%

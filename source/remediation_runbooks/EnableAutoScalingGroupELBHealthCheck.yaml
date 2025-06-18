@@ -18,7 +18,7 @@ description: |
   * Remediation.Output - stdout messages from the remediation
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0: Autoscaling.1
+  * AWS FSBP v1.0.0: Autoscaling.1
   * CIS v1.2.0:   2.1
   * PCI:          Autoscaling.1
 
@@ -64,7 +64,7 @@ mainSteps:
     inputs:
       InputPayload:
         AsgName: '{{AutoScalingGroupName}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: verify
       Script: |-
         %%SCRIPT=EnableAutoScalingGroupELBHealthCheck_validate.py%%

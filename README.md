@@ -2,9 +2,9 @@
 
 [🚀 Solution Landing Page](https://aws.amazon.com/solutions/implementations/automated-security-response-on-aws/) \| [🚧
 Feature
-request](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
+request](https://github.com/aws-solutions/automated-security-response-on-aws/issues/new?assignees=&labels=feature-request%2C+enhancement&template=feature_request.md&title=)
 \| [🐛 Bug
-Report](https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation%3E/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
+Report](https://github.com/aws-solutions/automated-security-response-on-aws/issues/new?assignees=&labels=bug%2C+triage&template=bug_report.md&title=)
 
 Automated Security Response (ASR) on AWS is a solution that enables AWS Security Hub customers to remediate findings
 with a single click using sets of predefined response and remediation actions called Playbooks. The remediations are
@@ -18,7 +18,9 @@ standards:
 - AWS Foundational Security Best Practices (FSBP) v1.0.0
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0
 - Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0
+- Center for Internet Security (CIS) AWS Foundations Benchmark v3.0.0
 - Payment Card Industry (PCI) Data Security Standard (DSS) v3.2.1
+- National Institute of Standards and Technology (NIST) Special Publication 800-53 Revision 5
 
 A Playbook called Security Control is included that allows operation with AWS Security Hub's Consolidated Control
 Findings feature.
@@ -41,13 +43,11 @@ Implementation Guide. Instructions for creating an entirely new Playbook are bel
 
 - a Linux client with the following software
   - AWS CLI v2
-  - Python 3.7+ with pip
-  - AWS CDK 1.155.0+
-  - Node.js with npm
+  - Python 3.11+ with pip
+  - AWS CDK 2.171.1+
+  - Node.js 20+ with npm
 - source code downloaded from GitHub
-- two S3 buckets (minimum): 1 global and 1 for each region where you will deploy
-  - An Amazon S3 Bucket for solution templates - accessed globally via https.
-  - An Amazon S3 Bucket for source code - regional.
+
 
 #### Obtaining Source Code
 
@@ -62,13 +62,13 @@ make to your private copy of the solution.
 **Git Clone example:**
 
 ```bash
-git clone https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation.git
+git clone https://github.com/aws-solutions/automated-security-response-on-aws.git
 ```
 
 **Download Zip example:**
 
 ```bash
-wget https://github.com/aws-solutions/aws-security-hub-automated-response-and-remediation/archive/main.zip
+wget https://github.com/aws-solutions/automated-security-response-on-aws/archive/main.zip
 ```
 
 ### Custom Playbooks
@@ -113,7 +113,7 @@ const standardVersion = "1.1.1"; // DO NOT INCLUDE 'V'
 ```
 
 **standardShortName** can be as you wish. General recommendation is to make it short and meaningful. Ex. PCI, CIS,
-AFSBP. This is the name used in many labels throughout the solution. **standardLongName** must match the
+FSBP. This is the name used in many labels throughout the solution. **standardLongName** must match the
 StandardsControlArn, as _pci-dss_ in the above example. **standardVersion** must match the StandardsControlArn version,
 as _.../v/3.2.1/..._ in the above example.
 
@@ -124,6 +124,26 @@ from the StandardsControlArn:
 
 ```typescript
 const remediations: IControl[] = [{ control: "RDS.6" }];
+```
+
+#### Add your playbook as a new nested stack in the solution template
+
+Edit **playbooks/playbook-index.ts** to include the new playbook.
+
+Add the new playbook to the end of the `standardPlaybookProps` array.
+
+**Important** Do not change the order of the items in this array. Doing so will change the App Registry logical IDs for the nested stacks. 
+This will cause an error when updating the solution.
+
+Interface:
+
+```typescript
+export interface PlaybookProps {
+  name: string; // Playbook short name
+  useAppRegistry: boolean; // Add this playbook's nested stack to app registry for the solution
+  defaultParameterValue?: 'yes' | 'no'; // Default value for enabling this playbook in CloudFormation. Will default to 'no' if not provided.
+  description?: string; // Description for the CloudFormation parameter. Solution will provide a generated description if left blank.
+}
 ```
 
 #### Create the Remediations
@@ -143,13 +163,25 @@ robust and self-documenting. Each definition creates an IAM role and an SSM runb
 ### Build and Deploy
 
 AWS Solutions use two buckets: a bucket for global access to templates, which is accessed via HTTPS, and regional
-buckets for access to assets within the region, such as Lambda code. You will need:
+buckets for access to assets within the region, such as Lambda code. 
 
-- One global bucket that is access via the http end point. AWS CloudFormation templates are stored here. It must end
-  with "-reference. Ex. "mybucket-reference"
-- One regional bucket for each region where you plan to deploy using the name of the global bucket as the root, and
-  suffixed with the region name. Ex. "mybucket-us-east-1"
+- Pick a unique bucket name, `e.g. asr-staging`. Set two environment variables on your terminal, one should be the base bucket name with `-reference` as suffix, the other with your intended deployment region as suffix:
+
+```bash
+export BASE_BUCKET_NAME=asr-staging-$(date +%s)
+export TEMPLATE_BUCKET_NAME=$BASE_BUCKET_NAME-reference
+export REGION=us-east-1
+export ASSET_BUCKET_NAME=$BASE_BUCKET_NAME-$REGION
+```
+
+- In your AWS account, create two buckets with these names,
+  e.g. `asr-staging-reference` and `asr-staging-us-east-1`. (The reference bucket will hold the CloudFormation templates, the regional bucket will hold all other assets like the lambda code bundle.)
 - Your buckets should be encrypted and disallow public access
+
+```bash
+aws s3 mb s3://$TEMPLATE_BUCKET_NAME/
+aws s3 mb s3://$ASSET_BUCKET_NAME/
+```
 
 **Note**: When creating your buckets, ensure they are not publicly accessible. Use random bucket names. Disable public
 access. Use KMS encryption. And verify bucket ownership before uploading.
@@ -164,17 +196,35 @@ downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
 
 ```bash
 chmod +x build-s3-dist.sh
-build-s3-dist.sh -b <bucketname> -v <version>
+export SOLUTION_NAME=automated-security-response-on-aws
+export SOLUTION_VERSION=v1.0.0.mybuild
+./build-s3-dist.sh -b $BASE_BUCKET_NAME -v $SOLUTION_VERSION
 ```
 
-#### Run Unit Tests
+#### Unit Tests
+
+##### Prerequisites
+
+In order to run the unit tests locally, you must first install and configure Poetry. Poetry is a tool used for managing dependencies and packaging within Python projects.
+We recommend using [pipx](https://pipx.pypa.io/stable/installation/) to install and manage Poetry. You can find other ways to install Poetry in the [Poetry installation guide](https://python-poetry.org/docs/#installation).
+**Note**: You must install Poetry version 1.8.3 to execute the `run-unit-tests.sh` script. The `export` command has been removed in version 2.0.0 of Poetry meaning the script will not execute successfully.
+
+Follow these steps to install and setup Poetry on your local machine:
+- Install version 1.8.3 of Poetry by running `pipx install poetry==1.8.3`
+- Set the `POETRY_HOME` environment variable to be the path to your local installation of Poetry. E.g., `POETRY_HOME=/Users/YOUR_USERNAME/.local/pipx/venvs/poetry`
+
+##### Run Unit Tests
 
 Some Python unit tests execute AWS API calls. The calls that create, read, or modify resources are stubbed, but some
 calls to APIs that do not require any permissions execute against the real AWS APIs (e.g. STS GetCallerIdentity). The
 recommended way to run the unit tests is to configure your credentials for a no-access console role.
 
+All stubbed AWS API calls expect the local partition to be `us-east-1`, meaning you must either run the `export AWS_DEFAULT_REGION=us-east-1` command before running the unit tests, 
+or set your AWS config file to use `us-east-1` region while running the tests.
+
 ```bash
 cd ./deployment
+export AWS_DEFAULT_REGION=us-east-1
 chmod +x ./run-unit-tests.sh
 ./run-unit-tests.sh
 ```
@@ -186,18 +236,78 @@ Confirm that all unit tests pass.
 **Note**: Verify bucket ownership before uploading.
 
 By default, the templates created by build-s3-dist.sh expect the software to be stored in
-**aws-security-hub-automated-response-and-remediation/v\<version\>**. If in doubt, view the template.
+**automated-security-response-on-aws/\<version\>**. If in doubt, view the template.
 
-Use a tool such as the AWS S3 CLI "sync" command to upload your templates to the reference bucket and code to the
-regional bucket.
+Upload the build artifacts from `global-s3-assets/` to the template bucket and the artifacts from `regional-s3-assets/` to the regional bucket:
+
+```bash
+aws s3 ls s3://$TEMPLATE_BUCKET_NAME # test that bucket exists - should not give an error
+aws s3 ls s3://$ASSET_BUCKET_NAME # test that bucket exists - should not give an error
+cd ./deployment
+aws s3 cp global-s3-assets/  s3://$TEMPLATE_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control
+aws s3 cp regional-s3-assets/  s3://$ASSET_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control
+```
+
+_✅ All assets are now staged on your S3 buckets. You or any user may use S3 links for deployments_
 
 ## Deploy
 
-See the [Automated Security Response on AWS Implementation
-Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for
-deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for
-AWS Solutions. Ex.
-https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
+Consult the [Automated Security Response on AWS Implementation
+Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for detailed 
+deployment instructions and set all deployment parameters according to your needs. 
+When following the instructions, keep in mind to use the URLs to the templates in your own bucket.
+
+If you anticipate that you will need to deploy multiple times during your development iterations, you can alternatively compose an `aws cloudformation create-stack` command with your desired parameter values, and deploy from the terminal.
+For example:
+
+```bash
+  export ADMIN_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/aws-sharr-deploy.template
+  aws cloudformation create-stack \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --stack-name ASR-Admin-$(date +%s) \
+  --template-url $ADMIN_TEMPLATE_URL \
+  --parameters \
+    ParameterKey=LoadSCAdminStack,ParameterValue=yes \
+    ParameterKey=LoadAFSBPAdminStack,ParameterValue=no \
+    ParameterKey=LoadCIS120AdminStack,ParameterValue=no \
+    ParameterKey=LoadCIS140AdminStack,ParameterValue=no \
+    ParameterKey=LoadCIS300AdminStack,ParameterValue=no \
+    ParameterKey=LoadNIST80053AdminStack,ParameterValue=no \
+    ParameterKey=LoadPCI321AdminStack,ParameterValue=no \
+    ParameterKey=ReuseOrchestratorLogGroup,ParameterValue=no \
+    ParameterKey=UseCloudWatchMetrics,ParameterValue=yes \
+    ParameterKey=UseCloudWatchMetricsAlarms,ParameterValue=yes \
+    ParameterKey=RemediationFailureAlarmThreshold,ParameterValue=5 \
+    ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no \
+    ParameterKey=TicketGenFunctionName,ParameterValue= 
+    
+  export NAMESPACE=$(date +%s | tail -c 9)
+  export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/aws-sharr-member.template
+  aws cloudformation create-stack \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --stack-name ASR-Member-$(date +%s) \
+  --template-url $MEMBER_TEMPLATE_URL \
+  --parameters \
+    ParameterKey=LoadSCMemberStack,ParameterValue=yes \
+    ParameterKey=LoadAFSBPMemberStack,ParameterValue=no \
+    ParameterKey=LoadCIS120MemberStack,ParameterValue=no \
+    ParameterKey=LoadCIS140MemberStack,ParameterValue=no \
+    ParameterKey=LoadNIST80053MemberStack,ParameterValue=no \
+    ParameterKey=LoadPCI321MemberStack,ParameterValue=no \
+    ParameterKey=CreateS3BucketForRedshiftAuditLogging,ParameterValue=no \
+    ParameterKey=LogGroupName,ParameterValue=random-log-group-123456789012 \
+    ParameterKey=Namespace,ParameterValue=$NAMESPACE \
+    ParameterKey=SecHubAdminAccount,ParameterValue=123456789012
+    
+  export MEMBER_ROLES_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/aws-sharr-member-roles.template
+  aws cloudformation create-stack \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --stack-name ASR-Member-Roles-$(date +%s) \
+  --template-url $MEMBER_ROLES_TEMPLATE_URL \
+  --parameters \
+    ParameterKey=Namespace,ParameterValue=$NAMESPACE \
+    ParameterKey=SecHubAdminAccount,ParameterValue=123456789012
+```
 
 ## Directory structure
 
@@ -206,7 +316,7 @@ https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-
 |-deployment/             [ Scripts used to build, test, and upload templates for the solution ]
 |-simtest/                [ Tool and sample data used to simulate findings for testing ]
 |-source/                 [ Solution source code and tests ]
-  |-LambdaLayers/         [ Common functions used by the Orchestrator and custom resource providers ]
+  |-layer/                [ Common functions used by the Orchestrator and custom resource providers ]
   |-lib/                  [ Solution CDK ]
     |-appregistry/        [ Resources for integration with Service Catalog AppRegistry ]
     |-cdk-helper/         [ CDK helper functions ]
@@ -233,7 +343,7 @@ https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-
 
 ## Collection of operational metrics
 
-This solution collects anonymous operational metrics to help AWS improve the quality of features of the solution. For
+This solution collects anonymized operational metrics to help AWS improve the quality of features of the solution. For
 more information, including how to disable this capability, please see the [Implementation
 Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/collection-of-operational-metrics.html)
 

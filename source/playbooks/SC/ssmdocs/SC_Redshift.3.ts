@@ -20,7 +20,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableAutomaticSnapshotsOnRedshiftClusterDocument(scope, id, { ...props, controlId: 'Redshift.3' });
 }
 
-class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDocument {
+export class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -33,8 +33,7 @@ class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDo
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -46,8 +45,7 @@ class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDo
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       new ExecuteScriptStep(this, 'ExtractConfigRuleParameters', {
         language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'event_handler'),
@@ -64,9 +62,7 @@ class EnableAutomaticSnapshotsOnRedshiftClusterDocument extends ControlRunbookDo
     ];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.MinRetentionPeriod = StringVariable.of('ExtractConfigRuleParameters.MinRetentionPeriod');

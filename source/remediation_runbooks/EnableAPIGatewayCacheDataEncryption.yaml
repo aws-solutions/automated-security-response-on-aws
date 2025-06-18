@@ -1,0 +1,57 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+schemaVersion: '0.3'
+description: |
+  ### Document name - ASR-EnableAPIGatewayCacheDataEncryption
+
+  ## What does this document do?
+    This document enables encryption on API Gateway REST API cache data
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * APIGatewayStageArn: (Required) The ARN of the API Gateway REST API stage.
+  * StageName: (Required) The name of the API Gateway REST API stage.
+  * MethodSettings: (Required) The list of method settings for the methods in the API Gateway stage.
+
+  ## Security Standards / Controls
+  * NIST 800-53 Rev5: APIGateway.5
+
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  APIGatewayStageArn:
+    type: String
+    description: (Required) The ARN of the API Gateway stage.
+    allowedPattern: '^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::\/restapis\/([a-z0-9]+)\/stages\/.+)$'
+  StageName:
+    type: String
+    description: (Required) The name of the API Gateway stage.
+    allowedPattern: '^[a-zA-Z0-9_-]+$|^\$default$'
+  MethodSettings:
+    type: MapList
+    description: (Required) The list of method settings for the methods in the API Gateway stage.
+mainSteps:
+  - name: 'EnableAPIGatewayCacheDataEncryption'
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Enable encryption on API Gateway REST API cache data
+    isEnd: true
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        APIGatewayStageArn: '{{ APIGatewayStageArn }}'
+        StageName: '{{ StageName }}'
+        MethodSettings: '{{ MethodSettings }}'
+      Runtime: 'python3.11'
+      Handler: 'enable_data_encryption'
+      Script: |-
+        %%SCRIPT=EnableAPIGatewayCacheDataEncryption.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

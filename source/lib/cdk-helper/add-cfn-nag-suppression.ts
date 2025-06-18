@@ -24,3 +24,24 @@ export function addCfnNagSuppression(resource: IConstruct, suppression: CfnNagSu
     };
   }
 }
+
+export function addCfnGuardSuppression(resource: IConstruct, suppression: string): void {
+  const cfnResource = resource.node.defaultChild as CfnResource;
+  if (!cfnResource?.cfnOptions) {
+    throw new Error(`Resource ${cfnResource?.logicalId} has no cfnOptions, unable to add CfnGuard suppression`);
+  }
+  const existingSuppressions: string[] = cfnResource.cfnOptions.metadata?.guard?.SuppressedRules;
+  if (existingSuppressions) {
+    existingSuppressions.push(suppression);
+  } else if (cfnResource.cfnOptions.metadata) {
+    cfnResource.cfnOptions.metadata.guard = {
+      SuppressedRules: [suppression],
+    };
+  } else {
+    cfnResource.cfnOptions.metadata = {
+      guard: {
+        SuppressedRules: [suppression],
+      },
+    };
+  }
+}

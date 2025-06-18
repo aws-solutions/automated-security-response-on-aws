@@ -56,13 +56,13 @@ mainSteps:
 - name: 'CastAllowVersionUpgradeToString'
   action: 'aws:executeScript'
   inputs:
-    Runtime: 'python3.8'
-    Handler: 'event_handler'
+    Runtime: 'python3.11'
+    Handler: 'cast_to_string'
     InputPayload:
+      DesiredParameter: 'AllowVersionUpgrade'
       AllowVersionUpgrade: '{{AllowVersionUpgrade}}'
-    Script: >
-      def event_handler(event, context):
-          return str(event['AllowVersionUpgrade'])
+    Script: |-
+        %%SCRIPT=CastToString.py%%
   outputs:
   - Name: 'AllowVersionUpgradeString'
     Selector: '$.Payload'

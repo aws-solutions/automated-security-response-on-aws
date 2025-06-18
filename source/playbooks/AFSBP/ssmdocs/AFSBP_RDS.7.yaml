@@ -15,7 +15,7 @@ description: |
   * Remediation.Output - The standard HTTP response from the ModifyDBCluster API.
 
   ## Documentation Links
-  * [AFSBP RDS.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-7)
+  * [AWS FSBP RDS.7](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-7)
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the RDS.7 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableRDSClusterDeletionProtection"
+    default: "%%ROLE=SO0111-EnableRDSClusterDeletionProtection%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
@@ -64,7 +64,7 @@ mainSteps:
         parse_id_pattern: ''
         expected_control_id:
         - 'RDS.7'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

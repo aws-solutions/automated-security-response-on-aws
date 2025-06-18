@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new DisablePublicAccessToRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.2' });
 }
 
-class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocument {
+export class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -21,8 +21,7 @@ class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -34,9 +33,7 @@ class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.DbiResourceId = StringVariable.of('ParseInput.DbiResourceId');

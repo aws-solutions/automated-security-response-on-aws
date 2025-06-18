@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableMinorVersionUpgradeOnRDSDBInstanceDocument(scope, id, { ...props, controlId: 'RDS.13' });
 }
 
-class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDocument {
+export class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -20,8 +20,7 @@ class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDoc
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -33,9 +32,7 @@ class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRunbookDoc
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.DBInstanceIdentifier = StringVariable.of('ParseInput.DBInstanceIdentifier');

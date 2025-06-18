@@ -30,13 +30,10 @@ export class EnableEncryptionForSQSQueueDocument extends ControlRunbookDocument 
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.KmsKeyArn = StringVariable.of('KmsKeyArn');
-    params.SNSTopicArn = StringVariable.of('ParseInput.SQSQueueName');
 
     return params;
   }

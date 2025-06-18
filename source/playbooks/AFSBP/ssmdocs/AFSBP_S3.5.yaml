@@ -15,7 +15,7 @@ description: |
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 S3.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-5)
+  * [AWS FSBP v1.0.0 S3.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-5)
 
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
@@ -56,7 +56,7 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$'
         expected_control_id: [ 'S3.5' ]
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%
@@ -70,7 +70,7 @@ mainSteps:
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
         AccountId: '{{ParseInput.AccountId}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-SetSSLBucketPolicy'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-SetSSLBucketPolicy%%'
             
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

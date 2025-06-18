@@ -71,15 +71,14 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
       remediationName: 'CreateLogMetricFilterAndAlarm',
       scope: RemediationScope.GLOBAL,
       updateDescription: HardCodedString.of(
-        `Added metric filter to the log group and notifications to SNS topic ${snsTopicName}.`
+        `Added metric filter to the log group and notifications to SNS topic ${snsTopicName}.`,
       ),
     });
     this.standardLongName = props.standardLongName;
     this.standardVersion = props.standardVersion;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -91,12 +90,11 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     const getMetricFilterAndAlarmInputValueStep = new ExecuteScriptStep(this, 'GetMetricFilterAndAlarmInputValue', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'verify'),
       code: ScriptCode.fromFile(
-        fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'cloudwatch_get_input_values.py'))
+        fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'cloudwatch_get_input_values.py')),
       ),
       inputPayload: {
         ControlId: StringVariable.of('ParseInput.ControlId'),
@@ -145,9 +143,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     return [getMetricFilterAndAlarmInputValueStep];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.FilterName = StringVariable.of('GetMetricFilterAndAlarmInputValue.FilterName');

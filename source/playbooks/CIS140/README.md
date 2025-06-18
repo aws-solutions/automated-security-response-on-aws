@@ -34,6 +34,6 @@ The Center for Internet Security AWS Foundations Benchmark v1.4.0 (CIS) playbook
 * 4.14
 * 5.3
 
-See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information on this Playbook.
+See the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/welcome.html) for more information on this Playbook.
 
 See [CIS v1.4.0 controls](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html) for more information on controls and remediations in [AWS Security Hub](https://aws.amazon.com/security-hub)

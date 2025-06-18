@@ -56,13 +56,13 @@ mainSteps:
 - name: 'CastCurrentRetentionPeriodToString'
   action: 'aws:executeScript'
   inputs:
-    Runtime: 'python3.8'
-    Handler: 'event_handler'
+    Runtime: 'python3.11'
+    Handler: 'cast_to_string'
     InputPayload:
+      DesiredParameter: 'RetentionPeriod'
       RetentionPeriod: '{{QueryRetentionPeriod.CurrentRetentionPeriod}}'
-    Script: >
-      def event_handler(event, context):
-          return str(event['RetentionPeriod'])
+    Script: |-
+        %%SCRIPT=CastToString.py%%
   outputs:
   - Name: 'CurrentRetentionPeriodString'
     Selector: '$.Payload'
@@ -102,13 +102,13 @@ mainSteps:
 - name: 'CastRetentionPeriodToString'
   action: 'aws:executeScript'
   inputs:
-    Runtime: 'python3.8'
-    Handler: 'event_handler'
+    Runtime: 'python3.11'
+    Handler: 'cast_to_string'
     InputPayload:
+      DesiredParameter: 'RetentionPeriod'
       RetentionPeriod: '{{MinRetentionPeriod}}'
-    Script: >
-      def event_handler(event, context):
-          return str(event['RetentionPeriod'])
+    Script: |-
+        %%SCRIPT=CastToString.py%%
   outputs:
   - Name: 'MinRetentionPeriodString'
     Selector: '$.Payload'

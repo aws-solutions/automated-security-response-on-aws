@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new RemoveLambdaPublicAccessDocument(scope, id, { ...props, controlId: 'Lambda.1' });
 }
 
-class RemoveLambdaPublicAccessDocument extends ControlRunbookDocument {
+export class RemoveLambdaPublicAccessDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'FunctionName';
 

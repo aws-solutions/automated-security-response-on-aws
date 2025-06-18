@@ -11,4 +11,4 @@ This document enables `Auto minor version upgrade` on a given Amazon RDS instanc
 * Remediation.Output - The standard HTTP response from the ModifyDBInstance API.
 
 ## Documentation Links
-* [AFSBP RDS.13](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-13)
+* [AWS FSBP RDS.13](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-13)

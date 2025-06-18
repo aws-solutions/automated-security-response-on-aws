@@ -16,7 +16,7 @@ description: |
   * Remediation.Output
  
   ## Documentation Links
-  * [AFSBP v1.0.0 EC2.15](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-15)
+  * [AWS FSBP v1.0.0 EC2.15](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-ec2-15)
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the EC2.15 finding
   RemediationRoleName:
     type: 'String'
-    default: 'SO0111-DisablePublicIPAutoAssign'
+    default: '%%ROLE=SO0111-DisablePublicIPAutoAssign%%'
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
@@ -65,7 +65,7 @@ mainSteps:
         parse_id_pattern: ''
         expected_control_id: 
           - 'EC2.15'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

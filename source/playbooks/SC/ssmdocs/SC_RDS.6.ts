@@ -17,7 +17,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableEnhancedMonitoringOnRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.6' });
 }
 
-class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocument {
+export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -28,8 +28,7 @@ class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocume
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -41,14 +40,13 @@ class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocume
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       new AwsApiStep(this, 'GetMonitoringRoleArn', {
         timeoutSeconds: 600,
         service: AwsService.IAM,
         pascalCaseApi: 'GetRole',
-        apiParams: { RoleName: `${this.solutionId}-RDSMonitoring-remediationRole` },
+        apiParams: { RoleName: `${this.solutionId}-RDSMonitoring-remediationRole-${this.namespace}` },
         outputs: [
           {
             name: 'Arn',
@@ -60,9 +58,7 @@ class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocume
     ];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.ResourceId = StringVariable.of('ParseInput.DbiResourceId');

@@ -12,6 +12,7 @@ import {
   CfnRole,
 } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
 
 export interface OrchRoleProps {
   solutionId: string;
@@ -67,7 +68,7 @@ export class OrchestratorMemberRole extends Construct {
         resource: 'automation-execution',
         resourceName: '*',
         arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
-      })
+      }),
     );
     memberPolicy.addStatements(ssmRWPerms);
 
@@ -92,7 +93,7 @@ export class OrchestratorMemberRole extends Construct {
         actions: ['config:DescribeConfigRules'],
         resources: ['*'],
         effect: Effect.ALLOW,
-      })
+      }),
     );
 
     const sechubPerms = new PolicyStatement();
@@ -109,7 +110,7 @@ export class OrchestratorMemberRole extends Construct {
     principalPolicyStatement.effect = Effect.ALLOW;
 
     const roleprincipal = new ArnPrincipal(
-      `arn:${stack.partition}:iam::${props.adminAccountId}:role/${props.adminRoleName}`
+      `arn:${stack.partition}:iam::${props.adminAccountId}:role/${props.adminRoleName}`,
     );
 
     const principals = new CompositePrincipal(roleprincipal);
@@ -142,5 +143,6 @@ export class OrchestratorMemberRole extends Construct {
         ],
       },
     };
+    addCfnGuardSuppression(memberRole, 'IAM_NO_INLINE_POLICY_CHECK');
   }
 }

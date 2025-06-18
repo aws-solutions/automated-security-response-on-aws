@@ -5,19 +5,12 @@
 # TODO: test that ID over 20 characters is rejected
 
 import os
-import pytest
-from pytest_mock import mocker
-import boto3
-import botocore.session
-from botocore.stub import Stubber, ANY
-from botocore.exceptions import ClientError
 import random
-from action_target_provider import (
-    lambda_handler,
-    CustomAction,
-    get_securityhub_client,
-)
-from botocore.config import Config
+
+import boto3
+import pytest
+from action_target_provider import CustomAction, get_securityhub_client, lambda_handler
+from botocore.stub import ANY, Stubber
 
 os.environ["AWS_REGION"] = "us-east-1"
 os.environ["AWS_PARTITION"] = "aws"
@@ -106,13 +99,26 @@ def test_create(mocker):
 
 def test_create_already_exists(mocker):
     """
-    Test that there is no error when it already exists
+    Test that the ARN is retrieved when it already exists
     """
     sechub = boto3.client("securityhub")
     sechub_stub = Stubber(sechub)
     # Note: boto mock appears to be broken for the Sec Hub API
     # It only works if the response containts "ActionTargetArn"
     sechub_stub.add_client_error("create_action_target", "ResourceConflictException")
+    sechub_stub.add_response(
+        "describe_action_targets",
+        {
+            "ActionTargets": [
+                {
+                    "Name": "Remediate with ASR Test",
+                    "Description": " Test Submit the finding to Automated Security Response on AWS",
+                    "ActionTargetArn": "arn:aws:us-east-1:my-action-target-arn",
+                },
+            ]
+        },
+        {},
+    )
     sechub_stub.activate()
     mocker.patch("action_target_provider.get_securityhub_client", return_value=sechub)
     mocker.patch("cfnresponse.send", return_value=None)
@@ -124,7 +130,7 @@ def test_create_already_exists(mocker):
             "Id": "ASRRemediationTest",
         },
     )
-    assert customAction.create() == None
+    assert customAction.create() == "arn:aws:us-east-1:my-action-target-arn"
     sechub_stub.assert_no_pending_responses()
     sechub_stub.deactivate()
 

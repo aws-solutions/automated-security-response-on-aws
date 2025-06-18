@@ -15,7 +15,7 @@ description: |
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 S3.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-6)
+  * [AWS FSBP v1.0.0 S3.6](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-6)
 
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
@@ -32,7 +32,7 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RemediationRoleName:
     type: String
-    default: "SO0111-S3BlockDenylist"
+    default: "%%ROLE=SO0111-S3BlockDenylist%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
@@ -63,7 +63,7 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$'
         expected_control_id: [ 'S3.6' ]
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%
@@ -74,7 +74,7 @@ mainSteps:
     inputs:
       InputPayload:
         SerializedList: '{{ ParseInput.DenyListSerialized }}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: runbook_handler
       Script: |-
         %%SCRIPT=deserializeApiList.py%%

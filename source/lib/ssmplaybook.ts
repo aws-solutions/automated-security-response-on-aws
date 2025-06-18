@@ -15,9 +15,11 @@ import {
   AccountPrincipal,
 } from 'aws-cdk-lib/aws-iam';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import { IRuleTarget, EventPattern, Rule } from 'aws-cdk-lib/aws-events';
+import { IRuleTarget, EventPattern, Rule, RuleTargetInput, EventField } from 'aws-cdk-lib/aws-events';
 import { MemberRoleStack } from './remediation_runbook-stack';
 import { Construct } from 'constructs';
+import { CfnCondition } from 'aws-cdk-lib';
+import setCondition from './cdk-helper/set-condition';
 
 /*
  * @author AWS Solutions Development
@@ -72,6 +74,13 @@ export class Trigger extends Construct {
         id: '',
         arn: props.targetArn,
         role: eventsRole,
+        input: RuleTargetInput.fromObject({
+          'detail-type': EventField.fromPath('$.detail-type'),
+          detail: {
+            findings: EventField.fromPath('$.detail.findings'),
+            actionName: 'None',
+          },
+        }),
       }),
     };
 
@@ -89,13 +98,16 @@ export class Trigger extends Construct {
     });
 
     enable_auto_remediation_param.overrideLogicalId(
-      `${props.securityStandard}${props.securityStandardVersion}${props.controlId}AutoTrigger`.replace(illegalChars, '')
+      `${props.securityStandard}${props.securityStandardVersion}${props.controlId}AutoTrigger`.replace(
+        illegalChars,
+        '',
+      ),
     );
 
     interface IPattern {
-      source: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-      detailType: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-      detail: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      source: any;
+      detailType: any;
+      detail: any;
     }
     const eventPattern: IPattern = {
       source: ['aws.securityhub'],
@@ -128,8 +140,15 @@ export class Trigger extends Construct {
 
 export interface IOneTriggerProps {
   description?: string;
+  condition?: CfnCondition;
   targetArn: string;
   serviceToken: string;
+  eventsRole: Role;
+  ruleId: string;
+  ruleName: string;
+  customActionName: string;
+  customActionId: string;
+  customActionDescription: string;
   prereq: cdk.CfnResource[];
 }
 export class OneTrigger extends Construct {
@@ -160,32 +179,27 @@ export class OneTrigger extends Construct {
       serviceToken: props.serviceToken,
       resourceType: 'Custom::ActionTarget',
       properties: {
-        Name: 'Remediate with ASR',
-        Description: 'Submit the finding to AWS Security Hub Automated Response and Remediation',
-        Id: 'ASRRemediation',
+        Name: props.customActionName,
+        Description: props.customActionDescription,
+        Id: props.customActionId,
       },
     });
     {
-      const child = customAction.node.defaultChild as cdk.CfnCustomResource;
+      const cfnCustomAction = customAction.node.defaultChild as cdk.CfnCustomResource;
       for (const prereq of props.prereq) {
-        child.addDependency(prereq);
+        cfnCustomAction.addDependency(prereq);
       }
     }
 
-    // Create an IAM role for Events to start the State Machine
-    const eventsRole = new Role(this, 'EventsRuleRole', {
-      assumedBy: new ServicePrincipal('events.amazonaws.com'),
-    });
-
     // Grant the start execution permission to the Events service
-    stateMachine.grantStartExecution(eventsRole);
+    stateMachine.grantStartExecution(props.eventsRole);
 
     // Create an event rule to trigger the step function
     const stateMachineTarget: IRuleTarget = {
       bind: () => ({
         id: '',
         arn: props.targetArn,
-        role: eventsRole,
+        role: props.eventsRole,
       }),
     };
 
@@ -200,13 +214,18 @@ export class OneTrigger extends Construct {
       },
     };
 
-    new Rule(this, 'Remediate Custom Action', {
+    const customActionRule = new Rule(this, props.ruleId, {
       description: description,
       enabled: true,
       eventPattern: eventPattern,
-      ruleName: `Remediate_with_SHARR_CustomAction`,
+      ruleName: props.ruleName,
       targets: [stateMachineTarget],
     });
+
+    if (props.condition) {
+      setCondition(customActionRule, props.condition);
+      setCondition(customAction, props.condition);
+    }
   }
 }
 
@@ -223,6 +242,7 @@ export class SsmRole extends Construct {
     const stack = cdk.Stack.of(this);
     const roleStack = MemberRoleStack.of(this) as MemberRoleStack;
     const basePolicy = new Policy(this, 'SHARR-Member-Base-Policy');
+    const roleNameWithNamespace = `${props.remediationRoleName}-${roleStack.getNamespace()}`;
 
     basePolicy.addStatements(
       new PolicyStatement({
@@ -232,13 +252,13 @@ export class SsmRole extends Construct {
       }),
       new PolicyStatement({
         actions: ['iam:PassRole'],
-        resources: [`arn:${stack.partition}:iam::${stack.account}:role/${props.remediationRoleName}`],
+        resources: [`arn:${stack.partition}:iam::${stack.account}:role/${roleNameWithNamespace}`],
         effect: Effect.ALLOW,
       }),
       new PolicyStatement({
         actions: ['ssm:StartAutomationExecution', 'ssm:GetAutomationExecution', 'ssm:DescribeAutomationStepExecutions'],
         resources: [
-          `arn:${stack.partition}:ssm:*:${stack.account}:document/Solutions/SHARR-${props.remediationRoleName}`,
+          `arn:${stack.partition}:ssm:*:${stack.account}:document/Solutions/SHARR-${roleNameWithNamespace}`,
           `arn:${stack.partition}:ssm:*:${stack.account}:automation-definition/*`,
           `arn:${stack.partition}:ssm:*::automation-definition/*`,
           `arn:${stack.partition}:ssm:*:${stack.account}:automation-execution/*`,
@@ -247,9 +267,9 @@ export class SsmRole extends Construct {
       }),
       new PolicyStatement({
         actions: ['sts:AssumeRole'],
-        resources: [`arn:${stack.partition}:iam::${stack.account}:role/${props.remediationRoleName}`],
+        resources: [`arn:${stack.partition}:iam::${stack.account}:role/${roleNameWithNamespace}`],
         effect: Effect.ALLOW,
-      })
+      }),
     );
 
     // AssumeRole Policy
@@ -259,7 +279,7 @@ export class SsmRole extends Construct {
 
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, '');
     const roleprincipal = new ArnPrincipal(
-      `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`
+      `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`,
     );
 
     const principals = new CompositePrincipal(roleprincipal);
@@ -274,12 +294,11 @@ export class SsmRole extends Construct {
 
     const memberRole = new Role(this, 'MemberAccountRole', {
       assumedBy: principals,
-      roleName: props.remediationRoleName,
+      roleName: `${roleNameWithNamespace}`,
     });
 
     memberRole.attachInlinePolicy(basePolicy);
     memberRole.attachInlinePolicy(props.remediationPolicy);
-    memberRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
     memberRole.node.addDependency(roleStack.getOrchestratorMemberRole());
 
     const memberRoleResource = memberRole.node.findChild('Resource') as CfnRole;

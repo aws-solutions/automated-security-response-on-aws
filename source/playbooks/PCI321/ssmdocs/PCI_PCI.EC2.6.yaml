@@ -32,7 +32,7 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableVPCFlowLogs"
+    default: "%%ROLE=SO0111-EnableVPCFlowLogs%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
@@ -63,7 +63,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):ec2:.*:\d{12}:vpc/(vpc-[0-9a-f]{8,17}$)'
         expected_control_id:
         - 'PCI.EC2.6'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%
@@ -79,7 +79,7 @@ mainSteps:
           ExecutionRoleName: '{{RemediationRoleName}}'
       RuntimeParameters:
         VPC: '{{ParseInput.VPC}}'
-        RemediationRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-EnableVPCFlowLogs-remediationRole'
+        RemediationRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-EnableVPCFlowLogs-remediationRole%%'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
   - name: UpdateFinding
     action: 'aws:executeAwsApi'

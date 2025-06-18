@@ -31,7 +31,7 @@ export class MemberRemediationKey extends Construct {
       'kms:ReEncryptFrom',
       'kms:ReEncryptTo',
       'kms:DescribeKey',
-      'kms:DescribeCustomKeyStores'
+      'kms:DescribeCustomKeyStores',
     );
     kmsPerms.effect = Effect.ALLOW;
     kmsPerms.addResources('*'); // Only the key the policydocument is attached to

@@ -1,0 +1,9 @@
+{
+    "SC200": ["S3.9", "KMS.4", "SecretsManager.1", "SQS.1"],
+    "AFSBP100": ["S3.9", "SecretsManager.1", "SQS.1"],
+    "NIST500": ["S3.9", "KMS.4", "SecretsManager.1", "SQS.1"],
+    "PCI321": ["PCI.KMS.1"],
+    "CIS120": ["2.8"],
+    "CIS300": ["3.6"],
+    "CIS140": ["3.6", "3.8"]
+}

@@ -3,7 +3,7 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { DataTypeEnum, HardCodedString, Input, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
+import { HardCodedString, Input, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new EnableCloudTrailEncryptionDocument(scope, id, { ...props, controlId: 'CloudTrail.2' });
@@ -23,32 +23,21 @@ export class EnableCloudTrailEncryptionDocument extends ControlRunbookDocument {
       docInputs,
       securityControlId: 'CloudTrail.2',
       remediationName: 'EnableCloudTrailEncryption',
-      scope: RemediationScope.GLOBAL,
+      scope: RemediationScope.REGIONAL,
       resourceIdName: 'TrailArn',
       updateDescription: HardCodedString.of('Encryption enabled on CloudTrail'),
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
-
-    outputs.push({
-      name: 'RemediationRegion',
-      outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.resource_region',
-    });
-
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.TrailRegion = StringVariable.of('ParseInput.RemediationRegion');
-    params.KMSKeyArn = StringVariable.of('KMSKeyArn');
 
     return params;
   }

@@ -9,4 +9,4 @@ This document configures an RDS DB instance for multiple Availability Zones by c
 * RemediationRoleName: (Optional) The name of the role that allows Automation to remediate the finding on your behalf.
 
 ## Documentation Links
-* [AFSBP RDS.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-5)
+* [AWS FSBP RDS.5](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-5)

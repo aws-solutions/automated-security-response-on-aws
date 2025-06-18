@@ -20,7 +20,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new S3BlockDenylistDocument(scope, id, { ...props, controlId: 'S3.6' });
 }
 
-class S3BlockDenylistDocument extends ControlRunbookDocument {
+export class S3BlockDenylistDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -33,8 +33,7 @@ class S3BlockDenylistDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -52,13 +51,12 @@ class S3BlockDenylistDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  protected getExtraSteps(): AutomationStep[] {
+  protected override getExtraSteps(): AutomationStep[] {
     return [
       new ExecuteScriptStep(this, 'ExtractSensitiveApis', {
         language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'runbook_handler'),
         code: ScriptCode.fromFile(
-          fs.realpathSync(path.join(__dirname, '..', '..', 'AFSBP', 'ssmdocs', 'scripts', 'deserializeApiList.py'))
+          fs.realpathSync(path.join(__dirname, '..', '..', 'AFSBP', 'ssmdocs', 'scripts', 'deserializeApiList.py')),
         ),
         outputs: [
           {
@@ -74,9 +72,7 @@ class S3BlockDenylistDocument extends ControlRunbookDocument {
     ];
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.DenyList = StringVariable.of('ExtractSensitiveApis.ListOfApis');

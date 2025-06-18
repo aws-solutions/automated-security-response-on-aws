@@ -1,9 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Aws, CfnMapping, Fn, Stack } from 'aws-cdk-lib';
+import { Aspects, Aws, CfnCondition, CfnMapping, Fn, Stack } from 'aws-cdk-lib';
+import {
+  CfnAttributeGroup,
+  CfnAttributeGroupAssociation,
+  CfnResourceAssociation,
+} from 'aws-cdk-lib/aws-servicecatalogappregistry';
 import { Application, AttributeGroup } from '@aws-cdk/aws-servicecatalogappregistry-alpha';
+import { ConditionAspect } from '../cdk-helper/condition-aspect';
+import setCondition from '../cdk-helper/set-condition';
 import { applyTag } from '../tags/applyTag';
-import { CfnResourceAssociation } from 'aws-cdk-lib/aws-servicecatalogappregistry';
+import * as appInsights from 'aws-cdk-lib/aws-applicationinsights';
 
 export interface AppRegisterProps {
   solutionId: string;
@@ -14,11 +21,11 @@ export interface AppRegisterProps {
 }
 
 export class AppRegister {
-  private solutionId: string;
-  private solutionName: string;
-  private solutionVersion: string;
-  private appRegistryApplicationName: string;
-  private applicationType: string;
+  private readonly solutionId: string;
+  private readonly solutionName: string;
+  private readonly solutionVersion: string;
+  private readonly appRegistryApplicationName: string;
+  private readonly applicationType: string;
 
   constructor(props: AppRegisterProps) {
     this.solutionId = props.solutionId;
@@ -33,22 +40,32 @@ export class AppRegister {
    *
    * Do not handle spoke stacks. AppRegistry cannot currently handle spoke stacks in different regions.
    * Do not create resource share, it is not needed if spoke accounts are not associated.
-   * Do not create ApplicationInsights. This may sometimes fail.
    */
-  public applyAppRegistryToStacks(hubStack: Stack, nestedStacks: Stack[]) {
-    const application = this.createAppRegistry(hubStack);
+  public applyAppRegistry(hubStack: Stack, nestedStacks: Stack[], snsTopicARN: string): void {
+    const shouldDeployAppRegCondition = new CfnCondition(hubStack, 'ShouldDeployAppReg', {
+      expression: Fn.conditionNot(Fn.conditionEquals(Aws.PARTITION, 'aws-cn')),
+    });
+
+    const appRegistryApplication = this.createAppRegistry(hubStack);
+    const appInsights = this.createApplicationInsights(
+      hubStack,
+      appRegistryApplication.applicationName as string,
+      snsTopicARN,
+    );
     // Do not create resource share
     // Do not associated spoke stacks, we must allow different regions
+    Aspects.of(appRegistryApplication).add(
+      new ConditionAspect(shouldDeployAppRegCondition, CfnAttributeGroupAssociation),
+    );
 
     let suffix = 1;
     nestedStacks.forEach((nestedStack) => {
-      const association = new CfnResourceAssociation(application, `ResourceAssociation${suffix++}`, {
-        application: application.applicationId,
+      const association = new CfnResourceAssociation(appRegistryApplication, `ResourceAssociation${suffix}`, {
+        application: appRegistryApplication.applicationId,
         resource: nestedStack.stackId,
         resourceType: 'CFN_STACK',
       });
 
-      // If the nested stack is conditional, the resource association must also be so on the same condition
       association.cfnOptions.condition = nestedStack.nestedStackResource?.cfnOptions.condition;
 
       if (nestedStack.nestedStackResource) {
@@ -56,7 +73,14 @@ export class AppRegister {
       } else {
         throw new Error('No nested stack resource');
       }
+      suffix++;
     });
+
+    Aspects.of(hubStack).add(new ConditionAspect(shouldDeployAppRegCondition, CfnResourceAssociation));
+    Aspects.of(hubStack).add(new ConditionAspect(shouldDeployAppRegCondition, CfnAttributeGroup));
+
+    setCondition(appRegistryApplication, shouldDeployAppRegCondition);
+    setCondition(appInsights, shouldDeployAppRegCondition);
   }
 
   private createAppRegistry(stack: Stack): Application {
@@ -83,14 +107,24 @@ export class AppRegister {
         solutionName: map.findInMap('Data', 'SolutionName'),
       },
     });
-
     application.associateAttributeGroup(attributeGroup);
-
-    // Do not create ApplicationInsights. Creation of the service role may fail.
-
     this.applyTagsToApplication(application, map);
 
     return application;
+  }
+
+  private createApplicationInsights(
+    stack: Stack,
+    applicationName: string,
+    snsTopicARN: string,
+  ): appInsights.CfnApplication {
+    return new appInsights.CfnApplication(stack, 'ApplicationInsightsConfiguration', {
+      resourceGroupName: Fn.join('-', ['AWS_AppRegistry_Application', applicationName]),
+      autoConfigurationEnabled: true,
+      cweMonitorEnabled: true,
+      opsCenterEnabled: true,
+      opsItemSnsTopicArn: snsTopicARN,
+    });
   }
 
   private createMap(stack: Stack) {

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+[[ "$DEBUG" ]] && set -x
+set -eo pipefail
+
 maxrc=0
 rc=0
 export overrideWarningsEnabled=false
@@ -10,12 +13,25 @@ export overrideWarningsEnabled=false
     echo "UPDATE MODE: CDK Snapshots will be updated. CDK UNIT TESTS WILL BE SKIPPED"
 } || update="false"
 
-[[ ! -d .venv ]] && python3 -m venv .venv
+[[ ! -d .venv ]] && python3.11 -m venv .venv
 source ./.venv/bin/activate
-python3 -m pip install -U pip setuptools
+python3.11 -m pip install -U pip setuptools
 
 echo 'Installing required Python testing modules'
-pip install -r ./testing_requirements.txt
+if command -v poetry >/dev/null 2>&1; then
+        POETRY_COMMAND="poetry"
+      elif [ -n "$POETRY_HOME" ] && [ -x "$POETRY_HOME/bin/poetry" ]; then
+        POETRY_COMMAND="$POETRY_HOME/bin/poetry"
+      else
+        echo "Poetry is not available. Aborting script." >&2
+        exit 1
+      fi
+"$POETRY_COMMAND" export --with dev -f requirements.txt --output requirements_dev.txt --without-hashes
+pip install -r ./requirements_dev.txt
+
+cd ..
+pip install -e .
+cd ./deployment
 
 # Get reference for all important folders
 template_dir="$PWD"
@@ -27,22 +43,22 @@ coverage_report_path="${template_dir}/test/coverage-reports"
 mkdir -p ${coverage_report_path}
 
 run_pytest() {
-  cd ${1}
-  report_file="${coverage_report_path}/${2}.coverage.xml"
-  echo "coverage report path set to ${report_file}"
+    cd ${1}
+    report_file="${coverage_report_path}/${2}.coverage.xml"
+    echo "coverage report path set to ${report_file}"
 
-  # Use -vv for debugging
-  python3 -m pytest --cov --cov-report=term-missing --cov-report "xml:$report_file"
-  rc=$?
+    # Use -vv for debugging
+    python3.11 -m pytest --cov --cov-report=term-missing --cov-report "xml:$report_file"
+    rc=$?
 
-  if [ "$rc" -ne "0" ]; then
-    echo "** UNIT TESTS FAILED **"
-  else
-    echo "Unit Tests Successful"
-  fi
-  if [ "$rc" -gt "$maxrc" ]; then
-      maxrc=$rc
-  fi
+    if [ "$rc" -ne "0" ]; then
+        echo "** UNIT TESTS FAILED **"
+    else
+        echo "Unit Tests Successful"
+    fi
+    if [ "$rc" -gt "$maxrc" ]; then
+        maxrc=$rc
+    fi
 }
 
 if [[ -e './solution_env.sh' ]]; then
@@ -75,25 +91,6 @@ else
 fi
 
 echo "------------------------------------------------------------------------------"
-echo "[Test] CDK Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd $source_dir
-[[ $update == "true" ]] && {
-    npm run test -- -u
-} || {
-    npm run test
-    rc=$?
-    if [ "$rc" -ne "0" ]; then
-      echo "** UNIT TESTS FAILED **"
-    else
-      echo "Unit Tests Successful"
-    fi
-    if [ "$rc" -gt "$maxrc" ]; then
-        maxrc=$rc
-    fi
-}
-
-echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - Orchestrator Lambdas"
 echo "------------------------------------------------------------------------------"
 run_pytest "${source_dir}/Orchestrator" "Orchestrator"
@@ -104,9 +101,15 @@ echo "--------------------------------------------------------------------------
 run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
 
 echo "------------------------------------------------------------------------------"
+echo "[Test] Python Unit Tests - Blueprints"
+echo "------------------------------------------------------------------------------"
+run_pytest "${source_dir}/blueprints/jira" "Jira Blueprint"
+run_pytest "${source_dir}/blueprints/servicenow" "ServiceNow Blueprint"
+
+echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - LambdaLayers"
 echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/LambdaLayers" "LambdaLayers"
+run_pytest "${source_dir}/layer" "LambdaLayers"
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Scripts for Remediation Runbooks"
@@ -123,9 +126,40 @@ echo "[Test] Python Scripts for Playbooks"
 echo "------------------------------------------------------------------------------"
 for playbook in `ls ${source_dir}/playbooks`; do
     if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ]; then
-      run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
+        run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
     fi
 done
+
+
+echo "------------------------------------------------------------------------------"
+echo "[Lint] Code Style and Lint"
+echo "------------------------------------------------------------------------------"
+cd $source_dir
+npx prettier --check '**/*.ts'
+npx eslint --ext .ts --max-warnings=0 .
+cd ..
+tox -e format
+tox -e lint
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] CDK Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"
+[[ $update == "true" ]] && {
+    npm run test -- -u
+} || {
+    npm run test
+    rc=$?
+    if [ "$rc" -ne "0" ]; then
+        echo "** UNIT TESTS FAILED **"
+    else
+        echo "Unit Tests Successful"
+    fi
+    if [ "$rc" -gt "$maxrc" ]; then
+        maxrc=$rc
+    fi
+}
+
 
 # The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list
 # with absolute path for the source directories. To avoid dependencies of tools (such as SonarQube) on different
@@ -138,9 +172,9 @@ sed -i -e "s|<source>.*${temp_source_dir}|<source>source|g" $coverage_report_pat
 
 echo "========================================================================="
 if [ "$maxrc" -ne "0" ]; then
-  echo "** UNIT TESTS FAILED **"
+    echo "** UNIT TESTS FAILED **"
 else
-  echo "ALL UNIT TESTS PASSED"
+    echo "ALL UNIT TESTS PASSED"
 fi
 
 exit $maxrc

@@ -24,17 +24,15 @@ export class EnableEncryptionForSNSTopicDocument extends ControlRunbookDocument 
       securityControlId: 'SNS.1',
       remediationName: 'EnableEncryptionForSNSTopic',
       scope: RemediationScope.REGIONAL,
-      resourceIdName: 'SNSTopicArn',
+      resourceIdName: 'TopicArn',
       updateDescription: HardCodedString.of('Encryption enabled on SNS Topic'),
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
     params.KmsKeyArn = StringVariable.of('KmsKeyArn');
-    params.SNSTopicArn = StringVariable.of('ParseInput.SNSTopicArn');
+    params.TopicArn = StringVariable.of('ParseInput.TopicArn');
     return params;
   }
 }

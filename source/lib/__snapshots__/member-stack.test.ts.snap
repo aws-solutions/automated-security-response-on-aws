@@ -3,12 +3,32 @@
 exports[`member stack snapshot matches 1`] = `
 {
   "Conditions": {
+    "CloudTrailCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnableCloudTrailForASRActionLog",
+        },
+        "yes",
+      ],
+    },
     "EnableS3BucketForRedShift4": {
       "Fn::Equals": [
         {
           "Ref": "CreateS3BucketForRedshiftAuditLogging",
         },
         "yes",
+      ],
+    },
+    "ShouldDeployAppReg": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AWS::Partition",
+            },
+            "aws-cn",
+          ],
+        },
       ],
     },
     "loadAFSBPCond": {
@@ -19,12 +39,32 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
       ],
     },
+    "loadAFSBPCondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadAFSBPCond",
+        },
+      ],
+    },
     "loadCIS120Cond": {
       "Fn::Equals": [
         {
           "Ref": "LoadCIS120MemberStack",
         },
         "yes",
+      ],
+    },
+    "loadCIS120CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadCIS120Cond",
+        },
       ],
     },
     "loadCIS140Cond": {
@@ -35,10 +75,64 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
       ],
     },
+    "loadCIS140CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadCIS140Cond",
+        },
+      ],
+    },
+    "loadCIS300Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadCIS300MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadCIS300CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadCIS300Cond",
+        },
+      ],
+    },
+    "loadNIST80053Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadNIST80053MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadNIST80053CondAndShouldDeployAppReg": {
+      "Fn::And": [
+        {
+          "Condition": "ShouldDeployAppReg",
+        },
+        {
+          "Condition": "loadNIST80053Cond",
+        },
+      ],
+    },
     "loadPCI321Cond": {
       "Fn::Equals": [
         {
           "Ref": "LoadPCI321MemberStack",
+        },
+        "yes",
+      ],
+    },
+    "loadSC1Cond": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoadSCMemberStack",
         },
         "yes",
       ],
@@ -69,6 +163,12 @@ exports[`member stack snapshot matches 1`] = `
         "Version": "v1.0.0",
       },
     },
+    "SourceCode": {
+      "General": {
+        "KeyPrefix": "my-solution-tmn/v9.9.9",
+        "S3Bucket": "sharrbukkit",
+      },
+    },
   },
   "Metadata": {
     "AWS::CloudFormation::Interface": {
@@ -83,14 +183,33 @@ exports[`member stack snapshot matches 1`] = `
         },
         {
           "Label": {
-            "default": "Playbooks",
+            "default": "Consolidated control finding Playbook",
+          },
+          "Parameters": [
+            "LoadSCMemberStack",
+          ],
+        },
+        {
+          "Label": {
+            "default": "Security Standard Playbooks",
           },
           "Parameters": [
             "LoadAFSBPMemberStack",
             "LoadCIS120MemberStack",
             "LoadCIS140MemberStack",
+            "LoadCIS300MemberStack",
+            "LoadNIST80053MemberStack",
             "LoadPCI321MemberStack",
-            "LoadSCMemberStack",
+          ],
+        },
+        {
+          "Label": {
+            "default": "Configuration",
+          },
+          "Parameters": [
+            "CreateS3BucketForRedshiftAuditLogging",
+            "SecHubAdminAccount",
+            "Namespace",
           ],
         },
       ],
@@ -111,13 +230,22 @@ exports[`member stack snapshot matches 1`] = `
       "Description": "Create S3 Bucket For Redshift Cluster Audit Logging.",
       "Type": "String",
     },
+    "EnableCloudTrailForASRActionLog": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Create a CloudTrail to monitor ASR actions in this account on the ASR CloudWatch Dashboard?",
+      "Type": "String",
+    },
     "LoadAFSBPMemberStack": {
       "AllowedValues": [
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for AFSBP?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of AFSBP controls?",
       "Type": "String",
     },
     "LoadCIS120MemberStack": {
@@ -125,8 +253,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for CIS120?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of CIS120 controls?",
       "Type": "String",
     },
     "LoadCIS140MemberStack": {
@@ -134,8 +262,26 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for CIS140?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of CIS140 controls?",
+      "Type": "String",
+    },
+    "LoadCIS300MemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of CIS300 controls?",
+      "Type": "String",
+    },
+    "LoadNIST80053MemberStack": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of NIST80053 controls?",
       "Type": "String",
     },
     "LoadPCI321MemberStack": {
@@ -143,8 +289,8 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
         "no",
       ],
-      "Default": "yes",
-      "Description": "Load Playbook member stack for PCI321?",
+      "Default": "no",
+      "Description": "Install the member components for automated remediation of PCI321 controls?",
       "Type": "String",
     },
     "LoadSCMemberStack": {
@@ -153,11 +299,19 @@ exports[`member stack snapshot matches 1`] = `
         "no",
       ],
       "Default": "yes",
-      "Description": "Load Playbook member stack for SC?",
+      "Description": "If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.",
       "Type": "String",
     },
     "LogGroupName": {
       "Description": "Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail",
+      "Type": "String",
+    },
+    "Namespace": {
+      "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
+      "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "MaxLength": 9,
+      "MinLength": 3,
       "Type": "String",
     },
     "SecHubAdminAccount": {
@@ -168,6 +322,7 @@ exports[`member stack snapshot matches 1`] = `
   },
   "Resources": {
     "AppRegistry968496A3": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Description": "Service Catalog application to track and manage all your resources for the solution automated-security-response-on-aws",
         "Name": {
@@ -227,6 +382,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
     },
     "AppRegistryAssociation": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -242,6 +398,7 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
     },
     "AppRegistryAttributeGroupAssociation8045a8dd9527B814DC7A": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Application": {
           "Fn::GetAtt": [
@@ -258,7 +415,175 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroupAssociation",
     },
+    "AppRegistryResourceAssociation142839FB0": {
+      "Condition": "ShouldDeployAppReg",
+      "DependsOn": [
+        "RunbookStackNoRoles",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "RunbookStackNoRoles",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation2BB1A3300": {
+      "Condition": "loadAFSBPCondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackAFSBP",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackAFSBP",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation3BEAC7BB7": {
+      "Condition": "loadCIS120CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackCIS120",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackCIS120",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation46F7B9873": {
+      "Condition": "loadCIS140CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackCIS140",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackCIS140",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation5FAA30631": {
+      "Condition": "loadNIST80053CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackNIST80053",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackNIST80053",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "AppRegistryResourceAssociation62B582FF5": {
+      "Condition": "loadCIS300CondAndShouldDeployAppReg",
+      "DependsOn": [
+        "PlaybookMemberStackCIS300",
+      ],
+      "Properties": {
+        "Application": {
+          "Fn::GetAtt": [
+            "AppRegistry968496A3",
+            "Id",
+          ],
+        },
+        "Resource": {
+          "Ref": "PlaybookMemberStackCIS300",
+        },
+        "ResourceType": "CFN_STACK",
+      },
+      "Type": "AWS::ServiceCatalogAppRegistry::ResourceAssociation",
+    },
+    "ApplicationInsightsConfiguration": {
+      "Condition": "ShouldDeployAppReg",
+      "Properties": {
+        "AutoConfigurationEnabled": true,
+        "CWEMonitorEnabled": true,
+        "OpsCenterEnabled": true,
+        "OpsItemSNSTopicArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":sns:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "SecHubAdminAccount",
+              },
+              ":SHARR_Topic",
+            ],
+          ],
+        },
+        "ResourceGroupName": {
+          "Fn::Join": [
+            "-",
+            [
+              "AWS_AppRegistry_Application",
+              {
+                "Fn::FindInMap": [
+                  "Solution",
+                  "Data",
+                  "AppRegistryApplicationName",
+                ],
+              },
+              {
+                "Ref": "AWS::StackName",
+              },
+              {
+                "Ref": "AWS::Region",
+              },
+              {
+                "Ref": "AWS::AccountId",
+              },
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::ApplicationInsights::Application",
+    },
     "DefaultApplicationAttributesFC1CC26B": {
+      "Condition": "ShouldDeployAppReg",
       "Properties": {
         "Attributes": {
           "applicationType": {
@@ -305,6 +630,46 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::ServiceCatalogAppRegistry::AttributeGroup",
     },
+    "MemberCloudTrailNestedStackMemberCloudTrailNestedStackResource2ED3A9F6": {
+      "Condition": "CloudTrailCondition",
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "Parameters": {
+          "referencetoMemberStackAdminAccountParameterAdminAccountNumberB155EDD4Ref": {
+            "Ref": "SecHubAdminAccount",
+          },
+          "referencetoMemberStackNamespaceIAMRoleNamespace20DA7E14Ref": {
+            "Ref": "Namespace",
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/aws-sharr-member-cloudtrail.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
     "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B": {
       "Metadata": {
         "PlaybookMemberStackAFSBPReady": {
@@ -342,6 +707,88 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::CloudFormation::WaitConditionHandle",
     },
+    "NestedStackFactoryGatePlaybookMemberStackCIS300FA804242": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS140Ready": {
+          "Fn::If": [
+            "loadCIS140Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackNIST80053Ready": {
+          "Fn::If": [
+            "loadNIST80053Cond",
+            {
+              "Ref": "PlaybookMemberStackNIST80053",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackPCI321Ready": {
+          "Fn::If": [
+            "loadPCI321Cond",
+            {
+              "Ref": "PlaybookMemberStackPCI321",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "NestedStackFactoryGatePlaybookMemberStackNIST80053C3D22DE7": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS140Ready": {
+          "Fn::If": [
+            "loadCIS140Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
     "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906": {
       "Metadata": {
         "PlaybookMemberStackAFSBPReady": {
@@ -367,6 +814,15 @@ exports[`member stack snapshot matches 1`] = `
             "loadCIS140Cond",
             {
               "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackNIST80053Ready": {
+          "Fn::If": [
+            "loadNIST80053Cond",
+            {
+              "Ref": "PlaybookMemberStackNIST80053",
             },
             "",
           ],
@@ -403,11 +859,97 @@ exports[`member stack snapshot matches 1`] = `
             "",
           ],
         },
+        "PlaybookMemberStackCIS300Ready": {
+          "Fn::If": [
+            "loadCIS300Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS300",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackNIST80053Ready": {
+          "Fn::If": [
+            "loadNIST80053Cond",
+            {
+              "Ref": "PlaybookMemberStackNIST80053",
+            },
+            "",
+          ],
+        },
         "PlaybookMemberStackPCI321Ready": {
           "Fn::If": [
             "loadPCI321Cond",
             {
               "Ref": "PlaybookMemberStackPCI321",
+            },
+            "",
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+    },
+    "NestedStackFactoryGatePlaybookMemberStackSC1042EDDD9": {
+      "Metadata": {
+        "PlaybookMemberStackAFSBPReady": {
+          "Fn::If": [
+            "loadAFSBPCond",
+            {
+              "Ref": "PlaybookMemberStackAFSBP",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS120Ready": {
+          "Fn::If": [
+            "loadCIS120Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS120",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS140Ready": {
+          "Fn::If": [
+            "loadCIS140Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS140",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackCIS300Ready": {
+          "Fn::If": [
+            "loadCIS300Cond",
+            {
+              "Ref": "PlaybookMemberStackCIS300",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackNIST80053Ready": {
+          "Fn::If": [
+            "loadNIST80053Cond",
+            {
+              "Ref": "PlaybookMemberStackNIST80053",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackPCI321Ready": {
+          "Fn::If": [
+            "loadPCI321Cond",
+            {
+              "Ref": "PlaybookMemberStackPCI321",
+            },
+            "",
+          ],
+        },
+        "PlaybookMemberStackSCReady": {
+          "Fn::If": [
+            "loadSCCond",
+            {
+              "Ref": "PlaybookMemberStackSC",
             },
             "",
           ],
@@ -423,6 +965,9 @@ exports[`member stack snapshot matches 1`] = `
       ],
       "Properties": {
         "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
           "SecHubAdminAccount": {
             "Ref": "SecHubAdminAccount",
           },
@@ -470,6 +1015,9 @@ exports[`member stack snapshot matches 1`] = `
       ],
       "Properties": {
         "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
           "SecHubAdminAccount": {
             "Ref": "SecHubAdminAccount",
           },
@@ -517,6 +1065,9 @@ exports[`member stack snapshot matches 1`] = `
       ],
       "Properties": {
         "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
           "SecHubAdminAccount": {
             "Ref": "SecHubAdminAccount",
           },
@@ -555,6 +1106,106 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
+    "PlaybookMemberStackCIS300": {
+      "Condition": "loadCIS300Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackCIS300FA804242",
+        "RunbookStackNoRoles",
+      ],
+      "Properties": {
+        "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+          "WaitProviderServiceToken": {
+            "Fn::GetAtt": [
+              "WaitProviderFunction3D90ED36",
+              "Arn",
+            ],
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/CIS300MemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookMemberStackNIST80053": {
+      "Condition": "loadNIST80053Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackNIST80053C3D22DE7",
+        "RunbookStackNoRoles",
+      ],
+      "Properties": {
+        "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+          "WaitProviderServiceToken": {
+            "Fn::GetAtt": [
+              "WaitProviderFunction3D90ED36",
+              "Arn",
+            ],
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/NIST80053MemberStack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
     "PlaybookMemberStackPCI321": {
       "Condition": "loadPCI321Cond",
       "DeletionPolicy": "Delete",
@@ -564,6 +1215,9 @@ exports[`member stack snapshot matches 1`] = `
       ],
       "Properties": {
         "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
           "SecHubAdminAccount": {
             "Ref": "SecHubAdminAccount",
           },
@@ -611,6 +1265,9 @@ exports[`member stack snapshot matches 1`] = `
       ],
       "Properties": {
         "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
           "SecHubAdminAccount": {
             "Ref": "SecHubAdminAccount",
           },
@@ -649,10 +1306,63 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
+    "PlaybookMemberStackSC1": {
+      "Condition": "loadSC1Cond",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "NestedStackFactoryGatePlaybookMemberStackSC1042EDDD9",
+        "RunbookStackNoRoles",
+      ],
+      "Properties": {
+        "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
+          "SecHubAdminAccount": {
+            "Ref": "SecHubAdminAccount",
+          },
+          "WaitProviderServiceToken": {
+            "Fn::GetAtt": [
+              "WaitProviderFunction3D90ED36",
+              "Arn",
+            ],
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "NestedStackFactorySourceCodeA11A36A7",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/playbooks/SCMemberStack1.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
     "RunbookStackNoRoles": {
       "DeletionPolicy": "Delete",
       "Properties": {
         "Parameters": {
+          "Namespace": {
+            "Ref": "Namespace",
+          },
           "WaitProviderServiceToken": {
             "Fn::GetAtt": [
               "WaitProviderFunction3D90ED36",
@@ -724,6 +1434,9 @@ exports[`member stack snapshot matches 1`] = `
           "BlockPublicPolicy": true,
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
         },
       },
       "Type": "AWS::S3::Bucket",
@@ -943,7 +1656,7 @@ exports[`member stack snapshot matches 1`] = `
     },
     "SSMParameterForS34EncryptionKeyAlias73DD8A98": {
       "Properties": {
-        "Description": "Parameter to store encryption key alias for the PCI.S3.4/AFSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.",
+        "Description": "Parameter to store encryption key alias for the PCI.S3.4/FSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.",
         "Name": "/Solutions/SO9999/afsbp/1.0.0/S3.4/KmsKeyAlias",
         "Type": "String",
         "Value": "default-s3-encryption",
@@ -956,7 +1669,7 @@ exports[`member stack snapshot matches 1`] = `
         "S3BucketForRedShiftAuditLogging652E7355",
       ],
       "Properties": {
-        "Description": "Parameter to store the S3 bucket name for the remediation AFSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.",
+        "Description": "Parameter to store the S3 bucket name for the remediation FSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.",
         "Name": "/Solutions/SO9999/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging",
         "Type": "String",
         "Value": {
@@ -981,12 +1694,10 @@ exports[`member stack snapshot matches 1`] = `
         "WaitProviderRole83B0295F",
       ],
       "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-L1",
-              "reason": "Will upgrade in next release to prioritize patch",
-            },
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_CONCURRENCY_CHECK",
+            "LAMBDA_INSIDE_VPC",
           ],
         },
       },
@@ -1017,7 +1728,7 @@ exports[`member stack snapshot matches 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "python3.9",
+        "Runtime": "python3.11",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1030,6 +1741,12 @@ exports[`member stack snapshot matches 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "Resource * is needed for CloudWatch Logs policies used on Lambda functions.",
             },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
           ],
         },
       },

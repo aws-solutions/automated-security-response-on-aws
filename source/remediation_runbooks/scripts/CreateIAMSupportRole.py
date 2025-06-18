@@ -1,13 +1,22 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
-from botocore.config import Config
+from typing import Dict, Final, List, Literal, TypedDict
+
 import boto3
+from botocore.config import Config
 
 BOTO_CONFIG = Config(retries={"mode": "standard"})
 
-responses = {}
-responses["CreateIAMRoleResponse"] = []
+
+class Response(TypedDict):
+    Account: str
+    RoleName: Literal["aws_incident_support_role"]
+
+
+responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {
+    "CreateIAMRoleResponse": []
+}
 
 
 def connect_to_iam(boto_config):
@@ -15,11 +24,15 @@ def connect_to_iam(boto_config):
 
 
 def get_account(boto_config):
-    return boto3.client('sts', config=boto_config).get_caller_identity()['Account']
+    return boto3.client("sts", config=boto_config).get_caller_identity()["Account"]
 
 
 def get_partition(boto_config):
-    return boto3.client('sts', config=boto_config).get_caller_identity()['Arn'].split(':')[1]
+    return (
+        boto3.client("sts", config=boto_config)
+        .get_caller_identity()["Arn"]
+        .split(":")[1]
+    )
 
 
 def create_iam_role(_, __):
@@ -37,7 +50,7 @@ def create_iam_role(_, __):
         ],
     }
 
-    role_name = "aws_incident_support_role"
+    role_name: Final = "aws_incident_support_role"
     iam = connect_to_iam(BOTO_CONFIG)
     if not does_role_exist(iam, role_name):
         iam.create_role(
@@ -61,27 +74,16 @@ def create_iam_role(_, __):
     return {"output": "IAM role creation is successful.", "http_responses": responses}
 
 
-def does_role_exist(iam, role_name):
-    """Check if the role name exists.
-
-    Parameters
-    ----------
-    iam: iam client, required
-    role_name: string, required
-
-    Returns
-    ------
-        bool: returns if the role exists
-    """
+def does_role_exist(iam_client, role_name) -> bool:
     role_exists = False
 
     try:
-        response = iam.get_role(RoleName=role_name)
+        response = iam_client.get_role(RoleName=role_name)
 
         if "Role" in response:
             role_exists = True
 
-    except iam.exceptions.NoSuchEntityException:
+    except iam_client.exceptions.NoSuchEntityException:
         role_exists = False
 
     return role_exists

@@ -18,7 +18,7 @@ description: |
   * Remediation.Output - stdout messages from the remediation
 
   ## Security Standards / Controls
-  * AFSBP v1.0.0: RDS.1
+  * AWS FSBP v1.0.0: RDS.1
   * CIS v1.2.0:   n/a
   * PCI:          RDS.1
 
@@ -50,7 +50,7 @@ mainSteps:
       InputPayload:
         DBSnapshotType: '{{DBSnapshotType}}'
         DBSnapshotId: '{{DBSnapshotId}}'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: make_snapshot_private
       Script: |-
         %%SCRIPT=MakeRDSSnapshotPrivate.py%%

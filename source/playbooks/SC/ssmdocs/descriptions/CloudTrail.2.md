@@ -8,4 +8,4 @@ This document enables SSE KMS encryption for log files using the ASR remediation
 * Remediation.Output - Output from the remediation
 
 ## Documentation Links
-* [AFSBP CloudTrail.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-2)
+* [AWS FSBP CloudTrail.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudtrail-2)

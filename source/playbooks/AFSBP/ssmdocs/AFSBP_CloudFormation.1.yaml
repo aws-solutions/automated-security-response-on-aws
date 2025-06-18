@@ -15,7 +15,7 @@ description: |
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 CloudFormation.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudformation-1)
+  * [AWS FSBP v1.0.0 CloudFormation.1](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-cloudformation-1)
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
@@ -57,7 +57,7 @@ mainSteps:
       parse_id_pattern: '^(arn:(?:aws|aws-us-gov|aws-cn):cloudformation:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:stack/[a-zA-Z][a-zA-Z0-9-]{0,127}/[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12})$'
       expected_control_id:
       - 'CloudFormation.1'
-    Runtime: 'python3.8'
+    Runtime: 'python3.11'
     Handler: 'parse_event'
     Script: |-
       %%SCRIPT=common/parse_input.py%%
@@ -69,9 +69,9 @@ mainSteps:
     TargetLocations:
     - Accounts: ['{{ ParseInput.RemediationAccount }}']
       Regions: ['{{ ParseInput.RemediationRegion }}']
-      ExecutionRoleName: 'SO0111-ConfigureSNSTopicForStack'
+      ExecutionRoleName: '%%ROLE=SO0111-ConfigureSNSTopicForStack%%'
     RuntimeParameters:
-      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/SO0111-ConfigureSNSTopicForStack'
+      AutomationAssumeRole: 'arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/%%ROLE=SO0111-ConfigureSNSTopicForStack%%'
       StackArn: '{{ ParseInput.StackArn }}'
 - name: 'UpdateFinding'
   action: 'aws:executeAwsApi'

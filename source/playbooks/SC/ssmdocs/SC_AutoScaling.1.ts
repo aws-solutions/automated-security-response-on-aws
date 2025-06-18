@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableAutoScalingGroupELBHealthCheckDocument(scope, id, { ...props, controlId: 'AutoScaling.1' });
 }
 
-class EnableAutoScalingGroupELBHealthCheckDocument extends ControlRunbookDocument {
+export class EnableAutoScalingGroupELBHealthCheckDocument extends ControlRunbookDocument {
   constructor(stage: Construct, id: string, props: ControlRunbookProps) {
     super(stage, id, {
       ...props,

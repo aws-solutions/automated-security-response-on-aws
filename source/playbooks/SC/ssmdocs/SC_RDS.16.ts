@@ -9,7 +9,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EnableCopyTagsToSnapshotOnRDSClusterDocument(scope, id, { ...props, controlId: 'RDS.16' });
 }
 
-class EnableCopyTagsToSnapshotOnRDSClusterDocument extends ControlRunbookDocument {
+export class EnableCopyTagsToSnapshotOnRDSClusterDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -20,8 +20,7 @@ class EnableCopyTagsToSnapshotOnRDSClusterDocument extends ControlRunbookDocumen
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -33,9 +32,7 @@ class EnableCopyTagsToSnapshotOnRDSClusterDocument extends ControlRunbookDocumen
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.DbClusterResourceId = StringVariable.of('ParseInput.DbiResourceId');

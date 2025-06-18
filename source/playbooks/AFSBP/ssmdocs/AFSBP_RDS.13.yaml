@@ -15,7 +15,7 @@ description: |
   * Remediation.Output - The standard HTTP response from the ModifyDBInstance API.
 
   ## Documentation Links
-  * [AFSBP RDS.13](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-13)
+  * [AWS FSBP RDS.13](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-rds-13)
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
@@ -29,7 +29,7 @@ parameters:
     description: The input from the Orchestrator Step function for the RDS.13 finding
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableMinorVersionUpgradeOnRDSDBInstance"
+    default: "%%ROLE=SO0111-EnableMinorVersionUpgradeOnRDSDBInstance%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 outputs:
@@ -63,7 +63,7 @@ mainSteps:
         parse_id_pattern: ''
         expected_control_id:
         - 'RDS.13'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

@@ -18,19 +18,16 @@ export class EnableVPCFlowLogsDocument extends ControlRunbookDocument {
       scope: RemediationScope.REGIONAL,
       resourceIdName: 'VPC',
       resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):ec2:.*:\d{12}:vpc\/(vpc-[0-9a-f]{8,17})$`,
-      updateDescription: HardCodedString.of('Removed rules on default security group'),
+      updateDescription: HardCodedString.of('Enabled VPC Flow logging.'),
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.RemediationRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-EnableVPCFlowLogs-remediationRole`,
-      [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')]
+      `arn:%s:iam::%s:role/${this.solutionId}-EnableVPCFlowLogs-remediationRole-${this.namespace}`,
+      [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
 
     return params;

@@ -35,8 +35,7 @@ export class RevokeUnrotatedKeysDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs: Output[] = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -48,11 +47,8 @@ export class RevokeUnrotatedKeysDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     if (this.resourceIdName) {
       // Not used by remediation

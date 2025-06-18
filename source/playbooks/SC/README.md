@@ -11,4 +11,4 @@ Note that in the example remediation, ssmdocs/AFSBP_RDS.6.yaml, the line:
 ```
 ...loads parse_input.py from playbooks/common. This same parse code is used in all the the current playbooks.
 
-See the README.md in the root of this archive and the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/aws-security-hub-automated-response-and-remediation/welcome.html) for more information.
+See the README.md in the root of this archive and the [AWS Security Hub Automated Response and Remediation Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/welcome.html) for more information.

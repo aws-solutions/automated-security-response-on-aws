@@ -20,7 +20,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   });
 }
 
-class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookDocument {
+export class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const resourceIdName = 'GroupId';
 
@@ -37,8 +37,7 @@ class DisablePublicAccessForSecurityGroupDocument extends ControlRunbookDocument
     });
   }
 
-  /** @override */
-  protected getRemediationStep(): AutomationStep {
+  protected override getRemediationStep(): AutomationStep {
     return new ExecuteAutomationStep(this, 'Remediation', {
       documentName: HardCodedString.of(`AWS-${this.remediationName}`),
       runtimeParameters: HardCodedStringMap.of(this.getRemediationParams()),

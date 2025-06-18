@@ -13,4 +13,4 @@ This document ensures that credentials unused for 90 days or greater are disable
 SEE AWSConfigRemediation-RevokeUnusedIAMUserCredentials
 
 ## Documentation Links
-* [AFSBP IAM.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-8)
+* [AWS FSBP IAM.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-iam-8)

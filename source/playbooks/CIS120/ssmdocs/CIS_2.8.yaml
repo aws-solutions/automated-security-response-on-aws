@@ -31,7 +31,7 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RemediationRoleName:
     type: String
-    default: "SO0111-EnableKeyRotation"
+    default: "%%ROLE=SO0111-EnableKeyRotation%%"
     allowedPattern: '^[\w+=,.@-]+$'
 
 mainSteps:
@@ -62,7 +62,7 @@ mainSteps:
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:key/([A-Za-z0-9-]{36})$'
         expected_control_id:
         - '2.8'
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%

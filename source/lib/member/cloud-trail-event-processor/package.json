@@ -1,0 +1,22 @@
+{
+  "name": "@amzn/cloud-trail-event-processor",
+  "version": "1.0.0",
+  "description": "Filters CloudsTrail events from the member stacks to create the ASR Action Log",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions",
+    "organization": true
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.686.0",
+    "@aws-sdk/client-s3": "^3.686.0",
+    "@aws-sdk/client-sts": "^3.686.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "aws-sdk-client-mock-jest": "^4.1.0",
+    "jest": "^29.4.0"
+  }
+}

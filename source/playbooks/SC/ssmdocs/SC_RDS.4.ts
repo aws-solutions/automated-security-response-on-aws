@@ -18,7 +18,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new EncryptRDSSnapshotDocument(scope, id, { ...props, controlId: 'RDS.4' });
 }
 
-class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
+export class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     const docInputs: Input[] = [
       Input.ofTypeString('KMSKeyId', {
@@ -35,13 +35,12 @@ class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
       securityControlId: 'RDS.4',
       remediationName: 'EncryptRDSSnapshot',
       scope: RemediationScope.REGIONAL,
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$`,
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:((?:cluster-)?snapshot|dbclustersnapshot):((?:rds:|awsbackup:)?((?!.*--.*)(?!.*-$)[a-zA-Z][a-zA-Z0-9-]{0,254}))$`,
       updateDescription: HardCodedString.of('Encrypted RDS snapshot'),
     });
   }
 
-  /** @override */
-  protected getParseInputStepInputs(): { [_: string]: IGenericVariable } {
+  protected override getParseInputStepInputs(): { [_: string]: IGenericVariable } {
     const inputs = super.getParseInputStepInputs();
 
     inputs.resource_index = HardCodedNumber.of(2);
@@ -49,8 +48,7 @@ class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
     return inputs;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push(
@@ -68,15 +66,13 @@ class EncryptRDSSnapshotDocument extends ControlRunbookDocument {
         name: 'DBSnapshotType',
         outputType: DataTypeEnum.STRING,
         selector: '$.Payload.matches[0]',
-      }
+      },
     );
 
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.SourceDBSnapshotIdentifier = StringVariable.of('ParseInput.SourceDBSnapshotIdentifier');

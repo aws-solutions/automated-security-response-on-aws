@@ -17,7 +17,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new MakeEBSSnapshotsPrivateDocument(scope, id, { ...props, controlId: 'EC2.1' });
 }
 
-class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
+export class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -28,8 +28,7 @@ class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
     });
   }
 
-  /** @override */
-  protected getParseInputStepInputs(): { [_: string]: IGenericVariable } {
+  protected override getParseInputStepInputs(): { [_: string]: IGenericVariable } {
     const inputs: { [_: string]: IGenericVariable } = super.getParseInputStepInputs();
 
     inputs.resource_index = HardCodedNumber.of(2);
@@ -37,8 +36,7 @@ class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
     return inputs;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs: Output[] = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -56,11 +54,8 @@ class MakeEBSSnapshotsPrivateDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params: { [_: string]: any } = super.getRemediationParams();
+  protected override getRemediationParams(): Record<string, any> {
+    const params: Record<string, any> = super.getRemediationParams();
 
     params.AccountId = StringVariable.of('ParseInput.RemediationAccount');
     params.TestMode = BooleanVariable.of('ParseInput.TestMode');

@@ -16,7 +16,7 @@ export function createControlRunbook(scope: Construct, id: string, props: Playbo
   return new MakeRDSSnapshotPrivateDocument(scope, id, { ...props, controlId: 'RDS.1' });
 }
 
-class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
+export class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
   constructor(scope: Construct, id: string, props: ControlRunbookProps) {
     super(scope, id, {
       ...props,
@@ -24,13 +24,12 @@ class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
       remediationName: 'MakeRDSSnapshotPrivate',
       scope: RemediationScope.REGIONAL,
       resourceIdName: 'DBSnapshotId',
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(cluster-snapshot|snapshot):([a-zA-Z](?:[0-9a-zA-Z]+-)*[0-9a-zA-Z]+)$`,
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(cluster-snapshot|snapshot):([a-zA-Z][0-9a-zA-Z]*(?:-[0-9a-zA-Z]+)*)$`,
       updateDescription: HardCodedString.of('RDS DB Snapshot modified to private'),
     });
   }
 
-  /** @override */
-  protected getParseInputStepInputs(): { [_: string]: IGenericVariable } {
+  protected override getParseInputStepInputs(): { [_: string]: IGenericVariable } {
     const inputs = super.getParseInputStepInputs();
 
     inputs.resource_index = HardCodedNumber.of(2);
@@ -38,8 +37,7 @@ class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
     return inputs;
   }
 
-  /** @override */
-  protected getParseInputStepOutputs(): Output[] {
+  protected override getParseInputStepOutputs(): Output[] {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
@@ -51,9 +49,7 @@ class MakeRDSSnapshotPrivateDocument extends ControlRunbookDocument {
     return outputs;
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.DBSnapshotType = StringVariable.of('ParseInput.DBSnapshotType');

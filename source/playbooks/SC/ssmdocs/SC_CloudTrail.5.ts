@@ -24,9 +24,7 @@ export class EnableCloudTrailToCloudWatchLoggingDocument extends ControlRunbookD
     });
   }
 
-  /** @override */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected getRemediationParams(): { [_: string]: any } {
+  protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
     params.CloudWatchLogsRole = new StringFormat(`arn:%s:iam::%s:role/${this.solutionId}-CloudTrailToCloudWatchLogs`, [

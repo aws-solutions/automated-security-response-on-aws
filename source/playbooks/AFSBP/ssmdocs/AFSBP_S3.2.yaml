@@ -15,9 +15,9 @@ description: |
   * Remediation.Output
 
   ## Documentation Links
-  * [AFSBP v1.0.0 S3.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-2)
-  * [AFSBP v1.0.0 S3.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-3)
-  * [AFSBP v1.0.0 S3.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-8)
+  * [AWS FSBP v1.0.0 S3.2](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-2)
+  * [AWS FSBP v1.0.0 S3.3](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-3)
+  * [AWS FSBP v1.0.0 S3.8](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html#fsbp-s3-8)
 
 schemaVersion: '0.3'
 assumeRole: '{{ AutomationAssumeRole }}'
@@ -55,7 +55,7 @@ mainSteps:
         Finding: '{{Finding}}'
         parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$'
         expected_control_id: [ 'S3.2', 'S3.3', 'S3.8' ]
-      Runtime: python3.8
+      Runtime: python3.11
       Handler: parse_event
       Script: |-
         %%SCRIPT=common/parse_input.py%%
@@ -68,7 +68,7 @@ mainSteps:
       DocumentName: ASR-ConfigureS3BucketPublicAccessBlock
       RuntimeParameters:
         BucketName: '{{ParseInput.BucketName}}'
-        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/SO0111-ConfigureS3BucketPublicAccessBlock'
+        AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-ConfigureS3BucketPublicAccessBlock%%'
         RestrictPublicBuckets: true
         BlockPublicAcls: true
         IgnorePublicAcls: true
