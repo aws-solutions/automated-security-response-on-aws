@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 import boto3
 from botocore.exceptions import ClientError
-from layer import awsapi_cached_client
+from . import awsapi_cached_client
 
 if TYPE_CHECKING:
     from mypy_boto3_ssm.client import SSMClient

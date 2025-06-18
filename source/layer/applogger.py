@@ -12,7 +12,7 @@ import time
 from datetime import date
 
 from botocore.exceptions import ClientError
-from layer import awsapi_cached_client
+from . import awsapi_cached_client
 
 LOG_MAX_BATCH_SIZE = 1048576  # Controls when the buffer is flushed to the stream
 LOG_ENTRY_ADDITIONAL = 26
