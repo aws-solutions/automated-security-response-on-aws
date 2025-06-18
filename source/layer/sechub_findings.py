@@ -6,8 +6,8 @@ import os
 from typing import Any, Union
 
 from botocore.exceptions import ClientError
-from layer.awsapi_cached_client import AWSCachedClient
-from layer.utils import publish_to_sns
+from .awsapi_cached_client import AWSCachedClient
+from .utils import publish_to_sns
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1

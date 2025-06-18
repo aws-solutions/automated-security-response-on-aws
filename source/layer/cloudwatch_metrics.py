@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING, Any, cast
 
 import boto3
-from layer.logger import Logger
+from .logger import Logger
 
 if TYPE_CHECKING:
     from mypy_boto3_cloudwatch import CloudWatchClient

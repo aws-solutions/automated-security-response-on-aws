@@ -7,8 +7,8 @@ from typing import Any
 
 import boto3
 from botocore.exceptions import UnknownRegionError
-from layer.awsapi_cached_client import AWSCachedClient
-from layer.logger import Logger
+from .awsapi_cached_client import AWSCachedClient
+from .logger import Logger
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
