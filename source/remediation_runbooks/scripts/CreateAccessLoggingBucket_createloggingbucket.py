@@ -1,5 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import json
 from typing import TYPE_CHECKING, TypedDict, cast
 
 import boto3
@@ -64,6 +65,28 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
                 ]
             },
         )
+
+        # Add SSL/TLS enforcement policy
+        ssl_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AllowSSLRequestsOnly",
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Resource": [
+                        f"arn:aws:s3:::{event['BucketName']}",
+                        f"arn:aws:s3:::{event['BucketName']}/*",
+                    ],
+                    "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                    "Principal": "*",
+                }
+            ],
+        }
+
+        # Apply the SSL policy to the bucket
+        s3.put_bucket_policy(Bucket=event["BucketName"], Policy=json.dumps(ssl_policy))
+
         return {"output": {"Message": f'Bucket {event["BucketName"]} created'}}
     except ClientError as error:
         if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":

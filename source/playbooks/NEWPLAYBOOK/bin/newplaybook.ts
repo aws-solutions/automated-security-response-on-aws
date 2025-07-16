@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { PlaybookPrimaryStack, PlaybookMemberStack, IControl } from '../../../lib/sharrplaybook-construct';
+import { PlaybookPrimaryStack, PlaybookMemberStack, IControl } from '../../../lib/playbook-construct';
 import * as cdk from 'aws-cdk-lib';
-import * as cdk_nag from 'cdk-nag';
 import 'source-map-support/register';
 
 // SOLUTION_* - set by solution_env.sh
@@ -19,7 +18,6 @@ const standardLongName = 'NewPlaybook';
 const standardVersion = '1.1.1'; // DO NOT INCLUDE 'V'
 
 const app = new cdk.App();
-cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 
 // Creates one rule per control Id. The Step Function determines what document to run based on
 // Security Standard and Control Id. See cis-member-stack

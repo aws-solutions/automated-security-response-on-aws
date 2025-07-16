@@ -21,7 +21,6 @@ This software includes third party software subject to the following copyrights:
 @typescript-eslint/eslint-plugin under the MIT License
 aws-cdk under the Apache License 2.0
 aws-cdk-lib under the Apache License 2.0
-cdk-nag under the Apache License 2.0
 constructs under the Apache License 2.0
 eslint under the MIT License
 eslint-config-prettier under the MIT License
@@ -365,7 +364,6 @@ tslib under the 0BSD license.
 natural-compare-lite under the MIT license.
 aws-cdk under the Apache-2.0 license.
 fsevents under the MIT license.
-cdk-nag under the Apache-2.0 license.
 eslint-config-prettier under the MIT license.
 eslint-plugin-header under the MIT license.
 eslint-plugin-import under the MIT license.
@@ -631,7 +629,6 @@ yargs-parser under the ISC license.
 ts-jest under the MIT license.
 bs-logger under the MIT license.
 lodash.memoize under the MIT license.
-zlib license unknown or missing
 @aws-sdk/client-cloudwatch-logs under the Apache-2.0 license.
 @aws-crypto/sha256-browser under the Apache-2.0 license.
 @smithy/is-array-buffer under the Apache-2.0 license.
@@ -838,6 +835,65 @@ types-urllib3 under the Apache-2.0 license.
 virtualenv under the MIT license.
 werkzeug under the 0BSD license.
 xmltodict under the MIT license.
+pydantic-core under the MIT license.
+pydantic-settings under the MIT license.
+python-dotenv under the BSD-3-Clause license.
+typing-inspection under the MIT license.
+pygments under the 0BSD license.
+@aws-sdk/client-cloudformation under the Apache-2.0 license.
+@aws-sdk/client-cloudwatch under the Apache-2.0 license.
+@aws-sdk/client-ec2 under the Apache-2.0 license.
+@aws-sdk/client-iam under the Apache-2.0 license.
+@aws-sdk/client-lambda under the Apache-2.0 license.
+@aws-sdk/client-sns under the Apache-2.0 license.
+@aws-sdk/client-sqs under the Apache-2.0 license.
+@aws-sdk/client-ssm under the Apache-2.0 license.
+@aws-sdk/middleware-sdk-ec2 under the Apache-2.0 license.
+@aws-sdk/middleware-sdk-sqs under the Apache-2.0 license.
+@aws-sdk/nested-clients under the Apache-2.0 license.
+@aws-sdk/util-format-url under the Apache-2.0 license.
+@smithy/middleware-compression under the Apache-2.0 license.
+fflate under the MIT license.
+@ungap/structured-clone under the ISC license.
+@rtsao/scc under the MIT license.
+call-bind-apply-helpers under the MIT license.
+es-object-atoms under the MIT license.
+get-proto under the MIT license.
+dunder-proto under the MIT license.
+math-intrinsics under the MIT license.
+call-bound under the MIT license.
+data-view-buffer under the MIT license.
+is-data-view under the MIT license.
+data-view-byte-length under the MIT license.
+data-view-byte-offset under the MIT license.
+side-channel-list under the MIT license.
+side-channel-map under the MIT license.
+side-channel-weakmap under the MIT license.
+is-set under the MIT license.
+own-keys under the MIT license.
+safe-push-apply under the MIT license.
+set-proto under the MIT license.
+stop-iteration-iterator under the MIT license.
+reflect.getprototypeof under the MIT license.
+which-builtin-type under the MIT license.
+is-async-function under the MIT license.
+async-function under the MIT license.
+is-finalizationregistry under the MIT license.
+which-collection under the MIT license.
+is-map under the MIT license.
+is-weakmap under the MIT license.
+is-weakset under the MIT license.
+@pkgr/core under the MIT license.
+@babel/helper-globals under the MIT license.
+ejs under the Apache-2.0 license.
+jake under the Apache-2.0 license.
+async under the MIT license.
+filelist under the Apache-2.0 license.
+@types/chai under the MIT license.
+@types/deep-eql under the MIT license.
+@jest/get-type under the MIT license.
+@jest/diff-sequences under the MIT license.
+@jest/pattern under the MIT license.
 
 ********************
 OPEN SOURCE LICENSES
@@ -849,3 +905,4 @@ ISC - https://spdx.org/licenses/ISC.html
 MPL-2.0 - https://spdx.org/licenses/MPL-2.0.html
 Python-2.0 - https://spdx.org/licenses/Python-2.0.html
 Unlicense - https://spdx.org/licenses/Unlicense.html
+BSD-3-Clause - https://spdx.org/licenses/BSD-3-Clause.html

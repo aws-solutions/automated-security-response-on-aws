@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Stack, App, CfnParameter, CfnOutput } from 'aws-cdk-lib';
-import { Function, Tracing } from 'aws-cdk-lib/aws-lambda';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 import { BlueprintProps, BlueprintStack } from '../../cdk/blueprint-stack';
@@ -37,7 +36,7 @@ export class JiraBlueprintStack extends BlueprintStack {
       },
     };
 
-    const ticketGeneratorFunction = new Function(this, 'JiraTicketGenerator', {
+    const ticketGeneratorFunction = new lambda.Function(this, 'JiraTicketGenerator', {
       functionName: props.functionName,
       handler: 'jira_ticket_generator.lambda_handler',
       runtime: props.solutionInfo.runtimePython,
@@ -61,7 +60,7 @@ export class JiraBlueprintStack extends BlueprintStack {
       timeout: cdk.Duration.seconds(15),
       reservedConcurrentExecutions: 2,
       role: super.getTicketGeneratorRole(),
-      tracing: Tracing.ACTIVE,
+      tracing: lambda.Tracing.ACTIVE,
       layers: [super.getBlueprintLayer()],
     });
 

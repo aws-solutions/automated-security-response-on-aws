@@ -45,7 +45,7 @@ def workflow_doc():
                 {
                     "Type": "String",
                     "Name": "RemediationDoc",
-                    "Description": "the SHARR Remediation (ingestion) runbook to execute",
+                    "Description": "the ASR Remediation (ingestion) runbook to execute",
                 },
             ],
             "Tags": [],
@@ -104,7 +104,7 @@ def test_sunny_day(mocker):
         "resourceregion": "us-east-1",
         "securitystandard": "AFSBP",
         "securitystandardversion": "1.0.0",
-        "standardsupported": "True",
+        "playbookenabled": "True",
         "status": "ACTIVE",
     }
     # use AWSCachedClient as it will us the same stub for any calls
@@ -255,7 +255,7 @@ def test_doc_not_active(mocker):
         "remediationrole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.17",
         "securitystandard": "AFSBP",
         "securitystandardversion": "1.0.0",
-        "standardsupported": "True",
+        "playbookenabled": "True",
         "status": "NOTFOUND",
     }
     # use AWSCachedClient as it will us the same stub for any calls
@@ -345,7 +345,7 @@ def test_client_error(mocker):
         "resourceregion": "us-east-1",
         "securitystandard": "AFSBP",
         "securitystandardversion": "1.0.0",
-        "standardsupported": "True",
+        "playbookenabled": "True",
         "status": "CLIENTERROR",
     }
     # use AWSCachedClient as it will us the same stub for any calls
@@ -433,7 +433,7 @@ def test_control_remap(mocker):
         "remediationrole": "SO0111-Remediate-CIS-1.2.0-1.5",
         "securitystandard": "CIS",
         "securitystandardversion": "1.2.0",
-        "standardsupported": "True",
+        "playbookenabled": "True",
         "status": "ACTIVE",
     }
     AWS = AWSCachedClient(get_region())
@@ -587,7 +587,7 @@ def test_alt_workflow_with_role(mocker):
         "remediationrole": "SO0111-Remediate-CIS-1.2.0-1.6",
         "securitystandard": "CIS",
         "securitystandardversion": "1.2.0",
-        "standardsupported": "True",
+        "playbookenabled": "True",
         "status": "ACTIVE",
     }
 

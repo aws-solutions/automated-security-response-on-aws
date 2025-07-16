@@ -3,6 +3,11 @@
 from simtest.boto_session import get_session
 from simtest.remediation_test import RemediationTest
 
+# Define constants
+MANUAL_SETUP_HEADER = "Manual Setup\n"
+VERIFICATION_HEADER = "\nVERIFICATION\n============\n"
+SEPARATOR = "============\n"
+
 
 def run_remove_public_ec2_snaps(remediation, account, region):
     aws = get_session()
@@ -34,7 +39,7 @@ def run_remove_public_ec2_snaps(remediation, account, region):
             print(e)
             print("Something went wrong")
     else:
-        print("Manual Setup\n")
+        print(MANUAL_SETUP_HEADER)
         print("===============\n")
         print(
             "1) Select a snapshot from your test account. Snapshot must not have sensitive, customer, or production data!"
@@ -48,11 +53,10 @@ def run_remove_public_ec2_snaps(remediation, account, region):
         "AWS::::Account:" + account
     )
     test.test_json["detail"]["findings"][0]["Resources"][0]["Region"] = region
-    # test.test_json['detail']['findings'][0]['testmode'] = True
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print(f"1) {snapshot_id} is no longer public")
 
 
@@ -61,8 +65,8 @@ def run_close_default_sg(remediation, account, region):
         "This test removes open ports in- and outbound from the security group in the finding. You will need to create a security group in the AWS console.\n"
     )
 
-    print("Manual Setup\n")
-    print("============\n")
+    print(MANUAL_SETUP_HEADER)
+    print(SEPARATOR)
     print("Please do the following")
     print(
         '1) Create (or select) a default Security Group in your test account. It must be named "default". Allow all inbound and outbound traffic from/to anywhere. Enter the Security Group Id below.'
@@ -80,11 +84,11 @@ def run_close_default_sg(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print(f"1) {sg_id} both inbound and outbound rules are removed")
 
 
-def run_disable_public_access_for_security_group(remediation, account, region):
+def run_disable_public_access_for_security_group(remediation, account):
     print("Simulate cis4142 Findings\n")
     print("This test closes inbound ports on a Security Group.\n")
 
@@ -109,7 +113,7 @@ def run_disable_public_access_for_security_group(remediation, account, region):
     )
 
 
-def run_remove_vpc_default_security_group_rules(remediation, account, region):
+def run_remove_vpc_default_security_group_rules(remediation, account):
     print("Simulate cis43 Findings\n")
 
     print("This test closes access inbound and outbound for a Securty Group.\n")
@@ -134,22 +138,22 @@ def run_remove_vpc_default_security_group_rules(remediation, account, region):
     test.run()
 
 
-def run_enable_ebs_encryption_by_default(remediation, account, region):
+def run_enable_ebs_encryption_by_default(remediation, account):
     aws = get_session()
     print("Simulate AWS FSBP EC2.7 Findings\n")
 
     print("This test enables EBS encryption by default.\n")
     if account == aws.get_account():
         print("Automatic Setup\n")
-        print("============\n")
+        print(SEPARATOR)
         print("1) Disables EBS encryption by default.")
 
         input("HIT ENTER TO START")
 
         disable_ebs_encryption_by_default()
     else:
-        print("Manual Setup\n")
-        print("============\n")
+        print(MANUAL_SETUP_HEADER)
+        print(SEPARATOR)
         print("1) Disable EBS encryption by default in the target account:")
         print("   EC2 Dashboard->Account Attributes->EBS Encryption")
         input("Press enter when ready...")
@@ -162,7 +166,7 @@ def run_enable_ebs_encryption_by_default(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print(
         "1) In EC2 Dashboard, click EBS Encryption under Account Attributes and confirm that it is enabled."
     )

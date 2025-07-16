@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { IControl } from '../lib/sharrplaybook-construct';
+import { IControl } from '../lib/playbook-construct';
 import { App, DefaultStackSynthesizer } from 'aws-cdk-lib';
 
 // SOLUTION_* - set by solution_env.sh
@@ -37,7 +37,7 @@ export function splitMemberStack(props: SplitStackProps): any[] {
     const memberStack = new props.stackClass(props.scope, stackName, {
       analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-      description: `(${SOLUTION_ID}) ${SOLUTION_NAME} ${props.standardShortName} ${props.standardVersion} Compliance Pack ${stackIndex} - Member Account, ${DIST_VERSION}`,
+      description: `(${SOLUTION_ID}PM) ${SOLUTION_NAME} ${props.standardShortName} ${props.standardVersion} Compliance Pack ${stackIndex} - Member Account, ${DIST_VERSION}`,
       solutionId: SOLUTION_ID,
       solutionVersion: DIST_VERSION,
       solutionDistBucket: DIST_OUTPUT_BUCKET,

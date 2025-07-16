@@ -15,7 +15,6 @@ const AFSBP_MEMBER_STACK_LIMIT = Number(process.env['AFSBP_MEMBER_STACK_LIMIT'])
 
 export interface PlaybookProps {
   name: string;
-  useAppRegistry: boolean;
   totalControls: number;
   defaultParameterValue?: 'yes' | 'no';
   memberStackLimit?: number;
@@ -30,39 +29,33 @@ export interface PlaybookProps {
 export const standardPlaybookProps: PlaybookProps[] = [
   {
     name: 'AFSBP',
-    useAppRegistry: true,
     defaultParameterValue: 'no',
     memberStackLimit: AFSBP_MEMBER_STACK_LIMIT,
     totalControls: AFSBP_REMEDIATIONS.length,
   },
   {
     name: 'CIS120',
-    useAppRegistry: true,
     defaultParameterValue: 'no',
     totalControls: CIS120_REMEDIATIONS.length,
   },
   {
     name: 'CIS140',
-    useAppRegistry: true,
     defaultParameterValue: 'no',
     totalControls: CIS140_REMEDIATIONS.length,
   },
   {
     name: 'NIST80053',
-    useAppRegistry: true,
     defaultParameterValue: 'no',
     memberStackLimit: NIST_MEMBER_STACK_LIMIT,
     totalControls: NIST80053_REMEDIATIONS.length,
   },
   {
     name: 'PCI321',
-    useAppRegistry: false,
     defaultParameterValue: 'no',
     totalControls: PCI321_REMEDIATIONS.length,
   },
   {
     name: 'CIS300',
-    useAppRegistry: true,
     defaultParameterValue: 'no',
     totalControls: CIS300_remediations.length,
   },
@@ -70,7 +63,6 @@ export const standardPlaybookProps: PlaybookProps[] = [
 
 export const scPlaybookProps: PlaybookProps = {
   name: 'SC',
-  useAppRegistry: false,
   memberStackLimit: SC_MEMBER_STACK_LIMIT,
   totalControls: SC_REMEDIATIONS.length,
   defaultParameterValue: 'yes',

@@ -1,11 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { PolicyStatement, PolicyDocument, ServicePrincipal, AccountRootPrincipal } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
 import { OrchestratorConstruct } from '../lib/common-orchestrator-construct';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 
@@ -64,6 +63,5 @@ test('test App Orchestrator Construct', () => {
     kmsKeyParm: kmsKeyParm,
     sqsQueue: schedulingQueue,
   });
-  Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   expect(Template.fromStack(stack)).toMatchSnapshot();
 });

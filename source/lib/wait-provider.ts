@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { CustomResource, Duration, Stack } from 'aws-cdk-lib';
 import { PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { Code, Function, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Code, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
-import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 export interface WaitProviderProps {
   readonly serviceToken: string;
@@ -70,14 +70,7 @@ export class WaitProvider extends Construct {
     addCfnGuardSuppression(role, 'IAM_NO_INLINE_POLICY_CHECK');
     addCfnGuardSuppression(role, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
 
-    NagSuppressions.addResourceSuppressions(role, [
-      {
-        id: 'AwsSolutions-IAM5',
-        reason: 'Resource * is needed for CloudWatch Logs policies used on Lambda functions.',
-      },
-    ]);
-
-    const lambdaFunction = new Function(scope, `${id}Function`, {
+    const lambdaFunction = new lambda.Function(scope, `${id}Function`, {
       //NOSONAR This is not unknown code.
       role,
       runtime: props.runtimePython,

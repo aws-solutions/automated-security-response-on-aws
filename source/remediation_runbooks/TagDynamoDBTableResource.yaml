@@ -1,0 +1,60 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-TagDynamoDBTableResource
+
+  ## Overview
+  This document adds required tags to a non-compliant DynamoDB Table.
+
+  ## Pre-requisites
+  * (Optional) Configure the tags you would like to add in the Security Hub settings for the DynamoDB.5 control.
+
+  ## What does this document do?
+  Tags the given DynamoDB Table with the required tags specified in Security Hub. If no required tags are specified, adds a default tag to the resource.
+
+  ## Input Parameters
+  * ResourceArn: (Required) DynamoDB Table to be tagged.
+  * RequiredTagKeys: (Optional) Security Control Parameters for DynamoDB.5.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * TagDynamoDBTableResource.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  ResourceArn:
+    type: String
+    description: (Required) The DynamoDB Table resource ARN.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):dynamodb:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):table\/([a-zA-Z0-9._-]{3,255})$'
+  RequiredTagKeys:
+    type: StringList
+    description: Required tag keys for DynamoDB Tables
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - TagDynamoDBTableResource.Output
+mainSteps:
+  -
+    name: TagDynamoDBTableResource
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Adds required tags to a non-compliant DynamoDB Table.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        RequiredTagKeys: '{{RequiredTagKeys}}'
+        ResourceArn: '{{ResourceArn}}'
+        ResourceType: 'DynamoDBTable'
+      Runtime: python3.11
+      Handler: lambda_handler
+      Script: |-
+        %%SCRIPT=TagResource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 import * as cdk from 'aws-cdk-lib';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
-import * as events from 'aws-cdk-lib/aws-events';
-import {
-  Effect,
-  PolicyStatement,
-  ServicePrincipal,
-  Policy,
-  Role,
-  CfnRole,
-  ArnPrincipal,
-  CompositePrincipal,
-  AccountPrincipal,
-} from 'aws-cdk-lib/aws-iam';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import { IRuleTarget, EventPattern, Rule, RuleTargetInput, EventField } from 'aws-cdk-lib/aws-events';
-import { MemberRoleStack } from './remediation_runbook-stack';
+import * as events from 'aws-cdk-lib/aws-events';
+import { EventField, EventPattern, IRuleTarget, Rule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
+import {
+  AccountPrincipal,
+  ArnPrincipal,
+  CfnRole,
+  CompositePrincipal,
+  Effect,
+  Policy,
+  PolicyStatement,
+  Role,
+  ServicePrincipal,
+} from 'aws-cdk-lib/aws-iam';
+import { MemberRolesStack } from './member-roles-stack';
 import { Construct } from 'constructs';
-import { CfnCondition } from 'aws-cdk-lib';
 import setCondition from './cdk-helper/set-condition';
+import { EventPatternHelper } from './cdk-helper/eventeattern-helper';
 
 /*
  * @author AWS Solutions Development
@@ -33,12 +33,32 @@ export interface ITriggerProps {
   generatorId: string; // ex. "arn:aws-cn:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0"
   controlId: string;
   targetArn: string;
+  targetAccountIDs: cdk.CfnParameter;
+  targetAccountIDsStrategy: cdk.CfnParameter;
 }
 
 export class Trigger extends Construct {
   constructor(scope: Construct, id: string, props: ITriggerProps) {
     super(scope, id);
     const illegalChars = /\./g;
+
+    const isAllInclude = new cdk.CfnCondition(this, 'IsAllInclude', {
+      expression: cdk.Fn.conditionAnd(
+        cdk.Fn.conditionEquals(props.targetAccountIDs, 'ALL'),
+        cdk.Fn.conditionEquals(props.targetAccountIDsStrategy, 'INCLUDE'),
+      ),
+    });
+
+    const isAllExclude = new cdk.CfnCondition(this, 'IsAllExclude', {
+      expression: cdk.Fn.conditionAnd(
+        cdk.Fn.conditionEquals(props.targetAccountIDs, 'ALL'),
+        cdk.Fn.conditionEquals(props.targetAccountIDsStrategy, 'EXCLUDE'),
+      ),
+    });
+
+    const isInclude = new cdk.CfnCondition(this, 'IsInclude', {
+      expression: cdk.Fn.conditionEquals(props.targetAccountIDsStrategy, 'INCLUDE'),
+    });
 
     // Event to Step Function
     // ----------------------
@@ -49,14 +69,6 @@ export class Trigger extends Construct {
     if (props.description) {
       description = props.description;
     }
-
-    const workflowStatusFilter = {
-      Status: ['NEW'],
-    };
-    const complianceStatusFilter = {
-      Status: ['FAILED', 'WARNING'],
-    };
-    const recordStateFilter: string[] = ['ACTIVE'];
 
     const stateMachine = sfn.StateMachine.fromStateMachineArn(this, 'orchestrator', props.targetArn);
 
@@ -84,7 +96,7 @@ export class Trigger extends Construct {
       }),
     };
 
-    const enable_auto_remediation_param = new cdk.CfnParameter(this, 'AutoEnable', {
+    const enableAutoRemediationParam = new cdk.CfnParameter(this, 'AutoEnable', {
       description:
         'This will fully enable automated remediation for ' +
         props.securityStandard +
@@ -97,50 +109,37 @@ export class Trigger extends Construct {
       default: 'DISABLED',
     });
 
-    enable_auto_remediation_param.overrideLogicalId(
+    enableAutoRemediationParam.overrideLogicalId(
       `${props.securityStandard}${props.securityStandardVersion}${props.controlId}AutoTrigger`.replace(
         illegalChars,
         '',
       ),
     );
 
-    interface IPattern {
-      source: any;
-      detailType: any;
-      detail: any;
-    }
-    const eventPattern: IPattern = {
-      source: ['aws.securityhub'],
-      detailType: ['Security Hub Findings - Imported'],
-      detail: {
-        findings: {
-          // GeneratorId includes both standard and control/rule ID
-          GeneratorId: [props.generatorId],
-          Workflow: workflowStatusFilter,
-          Compliance: complianceStatusFilter,
-          RecordState: recordStateFilter,
-        },
-      },
-    };
-
-    const triggerPattern: events.EventPattern = eventPattern;
+    const patternHelper = new EventPatternHelper({
+      generatorId: props.generatorId,
+      isAllInclude,
+      isAllExclude,
+      isInclude,
+      targetAccountIDs: props.targetAccountIDs,
+    });
 
     // Adding an automated even rule for the playbook
-    const eventRule_auto = new events.Rule(this, 'AutoEventRule', {
+    const eventRuleAuto = new events.Rule(this, 'AutoEventRule', {
       description: description + ' automatic remediation trigger event rule.',
       ruleName: `${props.securityStandard}_${props.securityStandardVersion}_${props.controlId}_AutoTrigger`,
       targets: [stateMachineTarget],
-      eventPattern: triggerPattern,
+      eventPattern: patternHelper.createEventPattern(),
     });
 
-    const cfnEventRule_auto = eventRule_auto.node.defaultChild as events.CfnRule;
-    cfnEventRule_auto.addPropertyOverride('State', enable_auto_remediation_param.valueAsString);
+    const cfnEventRuleAuto = eventRuleAuto.node.defaultChild as events.CfnRule;
+    cfnEventRuleAuto.addPropertyOverride('State', enableAutoRemediationParam.valueAsString);
   }
 }
 
 export interface IOneTriggerProps {
   description?: string;
-  condition?: CfnCondition;
+  condition?: cdk.CfnCondition;
   targetArn: string;
   serviceToken: string;
   eventsRole: Role;
@@ -153,7 +152,7 @@ export interface IOneTriggerProps {
 }
 export class OneTrigger extends Construct {
   // used in place of Trigger. Sends all finding events for which the
-  // SHARR custom action is initiated to the Step Function
+  // ASR custom action is initiated to the Step Function
 
   constructor(scope: Construct, id: string, props: IOneTriggerProps) {
     super(scope, id);
@@ -240,8 +239,8 @@ export class SsmRole extends Construct {
   constructor(scope: Construct, id: string, props: RoleProps) {
     super(scope, id);
     const stack = cdk.Stack.of(this);
-    const roleStack = MemberRoleStack.of(this) as MemberRoleStack;
-    const basePolicy = new Policy(this, 'SHARR-Member-Base-Policy');
+    const roleStack = MemberRolesStack.of(this) as MemberRolesStack;
+    const basePolicy = new Policy(this, 'ASR-Member-Base-Policy');
     const roleNameWithNamespace = `${props.remediationRoleName}-${roleStack.getNamespace()}`;
 
     basePolicy.addStatements(
@@ -258,7 +257,7 @@ export class SsmRole extends Construct {
       new PolicyStatement({
         actions: ['ssm:StartAutomationExecution', 'ssm:GetAutomationExecution', 'ssm:DescribeAutomationStepExecutions'],
         resources: [
-          `arn:${stack.partition}:ssm:*:${stack.account}:document/Solutions/SHARR-${roleNameWithNamespace}`,
+          `arn:${stack.partition}:ssm:*:${stack.account}:document/ASR-${props.ssmDocName}`,
           `arn:${stack.partition}:ssm:*:${stack.account}:automation-definition/*`,
           `arn:${stack.partition}:ssm:*::automation-definition/*`,
           `arn:${stack.partition}:ssm:*:${stack.account}:automation-execution/*`,
@@ -279,7 +278,7 @@ export class SsmRole extends Construct {
 
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, '');
     const roleprincipal = new ArnPrincipal(
-      `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`,
+      `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-ASR-Orchestrator-Member`,
     );
 
     const principals = new CompositePrincipal(roleprincipal);

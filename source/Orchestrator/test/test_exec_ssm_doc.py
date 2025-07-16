@@ -87,7 +87,7 @@ def test_exec_runbook(mocker):
             "RemediationRole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
             "ControlId": "AutoScaling.1",
             "SecurityStandard": "AFSBP",
-            "SecurityStandardSupported": "True",
+            "PlaybookEnabled": "True",
         },
         "SSMExecution": {
             "workflow_data": {"impact": "nondestructive", "approvalrequired": "false"}
@@ -123,7 +123,7 @@ def test_exec_runbook(mocker):
     ssmc_stub.activate()
     mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_c)
     mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_c)
-    mocker.patch("sechub_findings.SHARRNotification.notify")
+    mocker.patch("sechub_findings.ASRNotification.notify")
 
     response = lambda_handler(step_input, {})
     assert response["executionid"] == expected_result["executionid"]

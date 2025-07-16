@@ -1,0 +1,58 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-EnableElastiCacheBackups
+
+  ## Overview
+  This document enables automatic backups for the given ElastiCache cluster.
+
+  ## Pre-requisites
+  None.
+
+  ## What does this document do?
+  Takes the SnapshotRetentionPeriod provided by Security Hub control ElastiCache.1 and enables automatic backups for the given ElastiCache cluster/replication group.
+  If the resource is a replication group with Cluster Mode disabled, the first cluster listed in the group will be used as the SnapshottingClusterId.
+
+  ## Input Parameters
+  * ResourceARN: (Required) ID of the ElastiCache cluster.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableAutomaticBackups.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  ResourceARN:
+    type: String
+    description: (Required) ID of the ElastiCache cluster.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):(?:replicationgroup|serverlesscache|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)'
+  SnapshotRetentionPeriod:
+    type: Integer
+    description: (Required) Minimum snapshot retention period in days.
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnableAutomaticBackups.Output
+mainSteps:
+  - name: EnableAutomaticBackups
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Enables automatic backups for the given ElastiCache Cluster.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        ResourceARN: '{{ResourceARN}}'
+        SnapshotRetentionPeriod: '{{SnapshotRetentionPeriod}}'
+      Runtime: python3.11
+      Handler: handler
+      Script: |-
+        %%SCRIPT=EnableElastiCacheBackups.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

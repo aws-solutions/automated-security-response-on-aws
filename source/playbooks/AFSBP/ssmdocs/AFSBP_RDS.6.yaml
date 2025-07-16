@@ -39,8 +39,8 @@ mainSteps:
     name: ParseInput
     action: 'aws:executeScript'
     outputs:
-      - Name: ResourceId
-        Selector: $.Payload.details.AwsRdsDbInstance.DbiResourceId
+      - Name: RDSInstanceARN
+        Selector: $.Payload.resource.Id
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -96,7 +96,7 @@ mainSteps:
           Regions: [ '{{ParseInput.RemediationRegion}}' ]
           ExecutionRoleName: '{{RemediationRoleName}}'
       RuntimeParameters:
-        ResourceId: '{{ ParseInput.ResourceId }}'
+        RDSInstanceARN: '{{ ParseInput.RDSInstanceARN }}'
         MonitoringRoleArn: '{{GetMonitoringRoleArn.Arn}}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
 

@@ -1,12 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, Stack } from 'aws-cdk-lib';
+import { App, Stack } from 'aws-cdk-lib';
 import { Policy, PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
 import { SsmRole } from '../lib/ssmplaybook';
 import { RunbookFactory } from '../lib/runbook_factory';
-import { MemberRoleStack } from '../lib/remediation_runbook-stack';
+import { MemberRolesStack } from '../lib/member-roles-stack';
 
 function getSsmPlaybook(): Stack {
   const app = new App();
@@ -25,7 +24,6 @@ function getSsmPlaybook(): Stack {
     solutionId: 'SO0111',
     namespace: 'myNamespace',
   });
-  Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
 
@@ -63,7 +61,7 @@ function getSsmRemediationRunbook(): Stack {
   const stack = new Stack(app, 'MyTestStack', {
     stackName: 'testStack',
   });
-  new MemberRoleStack(app, 'roles', {
+  new MemberRolesStack(app, 'roles', {
     description: 'test;',
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
@@ -113,7 +111,7 @@ test('Test Shared Remediation Generation', () => {
 // ------------------
 function getSsmRemediationRoleCis(): Stack {
   const app = new App();
-  const stack = new MemberRoleStack(app, 'MyTestStack', {
+  const stack = new MemberRolesStack(app, 'MyTestStack', {
     description: 'test-description',
     solutionId: 'SO0111',
     solutionVersion: 'v1.0.0',
@@ -129,7 +127,7 @@ function getSsmRemediationRoleCis(): Stack {
     solutionId: 'SO0111',
     ssmDocName: 'foobar',
     remediationPolicy: inlinePolicy,
-    remediationRoleName: 'SHARR-RemediationRoleName',
+    remediationRoleName: 'ASR-RemediationRoleName',
   });
   return stack;
 }
@@ -154,7 +152,7 @@ test('Test SsmRole Generation', () => {
                   {
                     Ref: 'AWS::AccountId',
                   },
-                  ':role/SO0111-SHARR-Orchestrator-Member',
+                  ':role/SO0111-ASR-Orchestrator-Member',
                 ],
               ],
             },
@@ -196,7 +194,7 @@ test('Test SsmRole Generation', () => {
       'Fn::Join': [
         '',
         [
-          'SHARR-RemediationRoleName-',
+          'ASR-RemediationRoleName-',
           {
             Ref: 'Namespace',
           },

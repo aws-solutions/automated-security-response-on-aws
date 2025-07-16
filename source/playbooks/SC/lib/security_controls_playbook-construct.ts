@@ -7,10 +7,11 @@ import { Construct } from 'constructs';
 import { ControlRunbooks } from './control_runbooks-construct';
 import AdminAccountParam from '../../../lib/parameters/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
 import NamespaceParam from '../../../lib/parameters/namespace-param';
+import AccountTargetParam from '../../../lib/parameters/account-target-param';
 
 export interface SecurityControlsPlaybookProps extends StackProps {
   solutionId: string;
@@ -34,6 +35,9 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
       `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`,
     );
 
+    //=============================================================================================
+    // Parameters
+    //=============================================================================================
     // Register the playbook. These parameters enable the step function to route matching events
     new StringParameter(this, `${props.securityStandard}ShortName`, {
       description: 'Provides a short (1-12) character abbreviation for the standard.',
@@ -42,10 +46,12 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
     });
     new StringParameter(this, 'StandardVersion', {
       description:
-        'This parameter controls whether the SHARR step function will process findings for this version of the standard.',
+        'This parameter controls whether the ASR step function will process findings for this version of the standard.',
       parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/status`,
       stringValue: 'enabled',
     });
+
+    const accountTargetParam = new AccountTargetParam(this, 'AccountTargetParams');
 
     new CfnMapping(this, 'SourceCode', {
       mapping: {
@@ -73,6 +79,8 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
         controlId: controlSpec.control,
         generatorId: generatorId,
         targetArn: orchestratorArn,
+        targetAccountIDs: accountTargetParam.targetAccountIDs,
+        targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
       });
     };
 

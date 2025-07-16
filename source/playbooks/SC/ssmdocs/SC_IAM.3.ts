@@ -3,7 +3,7 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ControlRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { DataTypeEnum, Input, Output, StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
+import { Input, StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new RevokeUnrotatedKeysDocument(scope, id, { ...props, controlId: 'IAM.3' });
@@ -19,32 +19,18 @@ export class RevokeUnrotatedKeysDocument extends ControlRunbookDocument {
       }),
     ];
 
-    const resourceIdName = 'IAMUser';
-
     super(scope, id, {
       ...props,
       docInputs,
       securityControlId: 'IAM.3',
       remediationName: 'RevokeUnrotatedKeys',
       scope: RemediationScope.GLOBAL,
-      resourceIdName,
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\u002F)|(?:\u002F[\u0021-\u007F]{1,510}\u002F))([\w+=,.@-]{1,64})$`,
+      resourceIdName: 'IAMUserName',
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\/)|(?:\/.{1,510}\/))([\w+=,.@_-]{1,64})$`,
       updateDescription: new StringFormat('Deactivated unrotated keys for %s.', [
-        StringVariable.of(`ParseInput.${resourceIdName}`),
+        StringVariable.of(`ParseInput.IAMUserName`),
       ]),
     });
-  }
-
-  protected override getParseInputStepOutputs(): Output[] {
-    const outputs: Output[] = super.getParseInputStepOutputs();
-
-    outputs.push({
-      name: 'IAMResourceId',
-      outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.details.AwsIamUser.UserId',
-    });
-
-    return outputs;
   }
 
   protected override getRemediationParams(): Record<string, any> {
@@ -54,7 +40,7 @@ export class RevokeUnrotatedKeysDocument extends ControlRunbookDocument {
       // Not used by remediation
       delete params[this.resourceIdName];
     }
-    params.IAMResourceId = StringVariable.of('ParseInput.IAMResourceId');
+    params.IAMUserName = StringVariable.of('ParseInput.IAMUserName');
     params.MaxCredentialUsageAge = StringVariable.of('MaxCredentialUsageAge');
 
     return params;

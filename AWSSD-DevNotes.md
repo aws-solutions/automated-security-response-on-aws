@@ -1,16 +1,16 @@
-# SHARR v1.3.0
+# ASR v2.3.0
 
 ## How it works
 
 - Security Hub Custom Actions send selected finding events to CloudWatch Logs
-- EventBridge rules matching SHARR-supported findings send the findings to the SHARR Orchestrator
+- EventBridge rules matching ASR-supported findings send the findings to the ASR Orchestrator
 - The Orchestrator, an AWS Step Function, uses finding data to determine which account and remediation to execute, verifies that the remediation is active in that account, executes it, and monitors until completion.
 
 ### SSM Parameters
 There are N parameters that control processing under /Solutions/SO0111:
-CMK_ARN - encryption key for the AWS FSBP runbooks
+CMK_ARN - encryption key for the AWS AFSBP runbooks
 CMK_ARN - Admin account only, KMS key for solution encryption
-SNS_Topic_Arn - arn of the SHARR topic
+SNS_Topic_Arn - arn of the ASR topic
 sendAnonymizedMetrics - controls whether the solution sends metrics
 version - solution version
 
@@ -111,10 +111,10 @@ Need to enable AWS Config on all 5 accounts
 
 -   Verify it produces the expected results
 
--   Verify logging to CloudWatch LogGroup "SHARR"
+-   Verify logging to CloudWatch LogGroup "SO0111-ASR"
 
     -   Note: Lambda logs to the usual CW Logs prefix. Application data is
-        logged to SHARR.
+        logged to SO0111-ASR.
 
 -   Verify that remediated findings' workflow status is updated
 

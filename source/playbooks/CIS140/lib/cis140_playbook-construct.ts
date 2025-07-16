@@ -6,7 +6,7 @@ import AdminAccountParam from '../../../lib/parameters/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 import NamespaceParam from '../../../lib/parameters/namespace-param';
 
 export interface CIS140PlaybookMemberStackProps extends StackProps {

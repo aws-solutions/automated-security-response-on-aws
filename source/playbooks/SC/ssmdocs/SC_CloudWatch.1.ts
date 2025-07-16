@@ -58,7 +58,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
       Input.ofTypeString('KMSKeyArn', {
         description: `The ARN of the KMS key created by ${props.solutionAcronym} for remediations`,
         defaultValue: `{{ssm:/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN}}`,
-        allowedPattern: String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias\/[A-Za-z0-9/-_])|(?:key\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$`,
+        allowedPattern: String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:^(alias\/)[a-zA-Z0-9:/_-]+$)|(?:key\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$`,
       }),
     ];
 
@@ -155,7 +155,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     params.AlarmDesc = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmDesc');
     params.AlarmThreshold = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmThreshold');
     params.LogGroupName = StringVariable.of('LogGroupName');
-    params.SNSTopicName = getSNSTopicName(this.solutionId, 'SHARR');
+    params.SNSTopicName = getSNSTopicName(this.solutionId, 'ASR');
     params.KMSKeyArn = StringVariable.of('KMSKeyArn');
 
     return params;

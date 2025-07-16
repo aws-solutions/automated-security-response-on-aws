@@ -10,9 +10,7 @@ description: |
 
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * APIGatewayStageArn: (Required) The ARN of the API Gateway REST API stage.
-  * StageName: (Required) The name of the API Gateway REST API stage.
-  * MethodSettings: (Required) The list of method settings for the methods in the API Gateway stage.
+  * APIGatewayStageName: (Required) The name of the API Gateway REST API stage.
 
   ## Security Standards / Controls
   * NIST 800-53 Rev5: APIGateway.5
@@ -26,14 +24,7 @@ parameters:
   APIGatewayStageArn:
     type: String
     description: (Required) The ARN of the API Gateway stage.
-    allowedPattern: '^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::\/restapis\/([a-z0-9]+)\/stages\/.+)$'
-  StageName:
-    type: String
-    description: (Required) The name of the API Gateway stage.
-    allowedPattern: '^[a-zA-Z0-9_-]+$|^\$default$'
-  MethodSettings:
-    type: MapList
-    description: (Required) The list of method settings for the methods in the API Gateway stage.
+    allowedPattern: '^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::\/restapis\/(.+)\/stages\/.+)$'
 mainSteps:
   - name: 'EnableAPIGatewayCacheDataEncryption'
     action: 'aws:executeScript'
@@ -45,8 +36,6 @@ mainSteps:
     inputs:
       InputPayload:
         APIGatewayStageArn: '{{ APIGatewayStageArn }}'
-        StageName: '{{ StageName }}'
-        MethodSettings: '{{ MethodSettings }}'
       Runtime: 'python3.11'
       Handler: 'enable_data_encryption'
       Script: |-

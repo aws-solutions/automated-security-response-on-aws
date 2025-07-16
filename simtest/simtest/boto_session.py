@@ -8,7 +8,9 @@ _session = None
 
 def get_session():
     if not _session:
-        raise Exception("Session has not been initialized")
+        raise Exception(  # NOSONAR Used for testing purpose only
+            "Session has not been initialized"
+        )
     return _session
 
 

@@ -3,7 +3,7 @@
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Template } from 'aws-cdk-lib/assertions';
-import { PlaybookPrimaryStack } from '../../../lib/sharrplaybook-construct';
+import { PlaybookPrimaryStack } from '../../../lib/playbook-construct';
 import { CIS140PlaybookMemberStack } from '../lib/cis140_playbook-construct';
 import { omitWaitResourceHash } from '../../../test/utils';
 

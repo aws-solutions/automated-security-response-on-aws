@@ -4,12 +4,11 @@
 import { StackProps, Stack, App, CfnParameter } from 'aws-cdk-lib';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { CfnPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import * as cdk_nag from 'cdk-nag';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as cdk from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { addCfnGuardSuppression } from '../../lib/cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from '../../lib/cdk-helper/add-cfn-guard-suppression';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -63,8 +62,12 @@ export class BlueprintStack extends Stack {
           resources: [secretArnParam.valueAsString],
         }),
         new PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-          resources: ['*'],
+          actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*:log-stream:*`],
+        }),
+        new PolicyStatement({
+          actions: ['logs:CreateLogGroup'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*`],
         }),
         new PolicyStatement({
           actions: ['organizations:ListAccounts'],
@@ -86,14 +89,6 @@ export class BlueprintStack extends Stack {
         },
       };
     }
-
-    cdk_nag.NagSuppressions.addResourceSuppressions(ticketGeneratorPolicy, [
-      {
-        id: 'AwsSolutions-IAM5',
-        appliesTo: ['Resource::*'],
-        reason: 'Resource * is required to create CloudWatch logs.',
-      },
-    ]);
 
     const ticketGeneratorRole = new Role(this, `TicketGeneratorRole-${props.serviceName}`, {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),

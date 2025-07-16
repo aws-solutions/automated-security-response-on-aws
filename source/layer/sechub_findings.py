@@ -7,11 +7,14 @@ from typing import Any, Union
 
 from botocore.exceptions import ClientError
 from layer.awsapi_cached_client import AWSCachedClient
+from layer.simple_validation import clean_ssm
 from layer.utils import publish_to_sns
 
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 securityhub = None
+
+SOLUTION_BASE_PATH = "/Solutions/SO0111"
 
 
 def get_securityhub():
@@ -54,7 +57,7 @@ class Finding(object):
     standard_version = "error"
     standard_control = "error"
     remediation_control = ""
-    standard_version_supported = "False"
+    playbook_enabled = "False"
     title = ""
     description = ""
     region = None
@@ -98,7 +101,7 @@ class Finding(object):
 
         self._get_security_standard_abbreviation_from_ssm()
         self._get_control_remap()
-        self._set_standard_version_supported()
+        self._set_playbook_enabled()
 
     def is_valid_finding_json(self):
         if self.generator_id == "error":
@@ -163,11 +166,15 @@ class Finding(object):
     def _get_control_remap(self):
         self.remediation_control = self.standard_control  # Defaults to self
         try:
+            clean_shortname = clean_ssm(self.standard_shortname)
+            clean_version = clean_ssm(self.standard_version)
+            clean_control = clean_ssm(self.standard_control)
+
+            safe_param_path = f"{SOLUTION_BASE_PATH}/{clean_shortname}/{clean_version}/{clean_control}/remap"
+
             local_ssm = get_ssm_connection(self.aws_api_client)
             remap = (
-                local_ssm.get_parameter(
-                    Name=f"/Solutions/SO0111/{self.standard_shortname}/{self.standard_version}/{self.standard_control}/remap"
-                )
+                local_ssm.get_parameter(Name=safe_param_path)
                 .get("Parameter")
                 .get("Value")
             )
@@ -187,11 +194,16 @@ class Finding(object):
 
     def _get_security_standard_abbreviation_from_ssm(self):
         try:
+            clean_name = clean_ssm(self.standard_name)
+            clean_version = clean_ssm(self.standard_version)
+
+            safe_param_path = (
+                f"{SOLUTION_BASE_PATH}/{clean_name}/{clean_version}/shortname"
+            )
+
             local_ssm = get_ssm_connection(self.aws_api_client)
             abbreviation = (
-                local_ssm.get_parameter(
-                    Name=f"/Solutions/SO0111/{self.standard_name}/{self.standard_version}/shortname"
-                )
+                local_ssm.get_parameter(Name=safe_param_path)
                 .get("Parameter")
                 .get("Value")
             )
@@ -209,34 +221,38 @@ class Finding(object):
             print(UNHANDLED_CLIENT_ERROR + str(e))
             return
 
-    def _set_standard_version_supported(self):
+    def _set_playbook_enabled(self):
         try:
-            local_ssm = get_ssm_connection(self.aws_api_client)
+            clean_name = clean_ssm(self.standard_name)
+            clean_version = clean_ssm(self.standard_version)
 
+            safe_param_path = (
+                f"{SOLUTION_BASE_PATH}/{clean_name}/{clean_version}/status"
+            )
+
+            local_ssm = get_ssm_connection(self.aws_api_client)
             version_status = (
-                local_ssm.get_parameter(
-                    Name=f"/Solutions/SO0111/{self.standard_name}/{self.standard_version}/status"
-                )
+                local_ssm.get_parameter(Name=safe_param_path)
                 .get("Parameter")
                 .get("Value")
             )
 
             if version_status == "enabled":
-                self.standard_version_supported = "True"
+                self.playbook_enabled = "True"
             else:
-                self.standard_version_supported = "False"
+                self.playbook_enabled = "False"
 
         except ClientError as ex:
             exception_type = ex.response["Error"]["Code"]
             if exception_type in "ParameterNotFound":
-                self.standard_version_supported = "False"
+                self.playbook_enabled = "False"
             else:
                 print(UNHANDLED_CLIENT_ERROR + exception_type)
-                self.standard_version_supported = "False"
+                self.playbook_enabled = "False"
 
         except Exception as e:
             print(UNHANDLED_CLIENT_ERROR + str(e))
-            self.standard_version_supported = "False"
+            self.playbook_enabled = "False"
 
 
 # ================
@@ -246,7 +262,7 @@ class InvalidValue(Exception):
     pass
 
 
-class SHARRNotification(object):
+class ASRNotification(object):
     # These are private - they cannot be changed after the object is created
     __security_standard = ""
     __controlid = None
@@ -267,8 +283,8 @@ class SHARRNotification(object):
         """
         Initialize the class
         applogger_name determines the log stream name in CW Logs
-        ex. SHARRNotification(<string>, 'us-east-1', None) -> logs to <string>-2021-01-22
-        ex. SHARRNotification('FSBP', 'us-east-1', 'EC2.1') -> logs to FSBP-EC2.1-2021-01-22
+        ex. ASRNotification(<string>, 'us-east-1', None) -> logs to <string>-2021-01-22
+        ex. ASRNotification('FSBP', 'us-east-1', 'EC2.1') -> logs to FSBP-EC2.1-2021-01-22
         """
         self.__security_standard = security_standard
         self.__region = region
@@ -311,7 +327,7 @@ class SHARRNotification(object):
 
         if self.send_to_sns:
             sent_id = publish_to_sns(
-                "SO0111-SHARR_Topic",
+                "SO0111-ASR_Topic",
                 json.dumps(sns_notify_json, indent=2, default=str),
                 self.__region,
             )

@@ -24,9 +24,9 @@ export class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRun
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
-      name: 'DBInstanceIdentifier',
+      name: 'RDSInstanceARN',
       outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.resource.Details.AwsRdsDbInstance.DBInstanceIdentifier',
+      selector: '$.Payload.resource.Id',
     });
 
     return outputs;
@@ -35,7 +35,7 @@ export class EnableMinorVersionUpgradeOnRDSDBInstanceDocument extends ControlRun
   protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
-    params.DBInstanceIdentifier = StringVariable.of('ParseInput.DBInstanceIdentifier');
+    params.RDSInstanceARN = StringVariable.of('ParseInput.RDSInstanceARN');
 
     return params;
   }

@@ -3,7 +3,7 @@
 import { Construct } from 'constructs';
 import { ControlRunbookDocument, ParameterRunbookProps, RemediationScope } from './control_runbook';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
-import { DataTypeEnum, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
+import { HardCodedString, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
   return new RevokeUnusedIAMUserCredentialsDocument(scope, id, { ...props, controlId: 'IAM.8' });
@@ -19,6 +19,8 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
       securityControlId: 'IAM.8',
       remediationName,
       scope: RemediationScope.GLOBAL,
+      resourceIdName: 'IAMUserName',
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\/)|(?:\/.{1,510}\/))([\w+=,.@_-]{1,64})$`,
       updateDescription: HardCodedString.of(
         `Deactivated unused keys and expired logins using the ${props.solutionAcronym}-${remediationName} runbook.`,
       ),
@@ -26,22 +28,10 @@ export class RevokeUnusedIAMUserCredentialsDocument extends ControlRunbookDocume
     this.maxCredentialUsageAge = props.parameterToPass ?? '90';
   }
 
-  protected override getParseInputStepOutputs(): Output[] {
-    const outputs: Output[] = super.getParseInputStepOutputs();
-
-    outputs.push({
-      name: 'IAMResourceId',
-      outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.details.AwsIamUser.UserId',
-    });
-
-    return outputs;
-  }
-
   protected override getRemediationParams(): Record<string, any> {
     const params: Record<string, any> = super.getRemediationParams();
 
-    params.IAMResourceId = StringVariable.of('ParseInput.IAMResourceId');
+    params.IAMUserName = StringVariable.of('ParseInput.IAMUserName');
     params.MaxCredentialUsageAge = HardCodedString.of(this.maxCredentialUsageAge as string);
     return params;
   }

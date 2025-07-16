@@ -24,7 +24,6 @@ class ControlTest:
 
     def create_finding(self):
         self.finding = Finding(self.test_json["detail"]["findings"][0])
-        return
 
     def print_heading(self, description):
         print("=" * 80)
@@ -37,7 +36,6 @@ class ControlTest:
         print(self.finding.remediation_url + "\n")
         print("TEST\n----")
         print(f"{description}\n")
-        return
 
     def print_verification_instructions(self, instructions):
         print("VERIFICATION\n------------")
@@ -118,7 +116,6 @@ class ConfigRuleStore:
                 return rule["ConfigRuleName"]
         return None
 
-    # TODO can cache locally by profile, these don't change often
     def _list_rules(self):
         config_client = self._session.client("config")
         response = config_client.describe_config_rules()

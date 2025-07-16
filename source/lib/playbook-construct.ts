@@ -16,6 +16,7 @@ import { Aspects, CfnParameter, StackProps } from 'aws-cdk-lib';
 import { WaitProvider } from './wait-provider';
 import SsmDocRateLimit from './ssm-doc-rate-limit';
 import NamespaceParam from './parameters/namespace-param';
+import AccountTargetParam from './parameters/account-target-param';
 
 export interface IControl {
   control: string;
@@ -44,6 +45,9 @@ export class PlaybookPrimaryStack extends cdk.Stack {
       `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`,
     );
 
+    //=============================================================================================
+    // Parameters
+    //=============================================================================================
     // Register the playbook. These parameters enable the step function to route matching events
     new StringParameter(this, `${props.securityStandard}ShortName`, {
       description: 'Provides a short (1-12) character abbreviation for the standard.',
@@ -52,10 +56,12 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     });
     new StringParameter(this, 'StandardVersion', {
       description:
-        'This parameter controls whether the SHARR step function will process findings for this version of the standard.',
+        'This parameter controls whether the ASR step function will process findings for this version of the standard.',
       parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/status`,
       stringValue: 'enabled',
     });
+
+    const accountTargetParam = new AccountTargetParam(this, 'AccountTargetParams');
 
     new cdk.CfnMapping(this, 'SourceCode', {
       mapping: {
@@ -75,7 +81,7 @@ export class PlaybookPrimaryStack extends cdk.Stack {
           stringValue: `${controlSpec.executes}`,
         });
       }
-      let generatorId = '';
+      let generatorId: string;
       if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
         // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
         generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/rule/${controlSpec.control}`;
@@ -88,6 +94,8 @@ export class PlaybookPrimaryStack extends cdk.Stack {
         controlId: controlSpec.control,
         generatorId: generatorId,
         targetArn: orchestratorArn,
+        targetAccountIDs: accountTargetParam.targetAccountIDs,
+        targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
       });
     };
 

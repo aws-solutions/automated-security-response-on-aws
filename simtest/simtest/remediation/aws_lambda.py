@@ -6,7 +6,7 @@ from simtest.boto_session import get_session
 from simtest.remediation_test import RemediationTest
 
 
-def run_make_lambda_private(remediation, account, region):
+def run_make_lambda_private(remediation, account):
     aws = get_session()
     print("This test removes public permissions to Lambdas.\n")
 

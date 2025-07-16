@@ -16,7 +16,6 @@ export class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocu
       securityControlId: 'RDS.2',
       remediationName: 'DisablePublicAccessToRDSInstance',
       scope: RemediationScope.REGIONAL,
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:((?!.*--.*)(?!.*-$)[a-z][a-z0-9-]{0,62})$`,
       updateDescription: HardCodedString.of('Disabled public access to RDS instance'),
     });
   }
@@ -25,9 +24,9 @@ export class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocu
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
-      name: 'DbiResourceId',
+      name: 'RDSInstanceARN',
       outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.resource.Details.AwsRdsDbInstance.DbiResourceId',
+      selector: '$.Payload.resource.Id',
     });
 
     return outputs;
@@ -36,7 +35,7 @@ export class DisablePublicAccessToRDSInstanceDocument extends ControlRunbookDocu
   protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
-    params.DbiResourceId = StringVariable.of('ParseInput.DbiResourceId');
+    params.RDSInstanceARN = StringVariable.of('ParseInput.RDSInstanceARN');
 
     return params;
   }

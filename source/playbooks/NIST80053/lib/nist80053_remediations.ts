@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 import { compareVersions } from 'compare-versions';
 
 // Creates one rule per control Id. The Step Function determines what document to run based on
@@ -20,6 +20,12 @@ const remediations: IControl[] = [
   { control: 'CodeBuild.2', versionAdded: '2.1.0' },
   { control: 'CodeBuild.5', versionAdded: '2.1.0' },
   { control: 'Config.1', versionAdded: '2.1.0' },
+  { control: 'DynamoDB.1', versionAdded: '2.3.0' },
+  { control: 'DynamoDB.6', versionAdded: '2.3.0' },
+  { control: 'ElastiCache.1', versionAdded: '2.3.0' },
+  { control: 'ElastiCache.2', versionAdded: '2.3.0' },
+  { control: 'ElastiCache.3', versionAdded: '2.3.0' },
+  { control: 'ECS.5', versionAdded: '2.3.0' },
   { control: 'EC2.1', versionAdded: '2.1.0' },
   { control: 'EC2.2', versionAdded: '2.1.0' },
   { control: 'EC2.4', versionAdded: '2.1.0' },
@@ -32,6 +38,7 @@ const remediations: IControl[] = [
   { control: 'EC2.18', versionAdded: '2.1.0' },
   { control: 'EC2.19', versionAdded: '2.1.0' },
   { control: 'EC2.23', versionAdded: '2.1.0' },
+  { control: 'ELB.1', versionAdded: '2.3.0' },
   { control: 'IAM.3', versionAdded: '2.1.0' },
   { control: 'IAM.7', versionAdded: '2.1.0' },
   { control: 'IAM.8', versionAdded: '2.1.0' },

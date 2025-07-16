@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { PlaybookMemberStack, PlaybookPrimaryStack } from '../../../lib/sharrplaybook-construct';
-import * as cdk_nag from 'cdk-nag';
+import { PlaybookMemberStack, PlaybookPrimaryStack } from '../../../lib/playbook-construct';
 import * as cdk from 'aws-cdk-lib';
 import 'source-map-support/register';
 import { AFSBP_REMEDIATIONS } from '../lib/afsbp_remediations';
@@ -24,7 +23,6 @@ const standardLongName = 'aws-foundational-security-best-practices';
 const standardVersion = '1.0.0'; // DO NOT INCLUDE 'V'
 
 const app = new cdk.App();
-cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 
 const adminStack = new PlaybookPrimaryStack(app, 'AFSBPStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

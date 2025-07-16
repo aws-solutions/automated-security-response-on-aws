@@ -33,7 +33,7 @@ parameters:
     default: >-
       {{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}
     description: The ARN of the KMS key created by ASR for remediations
-    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 
 outputs:
   - Remediation.Output

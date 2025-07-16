@@ -11,7 +11,7 @@ description: |
 
    ## Input Parameters
    * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
-   * DbiResourceId: (Required) The resource identifier for the DB instance you want to disable public accessibility.
+   * RDSInstanceARN: (Required) ARN for the DB instance you want to disable public accessibility.
 
    ## Output Parameters
    * DisablePubliclyAccessibleOnRDS.Response: The standard HTTP response from the ModifyDBInstance API.
@@ -25,10 +25,10 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  DbiResourceId:
+  RDSInstanceARN:
     type: String
-    description: (Required) The resource identifier for the DB instance you want to disable public accessibility.
-    allowedPattern: "db-[A-Z0-9]{26}"
+    description: (Required) ARN for the DB instance you want to disable public accessibility.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$'
 outputs:
   - DisablePubliclyAccessibleOnRDS.Response
 mainSteps:
@@ -45,10 +45,7 @@ mainSteps:
     inputs:
       Service: rds
       Api: DescribeDBInstances
-      Filters:
-        - Name: "dbi-resource-id"
-          Values:
-            - "{{ DbiResourceId }}"
+      DBInstanceIdentifier: "{{ RDSInstanceARN }}"
     outputs:
       - Name: DbInstanceIdentifier
         Selector: $.DBInstances[0].DBInstanceIdentifier

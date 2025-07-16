@@ -10,7 +10,7 @@ description: |
 
    ## Input Parameters
    * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-   * DbiResourceId: (Required) Resource ID of the RDS instance to be modified.
+   * RDSInstanceARN: (Required) ARN of the RDS instance to be modified.
    * ApplyImmediately: (Optional) The MultiAZ on an RDS instance change is applied during the next maintenance window unless the ApplyImmediately parameter is enabled (true) for this request. By default, this parameter is disabled (false).
 
    ## Output Parameters
@@ -22,10 +22,10 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  DbiResourceId:
+  RDSInstanceARN:
     type: String
-    description: (Required) Resource ID of the RDS instance for which MultiAZ needs to be enabled.
-    allowedPattern: ^db-[A-Z0-9]{26}$
+    description: (Required) ARN of the RDS instance for which MultiAZ needs to be enabled.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$'
   ApplyImmediately:
     type: Boolean
     description: (Optional) MultiAZ on an RDS instance change is applied during the next maintenance window unless the ApplyImmediately parameter is enabled (true) for this request. By default, this parameter is disabled (false).
@@ -51,10 +51,7 @@ mainSteps:
     inputs:
       Service: rds
       Api: DescribeDBInstances
-      Filters:
-        - Name: "dbi-resource-id"
-          Values:
-            - "{{ DbiResourceId }}"
+      DBInstanceIdentifier: "{{ RDSInstanceARN }}"
     outputs:
       - Name: DBInstanceIdentifier
         Selector: $.DBInstances[0].DBInstanceIdentifier

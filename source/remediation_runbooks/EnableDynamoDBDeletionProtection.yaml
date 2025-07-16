@@ -1,0 +1,48 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-EnableDynamoDBDeletionProtection
+
+  ## Overview
+  This document enables deletion protection on a DynamoDB Table.
+
+  ## Pre-requisites
+  None.
+
+  ## What does this document do?
+  Enables deletion protection the given DynamoDB Table.
+
+  ## Input Parameters
+  * ResourceArn: (Required) DynamoDB Table to be tagged.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableDynamoDBDeletionProtection.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  ResourceArn:
+    type: String
+    description: (Required) The DynamoDB Table resource ARN.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):dynamodb:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):table\/([a-zA-Z0-9._-]{3,255})$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnableDynamoDBDeletionProtection.Output
+mainSteps:
+  - name: EnableDynamoDBDeletionProtection
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: dynamodb
+      Api: UpdateTable
+      TableName: '{{ ResourceArn }}'
+      DeletionProtectionEnabled: true
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

@@ -41,8 +41,8 @@ mainSteps:
   - name: ParseInput
     action: 'aws:executeScript'
     outputs:
-      - Name: IAMResourceId
-        Selector: $.Payload.details.AwsIamUser.UserId
+      - Name: IAMUserName
+        Selector: $.Payload.resource_id
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -56,7 +56,7 @@ mainSteps:
     inputs:
       InputPayload:
         Finding: '{{Finding}}'
-        parse_id_pattern: ''
+        parse_id_pattern: '^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\/)|(?:\/.{1,510}\/))([\w+=,.@-]{1,64})$'
         expected_control_id:
         - 'PCI.IAM.7'
       Runtime: python3.11
@@ -70,7 +70,7 @@ mainSteps:
     inputs:
       DocumentName: ASR-RevokeUnusedIAMUserCredentials
       RuntimeParameters:
-        IAMResourceId: '{{ ParseInput.IAMResourceId }}'
+        IAMUserName: '{{ ParseInput.IAMUserName }}'
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/%%ROLE=SO0111-RevokeUnusedIAMUserCredentials%%'
 
   - name: UpdateFinding

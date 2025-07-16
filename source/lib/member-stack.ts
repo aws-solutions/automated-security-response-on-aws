@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
-import { App, CfnResource, Fn, Stack, StackProps } from 'aws-cdk-lib';
+import { App, CfnResource, Stack, StackProps } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from './parameters/admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
@@ -15,7 +15,9 @@ import { WaitProvider } from './wait-provider';
 import { MemberPlaybook } from './member-playbook';
 import { scPlaybookProps, standardPlaybookProps } from '../playbooks/playbook-index';
 import NamespaceParam from './parameters/namespace-param';
-import { MemberCloudTrail } from './member/cloud-trail';
+import MetricResources from './cdk-helper/metric-resources';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Bucket } from 'aws-cdk-lib/aws-s3';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -29,7 +31,6 @@ export interface SolutionProps extends StackProps {
 
 export class MemberStack extends Stack {
   private readonly primarySolutionSNSTopicARN: string;
-  readonly nestedStacksWithAppRegistry: Stack[] = [];
 
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
@@ -75,7 +76,7 @@ export class MemberStack extends Stack {
     });
 
     const nestedStackNoRoles = nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
-      templateRelativePath: 'aws-sharr-remediations.template',
+      templateRelativePath: 'automated-security-response-remediation-runbooks.template',
       parameters: {
         WaitProviderServiceToken: waitProvider.serviceToken,
         Namespace: namespaceParam.value,
@@ -83,8 +84,6 @@ export class MemberStack extends Stack {
     });
     const noRolesCfnResource = nestedStackNoRoles.nestedStackResource as CfnResource;
     noRolesCfnResource.overrideLogicalId('RunbookStackNoRoles');
-
-    this.nestedStacksWithAppRegistry.push(nestedStackNoRoles as Stack);
 
     const securityStandardPlaybookNames: string[] = [];
     standardPlaybookProps.forEach((playbookProps) => {
@@ -103,10 +102,6 @@ export class MemberStack extends Stack {
       });
 
       securityStandardPlaybookNames.push(playbook.parameterName);
-      if (playbookProps.useAppRegistry) {
-        // Intentional: not adding AppReg to playbook overflow stacks to prevent logical ID shifts which break update path.
-        this.nestedStacksWithAppRegistry.push(playbook.playbookPrimaryStack);
-      }
     });
 
     const scPlaybook = new MemberPlaybook(this, {
@@ -136,24 +131,44 @@ export class MemberStack extends Stack {
       },
     });
 
-    const memberCloudTrailNestedStack = new MemberCloudTrail(this, 'MemberCloudTrail', {
-      secHubAdminAccount: adminAccountParam.value,
-      region: this.region,
-      solutionId: props.solutionId,
-      solutionName: props.solutionTradeMarkName,
-      cloudTrailLogGroupName: props.cloudTrailLogGroupName,
-      namespace: namespaceParam.value,
-      logWriterRoleArn,
-    }).nestedStackResource as cdk.CfnResource;
-    memberCloudTrailNestedStack.cfnOptions.condition = cloudTrailCondition;
-    memberCloudTrailNestedStack.addPropertyOverride(
-      'TemplateURL',
-      `https://${Fn.findInMap('SourceCode', 'General', 'S3Bucket')}-reference.s3.amazonaws.com/${Fn.findInMap(
-        'SourceCode',
-        'General',
-        'KeyPrefix',
-      )}/aws-sharr-member-cloudtrail.template`,
+    const memberCloudTrailNestedStack = nestedStackFactory.addNestedStack('MemberCloudTrailStack', {
+      templateRelativePath: 'automated-security-response-member-cloudtrail.template',
+      parameters: {
+        CloudTrailLogGroupName: props.cloudTrailLogGroupName,
+        Namespace: namespaceParam.value,
+        LogWriterRoleArn: logWriterRoleArn,
+      },
+      condition: cloudTrailCondition,
+    });
+    const cfnMemberCloudTrailNestedStack = memberCloudTrailNestedStack.nestedStackResource as CfnResource;
+    cfnMemberCloudTrailNestedStack.overrideLogicalId(
+      'MemberCloudTrailNestedStackMemberCloudTrailNestedStackResource2ED3A9F6',
     );
+
+    const solutionsBucket = Bucket.fromBucketName(
+      this,
+      'SolutionsBucket',
+      `${props.solutionDistBucket}-${this.region}`,
+    );
+
+    const asrLambdaLayer = new lambda.LayerVersion(this, 'ASRLambdaLayer', {
+      compatibleRuntimes: [props.runtimePython],
+      description: 'SO0111 ASR Common functions used by the solution',
+      license: 'https://www.apache.org/licenses/LICENSE-2.0',
+      code: lambda.Code.fromBucket(
+        solutionsBucket,
+        props.solutionTradeMarkName + '/' + props.solutionVersion + '/lambda/layer.zip',
+      ),
+    });
+
+    new MetricResources(this, 'MetricResources', {
+      solutionTMN: props.solutionTradeMarkName,
+      solutionVersion: props.solutionVersion,
+      solutionId: props.solutionId,
+      runtimePython: props.runtimePython,
+      solutionsBucket: solutionsBucket,
+      lambdaLayer: asrLambdaLayer,
+    });
 
     /********************
      ** Metadata

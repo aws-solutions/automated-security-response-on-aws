@@ -23,7 +23,7 @@ import * as cis_300_3_7 from '../ssmdocs/CIS300_3.7';
 import * as cis_300_5_4 from '../ssmdocs/CIS300_5.4';
 import * as cis_300_5_6 from '../ssmdocs/CIS300_5.6';
 
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 
 export interface ControlRunbooksProps {
   standardShortName: string;

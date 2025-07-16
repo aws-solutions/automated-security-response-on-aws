@@ -15,7 +15,7 @@ def connect_to_service(service):
 
 
 class Event(TypedDict):
-    IAMResourceId: str
+    IAMUserName: str
     MaxCredentialUsageAge: str
 
 
@@ -34,8 +34,7 @@ class LoginProfile(TypedDict):
 
 def handler(event, _) -> HandlerResponse:
     try:
-        iam_resource_id = event.get("IAMResourceId")
-        user_name = get_user_name(iam_resource_id)
+        user_name = event.get("IAMUserName")
 
         max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
 
@@ -156,20 +155,4 @@ def delete_unused_password(
     except Exception as e:
         raise RuntimeError(
             f"Encountered error deleting unused password for user {user_name}: {str(e)}"
-        )
-
-
-def get_user_name(resource_id: str) -> str:
-    config_client = connect_to_service("config")
-    try:
-        list_discovered_resources_response = config_client.list_discovered_resources(
-            resourceType="AWS::IAM::User", resourceIds=[resource_id]
-        )
-        resource_name = list_discovered_resources_response.get("resourceIdentifiers")[
-            0
-        ].get("resourceName")
-        return resource_name
-    except Exception as e:
-        raise RuntimeError(
-            f"Encountered error fetching user name for resource {resource_id}: {str(e)}"
         )

@@ -27,21 +27,6 @@ def connect_to_iam(boto_config):
     return boto3.client("iam", config=boto_config)
 
 
-def connect_to_config(boto_config):
-    return boto3.client("config", config=boto_config)
-
-
-def get_user_name(resource_id):
-    config_client = connect_to_config(boto_config)
-    list_discovered_resources_response = config_client.list_discovered_resources(
-        resourceType="AWS::IAM::User", resourceIds=[resource_id]
-    )
-    resource_name = list_discovered_resources_response.get("resourceIdentifiers")[
-        0
-    ].get("resourceName")
-    return resource_name
-
-
 def list_access_keys(user_name, include_inactive=False):
     iam_client = connect_to_iam(boto_config)
     active_keys = []
@@ -94,12 +79,9 @@ def deactivate_key(user_name, access_key):
 def verify_expired_credentials_revoked(responses, user_name):
     if responses.get("DeactivateUnusedKeysResponse"):
         for key in responses.get("DeactivateUnusedKeysResponse"):
-            key_data = next(
-                filter(
-                    lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"),
-                    list_access_keys(user_name, True),
-                )
-            )  # NOSONAR The value key should change at the next loop iteration as we're cycling through each response.
+            # fmt: off
+            key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True),))  # NOSONAR The value key should change at the next loop iteration as we're cycling through each response.
+            # fmt: on
             if key_data.get("Status") != "Inactive":
                 error_message = (
                     "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(
@@ -115,7 +97,7 @@ def verify_expired_credentials_revoked(responses, user_name):
 
 
 def unrotated_key_handler(event, _):
-    user_name = get_user_name(event.get("IAMResourceId"))
+    user_name = event.get("IAMUserName")
     max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
     access_keys = list_access_keys(user_name)
     deactivate_unused_keys(access_keys, max_credential_usage_age, user_name)

@@ -43,24 +43,24 @@ from simtest.remediation.vpc import run_enable_vpc_flow_logs
 #     [CIS.1.4] Ensure access keys are rotated every 90 days or less
 
 
-def setup_cis13(account, region):
-    run_remove_old_credentials("cis13", account, region)
+def setup_cis13(account, _):
+    run_remove_old_credentials("cis13", account)
 
 
-def setup_afsbp_iam_8(account, region):
-    run_remove_old_credentials("afsbp-iam.8", account, region)
+def setup_afsbp_iam_8(account, _):
+    run_remove_old_credentials("afsbp-iam.8", account)
 
 
-def setup_pci_iam_7(account, region):
-    run_remove_old_credentials("pci-iam.7", account, region)
+def setup_pci_iam_7(account, _):
+    run_remove_old_credentials("pci-iam.7", account)
 
 
-def setup_cis14(account, region):
-    run_revoke_unrotated_keys("cis14", account, region)
+def setup_cis14(account, _):
+    run_revoke_unrotated_keys("cis14", account)
 
 
-def setup_afsbp_iam_3(account, region):
-    run_revoke_unrotated_keys("afsbp-iam.3", account, region)
+def setup_afsbp_iam_3(account, _):
+    run_revoke_unrotated_keys("afsbp-iam.3", account)
 
 
 # CIS 1.5 - 1.11
@@ -71,16 +71,16 @@ def setup_afsbp_iam_3(account, region):
 #     [CIS.1.9] Ensure IAM password policy requires minimum password length of 14 or greater
 #     [CIS.1.10] Ensure IAM password policy prevents password reuse
 #     [CIS.1.11] Ensure IAM password policy expires passwords within 90 days or less
-def setup_cis15(account, region):
-    run_set_password_policy("cis15111", account, region)
+def setup_cis15(account, _):
+    run_set_password_policy("cis15111", account)
 
 
-def setup_afsbp_iam_7(account, region):
-    run_set_password_policy("afsbp-iam.7", account, region)
+def setup_afsbp_iam_7(account, _):
+    run_set_password_policy("afsbp-iam.7", account)
 
 
-def setup_pci_iam_8(account, region):
-    run_set_password_policy("pci-iam.8", account, region)
+def setup_pci_iam_8(account, _):
+    run_set_password_policy("pci-iam.8", account)
 
 
 # CIS 2.1
@@ -113,8 +113,8 @@ def setup_pci_cloudtrail_3(account, region):
 #
 # Setting a bucket up for public access will generate a sev 2 TT and escalation to your manager.
 # Let's not go there.
-def setup_cis23(account, region):
-    run_make_cloudtrail_s3_bucket_private("cis23", account, region)
+def setup_cis23(account, _):
+    run_make_cloudtrail_s3_bucket_private("cis23", account)
 
 
 # CIS 2.4
@@ -135,8 +135,8 @@ def setup_cis26(account, region):
 
 # CIS 2.8
 #     [CIS.2.8] Ensure rotation for customer created CMKs is enabled
-def setup_cis28(account, region):
-    run_setup_key_rotation("cis28", account, region)
+def setup_cis28(account, _):
+    run_setup_key_rotation("cis28", account)
 
 
 # CIS 2.9
@@ -154,25 +154,25 @@ def setup_pci_ec2_6(account, region):
 
 
 # CIS 3.1-3.14
-def setup_cis31314(account, region):
-    run_log_and_filter("cis32", account, region)
+def setup_cis31314(account, _):
+    run_log_and_filter("cis32", account)
 
 
-def setup_pci_cw_1(account, region):
-    run_log_and_filter("pci-cw.1", account, region)
+def setup_pci_cw_1(account, _):
+    run_log_and_filter("pci-cw.1", account)
 
 
 # CIS 4.1 - 4.2
 #     [CIS.4.1] Ensure no security groups allow ingress from 0.0.0.0/0 to port 22
 #     [CIS.4.2] Ensure no security groups allow ingress from 0.0.0.0/0 to port 3389
-def setup_cis4142(account, region):
-    run_disable_public_access_for_security_group("cis4142", account, region)
+def setup_cis4142(account, _):
+    run_disable_public_access_for_security_group("cis4142", account)
 
 
 # CIS 4.3
 #     [CIS.4.3] Ensure the default security group of every VPC restricts all traffic
-def setup_cis43(account, region):
-    run_remove_vpc_default_security_group_rules("cis43", account, region)
+def setup_cis43(account, _):
+    run_remove_vpc_default_security_group_rules("cis43", account)
 
 
 # AFSBP AutoScaling.1
@@ -243,25 +243,25 @@ def setup_pci_ec2_2(account, region):
 
 # AFSBP EC2.7
 #     [AFSBP.EC2.7] The VPC default security group should not allow inbound and outbound traffic
-def setup_afsbp_ec2_7(account, region):
-    run_enable_ebs_encryption_by_default("afsbp-ec2.7", account, region)
+def setup_afsbp_ec2_7(account, _):
+    run_enable_ebs_encryption_by_default("afsbp-ec2.7", account)
 
 
 # AFSBP GuardDuty.1
 #     [AFSBP.GuardDuty.1] GuardDuty should be enabled
-def setup_afsbp_guardduty_1(account, region):
-    run_guardduty_1("afsbp-guardduty.1", account, region)
+def setup_afsbp_guardduty_1(account, _):
+    run_guardduty_1("afsbp-guardduty.1", account)
 
 
 #
 # AFSBP Lambda.1
 #     [AFSBP.Lambda.1] Lambda function policies should prohibit public access
-def setup_pci_lambda_1(account, region):
-    run_make_lambda_private("pci-lambda.1", account, region)
+def setup_pci_lambda_1(account, _):
+    run_make_lambda_private("pci-lambda.1", account)
 
 
-def setup_afsbp_lambda_1(account, region):
-    run_make_lambda_private("afsbp-lambda.1", account, region)
+def setup_afsbp_lambda_1(account, _):
+    run_make_lambda_private("afsbp-lambda.1", account)
 
 
 # AFSBP RDS.1
@@ -276,32 +276,32 @@ def setup_pci_rds_1(account, region):
 
 # AFSBP RDS.6
 #     [AFSBP.RDS.6] Enhanced monitoring should be configured for RDS DB instance
-def setup_afsbp_rds_6(account, region):
-    run_enable_enhanced_monitoring_on_rds_instance("afsbp-rds.6", account, region)
+def setup_afsbp_rds_6(account, _):
+    run_enable_enhanced_monitoring_on_rds_instance("afsbp-rds.6", account)
 
 
 # AFSBP RDS.7
 #     [AFSBP.RDS.7] RDS clusters should have deletion protection enabled
-def setup_afsbp_rds_7(account, region):
-    run_enable_rds_cluster_deletion_protection("afsbp-rds.7", account, region)
+def setup_afsbp_rds_7(account, _):
+    run_enable_rds_cluster_deletion_protection("afsbp-rds.7", account)
 
 
 # AFSBP S3.1 / PCI S3.6
-def setup_afsbp_s3_1(account, region):
-    run_s3_block_public_access("afsbp-s3.1", account, region)
+def setup_afsbp_s3_1(account, _):
+    run_s3_block_public_access("afsbp-s3.1", account)
 
 
-def setup_pci_s3_6(account, region):
-    run_s3_block_public_access("pci-s3.6", account, region)
+def setup_pci_s3_6(account, _):
+    run_s3_block_public_access("pci-s3.6", account)
 
 
 # AFSBP S3.2-S3.3 / PCI S3.1-S3.2
-def setup_afsbp_s3_2(account, region):
-    run_s3_block_public_bucket_access("afsbp-s3.2", account, region)
+def setup_afsbp_s3_2(account, _):
+    run_s3_block_public_bucket_access("afsbp-s3.2", account)
 
 
-def setup_pci_s3_2(account, region):
-    run_s3_block_public_bucket_access("pci-s3.2", account, region)
+def setup_pci_s3_2(account, _):
+    run_s3_block_public_bucket_access("pci-s3.2", account)
 
 
 testIdByStandard = {

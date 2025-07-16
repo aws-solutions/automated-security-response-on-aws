@@ -54,11 +54,11 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
     """
     try:
         account_id = event["AccountId"]
-        public_access_block_config = {
-            "BlockPublicAcls": event["BlockPublicAcls"],
-            "IgnorePublicAcls": event["IgnorePublicAcls"],
-            "BlockPublicPolicy": event["BlockPublicPolicy"],
-            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        public_access_block_config: PublicAccessConfiguration = {
+            "BlockPublicAcls": bool(event["BlockPublicAcls"]),
+            "IgnorePublicAcls": bool(event["IgnorePublicAcls"]),
+            "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
+            "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
         put_account_public_access_block(account_id, public_access_block_config)
 
@@ -75,10 +75,9 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
                 ],
             }
         else:
-            expected_config = public_access_block_config
             return {
                 "Message": f"Account {account_id} public access block configuration does not match with parameters "
-                f"provided. \nExpected: {str(expected_config)}",
+                f"provided. \nExpected: {str(public_access_block_config)}",
                 "Status": "Failed",
                 "PublicAccessConfig": None,
             }
@@ -94,11 +93,11 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
     """
     try:
         bucket = event["Bucket"]
-        public_access_block_config = {
-            "BlockPublicAcls": event["BlockPublicAcls"],
-            "IgnorePublicAcls": event["IgnorePublicAcls"],
-            "BlockPublicPolicy": event["BlockPublicPolicy"],
-            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        public_access_block_config: PublicAccessConfiguration = {
+            "BlockPublicAcls": bool(event["BlockPublicAcls"]),
+            "IgnorePublicAcls": bool(event["IgnorePublicAcls"]),
+            "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
+            "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
         put_s3_bucket_public_access_block(bucket, public_access_block_config)
 
@@ -116,10 +115,9 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
             }
         else:
             actual_config = valid_bucket_public_access_block["PublicAccessConfig"]
-            expected_config = public_access_block_config
             return {
                 "Message": f"Bucket {bucket} public access block configuration does not match with parameters provided."
-                f"\nExpected: {str(expected_config)}\nActual: {str(actual_config)}",
+                f"\nExpected: {str(public_access_block_config)}\nActual: {str(actual_config)}",
                 "Status": "Failed",
                 "PublicAccessConfig": actual_config,
             }
@@ -137,14 +135,7 @@ def put_account_public_access_block(
     try:
         s3_client.put_public_access_block(
             AccountId=account_id,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
-                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
-                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
-                "RestrictPublicBuckets": public_access_block_config[
-                    "RestrictPublicBuckets"
-                ],
-            },
+            PublicAccessBlockConfiguration=public_access_block_config,
         )
     except Exception as e:
         raise RuntimeError(
@@ -160,14 +151,7 @@ def put_s3_bucket_public_access_block(
     try:
         s3_client.put_public_access_block(
             Bucket=bucket_name,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
-                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
-                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
-                "RestrictPublicBuckets": public_access_block_config[
-                    "RestrictPublicBuckets"
-                ],
-            },
+            PublicAccessBlockConfiguration=public_access_block_config,
         )
     except Exception as e:
         raise RuntimeError(

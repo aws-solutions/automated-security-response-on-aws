@@ -1,16 +1,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
-import { MemberRoleStack, RemediationRunbookStack } from '../lib/remediation_runbook-stack';
+import { MemberRolesStack } from '../lib/member-roles-stack';
 import { RunbookFactory } from '../lib/runbook_factory';
 import { omitWaitResourceHash } from './utils';
+import { RemediationRunbookStack } from '../lib/remediation-runbook-stack';
 
-describe('MemberRoleStack tests', () => {
-  function getRoleTestStack(): MemberRoleStack {
+describe('MemberRolesStack tests', () => {
+  function getRoleTestStack(): MemberRolesStack {
     const app = new App();
-    const stack = new MemberRoleStack(app, 'roles', {
+    const stack = new MemberRolesStack(app, 'roles', {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
       description: 'test;',
       solutionId: 'SO0111',
@@ -42,7 +42,6 @@ describe('MemberRoleStack tests', () => {
         Namespace: 'myNamespace',
       },
     });
-    Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
     return stack;
   }
 

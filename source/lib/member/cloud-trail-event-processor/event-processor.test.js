@@ -5,7 +5,15 @@ const { mockClient } = require('aws-sdk-client-mock');
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
 const { CloudWatchLogsClient, PutLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
-jest.mock('zlib');
+
+jest.mock('node:zlib', () => ({
+  gunzip: jest.fn()
+}));
+
+
+jest.mock('node:util', () => ({
+  promisify: jest.fn()
+}));
 
 const irrelevantEvent = {
   eventVersion: '1.08',
@@ -73,7 +81,7 @@ const asrCloudTrailEvent = {
     publicAccessBlock: '',
     bucketName: 'aa106-test-s3bucket07682993-otbr2z6u0cta',
     PublicAccessBlockConfiguration: {
-      xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
+      xmlns: 'https://s3.amazonaws.com/doc/2006-03-01/',
       RestrictPublicBuckets: true,
       BlockPublicPolicy: true,
       BlockPublicAcls: true,
@@ -115,7 +123,7 @@ const expectedResult = {
     publicAccessBlock: '',
     bucketName: 'aa106-test-s3bucket07682993-otbr2z6u0cta',
     PublicAccessBlockConfiguration: {
-      xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
+      xmlns: 'https://s3.amazonaws.com/doc/2006-03-01/',
       RestrictPublicBuckets: true,
       BlockPublicPolicy: true,
       BlockPublicAcls: true,
@@ -160,13 +168,9 @@ test('ignores events without Records', async () => {
       transformToByteArray: () => [],
     },
   });
-  const zlib = require('zlib');
-  zlib.gunzip = jest.fn();
-  zlib.gunzip.mockImplementation((data, callback) => {
-    setImmediate(() => {
-      callback(null, Buffer.from(JSON.stringify({})));
-    });
-  });
+
+  const gunzipMock = jest.fn().mockResolvedValue(Buffer.from(JSON.stringify({})));
+  require('node:util').promisify.mockReturnValue(gunzipMock);
 
   // WHEN
   const { handler } = require('./event-processor');
@@ -184,13 +188,9 @@ test('ignores events from irrelevant sources', async () => {
       transformToByteArray: () => [],
     },
   });
-  const zlib = require('zlib');
-  zlib.gunzip = jest.fn();
-  zlib.gunzip.mockImplementation((data, callback) => {
-    setImmediate(() => {
-      callback(null, Buffer.from(JSON.stringify({ Records: [irrelevantEvent] })));
-    });
-  });
+
+  const gunzipMock = jest.fn().mockResolvedValue(Buffer.from(JSON.stringify({ Records: [irrelevantEvent] })));
+  require('node:util').promisify.mockReturnValue(gunzipMock);
 
   const stsClientMock = mockClient(STSClient);
   const cloudWatchClientMock = mockClient(CloudWatchLogsClient);
@@ -214,13 +214,9 @@ test('sends ASR events to CloudWatch', async () => {
       transformToByteArray: () => [],
     },
   });
-  const zlib = require('zlib');
-  zlib.gunzip = jest.fn();
-  zlib.gunzip.mockImplementation((data, callback) => {
-    setImmediate(() => {
-      callback(null, Buffer.from(JSON.stringify({ Records: [asrCloudTrailEvent] })));
-    });
-  });
+
+  const gunzipMock = jest.fn().mockResolvedValue(Buffer.from(JSON.stringify({ Records: [asrCloudTrailEvent] })));
+  require('node:util').promisify.mockReturnValue(gunzipMock);
 
   const stsClientMock = mockClient(STSClient);
   stsClientMock.on(AssumeRoleCommand).resolvesOnce({

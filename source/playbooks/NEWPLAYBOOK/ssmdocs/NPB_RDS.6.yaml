@@ -32,8 +32,8 @@ mainSteps:
     name: ParseInput
     action: 'aws:executeScript'
     outputs:
-      - Name: ResourceId
-        Selector: $.Payload.resource_id
+      - Name: RDSInstanceARN
+        Selector: $.Payload.resource.Id
         Type: String
       - Name: FindingId
         Selector: $.Payload.finding_id
@@ -76,7 +76,7 @@ mainSteps:
     inputs:
       DocumentName: AWSConfigRemediation-EnableEnhancedMonitoringOnRDSInstance
       RuntimeParameters:
-        ResourceId: '{{ ParseInput.ResourceId }}'
+        RDSInstanceARN: '{{ ParseInput.RDSInstanceARN }}'
         MonitoringRoleArn: '{{GetMonitoringRoleArn.Arn}}'
         AutomationAssumeRole: '{{ AutomationAssumeRole }}'
 

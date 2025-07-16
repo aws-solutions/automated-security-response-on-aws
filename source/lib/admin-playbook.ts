@@ -9,6 +9,8 @@ export interface AdminPlaybookProps {
   stackDependencies?: CfnResource[];
   defaultState?: 'yes' | 'no';
   description?: string;
+  targetAccountIDs: CfnParameter;
+  targetAccountIDsStrategy: CfnParameter;
 }
 
 export class AdminPlaybook {
@@ -27,13 +29,19 @@ export class AdminPlaybook {
     const stackOption = new CfnParameter(scope, `LoadAdminStack${playbookName}`, {
       type: 'String',
       description:
-        props.description ?? `Install the admin components for automated remediation of ${props.name} controls?`,
+        props.description ??
+        `Install the admin components to enable automated remediation for ${props.name} controls. To activate automated remediations, ensure the corresponding EventBridge rules are enabled after deployment.`,
       default: props.defaultState ?? 'no',
       allowedValues: ['yes', 'no'],
     });
     stackOption.overrideLogicalId(this.parameterName);
 
-    this.playbookStack = new NestedStack(scope, `PlaybookAdminStack${playbookName}`);
+    this.playbookStack = new NestedStack(scope, `PlaybookAdminStack${playbookName}`, {
+      parameters: {
+        ['TargetAccountIDs']: props.targetAccountIDs.valueAsString,
+        ['TargetAccountIDsStrategy']: props.targetAccountIDsStrategy.valueAsString,
+      },
+    });
     const cfnStack = this.playbookStack.nestedStackResource as CfnResource;
     cfnStack.addPropertyOverride(
       'TemplateURL',

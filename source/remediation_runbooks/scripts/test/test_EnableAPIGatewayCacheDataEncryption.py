@@ -106,13 +106,7 @@ def test_enable_data_encryption_success():
     rest_api_id = setup()
 
     event: Event = {
-        "APIGatewayStageArn": f"arn:aws:apigateway:us-east-1::/restapis/{rest_api_id}/stages/stage2",
-        "StageName": "test",
-        "MethodSettings": [
-            {"ResourcePath": "*", "HttpMethod": "*"},
-            {"ResourcePath": "test", "HttpMethod": "GET"},
-            {"ResourcePath": "test2", "HttpMethod": "GET"},
-        ],
+        "APIGatewayStageArn": f"arn:aws:apigateway:us-east-1::/restapis/{rest_api_id}/stages/test",
     }
 
     apigateway_client = boto3.client("apigateway", config=BOTO_CONFIG)
@@ -133,12 +127,6 @@ def test_enable_data_encryption_success():
 def test_invalid_event():
     event: Event = {
         "APIGatewayStageArn": "badarn",
-        "StageName": "test",
-        "MethodSettings": [
-            {"ResourcePath": "*", "HttpMethod": "*"},
-            {"ResourcePath": "test", "HttpMethod": "GET"},
-            {"ResourcePath": "test2", "HttpMethod": "GET"},
-        ],
     }
 
     with pytest.raises(Exception) as e:
