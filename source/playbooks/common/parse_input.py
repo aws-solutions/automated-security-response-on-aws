@@ -165,15 +165,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)

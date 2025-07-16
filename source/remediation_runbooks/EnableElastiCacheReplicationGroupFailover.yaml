@@ -1,0 +1,48 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-EnableElastiCacheReplicationGroupFailover
+
+  ## Overview
+  This document enable automatic failover for an ElastiCache replication group.
+
+  ## Pre-requisites
+  Replication group must have at least one read replica to enable autofailover.
+
+  ## What does this document do?
+  Enables automatic failover for an ElastiCache replication group.
+
+  ## Input Parameters
+  * GroupId: (Required) ID of the ElastiCache cluster.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableAutomaticFailover.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  GroupId:
+    type: String
+    description: (Required) ID of the ElastiCache cluster.
+    allowedPattern: '^[a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|^[a-zA-Z]$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnableAutomaticFailover.Output
+mainSteps:
+  - name: EnableAutomaticFailover
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: elasticache
+      Api: ModifyReplicationGroup
+      ReplicationGroupId: '{{ GroupId }}'
+      AutomaticFailoverEnabled: true
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

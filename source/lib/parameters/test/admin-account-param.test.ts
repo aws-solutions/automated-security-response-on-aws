@@ -1,8 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
 import AdminAccountParam from '../admin-account-param';
 
 function createAdminAccountParamStack(): Stack {
@@ -11,7 +10,6 @@ function createAdminAccountParamStack(): Stack {
     analyticsReporting: false,
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   });
-  Aspects.of(stack).add(new AwsSolutionsChecks({ verbose: true }));
   new AdminAccountParam(stack, 'AdminAccountParam');
   return stack;
 }

@@ -4,8 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { NagSuppressions } from 'cdk-nag';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 
 export class OrgIdLookupConstruct extends Construct {
   public readonly organizationId: string;
@@ -100,7 +99,7 @@ export class OrgIdLookupConstruct extends Construct {
     `;
 
     const orgIdLookupFunction = new lambda.Function(this, 'OrgIdLookupFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(15),
       handler: 'index.handler',
@@ -116,23 +115,6 @@ export class OrgIdLookupConstruct extends Construct {
         resources: ['*'],
       }),
     );
-
-    if (orgIdLookupFunction.role) {
-      NagSuppressions.addResourceSuppressions(
-        orgIdLookupFunction.role,
-        [
-          {
-            id: 'AwsSolutions-IAM4',
-            reason: 'AWSLambdaBasicExecutionRole is sufficiently restrictive',
-          },
-          {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Wildcard permission is required to describe Org',
-          },
-        ],
-        true,
-      );
-    }
 
     const orgIdLookup = new cdk.CustomResource(this, 'OrgIdLookup', {
       serviceToken: orgIdLookupFunction.functionArn,

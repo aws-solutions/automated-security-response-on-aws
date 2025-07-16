@@ -1,12 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 import { compareVersions } from 'compare-versions';
 
 // Creates one rule per control Id. The Step Function determines what document to run based on
 // Security Standard and Control Id. See cis-member-stack
 const remediations: IControl[] = [
   { control: 'PCI.AutoScaling.1', versionAdded: '2.1.0' },
+  { control: 'PCI.ELBv2.1', versionAdded: '2.3.0' },
   { control: 'PCI.IAM.7', versionAdded: '2.1.0' },
   { control: 'PCI.CloudTrail.2', versionAdded: '2.1.0' },
   { control: 'PCI.CodeBuild.2', versionAdded: '2.1.0' },

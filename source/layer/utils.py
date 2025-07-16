@@ -25,7 +25,7 @@ properties = [
     "logdata",
     "securitystandard",
     "securitystandardversion",
-    "standardsupported",
+    "playbookenabled",
     "controlid",
     "accountid",
     "automationdocid",
@@ -55,7 +55,7 @@ class StepFunctionLambdaAnswer:
     logdata: Any = []
     securitystandard = ""
     securitystandardversion = ""
-    standardsupported = ""
+    playbookenabled = ""
     controlid = ""
     accountid = ""
     automationdocid = ""

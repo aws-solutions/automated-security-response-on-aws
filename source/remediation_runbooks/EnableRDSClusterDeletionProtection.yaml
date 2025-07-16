@@ -11,7 +11,7 @@ description: |
 
    ## Input Parameters
    * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-   * ClusterId: (Required) Resource ID of the Amazon RDS cluster.
+   * RDSClusterARN: (Required) ARN of the Amazon RDS cluster.
 
    ## Output Parameters
    * EnableRDSClusterDeletionProtection.ModifyDBClusterResponse: The standard HTTP response from the ModifyDBCluster API.
@@ -22,47 +22,45 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  ClusterId:
+  RDSClusterARN:
     type: String
-    description: (Required) Amazon RDS cluster resourceId for which deletion protection needs to be enabled.
-    allowedPattern: ^[a-zA-Z0-9-]{1,35}$
+    description: (Required) Amazon RDS cluster ARN for which deletion protection needs to be enabled.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:cluster:.+$'
 
 outputs:
   - EnableRDSClusterDeletionProtection.ModifyDBClusterResponse
 mainSteps:
   -
-    name: GetRDSClusterIdentifer
-    action: "aws:executeAwsApi"
+    name: DescribeDBClusters
+    action: aws:executeAwsApi
     description: |
-      ## GetRDSClusterIdentifer
-      Accepts the resource ID of the Amazon RDS Cluster as input and returns the cluster name.
+      ## GetRDSInstanceIdentifier
+      Makes DescribeDBClusters API call using Amazon RDS Instance ARN to get DbClusterIdentifier.
       ## Outputs
-      * DbClusterIdentifier: The ID of the DB cluster for which the input parameter matches DbClusterResourceId element from the output of the DescribeDBClusters API call.
+      * DbClusterIdentifier: Identifier of the Amazon RDS Cluster.
     timeoutSeconds: 600
     isEnd: false
-    inputs:
-      Service: config
-      Api: GetResourceConfigHistory
-      resourceId: "{{ ClusterId }}"
-      resourceType: "AWS::RDS::DBCluster"
-      limit: 1
-    outputs:
-      - Name: DbClusterIdentifier
-        Selector: $.configurationItems[0].resourceName
-        Type: String
-  -
-    name: VerifyDBClusterStatus
-    action: "aws:assertAwsResourceProperty"
-    timeoutSeconds: 600
-    isEnd: false
-    description: |
-      ## VerifyDBClusterStatus
-      Verifies if the DB Cluster status is available before enabling cluster deletion protection.
     inputs:
       Service: rds
       Api: DescribeDBClusters
-      DBClusterIdentifier: "{{ GetRDSClusterIdentifer.DbClusterIdentifier }}"
-      PropertySelector: "$.DBClusters[0].Status"
+      DBClusterIdentifier: "{{ RDSClusterARN }}"
+    outputs:
+      - Name: DbClusterIdentifier
+        Selector: $.DBClusters[0].DBClusterIdentifier
+        Type: String
+  -
+    name: VerifyStatus
+    action: aws:assertAwsResourceProperty
+    description: |
+      ## VerifyStatus
+      Verifies if `Status` is available before proeeding to the next step.
+    timeoutSeconds: 600
+    isEnd: false
+    inputs:
+      Service: rds
+      Api: DescribeDBClusters
+      DBClusterIdentifier: "{{ RDSClusterARN }}"
+      PropertySelector: $.DBClusters[0].Status
       DesiredValues:
         - "available"
   -
@@ -78,7 +76,7 @@ mainSteps:
     inputs:
        Service: rds
        Api: ModifyDBCluster
-       DBClusterIdentifier: "{{ GetRDSClusterIdentifer.DbClusterIdentifier }}"
+       DBClusterIdentifier: "{{ DescribeDBClusters.DbClusterIdentifier }}"
        DeletionProtection: True
     outputs:
       - Name: ModifyDBClusterResponse
@@ -95,7 +93,7 @@ mainSteps:
     inputs:
        Service: rds
        Api: DescribeDBClusters
-       DBClusterIdentifier: "{{ GetRDSClusterIdentifer.DbClusterIdentifier }}"
+       DBClusterIdentifier: "{{ DescribeDBClusters.DbClusterIdentifier }}"
        PropertySelector: "$.DBClusters[0].DeletionProtection"
        DesiredValues:
          - "True"

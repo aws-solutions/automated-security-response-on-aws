@@ -24,9 +24,9 @@ export class EnableMultiAZOnRDSInstanceDocument extends ControlRunbookDocument {
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
-      name: 'DbiResourceId',
+      name: 'RDSInstanceARN',
       outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.resource.Details.AwsRdsDbInstance.DbiResourceId',
+      selector: '$.Payload.resource.Id',
     });
 
     return outputs;
@@ -35,7 +35,7 @@ export class EnableMultiAZOnRDSInstanceDocument extends ControlRunbookDocument {
   protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
-    params.DbiResourceId = StringVariable.of('ParseInput.DbiResourceId');
+    params.RDSInstanceARN = StringVariable.of('ParseInput.RDSInstanceARN');
     params.ApplyImmediately = HardCodedBoolean.TRUE;
 
     return params;

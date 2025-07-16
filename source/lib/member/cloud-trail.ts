@@ -5,39 +5,32 @@ import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import * as cdk from 'aws-cdk-lib';
-import { CfnOutput, Duration, Fn, NestedStack, RemovalPolicy } from 'aws-cdk-lib';
+import { CfnOutput, CfnParameter, Duration, Fn, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { ReadWriteType, Trail } from 'aws-cdk-lib/aws-cloudtrail';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Architecture } from 'aws-cdk-lib/aws-lambda';
-import * as cdk_nag from 'cdk-nag';
-import { NagSuppressions } from 'cdk-nag';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
 
 export const EVENT_FILTER_FUNCTION_NAME = `ASR-EventProcessor`;
+const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
 
-interface MemberCloudTrailProps {
-  secHubAdminAccount: string;
-  region: string;
-  solutionId: string;
-  solutionName: string;
-  namespace: string;
-  cloudTrailLogGroupName: string;
-  logWriterRoleArn: string;
-}
+export class MemberCloudTrailStack extends Stack {
+  constructor(scope: Construct, id: string, props: StackProps) {
+    super(scope, id, props);
 
-export class MemberCloudTrail extends NestedStack {
-  constructor(scope: Construct, id: string, props: MemberCloudTrailProps) {
-    super(scope, id);
+    const resourceNamePrefix = SOLUTION_ID.replace(/^DEV-/, '');
 
-    const resourceNamePrefix = props.solutionId.replace(/^DEV-/, '');
+    const namespace = new CfnParameter(this, 'Namespace');
+    const cloudTrailLogGroupName = new CfnParameter(this, 'CloudTrailLogGroupName');
+    const logWriterRoleArn = new CfnParameter(this, 'LogWriterRoleArn');
 
-    // Create a new S3 bucket to store CloudTrail logs
-    const trailLoggingBucket = new Bucket(this, `ManagementEventsBucket`, {
-      bucketName: Fn.join('-', ['so0111-asr-', props.namespace, '-management-events']),
+    // prettier-ignore
+    const trailLoggingBucket = new Bucket(this, `ManagementEventsBucket`, {//NOSONAR No need to version because of lifecycleRules (1-day retention).
+      bucketName: Fn.join('-', ['so0111-asr', namespace.valueAsString, 'management-events', this.account]),
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
@@ -51,9 +44,6 @@ export class MemberCloudTrail extends NestedStack {
       ],
       removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
-    NagSuppressions.addResourceSuppressions(trailLoggingBucket, [
-      { id: 'AwsSolutions-S1', reason: 'This is a logging bucket.' },
-    ]);
     addCfnGuardSuppression(trailLoggingBucket, 'S3_BUCKET_LOGGING_ENABLED');
 
     const trail = new Trail(this, 'ManagementEventsTrail', {
@@ -72,46 +62,27 @@ export class MemberCloudTrail extends NestedStack {
     // Add S3 notification to trigger the EventProcessor Lambda function
     const eventProcessorFunction = new lambda.Function(this, EVENT_FILTER_FUNCTION_NAME, {
       functionName: resourceNamePrefix + '-' + EVENT_FILTER_FUNCTION_NAME,
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       architecture: Architecture.ARM_64,
       timeout: Duration.seconds(15),
       handler: 'index.handler',
       code: inlineCode,
       environment: {
-        CLOUD_TRAIL_INVOKED_BY: props.solutionName,
-        LOG_GROUP_NAME: props.cloudTrailLogGroupName,
-        LOG_WRITER_ROLE_ARN: props.logWriterRoleArn,
+        CLOUD_TRAIL_INVOKED_BY: 'NAME',
+        LOG_GROUP_NAME: cloudTrailLogGroupName.valueAsString,
+        LOG_WRITER_ROLE_ARN: logWriterRoleArn.valueAsString,
       },
     });
     eventProcessorFunction.addToRolePolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['sts:AssumeRole'],
-        resources: [props.logWriterRoleArn],
+        resources: [logWriterRoleArn.valueAsString],
       }),
     );
     trailLoggingBucket.grantRead(eventProcessorFunction);
     addCfnGuardSuppression(eventProcessorFunction, 'LAMBDA_INSIDE_VPC');
     addCfnGuardSuppression(eventProcessorFunction, 'LAMBDA_CONCURRENCY_CHECK');
-
-    if (eventProcessorFunction.role) {
-      NagSuppressions.addResourceSuppressions(eventProcessorFunction.role, [
-        {
-          id: 'AwsSolutions-IAM4',
-          reason: 'AWSLambdaBasicExecutionRole is sufficiently restrictive',
-        },
-      ]);
-      NagSuppressions.addResourceSuppressions(
-        eventProcessorFunction.role,
-        [
-          {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Read permissions for all objects in the bucket are required',
-          },
-        ],
-        true, // apply to children
-      );
-    }
 
     // Role that allows S3 to trigger the EventProcessor function
     const s3TriggerRole = new Role(this, 'S3TriggerRole', {
@@ -140,24 +111,9 @@ export class MemberCloudTrail extends NestedStack {
 
     const bucketNotificationsHandler = bucketNotificationsHandlers[0];
 
-    if (bucketNotificationsHandler.role)
-      cdk_nag.NagSuppressions.addResourceSuppressions(bucketNotificationsHandler.role, [
-        {
-          id: 'AwsSolutions-IAM4',
-          reason: 'AWSLambdaBasicExecutionRole is sufficiently restrictive',
-        },
-      ]);
-    const defaultPolicy = bucketNotificationsHandler.role?.node?.findChild('DefaultPolicy');
-    if (defaultPolicy)
-      cdk_nag.NagSuppressions.addResourceSuppressions(defaultPolicy, [
-        {
-          id: 'AwsSolutions-IAM5',
-          reason:
-            'The IAM Role associated with the Lambda function destination for the S3 bucket event notification requires wildcard permissions to allow the S3 bucket to invoke the Lambda function. This is a necessary permission for the functionality of the solution.',
-        },
-      ]);
     addCfnGuardSuppression(bucketNotificationsHandler, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
     addCfnGuardSuppression(bucketNotificationsHandler, 'LAMBDA_CONCURRENCY_CHECK');
+    addCfnGuardSuppression(bucketNotificationsHandler, 'LAMBDA_INSIDE_VPC');
 
     new CfnOutput(this, 'TrailArn', {
       value: trail.trailArn,

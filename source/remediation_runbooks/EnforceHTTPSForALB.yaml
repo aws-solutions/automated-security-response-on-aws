@@ -1,0 +1,55 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-EnforceHTTPSForALB
+
+  ## Overview
+  This document adds HTTPS enforcement for an ALB.
+
+  ## Pre-requisites
+  * The ALB must *not* have a listener on port 80 with a protocol other than HTTP.
+
+  ## What does this document do?
+  Creates a new listener for HTTP on port 80 which redirects traffic to HTTPS on port 443. If a listener already exists for HTTP on port 80, 
+  it will overwrite the default action to redirect to HTTPS on port 443.
+
+  ## Input Parameters
+  * ResourceARN: (Required) ARN of the ALB.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnforceHTTPSForALB.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  ResourceARN:
+    type: String
+    description: (Required) The Application Load Balancer ARN.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):elasticloadbalancing:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:loadbalancer/app/(?:.+)$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnforceHTTPSForALB.Output
+mainSteps:
+  -
+    name: EnforceHTTPSForALB
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Configures a listener on port 80 to redirect HTTP traffic to HTTPS on port 443.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        ResourceARN: '{{ResourceARN}}'
+      Runtime: python3.11
+      Handler: handler
+      Script: |-
+        %%SCRIPT=EnforceHTTPSForALB.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

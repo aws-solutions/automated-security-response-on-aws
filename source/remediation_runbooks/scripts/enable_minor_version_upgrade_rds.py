@@ -21,13 +21,14 @@ def lambda_handler(event, _):
 
     `context` is ignored
     """
-    db_instance_id = event["DBInstanceIdentifier"]
+    db_instance_arn = event["RDSInstanceARN"]
 
     rds = connect_to_rds()
 
-    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_id)
+    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_arn)
 
     instance_info = found_instance["DBInstances"][0]
+    db_instance_id = instance_info["DBInstanceIdentifier"]
 
     response = False
 
@@ -47,7 +48,7 @@ def lambda_handler(event, _):
         return {"AutoMinorVersionUpgrade": response}
 
     raise RuntimeError(
-        f"ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled."
+        f"ASR Remediation failed - {db_instance_arn} did not have enable auto minor version upgrades enabled."
     )
 
 

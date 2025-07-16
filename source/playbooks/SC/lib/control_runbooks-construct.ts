@@ -25,6 +25,13 @@ import * as cloudwatch_16 from '../ssmdocs/SC_CloudWatch.16';
 import * as codebuild_2 from '../ssmdocs/SC_CodeBuild.2';
 import * as codebuild_5 from '../ssmdocs/SC_CodeBuild.5';
 import * as config_1 from '../ssmdocs/SC_Config.1';
+import * as dynamodb_1 from '../ssmdocs/SC_DynamoDB.1';
+import * as dynamodb_5 from '../ssmdocs/SC_DynamoDB.5';
+import * as dynamodb_6 from '../ssmdocs/SC_DynamoDB.6';
+import * as elasticache_1 from '../ssmdocs/SC_ElastiCache.1';
+import * as elasticache_2 from '../ssmdocs/SC_ElastiCache.2';
+import * as elasticache_3 from '../ssmdocs/SC_ElastiCache.3';
+import * as ecs_5 from '../ssmdocs/SC_ECS.5';
 import * as ec2_1 from '../ssmdocs/SC_EC2.1';
 import * as ec2_2 from '../ssmdocs/SC_EC2.2';
 import * as ec2_4 from '../ssmdocs/SC_EC2.4';
@@ -38,6 +45,7 @@ import * as ec2_18 from '../ssmdocs/SC_EC2.18';
 import * as ec2_19 from '../ssmdocs/SC_EC2.19';
 import * as ec2_23 from '../ssmdocs/SC_EC2.23';
 import * as ecr_1 from '../ssmdocs/SC_ECR.1';
+import * as elb_1 from '../ssmdocs/SC_ELB.1';
 import * as guardduty_1 from '../ssmdocs/SC_GuardDuty.1';
 import * as guardduty_2 from '../ssmdocs/SC_GuardDuty.2';
 import * as iam_3 from '../ssmdocs/SC_IAM.3';
@@ -76,7 +84,7 @@ import * as sns_2 from '../ssmdocs/SC_SNS.2';
 import * as ssm_1 from '../ssmdocs/SC_SSM.1';
 import * as ssm_4 from '../ssmdocs/SC_SSM.4';
 import * as macie_1 from '../ssmdocs/SC_Macie.1';
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 
 export interface PlaybookProps {
   standardShortName: string;
@@ -111,6 +119,13 @@ const controlRunbooksRecord: Record<string, any> = {
   'CodeBuild.2': codebuild_2.createControlRunbook,
   'CodeBuild.5': codebuild_5.createControlRunbook,
   'Config.1': config_1.createControlRunbook,
+  'DynamoDB.1': dynamodb_1.createControlRunbook,
+  'DynamoDB.5': dynamodb_5.createControlRunbook,
+  'DynamoDB.6': dynamodb_6.createControlRunbook,
+  'ElastiCache.1': elasticache_1.createControlRunbook,
+  'ElastiCache.2': elasticache_2.createControlRunbook,
+  'ElastiCache.3': elasticache_3.createControlRunbook,
+  'ECS.5': ecs_5.createControlRunbook,
   'EC2.1': ec2_1.createControlRunbook,
   'EC2.2': ec2_2.createControlRunbook,
   'EC2.4': ec2_4.createControlRunbook,
@@ -124,6 +139,7 @@ const controlRunbooksRecord: Record<string, any> = {
   'EC2.19': ec2_19.createControlRunbook,
   'EC2.23': ec2_23.createControlRunbook,
   'ECR.1': ecr_1.createControlRunbook,
+  'ELB.1': elb_1.createControlRunbook,
   'GuardDuty.1': guardduty_1.createControlRunbook,
   'GuardDuty.2': guardduty_2.createControlRunbook,
   'IAM.3': iam_3.createControlRunbook,

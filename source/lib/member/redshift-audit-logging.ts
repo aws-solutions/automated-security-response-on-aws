@@ -5,10 +5,9 @@ import { Effect, PolicyStatement, ServicePrincipal, StarPrincipal } from 'aws-cd
 import { BlockPublicAccess, Bucket, BucketEncryption, BucketPolicy, CfnBucket } from 'aws-cdk-lib/aws-s3';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { NagSuppressions } from 'cdk-nag';
 import setCondition from '../cdk-helper/set-condition';
-import { addCfnNagSuppression } from '../cdk-helper/add-cfn-nag-suppression';
 import ChoiceParam from '../cdk-helper/choice-param';
+import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
 
 export interface RedshiftAuditLoggingProps {
   readonly solutionId: string;
@@ -33,20 +32,17 @@ export class RedshiftAuditLogging extends Construct {
       expression: Fn.conditionEquals(templateParam.valueAsString, ChoiceParam.Yes),
     });
 
-    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {
-      //NOSONAR The policy attached to this bucket enforces SSL.
+    // prettier-ignore
+    const bucket = new Bucket(scope, 'S3BucketForRedShiftAuditLogging', {//NOSONAR The policy attached to this bucket enforces SSL.
       versioned: true,
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
-    setCondition(bucket, condition);
 
-    NagSuppressions.addResourceSuppressions(bucket, [{ id: 'AwsSolutions-S1', reason: 'This is a logging bucket.' }]);
-    addCfnNagSuppression(bucket, {
-      id: 'W35',
-      reason: 'Logs bucket does not require logging configuration',
-    });
+    setCondition(bucket, condition);
+    // Access logging is not necessary for a logging bucket
+    addCfnGuardSuppression(bucket, 'S3_BUCKET_LOGGING_ENABLED');
 
     const bucketPolicy = new BucketPolicy(scope, 'S3BucketForRedShiftAuditLoggingBucketPolicy', {
       bucket: bucket,
@@ -76,10 +72,6 @@ export class RedshiftAuditLogging extends Construct {
     );
     setCondition(bucketPolicy, condition);
     bucketPolicy.node.addDependency(bucket.node.defaultChild as CfnBucket);
-
-    NagSuppressions.addResourceSuppressions(bucket, [
-      { id: 'AwsSolutions-S1', reason: 'Logs bucket does not require logging configuration' },
-    ]);
 
     const ssmParam = new StringParameter(scope, 'SSMParameterForS3BucketNameForREDSHIFT4', {
       description:

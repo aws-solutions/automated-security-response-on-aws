@@ -6,10 +6,10 @@ description: |
    ### Document Name - AWSConfigRemediation-EnableEnhancedMonitoringOnRDSInstance
 
    ## What does this document do?
-   This document is used to enable enhanced monitoring on an RDS Instance using the input parameter DB Instance resourceId.
+   This document is used to enable enhanced monitoring on an RDS Instance using the input parameter DB Instance ARN.
 
    ## Input Parameters
-   * ResourceId: (Required) Resource ID of the RDS DB Instance.
+   * RDSInstanceARN: (Required) ARN of the RDS DB Instance.
    * MonitoringInterval: (Optional)
       * The interval, in seconds, between points when Enhanced Monitoring metrics are collected for the DB instance.
       * If MonitoringRoleArn is specified, then you must also set MonitoringInterval to a value other than 0.
@@ -27,10 +27,10 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  ResourceId:
+  RDSInstanceARN:
     type: String
-    description: (Required) Resource ID of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.
-    allowedPattern: "db-[A-Z0-9]{26}"
+    description: (Required) ARN of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$'
   MonitoringInterval:
     type: Integer
     description: (Optional) The interval, in seconds, between points when Enhanced Monitoring metrics are collected for the DB instance.
@@ -54,7 +54,7 @@ mainSteps:
     action: "aws:executeAwsApi"
     description: |
       ## DescribeDBInstances
-        Makes describeDBInstances API call using RDS Instance DbiResourceId to get DBInstanceId.
+        Makes describeDBInstances API call using RDS Instance ARN.
       ## Outputs
       * DbInstanceIdentifier: DBInstance Identifier of the RDS Instance.
     timeoutSeconds: 600
@@ -62,10 +62,7 @@ mainSteps:
     inputs:
       Service: rds
       Api: DescribeDBInstances
-      Filters:
-        - Name: "dbi-resource-id"
-          Values:
-            - "{{ ResourceId }}"
+      DBInstanceIdentifier: "{{ RDSInstanceARN }}"
     outputs:
       - Name: DbInstanceIdentifier
         Selector: $.DBInstances[0].DBInstanceIdentifier

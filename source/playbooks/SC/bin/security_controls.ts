@@ -5,8 +5,7 @@ import {
   SecurityControlsPlaybookMemberStack,
   SecurityControlsPlaybookPrimaryStack,
 } from '../lib/security_controls_playbook-construct';
-import { App, Aspects, DefaultStackSynthesizer } from 'aws-cdk-lib';
-import { AwsSolutionsChecks } from 'cdk-nag';
+import { App, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import 'source-map-support/register';
 import { SC_REMEDIATIONS } from '../lib/sc_remediations';
 import { splitMemberStack } from '../../split_member_stacks';
@@ -27,7 +26,6 @@ const standardLongName = 'security-control';
 const standardVersion = '2.0.0'; // DO NOT INCLUDE 'V'
 
 const app = new App();
-Aspects.of(app).add(new AwsSolutionsChecks());
 
 const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

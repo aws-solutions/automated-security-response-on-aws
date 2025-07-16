@@ -2,54 +2,6 @@
 
 exports[`Global Roles Stack 1`] = `
 {
-  "Conditions": {
-    "EncryptedLogGroup": {
-      "Fn::And": [
-        {
-          "Condition": "isNotGovCloud",
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "ReuseOrchestratorLogGroup",
-            },
-            "no",
-          ],
-        },
-      ],
-    },
-    "UnencryptedLogGroup": {
-      "Fn::And": [
-        {
-          "Fn::Not": [
-            {
-              "Condition": "isNotGovCloud",
-            },
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "ReuseOrchestratorLogGroup",
-            },
-            "no",
-          ],
-        },
-      ],
-    },
-    "isNotGovCloud": {
-      "Fn::Not": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "AWS::Partition",
-            },
-            "aws-us-gov",
-          ],
-        },
-      ],
-    },
-  },
   "Description": "test;",
   "Parameters": {
     "KmsKeyArn": {
@@ -62,33 +14,13 @@ exports[`Global Roles Stack 1`] = `
         "no",
       ],
       "Default": "no",
-      "Description": "Reuse existing Orchestrator Log Group? Choose "yes" if you have deployed this stack before, otherwise "no"",
+      "Description": "Reuse existing Orchestrator Log Group? Choose "yes" if the Orchestrator Log Group still exists from an earlier deployment in this account, otherwise "no". 
+      If you are performing a stack update from an earlier version than v2.3.0 choose "no".",
       "Type": "String",
     },
   },
   "Resources": {
-    "OrchestratorLogsEFDFFA92": {
-      "Condition": "UnencryptedLogGroup",
-      "DeletionPolicy": "Retain",
-      "Metadata": {
-        "cfn_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "W84",
-              "reason": "KmsKeyId is not supported in GovCloud.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "LogGroupName": "TestLogGroup",
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
-    },
     "OrchestratorLogsEncrypted072D6E38": {
-      "Condition": "EncryptedLogGroup",
       "DeletionPolicy": "Retain",
       "Properties": {
         "KmsKeyId": {

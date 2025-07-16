@@ -3,7 +3,7 @@
 import { Stack, App, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Template } from 'aws-cdk-lib/assertions';
-import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
+import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/playbook-construct';
 import { omitWaitResourceHash } from '../../../test/utils';
 
 const RESOURCE_PREFIX = 'SO0111';

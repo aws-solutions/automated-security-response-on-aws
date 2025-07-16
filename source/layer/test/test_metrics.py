@@ -305,3 +305,60 @@ def test_post_metrics_to_api_url_error():
         mock_urlopen.side_effect = URLError("Test URL Error")
         with pytest.raises(URLError):
             metrics.post_metrics_to_api(mock_data)
+
+
+def test_get_status_for_anonymized_metrics_success():
+    """Test successful status normalization"""
+    status, reason = Metrics.get_status_for_anonymized_metrics("SUCCESS")
+    assert status == "SUCCESS"
+    assert reason == ""
+
+    # Test case insensitivity
+    status, reason = Metrics.get_status_for_anonymized_metrics("success")
+    assert status == "SUCCESS"
+    assert reason == ""
+
+
+def test_get_status_for_anonymized_metrics_queued():
+    """Test queued status normalization"""
+    status, reason = Metrics.get_status_for_anonymized_metrics("QUEUED")
+    assert status == "PENDING"
+    assert reason == ""
+
+    # Test case insensitivity
+    status, reason = Metrics.get_status_for_anonymized_metrics("queued")
+    assert status == "PENDING"
+    assert reason == ""
+
+
+def test_get_status_for_anonymized_metrics_failed_cases():
+    """Test various failure cases and their reason mappings"""
+    test_cases = [
+        ("FAILED", "REMEDIATION_FAILED"),
+        ("LAMBDA_ERROR", "ORCHESTRATOR_FAILED"),
+        ("RUNBOOK_NOT_ACTIVE", "RUNBOOK_NOT_ACTIVE"),
+        ("PLAYBOOK_NOT_ENABLED", "PLAYBOOK_NOT_ENABLED"),
+        ("TIMEDOUT", "REMEDIATION_TIMED_OUT"),
+        ("CANCELLED", "REMEDIATION_CANCELLED"),
+        ("CANCELLING", "REMEDIATION_CANCELLED"),
+        ("ASSUME_ROLE_FAILURE", "ACCOUNT_NOT_ONBOARDED"),
+        ("NO_RUNBOOK", "NO_REMEDIATION_AVAILABLE"),
+        ("NOT_NEW", "FINDING_WORKFLOW_STATE_NOT_NEW"),
+    ]
+
+    for input_status, expected_reason in test_cases:
+        status, reason = Metrics.get_status_for_anonymized_metrics(input_status)
+        assert status == "FAILED"
+        assert reason == expected_reason
+
+        # Test case insensitivity
+        status, reason = Metrics.get_status_for_anonymized_metrics(input_status.lower())
+        assert status == "FAILED"
+        assert reason == expected_reason
+
+
+def test_get_status_for_anonymized_metrics_unknown_failure():
+    """Test handling of unknown failure status"""
+    status, reason = Metrics.get_status_for_anonymized_metrics("UNKNOWN_STATUS")
+    assert status == "FAILED"
+    assert reason == "UNKNOWN"

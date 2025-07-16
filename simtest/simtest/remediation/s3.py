@@ -3,7 +3,7 @@
 from simtest.remediation_test import RemediationTest
 
 
-def run_s3_block_public_access(remediation, account, region):
+def run_s3_block_public_access(remediation, account):
     print("Test setting S3 public access block at the account level.\n")
 
     print("Manual Setup")
@@ -24,7 +24,7 @@ def run_s3_block_public_access(remediation, account, region):
     print("1) In S3, verify account-level public access blocks are enabled.")
 
 
-def run_s3_block_public_bucket_access(remediation, account, region):
+def run_s3_block_public_bucket_access(remediation, account):
     print("Test setting S3 public access block at the account level.\n")
 
     print("Manual Setup")

@@ -139,11 +139,11 @@ export function getRegexRegistry(): RegexRegistry {
   );
 
   registry.addCase(
-    new RegexTestCase(String.raw`^[\w+=,.@-]{1,64}$`, 'IAM User Name', ['a-valid-user-name'], ['an invalid username']),
+    new RegexTestCase(String.raw`^[\w+=,.@_-]{1,64}$`, 'IAM User Name', ['a-valid-user-name'], ['an invalid username']),
   );
 
   const kmsKeyArnTestCase: RegexTestCase = new RegexTestCase(
-    String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$`,
+    String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$`,
     'KMS Key ARN as Key ID or Alias, no match',
     [],
     [],
@@ -153,7 +153,7 @@ export function getRegexRegistry(): RegexRegistry {
   registry.addCase(kmsKeyArnTestCase);
 
   const kmsKeyArnOrIdOrAlias: RegexTestCase = new RegexTestCase(
-    String.raw`^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$`,
+    String.raw`^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$`,
     'KMS Key ARN or Key ID or Alias, no match',
     ['alias/aws/rds'],
     [],
@@ -397,6 +397,13 @@ export function getRegexRegistry(): RegexRegistry {
   addAttachSSMPermissionsToEC2Cases(registry);
   addAPIGatewayStageArnTestCases(registry);
   addAthenaWorkGroupTestCases(registry);
+  addIAMUserNameTestCases(registry);
+  addRDSDBInstanceARNTestCases(registry);
+  addRDSDBClusterARNTestCases(registry);
+  addDynamoDBTableTestCases(registry);
+  addElastiCacheClusterTestCases(registry);
+  addECSTaskDefinitionTestCases(registry);
+  addELBArnTestCases(registry);
 
   return registry;
 }
@@ -798,7 +805,7 @@ function addAttachSSMPermissionsToEC2Cases(registry: RegexRegistry) {
 
 function addAPIGatewayStageArnTestCases(registry: RegexRegistry) {
   const apiGatewayStageArnTestCase: RegexMatchTestCase = new RegexMatchTestCase(
-    String.raw`^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::\/restapis\/([a-z0-9]+)\/stages\/.+)$`,
+    String.raw`^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)::\/restapis\/(.+)\/stages\/.+)$`,
     'API Gateway Stage ARN',
     ['arn:aws:apigateway:us-east-1::/restapis/l8yxbxvo83/stages/test_stage'],
     ['arn:aws:apigateway:us-east-1::/restapis/l8yxbxvo83/stages/'],
@@ -860,4 +867,167 @@ function addAthenaWorkGroupTestCases(registry: RegexRegistry) {
     ['my-work-group!!'],
   );
   registry.addCase(athenaWorkGroupName);
+}
+
+function addIAMUserNameTestCases(registry: RegexRegistry) {
+  const iamUserName: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):iam::\d{12}:user(?:(?:\/)|(?:\/.{1,510}\/))([\w+=,.@-]{1,64})$`,
+    'IAM User Name from ARN',
+    [
+      'arn:aws:iam::123456789012:user/sub/123123132/1233/123/rEEs/user-name-with-path',
+      'arn:aws:iam::123456789012:user/sub/123123132/Bob',
+      'arn:aws:iam::123456789012:user/Bob',
+    ],
+    ['arn:aws:iam::123456789012:user/', 'arn:aws:iam:123456789012:user/Bob', 'arn:aws:iam::123456789012:role/Bob'],
+  );
+  registry.addCase(iamUserName);
+}
+
+function addRDSDBInstanceARNTestCases(registry: RegexRegistry) {
+  const rdsDBInstanceARN: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$`,
+    'RDS DB Instance ARN',
+    [
+      'arn:aws:rds:us-east-2:123456789012:db:my-mysql-instance-1',
+      'arn:aws:rds:us-gov-west-2:123456789012:db:my-mysql-instance-1',
+      'arn:aws-cn:rds:cn-north-1:123456789012:db:my-mysql-instance-1',
+    ],
+    ['arn:aws:rds:us-gov-west-2:123456789012:db:', 'arn:aws:rds:us-gov-west-2:123456789012:my-mysql-instance-1'],
+  );
+  registry.addCase(rdsDBInstanceARN);
+}
+
+function addRDSDBClusterARNTestCases(registry: RegexRegistry) {
+  const rdsDBClusterARN: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:cluster:.+$`,
+    'RDS DB Cluster ARN',
+    [
+      'arn:aws:rds:us-east-2:123456789012:cluster:my-aurora-cluster-1',
+      'arn:aws:rds:us-gov-west-2:123456789012:cluster:my-aurora-cluster-1',
+      'arn:aws-cn:rds:us-east-2:123456789012:cluster:my-aurora-cluster-1',
+    ],
+    ['arn:aws:rds:us-east-2:123456789012:cluster:', 'arn:aws:rds:us-east-2:123456789012:my-aurora-cluster-1'],
+  );
+  registry.addCase(rdsDBClusterARN);
+}
+
+function addDynamoDBTableTestCases(registry: RegexRegistry) {
+  const dynamoDBTableARN: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):dynamodb:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):table\/([a-zA-Z0-9._-]{3,255})$`,
+    'DynamoDB Table ARN',
+    [
+      'arn:aws:dynamodb:us-east-2:123456789012:table/myDynamoDBTable',
+      'arn:aws:dynamodb:us-east-2:123456789012:table/my_1DynamoDBTab-le',
+    ],
+    ['arn:aws:dynamodb:us-east-2:123456789012:/myDynamoDBTable'],
+  );
+  registry.addCase(dynamoDBTableARN);
+
+  const dynamoDBTableName: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^[a-zA-Z0-9._-]{3,255}$`,
+    'DynamoDB Table Name',
+    ['test', 'my_tab.le1'],
+    ['not@valid'],
+  );
+  registry.addCase(dynamoDBTableName);
+
+  const scalingValues: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^\d+$`,
+    'Capacity scaling values',
+    ['12', '1453'],
+    ['-124'],
+  );
+  registry.addCase(scalingValues);
+}
+
+function addElastiCacheClusterTestCases(registry: RegexRegistry) {
+  const elastiCacheARN: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):(?:replicationgroup|serverlesscache|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)`,
+    'ElastiCache Cluster ARN',
+    [
+      'arn:aws:elasticache:us-east-1:123456789012:serverlesscache:myCacheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:myCacheCluster',
+    ],
+    [
+      'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:myCa--cheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:1myCacheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:myCacheCluster-',
+    ],
+  );
+  registry.addCase(elastiCacheARN);
+
+  const replicationGroupArn: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):replicationgroup:([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)`,
+    'ElastiCache Cluster ARN',
+    ['arn:aws:elasticache:us-west-2:123456789012:replicationgroup:myCacheCluster'],
+    [
+      'arn:aws:elasticache:us-west-2:123456789012:cluster:myCa--cheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:1myCacheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:myCacheCluster-',
+    ],
+  );
+  registry.addCase(replicationGroupArn);
+
+  const cacheClusterARN: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):cluster:([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)`,
+    'ElastiCache Cluster ARN',
+    [
+      'arn:aws:elasticache:us-east-1:123456789012:cluster:myCacheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:cluster:myCacheCluster',
+    ],
+    [
+      'arn:aws:elasticache:us-west-2:123456789012:cluster:myCa--cheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:cluster:1myCacheCluster',
+      'arn:aws:elasticache:us-west-2:123456789012:cluster:myCacheCluster-',
+    ],
+  );
+  registry.addCase(cacheClusterARN);
+
+  const cacheClusterId: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^[a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|^[a-zA-Z]$`,
+    'Cache Cluster Id',
+    ['myCluster', 'my-cluster', 'A'],
+    ['5invalid-cluster', '-', 'invalid--cluster', 'clusterName-'],
+  );
+  registry.addCase(cacheClusterId);
+}
+
+function addECSTaskDefinitionTestCases(registry: RegexRegistry) {
+  const ecsTaskDefinitionArn: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):ecs:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:task-definition/([a-zA-Z0-9_-]{1,255}:\d)$`,
+    'ECS Task Definition ARN',
+    [
+      'arn:aws:ecs:us-east-1:123456789012:task-definition/myTaskDefinition:3',
+      'arn:aws:ecs:us-west-2:471112666600:task-definition/my_task-def-12:3',
+    ],
+    [
+      'arn:aws:eks:us-east-1:123456789012:task-definition/myTaskDefinition:3',
+      'arn:aws:ecs:us-east-1:123456789012:task-definition/my#TaskDefinition:3',
+    ],
+  );
+  registry.addCase(ecsTaskDefinitionArn);
+
+  const ecsTaskDefinitionName: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^[a-zA-Z0-9_-]{1,255}:\d$`,
+    'ECS Task Definition Name',
+    ['myTaskDefinition:2', 'my_task-def-12:1'],
+    ['my#TaskDefinition:2', 'myTaskDefinition'],
+  );
+  registry.addCase(ecsTaskDefinitionName);
+}
+
+function addELBArnTestCases(registry: RegexRegistry) {
+  const elbArnTestCases: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-us-gov|aws-cn):elasticloadbalancing:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:loadbalancer/app/(?:.+)$`,
+    'Applciation Load Balancer ARN',
+    [
+      'arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/TestALB/2708889909c42f16',
+      'arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-ALB/123456789',
+    ],
+    [
+      'arn:aws:elasticloadbalancing:us-east-1:123456789:loadbalancer/app/TestALB/2708889909c42f16',
+      'arn:aws:elasticloadbalancing:us-east-1:471112666600:loadbalancer/app/',
+    ],
+  );
+  registry.addCase(elbArnTestCases);
 }

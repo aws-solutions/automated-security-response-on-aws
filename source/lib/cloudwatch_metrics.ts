@@ -24,8 +24,8 @@ import { Key } from 'aws-cdk-lib/aws-kms';
 import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions';
 import { ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
-import { IControl } from './sharrplaybook-construct';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { IControl } from './playbook-construct';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 
 export interface CloudWatchMetricsProps {
   solutionId: string;
@@ -37,7 +37,8 @@ export interface CloudWatchMetricsProps {
 }
 
 export class CloudWatchMetrics {
-  private readonly parameters: CfnParameter[] = [];
+  private readonly standardMetricParameters: CfnParameter[] = [];
+  private readonly enhancedMetricParameters: CfnParameter[] = [];
   private readonly useCloudWatchMetrics: CfnParameter;
   private readonly isUsingCloudWatchMetrics: CfnCondition;
   private readonly isUsingCloudWatchMetricsAlarms: CfnCondition;
@@ -57,7 +58,7 @@ export class CloudWatchMetrics {
       default: 'yes',
       allowedValues: ['yes', 'no'],
     });
-    this.parameters.push(this.useCloudWatchMetrics);
+    this.standardMetricParameters.push(this.useCloudWatchMetrics);
 
     this.isUsingCloudWatchMetrics = new CfnCondition(scope, 'isUsingCloudWatchMetrics', {
       expression: Fn.conditionEquals(this.useCloudWatchMetrics, 'yes'),
@@ -69,7 +70,7 @@ export class CloudWatchMetrics {
       default: 'yes',
       allowedValues: ['yes', 'no'],
     });
-    this.parameters.push(useCloudWatchMetricsAlarms);
+    this.standardMetricParameters.push(useCloudWatchMetricsAlarms);
 
     this.isUsingCloudWatchMetricsAlarms = new CfnCondition(scope, 'isUsingCloudWatchMetricsAlarms', {
       expression: Fn.conditionAnd(this.isUsingCloudWatchMetrics, Fn.conditionEquals(useCloudWatchMetricsAlarms, 'yes')),
@@ -83,10 +84,10 @@ export class CloudWatchMetrics {
     const remediationFailureAlarmThreshold = new CfnParameter(scope, 'RemediationFailureAlarmThreshold', {
       type: 'Number',
       description:
-        'Percentage of failures in one period (1 day) to trigger the remediation failures alarm for a given control ID. E.g., to specify 20% then enter the number 20. These alarms will not be created if you select "no" on either of the following parameters: UseCloudWatchMetricsAlarms, EnableEnhancedCloudWatchMetrics.',
+        'Percentage of failures in one period (1 day) to trigger the remediation failures alarm for a given control ID. E.g., to specify 20% then enter the number 20. These alarms will not be created if you select "no" for either of the following standardMetricParameters: UseCloudWatchMetricsAlarms, EnableEnhancedCloudWatchMetrics.',
       default: 5,
     });
-    this.parameters.push(remediationFailureAlarmThreshold);
+    this.enhancedMetricParameters.push(remediationFailureAlarmThreshold);
 
     const sendCloudwatchMetricsParameter = new StringParameter(scope, 'ASR_SendCloudWatchMetrics', {
       description: 'Flag to enable or disable sending cloudwatch metrics.',
@@ -102,7 +103,7 @@ export class CloudWatchMetrics {
       metricName: 'RemediationOutcome',
       statistic: 'Sum',
       period: defaultDuration,
-      dimensionsMap: { Outcome: 'LAMBDAERROR' },
+      dimensionsMap: { Outcome: 'LAMBDA_ERROR' },
       label: 'Lambda Error',
     });
 
@@ -111,8 +112,8 @@ export class CloudWatchMetrics {
       metricName: 'RemediationOutcome',
       statistic: 'Sum',
       period: defaultDuration,
-      dimensionsMap: { Outcome: 'REMEDIATIONNOTTACTIVE' },
-      label: 'Remediation Not Active',
+      dimensionsMap: { Outcome: 'RUNBOOK_NOT_ACTIVE' },
+      label: 'Runbook Not Active',
     });
 
     const noRemediationErrorMetric = new Metric({
@@ -120,17 +121,17 @@ export class CloudWatchMetrics {
       metricName: 'RemediationOutcome',
       statistic: 'Sum',
       period: defaultDuration,
-      dimensionsMap: { Outcome: 'NOREMEDIATION' },
+      dimensionsMap: { Outcome: 'NO_RUNBOOK' },
       label: 'No Remediation',
     });
 
-    const standardNotEnabledErrorMetric = new Metric({
+    const playbookNotEnabledErrorMetric = new Metric({
       namespace: 'ASR',
       metricName: 'RemediationOutcome',
       statistic: 'Sum',
       period: defaultDuration,
-      dimensionsMap: { Outcome: 'STANDARDNOTENABLED' },
-      label: 'Standard Not Enabled',
+      dimensionsMap: { Outcome: 'PLAYBOOK_NOT_ENABLED' },
+      label: 'Playbook Not Enabled',
     });
 
     const automationDocumentFailedMetric = new Metric({
@@ -154,7 +155,7 @@ export class CloudWatchMetrics {
     const hoursSavedMetric = new MathExpression({
       label: 'Estimated Hours Saved',
       period: defaultDuration,
-      expression: '(m1 * 30) / 60',
+      expression: '(m1 * 10) / 60',
       usingMetrics: {
         ['m1']: successMetric,
       },
@@ -168,7 +169,7 @@ export class CloudWatchMetrics {
         ['m1']: lambdaErrorMetric,
         ['m2']: remediationNotActiveErrorMetric,
         ['m3']: noRemediationErrorMetric,
-        ['m4']: standardNotEnabledErrorMetric,
+        ['m4']: playbookNotEnabledErrorMetric,
         ['m5']: automationDocumentFailedMetric,
       },
     });
@@ -200,12 +201,12 @@ export class CloudWatchMetrics {
     setCondition(snsAlarmTopic, this.isUsingCloudWatchMetricsAlarms);
 
     const noRemediationErrorAlarm = noRemediationErrorMetric.createAlarm(scope, 'NoRemediationErrorAlarm', {
-      alarmName: 'ASR-NoRemediation',
+      alarmName: 'ASR-NoRunbook',
       evaluationPeriods: 1,
       threshold: 1,
       comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       alarmDescription:
-        'Remediation failed with NOREMEDIATION result. This indicates a remediation was attempted for an unsupported remediation',
+        'Remediation failed with NO_RUNBOOK result. This indicates a remediation was attempted and an ASR runbook could not be found. This can happen if the member stack is not deployed in the account & region where the finding was generated, or ASR does not support the control ID.',
       treatMissingData: TreatMissingData.NOT_BREACHING,
       datapointsToAlarm: 1,
       actionsEnabled: true,
@@ -276,12 +277,12 @@ We estimate that, on average, it takes 30 minutes of developer time to investiga
 ## Remediation Failures by Type
 This widget displays the frequency of various remediation failures. 
 * \`Lambda Error\`: One or more of the solution's Lambda Functions failed to execute. See the Orchestrator step function execution for details.
-* \`Remediation Not Active\`: The runbook associated with this remediation is not properly deployed in the solution's Admin and/or Member stack. Verify the solution's parameters.
-* \`No Remediation\`: ASR does not currently implement a remediation for the executed finding.
-* \`Standard Not Enabled\`: The Security Standard associated with the finding is not enabled in Security Hub. Navigate to the Security Hub console to activate the Standard.
+* \`Runbook Not Active\`: The runbook associated with this remediation is not properly deployed in the solution's Admin and/or Member stack. Verify the solution's parameters.
+* \`No Runbook\`: This indicates a remediation was attempted and an ASR runbook could not be found.
+* \`Playbook Not Enabled\`: The ASR playbook associated with the finding is not enabled. Ensure that the correct playbook parameter is enabled in the Admin & Member stacks.
 * \`SSM Doc Failed\`: The remediation script failed to execute. Check the Orchestrator step function to determine which account the remediation was executed in, then view the SSM automation execution history for failures.
 
-If there is an increase in \`NOREMEDIATION\` results, this indicates that remediations are being attempted for remediations not currently included in ASR. You should verify that this is not caused by a modified automatic remediation EventBridge rule.
+If there is an increase in \`NO_RUNBOOK\` results, this indicates that (1) the account/region where findings are being generated does not have the member stack installed, or (2) ASR does not implement a remediation for the findings being executed. You should also verify that this is not caused by a malformed event pattern in the automatic remediation EventBridge rules.
 `,
         height: 6,
         width: 24,
@@ -299,7 +300,7 @@ If there is an increase in \`NOREMEDIATION\` results, this indicates that remedi
           lambdaErrorMetric,
           remediationNotActiveErrorMetric,
           noRemediationErrorMetric,
-          standardNotEnabledErrorMetric,
+          playbookNotEnabledErrorMetric,
           automationDocumentFailedMetric,
         ],
         leftYAxis: {
@@ -467,12 +468,16 @@ The actions shown are based on CloudTrail management events in the member accoun
     return metricsByControlId;
   }
 
-  public getParameterIds(): string[] {
-    return this.parameters.map((p) => p.logicalId);
+  private getParameterIds(parameters: CfnParameter[]): string[] {
+    return parameters.map((param) => param.logicalId);
   }
 
-  public getParameterIdsAndLabels() {
-    return this.parameters.reduce((a, p) => ({ ...a, [p.logicalId]: { default: p.logicalId } }), {});
+  public getStandardParameterIds(): string[] {
+    return this.getParameterIds(this.standardMetricParameters);
+  }
+
+  public getEnhancedParameterIds(): string[] {
+    return this.getParameterIds(this.enhancedMetricParameters);
   }
 
   public getCloudWatchMetricsParameterValue(): string {

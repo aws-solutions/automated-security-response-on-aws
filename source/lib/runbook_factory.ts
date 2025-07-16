@@ -88,8 +88,8 @@ export class RunbookFactory extends Construct {
   ): string {
     const ssmDocFQFileName = `${props.ssmDocPath}/${props.ssmDocFileName}`;
     const ssmDocIn = readFileSync(ssmDocFQFileName, 'utf8');
-    const scriptRegex = /^(?<padding>\s+)%%SCRIPT=(?<script>.*)%%/;
-    const assumeRoleRegex = /^(?<prefix>.*)%%ROLE=(?<role>.*)%%(?<suffix>.*)/;
+    const scriptRegex = /^(?<padding>\s+)%%SCRIPT=(?<script>.*)%%/; // NOSONAR: Allowed to use named groups
+    const assumeRoleRegex = /^(?<prefix>.*)%%ROLE=(?<role>.*)%%(?<suffix>.*)/; // NOSONAR: Allowed to use named groups
     let ssmDocOut = '';
     for (const line of ssmDocIn.split('\n')) {
       const foundScriptMatch = scriptRegex.exec(line);
@@ -125,8 +125,8 @@ export class RunbookFactory extends Construct {
     const ssmDocFQFileName = `${props.ssmDocPath}/${props.ssmDocFileName}`;
     const ssmDocIn = readFileSync(ssmDocFQFileName, 'utf8');
     let ssmDocOut = '';
-    const scriptRegex = /^(?<padding>\s+)%%SCRIPT=(?<script>.*)%%/;
-    const assumeRoleRegex = /^(?<prefix>.*)%%ROLE=(?<role>.*)%%(?<suffix>.*)/;
+    const scriptRegex = /^(?<padding>\s+)%%SCRIPT=(?<script>.*)%%/; // NOSONAR: Allowed to use named groups
+    const assumeRoleRegex = /^(?<prefix>.*)%%ROLE=(?<role>.*)%%(?<suffix>.*)/; // NOSONAR: Allowed to use named groups
 
     for (const line of ssmDocIn.split('\n')) {
       const foundScriptMatch = scriptRegex.exec(line);

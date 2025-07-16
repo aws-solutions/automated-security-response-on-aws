@@ -12,7 +12,7 @@ import {
   CfnRole,
 } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 
 export interface OrchRoleProps {
   solutionId: string;
@@ -124,7 +124,7 @@ export class OrchestratorMemberRole extends Construct {
       inlinePolicies: {
         member_orchestrator: memberPolicy,
       },
-      roleName: `${RESOURCE_PREFIX}-SHARR-Orchestrator-Member`,
+      roleName: `${RESOURCE_PREFIX}-ASR-Orchestrator-Member`,
     });
 
     const memberRoleResource = memberRole.node.findChild('Resource') as CfnRole;

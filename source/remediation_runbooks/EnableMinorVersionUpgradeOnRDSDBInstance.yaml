@@ -10,7 +10,7 @@ description: |
 
   ## Input parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * DbiResourceId: (Required) Resource ID of the Amazon RDS instance to be modified.
+  * RDSInstanceARN: (Required) ARN of the Amazon RDS instance to be modified.
 
   ## Output parameters
   * ModifyDBInstance.Output: The standard HTTP response from the ModifyDBInstance API.
@@ -20,10 +20,10 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  DBInstanceIdentifier:
+  RDSInstanceARN:
     type: String
     description: (Required) Identifier of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.
-    allowedPattern: "^(?!.*--)[a-zA-Z][a-zA-Z0-9.,$;-]{0,58}[^-]$"
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$'
 outputs:
   - ModifyDBInstance.Output
 mainSteps:
@@ -35,7 +35,7 @@ mainSteps:
         Type: StringMap
     inputs:
       InputPayload:
-        DBInstanceIdentifier: "{{DBInstanceIdentifier}}"
+        RDSInstanceARN: "{{RDSInstanceARN}}"
       Runtime: python3.11
       Handler: lambda_handler
       Script: |-

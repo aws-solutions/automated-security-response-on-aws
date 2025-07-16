@@ -1,9 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Unit Test: exec_ssm_doc.py
-Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
-"""
 import os
 
 import pytest
@@ -96,7 +92,7 @@ def step_input():
             "RemediationRole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
             "ControlId": "AutoScaling.1",
             "SecurityStandard": "AFSBP",
-            "SecurityStandardSupported": "True",
+            "PlaybookEnabled": "True",
         },
     }
 
@@ -243,6 +239,107 @@ def test_get_approval_req(mocker):
     assert response["workflowdoc"] == expected_result["workflowdoc"]
     assert response["workflowaccount"] == expected_result["workflowaccount"]
     assert response["workflowrole"] == expected_result["workflowrole"]
+
+    ssmc_stub.deactivate()
+
+
+def test_missing_finding():
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+    }
+
+    result = lambda_handler(test_input, {})
+    assert result["status"] == "ERROR"
+    assert result["message"] == "Missing required data in request"
+
+
+def test_missing_event_type():
+    test_input = {"Finding": {"Id": "test-finding-123", "AwsAccountId": "111111111111"}}
+
+    result = lambda_handler(test_input, {})
+    assert result["status"] == "ERROR"
+    assert result["message"] == "Missing required data in request"
+
+
+def test_automatic_trigger_detection():
+    from get_approval_requirement import _is_automatic_trigger
+
+    assert _is_automatic_trigger("Security Hub Findings - Imported") is False
+
+    assert _is_automatic_trigger("Security Hub Findings - Custom Action") is True
+
+    assert _is_automatic_trigger("Some Other Event Type") is True
+
+
+def test_custom_action_trigger_detection():
+    from get_approval_requirement import _is_custom_action_trigger
+
+    assert _is_custom_action_trigger("Security Hub Findings - Imported") is True
+
+    assert _is_custom_action_trigger("Security Hub Findings - Custom Action") is False
+
+    assert _is_custom_action_trigger("Some Other Event Type") is False
+
+
+def test_is_remediation_destructive():
+    from get_approval_requirement import _is_remediation_destructive
+
+    assert _is_remediation_destructive("AFSBP", "1.0.0", "S3.1") is False
+    assert _is_remediation_destructive("CIS", "1.2.0", "1.5") is False
+    assert _is_remediation_destructive("", "", "") is False
+
+
+def test_is_account_sensitive():
+    from get_approval_requirement import _is_account_sensitive
+
+    assert _is_account_sensitive("111111111111") is False
+    assert _is_account_sensitive("222222222222") is False
+    assert _is_account_sensitive("") is False
+
+
+def test_non_security_hub_product_other(mocker):
+    test_input = step_input_config()
+    test_input["Finding"]["ProductFields"]["aws/securityhub/ProductName"] = "Other"
+    test_input["Finding"]["Title"] = "CustomRuleName"
+
+    expected_result = {
+        "workflowdoc": "ASR-TestConfigDoc",
+        "workflowrole": "ASR-TestRole",
+        "workflow_data": {
+            "impact": "nondestructive",
+            "approvalrequired": "false",
+            "security_hub": "false",
+        },
+    }
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/CustomRuleName",
+                "Type": "String",
+                "Value": '{"RunbookName":"ASR-TestConfigDoc","RunbookRole":"ASR-TestRole"}',
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/CustomRuleName",
+                "DataType": "text",
+            }
+        },
+        {"Name": "/Solutions/SO0111/CustomRuleName"},
+    )
+
+    ssmc_stub.activate()
+    mocker.patch("boto3.client", return_value=ssm_c)
+
+    result = lambda_handler(test_input, {})
+
+    assert result["workflow_data"] == expected_result["workflow_data"]
+    assert result["workflowdoc"] == expected_result["workflowdoc"]
+    assert result["workflowrole"] == expected_result["workflowrole"]
 
     ssmc_stub.deactivate()
 

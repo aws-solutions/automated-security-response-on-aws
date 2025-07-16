@@ -1,13 +1,13 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`MemberRoleStack tests Global Roles Stack 1`] = `
+exports[`MemberRolesStack tests Global Roles Stack 1`] = `
 {
   "Description": "test;",
   "Parameters": {
     "Namespace": {
       "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
       "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
-      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment, but does not need to be changed during stack updates.",
       "MaxLength": 9,
       "MinLength": 3,
       "Type": "String",
@@ -58,7 +58,7 @@ exports[`MemberRoleStack tests Global Roles Stack 1`] = `
                       {
                         "Ref": "SecHubAdminAccount",
                       },
-                      ":role/SO0111-SHARR-Orchestrator-Admin",
+                      ":role/SO0111-ASR-Orchestrator-Admin",
                     ],
                   ],
                 },
@@ -229,7 +229,7 @@ exports[`MemberRoleStack tests Global Roles Stack 1`] = `
             "PolicyName": "member_orchestrator",
           },
         ],
-        "RoleName": "SO0111-SHARR-Orchestrator-Member",
+        "RoleName": "SO0111-ASR-Orchestrator-Member",
       },
       "Type": "AWS::IAM::Role",
     },
@@ -237,14 +237,14 @@ exports[`MemberRoleStack tests Global Roles Stack 1`] = `
 }
 `;
 
-exports[`MemberRoleStack tests Regional Documents 1`] = `
+exports[`MemberRolesStack tests Regional Documents 1`] = `
 {
   "Description": "test;",
   "Parameters": {
     "Namespace": {
       "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
       "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
-      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment, but does not need to be changed during stack updates.",
       "MaxLength": 9,
       "MinLength": 3,
       "Type": "String",
@@ -829,7 +829,7 @@ def modify_document_permissions(document_name):
     },
     "ASRConfigureAutoScalingLaunchConfigNoPublicIP": {
       "DependsOn": [
-        "CreateWait12",
+        "CreateWait14",
       ],
       "Properties": {
         "Content": {
@@ -1130,7 +1130,7 @@ def update_auto_scaling_groups(
     },
     "ASRConfigureAutoScalingLaunchConfigToRequireIMDSv2": {
       "DependsOn": [
-        "CreateWait12",
+        "CreateWait14",
       ],
       "Properties": {
         "Content": {
@@ -1432,6 +1432,234 @@ def update_auto_scaling_groups(
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRConfigureDynamoDBAutoScaling": {
+      "DependsOn": [
+        "CreateWait9",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-ConfigureDynamoDBAutoScaling
+
+## Overview
+This document registers a DynamoDB table in provisioned mode with Application Auto Scaling and creates a new scaling policy based on the 
+parameters provided by the DynamoDB.1 control in Security Hub.
+
+## Pre-requisites
+* Configure the parameters for the DynamoDB.1 control in Security Hub.
+* DynamoDB auto scaling requires the presence of a service linked role (AWSServiceRoleForApplicationAutoScaling_DynamoDBTable) that performs auto scaling actions on your behalf.
+
+## What does this document do?
+Registers the DynamoDB table with Application Auto Scaling; creates a new scaling policy with targetReadUtilization/targetWriteUtilization.
+Since only the minProvisionedReadCapacity & minProvisionedWriteCapacity are provided in the finding data, the "max" counterpart is set to (2 * minProvisionedXXXXCapacity).
+
+## Input Parameters
+* TableId: (Required) VPC to be remediated.
+* MinProvisionedReadCapacity: (Required) Minimum number of provisioned read capacity units for DynamoDB auto scaling.
+* TargetReadUtilization: (Required) Target utilization percentage for read capacity.
+* MinProvisionedWriteCapacity: (Required) Minimum number of provisioned write capacity units for DynamoDB auto scaling.
+* TargetWriteUtilization: (Required) Target utilization percentage for write capacity.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* PutWriteScalingPolicy.Output
+* PutReadScalingPolicy.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "calculate_max_capacity",
+                "InputPayload": {
+                  "MinProvisionedReadCapacity": "{{ MinProvisionedReadCapacity }}",
+                  "MinProvisionedWriteCapacity": "{{ MinProvisionedWriteCapacity }}",
+                },
+                "Runtime": "python3.11",
+                "Script": "def calculate_max_capacity(event, _):
+    return { "MaxReadCapacity" : int(event['MinProvisionedReadCapacity']) * 2, "MaxWriteCapacity":  int(event['MinProvisionedWriteCapacity']) * 2}
+",
+              },
+              "isEnd": false,
+              "name": "CalculateMaxCapacity",
+              "outputs": [
+                {
+                  "Name": "MaxReadCapacity",
+                  "Selector": "$.Payload.MaxReadCapacity",
+                  "Type": "Integer",
+                },
+                {
+                  "Name": "MaxWriteCapacity",
+                  "Selector": "$.Payload.MaxWriteCapacity",
+                  "Type": "Integer",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "convert_string_to_int",
+                "InputPayload": {
+                  "MinProvisionedReadCapacity": "{{ MinProvisionedReadCapacity }}",
+                  "MinProvisionedWriteCapacity": "{{ MinProvisionedWriteCapacity }}",
+                  "TargetReadUtilization": "{{ TargetReadUtilization }}",
+                  "TargetWriteUtilization": "{{ TargetWriteUtilization }}",
+                },
+                "Runtime": "python3.11",
+                "Script": "def convert_string_to_int(event, _):
+    return { "MinProvisionedReadCapacity" : int(event['MinProvisionedReadCapacity']), "MinProvisionedWriteCapacity":  int(event['MinProvisionedWriteCapacity']), "TargetReadUtilization":  int(event['TargetReadUtilization']), "TargetWriteUtilization": int(event['TargetWriteUtilization'])}
+",
+              },
+              "isEnd": false,
+              "name": "StringParamsToInt",
+              "outputs": [
+                {
+                  "Name": "MinProvisionedReadCapacity",
+                  "Selector": "$.Payload.MinProvisionedReadCapacity",
+                  "Type": "Integer",
+                },
+                {
+                  "Name": "MinProvisionedWriteCapacity",
+                  "Selector": "$.Payload.MinProvisionedReadCapacity",
+                  "Type": "Integer",
+                },
+                {
+                  "Name": "TargetReadUtilization",
+                  "Selector": "$.Payload.TargetReadUtilization",
+                  "Type": "Integer",
+                },
+                {
+                  "Name": "TargetWriteUtilization",
+                  "Selector": "$.Payload.TargetWriteUtilization",
+                  "Type": "Integer",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "RegisterScalableTarget",
+                "MaxCapacity": "{{ CalculateMaxCapacity.MaxWriteCapacity }}",
+                "MinCapacity": "{{ StringParamsToInt.MinProvisionedWriteCapacity }}",
+                "ResourceId": "table/{{ TableId }}",
+                "ScalableDimension": "dynamodb:table:WriteCapacityUnits",
+                "Service": "application-autoscaling",
+                "ServiceNamespace": "dynamodb",
+              },
+              "isEnd": false,
+              "name": "RegisterScalableTarget_WriteUnits",
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "RegisterScalableTarget",
+                "MaxCapacity": "{{ CalculateMaxCapacity.MaxReadCapacity }}",
+                "MinCapacity": "{{ StringParamsToInt.MinProvisionedReadCapacity }}",
+                "ResourceId": "table/{{ TableId }}",
+                "ScalableDimension": "dynamodb:table:ReadCapacityUnits",
+                "Service": "application-autoscaling",
+                "ServiceNamespace": "dynamodb",
+              },
+              "isEnd": false,
+              "name": "RegisterScalableTarget_ReadUnits",
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "PutScalingPolicy",
+                "PolicyName": "SO0111-ASR-WriteCapacity-Scaling-Policy",
+                "PolicyType": "TargetTrackingScaling",
+                "ResourceId": "table/{{ TableId }}",
+                "ScalableDimension": "dynamodb:table:WriteCapacityUnits",
+                "Service": "application-autoscaling",
+                "ServiceNamespace": "dynamodb",
+                "TargetTrackingScalingPolicyConfiguration": {
+                  "PredefinedMetricSpecification": {
+                    "PredefinedMetricType": "DynamoDBWriteCapacityUtilization",
+                  },
+                  "TargetValue": "{{ StringParamsToInt.TargetWriteUtilization }}",
+                },
+              },
+              "isEnd": false,
+              "maxAttempts": 5,
+              "name": "PutWriteScalingPolicy",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "PutScalingPolicy",
+                "PolicyName": "SO0111-ASR-ReadCapacity-Scaling-Policy",
+                "PolicyType": "TargetTrackingScaling",
+                "ResourceId": "table/{{ TableId }}",
+                "ScalableDimension": "dynamodb:table:ReadCapacityUnits",
+                "Service": "application-autoscaling",
+                "ServiceNamespace": "dynamodb",
+                "TargetTrackingScalingPolicyConfiguration": {
+                  "PredefinedMetricSpecification": {
+                    "PredefinedMetricType": "DynamoDBReadCapacityUtilization",
+                  },
+                  "TargetValue": "{{ StringParamsToInt.TargetReadUtilization }}",
+                },
+              },
+              "isEnd": true,
+              "maxAttempts": 5,
+              "name": "PutReadScalingPolicy",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "MinProvisionedReadCapacity": {
+              "allowedPattern": "^\\d+$",
+              "description": "(Required) Minimum number of provisioned read capacity units for DynamoDB auto scaling.",
+              "type": "String",
+            },
+            "MinProvisionedWriteCapacity": {
+              "allowedPattern": "^\\d+$",
+              "description": "(Required) Minimum number of provisioned write capacity units for DynamoDB auto scaling.",
+              "type": "String",
+            },
+            "TableId": {
+              "allowedPattern": "^[a-zA-Z0-9._-]{3,255}$",
+              "description": "(Required) DynamoDB Table to be remediated.",
+              "type": "String",
+            },
+            "TargetReadUtilization": {
+              "allowedPattern": "^\\d+$",
+              "description": "(Required) Target utilization percentage for read capacity.",
+              "type": "String",
+            },
+            "TargetWriteUtilization": {
+              "allowedPattern": "^\\d+$",
+              "description": "(Required) Target utilization percentage for write capacity.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-ConfigureDynamoDBAutoScaling",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRConfigureS3BucketPublicAccessBlock": {
       "DependsOn": [
         "CreateWait4",
@@ -1535,11 +1763,11 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
     """
     try:
         account_id = event["AccountId"]
-        public_access_block_config = {
-            "BlockPublicAcls": event["BlockPublicAcls"],
-            "IgnorePublicAcls": event["IgnorePublicAcls"],
-            "BlockPublicPolicy": event["BlockPublicPolicy"],
-            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        public_access_block_config: PublicAccessConfiguration = {
+            "BlockPublicAcls": bool(event["BlockPublicAcls"]),
+            "IgnorePublicAcls": bool(event["IgnorePublicAcls"]),
+            "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
+            "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
         put_account_public_access_block(account_id, public_access_block_config)
 
@@ -1556,10 +1784,9 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
                 ],
             }
         else:
-            expected_config = public_access_block_config
             return {
                 "Message": f"Account {account_id} public access block configuration does not match with parameters "
-                f"provided. \\nExpected: {str(expected_config)}",
+                f"provided. \\nExpected: {str(public_access_block_config)}",
                 "Status": "Failed",
                 "PublicAccessConfig": None,
             }
@@ -1575,11 +1802,11 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
     """
     try:
         bucket = event["Bucket"]
-        public_access_block_config = {
-            "BlockPublicAcls": event["BlockPublicAcls"],
-            "IgnorePublicAcls": event["IgnorePublicAcls"],
-            "BlockPublicPolicy": event["BlockPublicPolicy"],
-            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        public_access_block_config: PublicAccessConfiguration = {
+            "BlockPublicAcls": bool(event["BlockPublicAcls"]),
+            "IgnorePublicAcls": bool(event["IgnorePublicAcls"]),
+            "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
+            "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
         put_s3_bucket_public_access_block(bucket, public_access_block_config)
 
@@ -1597,10 +1824,9 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
             }
         else:
             actual_config = valid_bucket_public_access_block["PublicAccessConfig"]
-            expected_config = public_access_block_config
             return {
                 "Message": f"Bucket {bucket} public access block configuration does not match with parameters provided."
-                f"\\nExpected: {str(expected_config)}\\nActual: {str(actual_config)}",
+                f"\\nExpected: {str(public_access_block_config)}\\nActual: {str(actual_config)}",
                 "Status": "Failed",
                 "PublicAccessConfig": actual_config,
             }
@@ -1618,14 +1844,7 @@ def put_account_public_access_block(
     try:
         s3_client.put_public_access_block(
             AccountId=account_id,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
-                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
-                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
-                "RestrictPublicBuckets": public_access_block_config[
-                    "RestrictPublicBuckets"
-                ],
-            },
+            PublicAccessBlockConfiguration=public_access_block_config,
         )
     except Exception as e:
         raise RuntimeError(
@@ -1641,14 +1860,7 @@ def put_s3_bucket_public_access_block(
     try:
         s3_client.put_public_access_block(
             Bucket=bucket_name,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
-                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
-                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
-                "RestrictPublicBuckets": public_access_block_config[
-                    "RestrictPublicBuckets"
-                ],
-            },
+            PublicAccessBlockConfiguration=public_access_block_config,
         )
     except Exception as e:
         raise RuntimeError(
@@ -1899,11 +2111,11 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
     """
     try:
         account_id = event["AccountId"]
-        public_access_block_config = {
-            "BlockPublicAcls": event["BlockPublicAcls"],
-            "IgnorePublicAcls": event["IgnorePublicAcls"],
-            "BlockPublicPolicy": event["BlockPublicPolicy"],
-            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        public_access_block_config: PublicAccessConfiguration = {
+            "BlockPublicAcls": bool(event["BlockPublicAcls"]),
+            "IgnorePublicAcls": bool(event["IgnorePublicAcls"]),
+            "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
+            "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
         put_account_public_access_block(account_id, public_access_block_config)
 
@@ -1920,10 +2132,9 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
                 ],
             }
         else:
-            expected_config = public_access_block_config
             return {
                 "Message": f"Account {account_id} public access block configuration does not match with parameters "
-                f"provided. \\nExpected: {str(expected_config)}",
+                f"provided. \\nExpected: {str(public_access_block_config)}",
                 "Status": "Failed",
                 "PublicAccessConfig": None,
             }
@@ -1939,11 +2150,11 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
     """
     try:
         bucket = event["Bucket"]
-        public_access_block_config = {
-            "BlockPublicAcls": event["BlockPublicAcls"],
-            "IgnorePublicAcls": event["IgnorePublicAcls"],
-            "BlockPublicPolicy": event["BlockPublicPolicy"],
-            "RestrictPublicBuckets": event["RestrictPublicBuckets"],
+        public_access_block_config: PublicAccessConfiguration = {
+            "BlockPublicAcls": bool(event["BlockPublicAcls"]),
+            "IgnorePublicAcls": bool(event["IgnorePublicAcls"]),
+            "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
+            "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
         put_s3_bucket_public_access_block(bucket, public_access_block_config)
 
@@ -1961,10 +2172,9 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
             }
         else:
             actual_config = valid_bucket_public_access_block["PublicAccessConfig"]
-            expected_config = public_access_block_config
             return {
                 "Message": f"Bucket {bucket} public access block configuration does not match with parameters provided."
-                f"\\nExpected: {str(expected_config)}\\nActual: {str(actual_config)}",
+                f"\\nExpected: {str(public_access_block_config)}\\nActual: {str(actual_config)}",
                 "Status": "Failed",
                 "PublicAccessConfig": actual_config,
             }
@@ -1982,14 +2192,7 @@ def put_account_public_access_block(
     try:
         s3_client.put_public_access_block(
             AccountId=account_id,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
-                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
-                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
-                "RestrictPublicBuckets": public_access_block_config[
-                    "RestrictPublicBuckets"
-                ],
-            },
+            PublicAccessBlockConfiguration=public_access_block_config,
         )
     except Exception as e:
         raise RuntimeError(
@@ -2005,14 +2208,7 @@ def put_s3_bucket_public_access_block(
     try:
         s3_client.put_public_access_block(
             Bucket=bucket_name,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": public_access_block_config["BlockPublicAcls"],
-                "IgnorePublicAcls": public_access_block_config["IgnorePublicAcls"],
-                "BlockPublicPolicy": public_access_block_config["BlockPublicPolicy"],
-                "RestrictPublicBuckets": public_access_block_config[
-                    "RestrictPublicBuckets"
-                ],
-            },
+            PublicAccessBlockConfiguration=public_access_block_config,
         )
     except Exception as e:
         raise RuntimeError(
@@ -2358,6 +2554,7 @@ Creates an S3 bucket for access logging.
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import json
 from typing import TYPE_CHECKING, TypedDict, cast
 
 import boto3
@@ -2422,6 +2619,28 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
                 ]
             },
         )
+
+        # Add SSL/TLS enforcement policy
+        ssl_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AllowSSLRequestsOnly",
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Resource": [
+                        f"arn:aws:s3:::{event['BucketName']}",
+                        f"arn:aws:s3:::{event['BucketName']}/*",
+                    ],
+                    "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                    "Principal": "*",
+                }
+            ],
+        }
+
+        # Apply the SSL policy to the bucket
+        s3.put_bucket_policy(Bucket=event["BucketName"], Policy=json.dumps(ssl_policy))
+
         return {"output": {"Message": f'Bucket {event["BucketName"]} created'}}
     except ClientError as error:
         if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
@@ -2949,7 +3168,7 @@ def process_results(event, _):
               "type": "String",
             },
             "KMSKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
               "description": "The ARN of the KMS key created by ASR for this remediation",
               "type": "String",
@@ -3452,7 +3671,7 @@ def verify(event, _):
               "type": "String",
             },
             "KMSKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "description": "The ARN of a KMS key to use for encryption of the SNS Topic and Config bucket",
               "type": "String",
             },
@@ -3504,7 +3723,7 @@ the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
-* DbiResourceId: (Required) The resource identifier for the DB instance you want to disable public accessibility.
+* RDSInstanceARN: (Required) ARN for the DB instance you want to disable public accessibility.
 
 ## Output Parameters
 * DisablePubliclyAccessibleOnRDS.Response: The standard HTTP response from the ModifyDBInstance API.
@@ -3523,14 +3742,7 @@ Gathers the DB instance identifier from the DB instance resource identifier.
 ",
               "inputs": {
                 "Api": "DescribeDBInstances",
-                "Filters": [
-                  {
-                    "Name": "dbi-resource-id",
-                    "Values": [
-                      "{{ DbiResourceId }}",
-                    ],
-                  },
-                ],
+                "DBInstanceIdentifier": "{{ RDSInstanceARN }}",
                 "Service": "rds",
               },
               "isEnd": false,
@@ -3650,9 +3862,9 @@ Confirms public accessibility is disabled on the DB instance.
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "DbiResourceId": {
-              "allowedPattern": "db-[A-Z0-9]{26}",
-              "description": "(Required) The resource identifier for the DB instance you want to disable public accessibility.",
+            "RDSInstanceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:db:.+$",
+              "description": "(Required) ARN for the DB instance you want to disable public accessibility.",
               "type": "String",
             },
           },
@@ -3903,7 +4115,7 @@ def describe_subnet(subnet_id):
     },
     "ASRDisableTGWAutoAcceptSharedAttachments": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait12",
       ],
       "Properties": {
         "Content": {
@@ -4013,7 +4225,7 @@ def lambda_handler(event, _):
     },
     "ASRDisableUnrestrictedAccessToHighRiskPorts": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -4216,7 +4428,7 @@ def is_open_cidr(rule: dict) -> bool:
     },
     "ASREnableAPIGatewayCacheDataEncryption": {
       "DependsOn": [
-        "CreateWait12",
+        "CreateWait13",
       ],
       "Properties": {
         "Content": {
@@ -4228,9 +4440,7 @@ def is_open_cidr(rule: dict) -> bool:
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* APIGatewayStageArn: (Required) The ARN of the API Gateway REST API stage.
-* StageName: (Required) The name of the API Gateway REST API stage.
-* MethodSettings: (Required) The list of method settings for the methods in the API Gateway stage.
+* APIGatewayStageName: (Required) The name of the API Gateway REST API stage.
 
 ## Security Standards / Controls
 * NIST 800-53 Rev5: APIGateway.5
@@ -4245,14 +4455,12 @@ Enable encryption on API Gateway REST API cache data
                 "Handler": "enable_data_encryption",
                 "InputPayload": {
                   "APIGatewayStageArn": "{{ APIGatewayStageArn }}",
-                  "MethodSettings": "{{ MethodSettings }}",
-                  "StageName": "{{ StageName }}",
                 },
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import TYPE_CHECKING, List, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     from mypy_boto3_apigateway import APIGatewayClient
@@ -4274,8 +4482,6 @@ class MethodSettings(TypedDict):
 
 class Event(TypedDict):
     APIGatewayStageArn: str
-    StageName: str
-    MethodSettings: List[MethodSettings]
 
 
 def enable_data_encryption(event: Event, _):
@@ -4284,18 +4490,17 @@ def enable_data_encryption(event: Event, _):
 
     try:
         api_id = event["APIGatewayStageArn"].split("/")[2]
-
-        for method_settings in event["MethodSettings"]:
-            resource_path = method_settings["ResourcePath"]
-            http_method = method_settings["HttpMethod"]
-
+        stage_name = event["APIGatewayStageArn"].split("/")[4]
+        print(api_id, stage_name)
+        stage_details = apigateway.get_stage(restApiId=api_id, stageName=stage_name)
+        for method_key, method_value in stage_details["methodSettings"].items():
             apigateway.update_stage(
                 restApiId=api_id,
-                stageName=event["StageName"],
+                stageName=stage_name,
                 patchOperations=[
                     {
                         "op": "replace",
-                        "path": f"/{resource_path}/{http_method}/caching/dataEncrypted",
+                        "path": f"/{method_key}/caching/dataEncrypted",
                         "value": "true",
                     },
                 ],
@@ -4322,22 +4527,13 @@ def enable_data_encryption(event: Event, _):
           ],
           "parameters": {
             "APIGatewayStageArn": {
-              "allowedPattern": "^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::\\/restapis\\/([a-z0-9]+)\\/stages\\/.+)$",
+              "allowedPattern": "^(arn:(?:aws|aws-cn|aws-us-gov):apigateway:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d)::\\/restapis\\/(.+)\\/stages\\/.+)$",
               "description": "(Required) The ARN of the API Gateway stage.",
               "type": "String",
             },
             "AutomationAssumeRole": {
               "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
-              "type": "String",
-            },
-            "MethodSettings": {
-              "description": "(Required) The list of method settings for the methods in the API Gateway stage.",
-              "type": "MapList",
-            },
-            "StageName": {
-              "allowedPattern": "^[a-zA-Z0-9_-]+$|^\\$default$",
-              "description": "(Required) The name of the API Gateway stage.",
               "type": "String",
             },
           },
@@ -4352,7 +4548,7 @@ def enable_data_encryption(event: Event, _):
     },
     "ASREnableAPIGatewayExecutionLogs": {
       "DependsOn": [
-        "CreateWait13",
+        "CreateWait14",
       ],
       "Properties": {
         "Content": {
@@ -5178,7 +5374,7 @@ def process_results(event, _):
               "type": "String",
             },
             "KMSKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "description": "The ARN of a KMS key to use for encryption of the SNS Topic and Config bucket",
               "type": "String",
             },
@@ -5198,7 +5394,7 @@ def process_results(event, _):
     },
     "ASREnableAthenaWorkGroupLogging": {
       "DependsOn": [
-        "CreateWait13",
+        "CreateWait14",
       ],
       "Properties": {
         "Content": {
@@ -5409,7 +5605,7 @@ def verify(event, _):
     },
     "ASREnableAutoSecretRotation": {
       "DependsOn": [
-        "CreateWait11",
+        "CreateWait13",
       ],
       "Properties": {
         "Content": {
@@ -6308,7 +6504,7 @@ def enable_trail_encryption(event, _):
               "type": "String",
             },
             "KMSKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
               "description": "The ARN of the KMS key created by ASR for this remediation",
               "type": "String",
@@ -6586,7 +6782,7 @@ The document enables CopyTagsToSnapshot on an Amazon RDS cluster using the [Modi
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* DbClusterResourceId: (Required) Resource ID of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
+* RDSClusterARN: (Required) ARN of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
 * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
   * Default: false
 
@@ -6596,23 +6792,22 @@ The document enables CopyTagsToSnapshot on an Amazon RDS cluster using the [Modi
           "mainSteps": [
             {
               "action": "aws:executeAwsApi",
-              "description": "## GetDBClusterIdentifier
-Accepts the Resource ID as input and returns the DB cluster identifier.
+              "description": "## GetRDSInstanceIdentifier
+Makes DescribeDBClusters API call using Amazon RDS Instance ARN to get DbClusterIdentifier.
 ## Outputs
-* DBClusterIdentifier: The ID of the DB cluster.
+* DbClusterIdentifier: Identifier of the Amazon RDS Cluster.
 ",
               "inputs": {
-                "Api": "GetResourceConfigHistory",
-                "Service": "config",
-                "resourceId": "{{ DbClusterResourceId }}",
-                "resourceType": "AWS::RDS::DBCluster",
+                "Api": "DescribeDBClusters",
+                "DBClusterIdentifier": "{{ RDSClusterARN }}",
+                "Service": "rds",
               },
               "isEnd": false,
-              "name": "GetDBClusterIdentifier",
+              "name": "DescribeDBClusters",
               "outputs": [
                 {
-                  "Name": "DBClusterIdentifier",
-                  "Selector": "$.configurationItems[0].resourceName",
+                  "Name": "DbClusterIdentifier",
+                  "Selector": "$.DBClusters[0].DBClusterIdentifier",
                   "Type": "String",
                 },
               ],
@@ -6625,7 +6820,7 @@ Verifies if \`Status\` is available before proeeding to the next step.
 ",
               "inputs": {
                 "Api": "DescribeDBClusters",
-                "DBClusterIdentifier": "{{ GetDBClusterIdentifier.DBClusterIdentifier }}",
+                "DBClusterIdentifier": "{{ RDSClusterARN }}",
                 "DesiredValues": [
                   "available",
                 ],
@@ -6647,7 +6842,7 @@ Accepts the cluster name as input and modifies it to set true for \`CopyTagsToSn
                 "Api": "ModifyDBCluster",
                 "ApplyImmediately": "{{ ApplyImmediately }}",
                 "CopyTagsToSnapshot": true,
-                "DBClusterIdentifier": "{{ GetDBClusterIdentifier.DBClusterIdentifier }}",
+                "DBClusterIdentifier": "{{ DescribeDBClusters.DbClusterIdentifier }}",
                 "Service": "rds",
               },
               "isEnd": false,
@@ -6670,7 +6865,7 @@ Verifies that \`CopyTagsToSnapshot\` has been enabled on the target resource.
 ",
               "inputs": {
                 "Api": "DescribeDBClusters",
-                "DBClusterIdentifier": "{{ GetDBClusterIdentifier.DBClusterIdentifier }}",
+                "DBClusterIdentifier": "{{ DescribeDBClusters.DbClusterIdentifier }}",
                 "DesiredValues": [
                   "True",
                 ],
@@ -6696,8 +6891,8 @@ Verifies that \`CopyTagsToSnapshot\` has been enabled on the target resource.
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "DbClusterResourceId": {
-              "allowedPattern": "^cluster-[A-Z0-9]+$",
+            "RDSClusterARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:cluster:.+$",
               "description": "(Required) Resource ID of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.",
               "type": "String",
             },
@@ -7065,6 +7260,75 @@ def reset_to_recognized_state(topic_arn):
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASREnableDynamoDBDeletionProtection": {
+      "DependsOn": [
+        "CreateWait10",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-EnableDynamoDBDeletionProtection
+
+## Overview
+This document enables deletion protection on a DynamoDB Table.
+
+## Pre-requisites
+None.
+
+## What does this document do?
+Enables deletion protection the given DynamoDB Table.
+
+## Input Parameters
+* ResourceArn: (Required) DynamoDB Table to be tagged.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableDynamoDBDeletionProtection.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "UpdateTable",
+                "DeletionProtectionEnabled": true,
+                "Service": "dynamodb",
+                "TableName": "{{ ResourceArn }}",
+              },
+              "isEnd": true,
+              "name": "EnableDynamoDBDeletionProtection",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+          ],
+          "outputs": [
+            "EnableDynamoDBDeletionProtection.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "ResourceArn": {
+              "allowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):dynamodb:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):(?:\\d{12}):table\\/([a-zA-Z0-9._-]{3,255})$",
+              "description": "(Required) The DynamoDB Table resource ARN.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableDynamoDBDeletionProtection",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASREnableEbsEncryptionByDefault": {
       "DependsOn": [
         "CreateWait5",
@@ -7139,6 +7403,320 @@ Checks if EbsEncryptionByDefault is enabled correctly from the previous step.
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
         "Name": "ASR-EnableEbsEncryptionByDefault",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableElastiCacheBackups": {
+      "DependsOn": [
+        "CreateWait10",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-EnableElastiCacheBackups
+
+## Overview
+This document enables automatic backups for the given ElastiCache cluster.
+
+## Pre-requisites
+None.
+
+## What does this document do?
+Takes the SnapshotRetentionPeriod provided by Security Hub control ElastiCache.1 and enables automatic backups for the given ElastiCache cluster/replication group.
+If the resource is a replication group with Cluster Mode disabled, the first cluster listed in the group will be used as the SnapshottingClusterId.
+
+## Input Parameters
+* ResourceARN: (Required) ID of the ElastiCache cluster.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableAutomaticBackups.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Enables automatic backups for the given ElastiCache Cluster.
+",
+              "inputs": {
+                "Handler": "handler",
+                "InputPayload": {
+                  "ResourceARN": "{{ResourceARN}}",
+                  "SnapshotRetentionPeriod": "{{SnapshotRetentionPeriod}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+def get_elasticache_client():
+    return boto3.client("elasticache", config=boto_config)
+
+
+class Event(TypedDict):
+    ResourceARN: str
+    SnapshotRetentionPeriod: int
+
+
+class Response(TypedDict):
+    Message: str
+    Status: str
+
+
+def handler(event: Event, _) -> Response:
+    """
+    Remediates ElastiCache.1 by enabling automatic backups.
+    """
+    try:
+        resource_arn = event["ResourceARN"]
+        snapshot_retention_period = event["SnapshotRetentionPeriod"]
+
+        resource_type = resource_arn.split(":")[5]
+
+        if resource_type.lower() == "cluster":
+            cluster_id = resource_arn.split(":")[-1]
+            enable_cluster_backups(cluster_id, snapshot_retention_period)
+        elif resource_type.lower() == "replicationgroup":
+            resource_group_id = resource_arn.split(":")[-1]
+            enable_replication_group_backups(
+                resource_group_id, snapshot_retention_period
+            )
+        else:
+            raise RuntimeError(f"Invalid resource type: {resource_type}")
+        return {
+            "Message": (f"Successfully enabled backups for cluster {resource_arn}."),
+            "Status": "success",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error enabling automatic backups for ElastiCache cluster: {str(e)}"
+        )
+
+
+def enable_cluster_backups(
+    cluster_identifier: str, snapshot_retention_period: int
+) -> None:
+    try:
+        elasticache_client = get_elasticache_client()
+        elasticache_client.modify_cache_cluster(
+            CacheClusterId=cluster_identifier,
+            SnapshotRetentionLimit=snapshot_retention_period,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to enable backups for cluster {cluster_identifier}: {str(e)}"
+        )
+
+
+def enable_replication_group_backups(
+    replication_group_id: str, snapshot_retention_period: int
+) -> None:
+    try:
+        elasticache_client = get_elasticache_client()
+
+        replication_group_details = elasticache_client.describe_replication_groups(
+            ReplicationGroupId=replication_group_id
+        )["ReplicationGroups"][0]
+
+        if replication_group_details["ClusterMode"] == "disabled":
+            snapshotting_cluster_id = replication_group_details["NodeGroups"][0][
+                "NodeGroupMembers"
+            ][0]["CacheClusterId"]
+            elasticache_client.modify_replication_group(
+                ReplicationGroupId=replication_group_id,
+                SnapshotRetentionLimit=snapshot_retention_period,
+                SnapshottingClusterId=snapshotting_cluster_id,
+            )
+        else:
+            elasticache_client.modify_replication_group(
+                ReplicationGroupId=replication_group_id,
+                SnapshotRetentionLimit=snapshot_retention_period,
+            )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to enable backups for replication group {replication_group_id}: {str(e)}"
+        )",
+              },
+              "name": "EnableAutomaticBackups",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EnableAutomaticBackups.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "ResourceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):(?:\\d{12}):(?:replicationgroup|serverlesscache|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)",
+              "description": "(Required) ID of the ElastiCache cluster.",
+              "type": "String",
+            },
+            "SnapshotRetentionPeriod": {
+              "description": "(Required) Minimum snapshot retention period in days.",
+              "type": "Integer",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableElastiCacheBackups",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableElastiCacheReplicationGroupFailover": {
+      "DependsOn": [
+        "CreateWait10",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-EnableElastiCacheReplicationGroupFailover
+
+## Overview
+This document enable automatic failover for an ElastiCache replication group.
+
+## Pre-requisites
+Replication group must have at least one read replica to enable autofailover.
+
+## What does this document do?
+Enables automatic failover for an ElastiCache replication group.
+
+## Input Parameters
+* GroupId: (Required) ID of the ElastiCache cluster.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableAutomaticFailover.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "ModifyReplicationGroup",
+                "AutomaticFailoverEnabled": true,
+                "ReplicationGroupId": "{{ GroupId }}",
+                "Service": "elasticache",
+              },
+              "isEnd": true,
+              "name": "EnableAutomaticFailover",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+          ],
+          "outputs": [
+            "EnableAutomaticFailover.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "GroupId": {
+              "allowedPattern": "^[a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|^[a-zA-Z]$",
+              "description": "(Required) ID of the ElastiCache cluster.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableElastiCacheReplicationGroupFailover",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableElastiCacheVersionUpgrades": {
+      "DependsOn": [
+        "CreateWait11",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-EnableElastiCacheVersionUpgrades
+
+## Overview
+This document enables automatic minor version upgrades for the given ElastiCache cluster.
+
+## Pre-requisites
+The cluster engine must be Valkey 7.2 or Redis OSS engine version 6.0 or later.
+
+## What does this document do?
+Updates the given ElastiCache cluster to enable automatic minor version upgrades.
+
+## Input Parameters
+* ClusterId: (Required) ID of the ElastiCache cluster.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableAutomaticMinorVersionUpgrades.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeAwsApi",
+              "inputs": {
+                "Api": "ModifyCacheCluster",
+                "AutoMinorVersionUpgrade": true,
+                "CacheClusterId": "{{ ClusterId }}",
+                "Service": "elasticache",
+              },
+              "isEnd": true,
+              "name": "EnableAutomaticMinorVersionUpgrades",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+          ],
+          "outputs": [
+            "EnableAutomaticMinorVersionUpgrades.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "ClusterId": {
+              "allowedPattern": "^[a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|^[a-zA-Z]$",
+              "description": "(Required) ID of the ElastiCache cluster.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableElastiCacheVersionUpgrades",
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
@@ -7222,7 +7800,7 @@ Verifies the given Amazon SNS Topic is encrypted with AWS KMS Key ARN.
               "type": "String",
             },
             "KmsKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
               "description": "The ARN of the KMS key created by ASR for this remediation",
               "type": "String",
@@ -7331,7 +7909,7 @@ Based on your data policy, Amazon SQS queues should be encrypted with different 
               "type": "String",
             },
             "KmsKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
               "description": "The ARN of the KMS key created by ASR for this remediation",
               "type": "String",
@@ -7361,10 +7939,10 @@ Based on your data policy, Amazon SQS queues should be encrypted with different 
           "description": "### Document Name - AWSConfigRemediation-EnableEnhancedMonitoringOnRDSInstance
 
 ## What does this document do?
-This document is used to enable enhanced monitoring on an RDS Instance using the input parameter DB Instance resourceId.
+This document is used to enable enhanced monitoring on an RDS Instance using the input parameter DB Instance ARN.
 
 ## Input Parameters
-* ResourceId: (Required) Resource ID of the RDS DB Instance.
+* RDSInstanceARN: (Required) ARN of the RDS DB Instance.
 * MonitoringInterval: (Optional)
    * The interval, in seconds, between points when Enhanced Monitoring metrics are collected for the DB instance.
    * If MonitoringRoleArn is specified, then you must also set MonitoringInterval to a value other than 0.
@@ -7380,20 +7958,13 @@ This document is used to enable enhanced monitoring on an RDS Instance using the
             {
               "action": "aws:executeAwsApi",
               "description": "## DescribeDBInstances
-  Makes describeDBInstances API call using RDS Instance DbiResourceId to get DBInstanceId.
+  Makes describeDBInstances API call using RDS Instance ARN.
 ## Outputs
 * DbInstanceIdentifier: DBInstance Identifier of the RDS Instance.
 ",
               "inputs": {
                 "Api": "DescribeDBInstances",
-                "Filters": [
-                  {
-                    "Name": "dbi-resource-id",
-                    "Values": [
-                      "{{ ResourceId }}",
-                    ],
-                  },
-                ],
+                "DBInstanceIdentifier": "{{ RDSInstanceARN }}",
                 "Service": "rds",
               },
               "isEnd": false,
@@ -7567,9 +8138,9 @@ def handler(event, _):
               "description": "(Required) The ARN for the IAM role that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs.",
               "type": "String",
             },
-            "ResourceId": {
-              "allowedPattern": "db-[A-Z0-9]{26}",
-              "description": "(Required) Resource ID of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.",
+            "RDSInstanceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:db:.+$",
+              "description": "(Required) ARN of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.",
               "type": "String",
             },
           },
@@ -7584,7 +8155,7 @@ def handler(event, _):
     },
     "ASREnableGuardDuty": {
       "DependsOn": [
-        "CreateWait11",
+        "CreateWait12",
       ],
       "Properties": {
         "Content": {
@@ -7909,7 +8480,7 @@ Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
     },
     "ASREnableMacie": {
       "DependsOn": [
-        "CreateWait12",
+        "CreateWait14",
       ],
       "Properties": {
         "Content": {
@@ -7984,7 +8555,7 @@ This document enables AutoMinorVersionUpgrade on the Amazon Relational Database 
 
 ## Input parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* DbiResourceId: (Required) Resource ID of the Amazon RDS instance to be modified.
+* RDSInstanceARN: (Required) ARN of the Amazon RDS instance to be modified.
 
 ## Output parameters
 * ModifyDBInstance.Output: The standard HTTP response from the ModifyDBInstance API.
@@ -7995,7 +8566,7 @@ This document enables AutoMinorVersionUpgrade on the Amazon Relational Database 
               "inputs": {
                 "Handler": "lambda_handler",
                 "InputPayload": {
-                  "DBInstanceIdentifier": "{{DBInstanceIdentifier}}",
+                  "RDSInstanceARN": "{{RDSInstanceARN}}",
                 },
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -8021,13 +8592,14 @@ def lambda_handler(event, _):
 
     \`context\` is ignored
     """
-    db_instance_id = event["DBInstanceIdentifier"]
+    db_instance_arn = event["RDSInstanceARN"]
 
     rds = connect_to_rds()
 
-    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_id)
+    found_instance = rds.describe_db_instances(DBInstanceIdentifier=db_instance_arn)
 
     instance_info = found_instance["DBInstances"][0]
+    db_instance_id = instance_info["DBInstanceIdentifier"]
 
     response = False
 
@@ -8047,7 +8619,7 @@ def lambda_handler(event, _):
         return {"AutoMinorVersionUpgrade": response}
 
     raise RuntimeError(
-        f"ASR Remediation failed - {db_instance_id} did not have enable auto minor version upgrades enabled."
+        f"ASR Remediation failed - {db_instance_arn} did not have enable auto minor version upgrades enabled."
     )
 
 
@@ -8147,8 +8719,8 @@ def verify_instance_changes(instance_id):
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "DBInstanceIdentifier": {
-              "allowedPattern": "^(?!.*--)[a-zA-Z][a-zA-Z0-9.,$;-]{0,58}[^-]$",
+            "RDSInstanceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:db:.+$",
               "description": "(Required) Identifier of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.",
               "type": "String",
             },
@@ -8176,7 +8748,7 @@ This document enables MultiAZ on an RDS instance.
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* DbiResourceId: (Required) Resource ID of the RDS instance to be modified.
+* RDSInstanceARN: (Required) ARN of the RDS instance to be modified.
 * ApplyImmediately: (Optional) The MultiAZ on an RDS instance change is applied during the next maintenance window unless the ApplyImmediately parameter is enabled (true) for this request. By default, this parameter is disabled (false).
 
 ## Output Parameters
@@ -8193,14 +8765,7 @@ Makes DescribeDBInstances API call using RDS DB instance resource identifiers to
 ",
               "inputs": {
                 "Api": "DescribeDBInstances",
-                "Filters": [
-                  {
-                    "Name": "dbi-resource-id",
-                    "Values": [
-                      "{{ DbiResourceId }}",
-                    ],
-                  },
-                ],
+                "DBInstanceIdentifier": "{{ RDSInstanceARN }}",
                 "Service": "rds",
               },
               "isEnd": false,
@@ -8316,9 +8881,9 @@ Verifies that the RDS Instance's \`PendingModifiedValues.MultiAZ\` value is \`Tr
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "DbiResourceId": {
-              "allowedPattern": "^db-[A-Z0-9]{26}$",
-              "description": "(Required) Resource ID of the RDS instance for which MultiAZ needs to be enabled.",
+            "RDSInstanceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:db:.+$",
+              "description": "(Required) ARN of the RDS instance for which MultiAZ needs to be enabled.",
               "type": "String",
             },
           },
@@ -8333,7 +8898,7 @@ Verifies that the RDS Instance's \`PendingModifiedValues.MultiAZ\` value is \`Tr
     },
     "ASREnablePrivateRepositoryScanning": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -8434,7 +8999,7 @@ Please note, AWS Config is required to be enabled in this region for this docume
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* ClusterId: (Required) Resource ID of the Amazon RDS cluster.
+* RDSClusterARN: (Required) ARN of the Amazon RDS cluster.
 
 ## Output Parameters
 * EnableRDSClusterDeletionProtection.ModifyDBClusterResponse: The standard HTTP response from the ModifyDBCluster API.
@@ -8442,24 +9007,22 @@ Please note, AWS Config is required to be enabled in this region for this docume
           "mainSteps": [
             {
               "action": "aws:executeAwsApi",
-              "description": "## GetRDSClusterIdentifer
-Accepts the resource ID of the Amazon RDS Cluster as input and returns the cluster name.
+              "description": "## GetRDSInstanceIdentifier
+Makes DescribeDBClusters API call using Amazon RDS Instance ARN to get DbClusterIdentifier.
 ## Outputs
-* DbClusterIdentifier: The ID of the DB cluster for which the input parameter matches DbClusterResourceId element from the output of the DescribeDBClusters API call.
+* DbClusterIdentifier: Identifier of the Amazon RDS Cluster.
 ",
               "inputs": {
-                "Api": "GetResourceConfigHistory",
-                "Service": "config",
-                "limit": 1,
-                "resourceId": "{{ ClusterId }}",
-                "resourceType": "AWS::RDS::DBCluster",
+                "Api": "DescribeDBClusters",
+                "DBClusterIdentifier": "{{ RDSClusterARN }}",
+                "Service": "rds",
               },
               "isEnd": false,
-              "name": "GetRDSClusterIdentifer",
+              "name": "DescribeDBClusters",
               "outputs": [
                 {
                   "Name": "DbClusterIdentifier",
-                  "Selector": "$.configurationItems[0].resourceName",
+                  "Selector": "$.DBClusters[0].DBClusterIdentifier",
                   "Type": "String",
                 },
               ],
@@ -8467,12 +9030,12 @@ Accepts the resource ID of the Amazon RDS Cluster as input and returns the clust
             },
             {
               "action": "aws:assertAwsResourceProperty",
-              "description": "## VerifyDBClusterStatus
-Verifies if the DB Cluster status is available before enabling cluster deletion protection.
+              "description": "## VerifyStatus
+Verifies if \`Status\` is available before proeeding to the next step.
 ",
               "inputs": {
                 "Api": "DescribeDBClusters",
-                "DBClusterIdentifier": "{{ GetRDSClusterIdentifer.DbClusterIdentifier }}",
+                "DBClusterIdentifier": "{{ RDSClusterARN }}",
                 "DesiredValues": [
                   "available",
                 ],
@@ -8480,7 +9043,7 @@ Verifies if the DB Cluster status is available before enabling cluster deletion 
                 "Service": "rds",
               },
               "isEnd": false,
-              "name": "VerifyDBClusterStatus",
+              "name": "VerifyStatus",
               "timeoutSeconds": 600,
             },
             {
@@ -8492,7 +9055,7 @@ Enables deletion protection on the Amazon RDS Cluster.
 ",
               "inputs": {
                 "Api": "ModifyDBCluster",
-                "DBClusterIdentifier": "{{ GetRDSClusterIdentifer.DbClusterIdentifier }}",
+                "DBClusterIdentifier": "{{ DescribeDBClusters.DbClusterIdentifier }}",
                 "DeletionProtection": true,
                 "Service": "rds",
               },
@@ -8514,7 +9077,7 @@ Verifies that deletion protection has been enabled for the given Amazon RDS data
 ",
               "inputs": {
                 "Api": "DescribeDBClusters",
-                "DBClusterIdentifier": "{{ GetRDSClusterIdentifer.DbClusterIdentifier }}",
+                "DBClusterIdentifier": "{{ DescribeDBClusters.DbClusterIdentifier }}",
                 "DesiredValues": [
                   "True",
                 ],
@@ -8535,9 +9098,9 @@ Verifies that deletion protection has been enabled for the given Amazon RDS data
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "ClusterId": {
-              "allowedPattern": "^[a-zA-Z0-9-]{1,35}$",
-              "description": "(Required) Amazon RDS cluster resourceId for which deletion protection needs to be enabled.",
+            "RDSClusterARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:cluster:.+$",
+              "description": "(Required) Amazon RDS cluster ARN for which deletion protection needs to be enabled.",
               "type": "String",
             },
           },
@@ -8566,7 +9129,7 @@ This document enables \`Deletion Protection\` on a given Amazon RDS instance usi
 * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications
   are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance.
   * Default: "false"
-* DbInstanceResourceId: (Required) Amazon RDS Instance resourceId for which deletion protection needs to be enabled.
+* RDSInstanceARN: (Required) Amazon RDS Instance ARN for which deletion protection needs to be enabled.
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 
 ## Output Parameters
@@ -8576,20 +9139,13 @@ This document enables \`Deletion Protection\` on a given Amazon RDS instance usi
             {
               "action": "aws:executeAwsApi",
               "description": "## GetRDSInstanceIdentifier
-Makes DescribeDBInstances API call using Amazon RDS Instance DbiResourceId to get DBInstance Identifier.
+Makes DescribeDBInstances API call using Amazon RDS Instance ARN to get DBInstance Identifier.
 ## Outputs
 * DbInstanceIdentifier: DBInstance Identifier of the Amazon RDS Instance.
 ",
               "inputs": {
                 "Api": "DescribeDBInstances",
-                "Filters": [
-                  {
-                    "Name": "dbi-resource-id",
-                    "Values": [
-                      "{{ DbInstanceResourceId }}",
-                    ],
-                  },
-                ],
+                "DBInstanceIdentifier": "{{ RDSInstanceARN }}",
                 "Service": "rds",
               },
               "isEnd": false,
@@ -8661,9 +9217,9 @@ Checks whether deletion protection is enabled on Amazon RDS Instance.
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "DbInstanceResourceId": {
-              "allowedPattern": "^db-[A-Z0-9]{26}$",
-              "description": "(Required) Resource ID of the Amazon RDS instance for which deletion protection needs to be enabled.",
+            "RDSInstanceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:db:.+$",
+              "description": "(Required) ARN of the Amazon RDS instance for which deletion protection needs to be enabled.",
               "type": "String",
             },
           },
@@ -9060,7 +9616,7 @@ def enable_flow_logs(event, _):
               "type": "String",
             },
             "KMSKeyArn": {
-              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "default": "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}",
               "description": "The ARN of the KMS key created by ASR for remediations requiring encryption",
               "type": "String",
@@ -9268,7 +9824,7 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
               "type": "String",
             },
             "KmsKeyId": {
-              "allowedPattern": "^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
+              "allowedPattern": "^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:)?(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$",
               "default": "alias/aws/rds",
               "description": "(Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.",
               "type": "String",
@@ -9289,6 +9845,345 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
         "Name": "ASR-EncryptRDSSnapshot",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnforceHTTPSForALB": {
+      "DependsOn": [
+        "CreateWait10",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-EnforceHTTPSForALB
+
+## Overview
+This document adds HTTPS enforcement for an ALB.
+
+## Pre-requisites
+* The ALB must *not* have a listener on port 80 with a protocol other than HTTP.
+
+## What does this document do?
+Creates a new listener for HTTP on port 80 which redirects traffic to HTTPS on port 443. If a listener already exists for HTTP on port 80, 
+it will overwrite the default action to redirect to HTTPS on port 443.
+
+## Input Parameters
+* ResourceARN: (Required) ARN of the ALB.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnforceHTTPSForALB.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Configures a listener on port 80 to redirect HTTP traffic to HTTPS on port 443.
+",
+              "inputs": {
+                "Handler": "handler",
+                "InputPayload": {
+                  "ResourceARN": "{{ResourceARN}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+def get_elbv2_client():
+    return boto3.client("elbv2", config=boto_config)
+
+
+class Event(TypedDict):
+    ResourceARN: str
+
+
+class Response(TypedDict):
+    Message: str
+    Status: str
+
+
+def handler(event: Event, _) -> Response:
+    """
+    Remediates ELB.1 by adding a listener rule to route HTTP requests to HTTPS.
+    """
+    try:
+        resource_arn = event["ResourceARN"]
+
+        existing_http_listeners = get_existing_http_listener(resource_arn)
+
+        if not existing_http_listeners:
+            setup_http_to_https_listener_rule(resource_arn, "")
+
+        for listener_arn in existing_http_listeners:
+            setup_http_to_https_listener_rule(resource_arn, listener_arn)
+        return {
+            "Message": f"Successfully configured HTTPS listener rule for ALB {resource_arn}.",
+            "Status": "success",
+        }
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error configuring HTTPS listener rule for ALB: {str(e)}"
+        )
+
+
+def get_existing_http_listener(load_balancer_arn: str) -> list[str]:
+    try:
+        elbv2_client = get_elbv2_client()
+        listeners = elbv2_client.describe_listeners(LoadBalancerArn=load_balancer_arn)[
+            "Listeners"
+        ]
+        result = []
+
+        for listener in listeners:
+            if listener["Protocol"] == "HTTP":
+                result.append(listener["ListenerArn"])
+        return result
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to get existing port 80 rule for ALB {load_balancer_arn}: {str(e)}"
+        )
+
+
+def setup_http_to_https_listener_rule(
+    load_balancer_arn: str, listener_arn: str
+) -> None:
+    try:
+        elbv2_client = get_elbv2_client()
+        if not listener_arn:
+            elbv2_client.create_listener(
+                LoadBalancerArn=load_balancer_arn,
+                Protocol="HTTP",
+                Port=80,
+                DefaultActions=[
+                    {
+                        "Type": "redirect",
+                        "RedirectConfig": {
+                            "Protocol": "HTTPS",
+                            "Port": "443",
+                            "Host": "#{host}",
+                            "Path": "/#{path}",
+                            "Query": "#{query}",
+                            "StatusCode": "HTTP_301",
+                        },
+                    },
+                ],
+            )
+        else:
+            elbv2_client.modify_listener(
+                ListenerArn=listener_arn,
+                DefaultActions=[
+                    {
+                        "Type": "redirect",
+                        "RedirectConfig": {
+                            "Protocol": "HTTPS",
+                            "Port": "443",
+                            "Host": "#{host}",
+                            "Path": "/#{path}",
+                            "Query": "#{query}",
+                            "StatusCode": "HTTP_301",
+                        },
+                    }
+                ],
+            )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to setup HTTPS listener rule for ALB {load_balancer_arn}: {str(e)}"
+        )",
+              },
+              "name": "EnforceHTTPSForALB",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EnforceHTTPSForALB.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "ResourceARN": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):elasticloadbalancing:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:loadbalancer/app/(?:.+)$",
+              "description": "(Required) The Application Load Balancer ARN.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnforceHTTPSForALB",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASRLimitECSRootFilesystemAccess": {
+      "DependsOn": [
+        "CreateWait10",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-LimitECSRootFilesystemAccess
+
+## Overview
+This document limits root filesystem access to readonly for the ECS Task Definition.
+
+## Pre-requisites
+* None
+
+## What does this document do?
+Creates a new revision for the non-compliant task definition and sets root filesystem access to readonly.
+
+## Input Parameters
+* TaskDefinitionId: (Required) VPC to be remediated.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* LimitECSRootFilesystemAccess.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Creates a new task definition revision with root filesystem access to readonly.
+",
+              "inputs": {
+                "Handler": "handler",
+                "InputPayload": {
+                  "TaskDefinitionId": "{{TaskDefinitionId}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+class Event(TypedDict):
+    TaskDefinitionId: str
+
+
+class Response(TypedDict):
+    message: str
+    status: str
+
+
+def get_ecs_client():
+    return boto3.client("ecs", config=boto_config)
+
+
+def handler(event, _) -> Response:
+    """
+    Remediates ECS.5 Security Hub finding by creating a new
+    revision for the non-compliant Task Definition with readonlyRootFilesystem.
+    """
+    try:
+        task_definition_id = event["TaskDefinitionId"]
+
+        task_definition = get_task_definition(task_definition_id)
+        stripped_task_defintion = strip_task_definition(task_definition)
+
+        set_readonly_root_filesystem(stripped_task_defintion)
+
+        new_revision_arn = register_new_revision(stripped_task_defintion)
+        return {
+            "message": f"Successfully registered new task definition {new_revision_arn}.",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(f"Failed to Limit Root Filesystem access: {str(e)}")
+
+
+def get_task_definition(task_definition_id: str) -> dict:
+    ecs_client = get_ecs_client()
+    task_definition = ecs_client.describe_task_definition(
+        taskDefinition=task_definition_id,
+        include=[
+            "TAGS",
+        ],
+    )
+    return task_definition["taskDefinition"]
+
+
+def strip_task_definition(task_definition: dict) -> dict:
+    """
+    Creates a new dictionary with only the keys accepted by the RegisterTaskDefinition API.
+    """
+    accepted_keys = set(task_definition.keys()) - {
+        "taskDefinitionArn",
+        "revision",
+        "compatibilities",
+        "status",
+        "requiresAttributes",
+        "registeredAt",
+        "registeredBy",
+    }
+    return {key: task_definition[key] for key in accepted_keys}
+
+
+def set_readonly_root_filesystem(task_definition: dict):
+    container_definitions = task_definition["containerDefinitions"]
+    for container_definition in container_definitions:
+        container_definition["readonlyRootFilesystem"] = True
+
+
+def register_new_revision(task_definition: dict) -> str:
+    ecs_client = get_ecs_client()
+    response = ecs_client.register_task_definition(**task_definition)
+    return response["taskDefinition"]["taskDefinitionArn"]",
+              },
+              "name": "LimitECSRootFilesystemAccess",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "LimitECSRootFilesystemAccess.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "TaskDefinitionId": {
+              "allowedPattern": "^[a-zA-Z0-9_-]{1,255}:\\d$",
+              "description": "(Required) The ECS task definition Id.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-LimitECSRootFilesystemAccess",
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
@@ -9930,7 +10825,7 @@ def verify(function_name_to_check):
     },
     "ASRRemoveUnusedSecret": {
       "DependsOn": [
-        "CreateWait11",
+        "CreateWait13",
       ],
       "Properties": {
         "Content": {
@@ -10538,7 +11433,7 @@ Changes the settings of a build project.
     },
     "ASRRevokeUnauthorizedInboundRules": {
       "DependsOn": [
-        "CreateWait11",
+        "CreateWait13",
       ],
       "Properties": {
         "Content": {
@@ -10752,7 +11647,7 @@ def revoke_unauthorized_rules(
 This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
 
 ## Input Parameters
-* Finding: (Required) Security Hub finding details JSON
+* IAMUserName: (Required) User Name for the non-compliant IAM User.
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
 * MaxCredentialUsageAge: (Optional) Maximum number of days a key is allowed to be unrotated before revoking it. DEFAULT: 90
 
@@ -10771,7 +11666,7 @@ This step deactivates IAM user access keys that have not been rotated in more th
               "inputs": {
                 "Handler": "unrotated_key_handler",
                 "InputPayload": {
-                  "IAMResourceId": "{{ IAMResourceId }}",
+                  "IAMUserName": "{{ IAMUserName }}",
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
                 "Runtime": "python3.11",
@@ -10802,21 +11697,6 @@ responses["DeactivateUnusedKeysResponse"] = []
 
 def connect_to_iam(boto_config):
     return boto3.client("iam", config=boto_config)
-
-
-def connect_to_config(boto_config):
-    return boto3.client("config", config=boto_config)
-
-
-def get_user_name(resource_id):
-    config_client = connect_to_config(boto_config)
-    list_discovered_resources_response = config_client.list_discovered_resources(
-        resourceType="AWS::IAM::User", resourceIds=[resource_id]
-    )
-    resource_name = list_discovered_resources_response.get("resourceIdentifiers")[
-        0
-    ].get("resourceName")
-    return resource_name
 
 
 def list_access_keys(user_name, include_inactive=False):
@@ -10871,12 +11751,9 @@ def deactivate_key(user_name, access_key):
 def verify_expired_credentials_revoked(responses, user_name):
     if responses.get("DeactivateUnusedKeysResponse"):
         for key in responses.get("DeactivateUnusedKeysResponse"):
-            key_data = next(
-                filter(
-                    lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"),
-                    list_access_keys(user_name, True),
-                )
-            )  # NOSONAR The value key should change at the next loop iteration as we're cycling through each response.
+            # fmt: off
+            key_data = next(filter(lambda x: x.get("AccessKeyId") == key.get("AccessKeyId"), list_access_keys(user_name, True),))  # NOSONAR The value key should change at the next loop iteration as we're cycling through each response.
+            # fmt: on
             if key_data.get("Status") != "Inactive":
                 error_message = (
                     "VERIFICATION FAILED. ACCESS KEY {} NOT DEACTIVATED".format(
@@ -10892,7 +11769,7 @@ def verify_expired_credentials_revoked(responses, user_name):
 
 
 def unrotated_key_handler(event, _):
-    user_name = get_user_name(event.get("IAMResourceId"))
+    user_name = event.get("IAMUserName")
     max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
     access_keys = list_access_keys(user_name)
     deactivate_unused_keys(access_keys, max_credential_usage_age, user_name)
@@ -10919,7 +11796,7 @@ def unrotated_key_handler(event, _):
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "IAMResourceId": {
+            "IAMUserName": {
               "allowedPattern": "^[\\w+=,.@_-]{1,128}$",
               "description": "(Required) IAM resource unique identifier.",
               "type": "String",
@@ -10927,7 +11804,7 @@ def unrotated_key_handler(event, _):
             "MaxCredentialUsageAge": {
               "allowedPattern": "^(?:[1-9]\\d{0,3}|10000)$",
               "default": "90",
-              "description": "(Required) Maximum number of days within which a credential must be used. The default value is 90 days.",
+              "description": "(Optional) Maximum number of days within which a credential must be used. The default value is 90 days.",
               "type": "String",
             },
           },
@@ -10954,24 +11831,24 @@ This document revokes unused IAM passwords and active access keys. This document
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* IAMResourceId: (Required) IAM resource unique identifier.
+* IAMUserName: (Required) User Name for the non-compliant IAM User.
 * MaxCredentialUsageAge: (Required) Maximum number of days within which a credential must be used. The default value is 90 days.
 
 ## Output Parameters
-* RevokeUnusedIAMUserCredentialsAndVerify.Output - Success message or failure Exception.
+* RevokeUnusedIAMUserCredentials.Output - Success message or failure Exception.
 ",
           "mainSteps": [
             {
               "action": "aws:executeScript",
-              "description": "## RevokeUnusedIAMUserCredentialsAndVerify
-This step deactivates expired IAM User access keys, deletes expired login profiles and verifies credentials were revoked
+              "description": "## RevokeUnusedIAMUserCredentials
+This step deactivates expired IAM User access keys and deletes expired login profiles
 ## Outputs
 * Output: Success message or failure Exception.
 ",
               "inputs": {
-                "Handler": "unused_iam_credentials_handler",
+                "Handler": "handler",
                 "InputPayload": {
-                  "IAMResourceId": "{{ IAMResourceId }}",
+                  "IAMUserName": "{{ IAMUserName }}",
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
                 "Runtime": "python3.11",
@@ -10992,7 +11869,7 @@ def connect_to_service(service):
 
 
 class Event(TypedDict):
-    IAMResourceId: str
+    IAMUserName: str
     MaxCredentialUsageAge: str
 
 
@@ -11011,8 +11888,7 @@ class LoginProfile(TypedDict):
 
 def handler(event, _) -> HandlerResponse:
     try:
-        iam_resource_id = event.get("IAMResourceId")
-        user_name = get_user_name(iam_resource_id)
+        user_name = event.get("IAMUserName")
 
         max_credential_usage_age = int(event.get("MaxCredentialUsageAge"))
 
@@ -11133,26 +12009,10 @@ def delete_unused_password(
     except Exception as e:
         raise RuntimeError(
             f"Encountered error deleting unused password for user {user_name}: {str(e)}"
-        )
-
-
-def get_user_name(resource_id: str) -> str:
-    config_client = connect_to_service("config")
-    try:
-        list_discovered_resources_response = config_client.list_discovered_resources(
-            resourceType="AWS::IAM::User", resourceIds=[resource_id]
-        )
-        resource_name = list_discovered_resources_response.get("resourceIdentifiers")[
-            0
-        ].get("resourceName")
-        return resource_name
-    except Exception as e:
-        raise RuntimeError(
-            f"Encountered error fetching user name for resource {resource_id}: {str(e)}"
         )",
               },
               "isEnd": true,
-              "name": "RevokeUnusedIAMUserCredentialsAndVerify",
+              "name": "RevokeUnusedIAMUserCredentials",
               "outputs": [
                 {
                   "Name": "Output",
@@ -11164,7 +12024,7 @@ def get_user_name(resource_id: str) -> str:
             },
           ],
           "outputs": [
-            "RevokeUnusedIAMUserCredentialsAndVerify.Output",
+            "RevokeUnusedIAMUserCredentials.Output",
           ],
           "parameters": {
             "AutomationAssumeRole": {
@@ -11172,9 +12032,9 @@ def get_user_name(resource_id: str) -> str:
               "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
               "type": "String",
             },
-            "IAMResourceId": {
+            "IAMUserName": {
               "allowedPattern": "^[\\w+=,.@_-]{1,128}$",
-              "description": "(Required) IAM resource unique identifier.",
+              "description": "(Required) User Name for the non-compliant IAM User.",
               "type": "String",
             },
             "MaxCredentialUsageAge": {
@@ -11441,7 +12301,7 @@ def update_bucket_policy(event, _):
     },
     "ASRSetCloudFrontOriginDomain": {
       "DependsOn": [
-        "CreateWait9",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -11749,7 +12609,7 @@ def set_iam_password_policy(event: Event, _) -> Response:
     },
     "ASRSetLogGroupRetentionDays": {
       "DependsOn": [
-        "CreateWait12",
+        "CreateWait13",
       ],
       "Properties": {
         "Content": {
@@ -11859,7 +12719,7 @@ Sets the retention days for a Log Group.
     },
     "ASRSetS3LifecyclePolicy": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -12176,9 +13036,153 @@ def add_ssl_bucket_policy(event, _):
       },
       "Type": "AWS::SSM::Document",
     },
+    "ASRTagDynamoDBTableResource": {
+      "DependsOn": [
+        "CreateWait12",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-TagDynamoDBTableResource
+
+## Overview
+This document adds required tags to a non-compliant DynamoDB Table.
+
+## Pre-requisites
+* (Optional) Configure the tags you would like to add in the Security Hub settings for the DynamoDB.5 control.
+
+## What does this document do?
+Tags the given DynamoDB Table with the required tags specified in Security Hub. If no required tags are specified, adds a default tag to the resource.
+
+## Input Parameters
+* ResourceArn: (Required) DynamoDB Table to be tagged.
+* RequiredTagKeys: (Optional) Security Control Parameters for DynamoDB.5.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* TagDynamoDBTableResource.Output
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Adds required tags to a non-compliant DynamoDB Table.
+",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "RequiredTagKeys": "{{RequiredTagKeys}}",
+                  "ResourceArn": "{{ResourceArn}}",
+                  "ResourceType": "DynamoDBTable",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import List, TypedDict
+
+import boto3
+from botocore.config import Config
+
+boto_config = Config(retries={"mode": "standard"})
+
+
+class Event(TypedDict):
+    ResourceArn: str
+    ResourceType: str
+    RequiredTagKeys: List[str]
+
+
+def get_guardduty_client():
+    return boto3.client("guardduty", config=boto_config)
+
+
+def get_dynamodb_client():
+    return boto3.client("dynamodb", config=boto_config)
+
+
+def lambda_handler(event, _):
+    """
+    Remediates untagged resources by tagging them with
+    the required tag keys. If no required tag keys are
+    specified, tags them with a default key, e.g. "SO0111-ASR-GuardDutyResource".
+    """
+    try:
+        required_tags = get_required_tags_from_event(event)
+        resource_arn = event["ResourceArn"]
+        resource_type = event["ResourceType"]
+
+        if resource_type == "GuardDuty":
+            tag_guardduty_resource(tags=required_tags, resource_arn=resource_arn)
+        elif resource_type == "DynamoDBTable":
+            tag_dynamodb_table_resource(tags=required_tags, resource_arn=resource_arn)
+        return {
+            "message": f"Successfully tagged resource {resource_arn}.",
+            "status": "Success",
+        }
+    except Exception as e:
+        raise RuntimeError(f"Failed to tag resource: {str(e)}")
+
+
+def tag_guardduty_resource(tags: List[str], resource_arn: str):
+    guardduty_client = get_guardduty_client()
+    tags_dict = {tag: "" for tag in tags}
+    guardduty_client.tag_resource(ResourceArn=resource_arn, Tags=tags_dict)
+
+
+def tag_dynamodb_table_resource(tags: List[str], resource_arn: str):
+    dynamodb_client = get_dynamodb_client()
+    tags_list = [{"Key": tag, "Value": ""} for tag in tags]
+    dynamodb_client.tag_resource(ResourceArn=resource_arn, Tags=tags_list)
+
+
+def get_required_tags_from_event(event):
+    required_tag_keys = event.get("RequiredTagKeys", {})
+    if required_tag_keys:
+        return [tag.strip() for tag in required_tag_keys]
+    return None",
+              },
+              "name": "TagDynamoDBTableResource",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "TagDynamoDBTableResource.Output",
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+            "RequiredTagKeys": {
+              "description": "Required tag keys for DynamoDB Tables",
+              "type": "StringList",
+            },
+            "ResourceArn": {
+              "allowedPattern": "^arn:(?:aws|aws-cn|aws-us-gov):dynamodb:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):(?:\\d{12}):table\\/([a-zA-Z0-9._-]{3,255})$",
+              "description": "(Required) The DynamoDB Table resource ARN.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-TagDynamoDBTableResource",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
     "ASRTagGuardDutyResource": {
       "DependsOn": [
-        "CreateWait11",
+        "CreateWait12",
       ],
       "Properties": {
         "Content": {
@@ -12213,11 +13217,12 @@ Adds required tags to a non-compliant GuardDuty resource.
                 "InputPayload": {
                   "RequiredTagKeys": "{{RequiredTagKeys}}",
                   "ResourceArn": "{{ResourceArn}}",
+                  "ResourceType": "GuardDuty",
                 },
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-from typing import List
+from typing import List, TypedDict
 
 import boto3
 from botocore.config import Config
@@ -12225,32 +13230,53 @@ from botocore.config import Config
 boto_config = Config(retries={"mode": "standard"})
 
 
-def connect_to_guardduty():
+class Event(TypedDict):
+    ResourceArn: str
+    ResourceType: str
+    RequiredTagKeys: List[str]
+
+
+def get_guardduty_client():
     return boto3.client("guardduty", config=boto_config)
+
+
+def get_dynamodb_client():
+    return boto3.client("dynamodb", config=boto_config)
 
 
 def lambda_handler(event, _):
     """
-    Remediates untagged GuardDuty resources by tagging them with
+    Remediates untagged resources by tagging them with
     the required tag keys. If no required tag keys are
-    specified, tags them with "SO0111-GuardDutyResource".
+    specified, tags them with a default key, e.g. "SO0111-ASR-GuardDutyResource".
     """
     try:
         required_tags = get_required_tags_from_event(event)
         resource_arn = event["ResourceArn"]
-        tag_guardduty_resource(tags=required_tags, resource_arn=resource_arn)
+        resource_type = event["ResourceType"]
+
+        if resource_type == "GuardDuty":
+            tag_guardduty_resource(tags=required_tags, resource_arn=resource_arn)
+        elif resource_type == "DynamoDBTable":
+            tag_dynamodb_table_resource(tags=required_tags, resource_arn=resource_arn)
         return {
-            "message": "Successfully tagged Guard Duty resource.",
+            "message": f"Successfully tagged resource {resource_arn}.",
             "status": "Success",
         }
     except Exception as e:
-        raise RuntimeError(f"Failed to tag GuardDuty resource: {str(e)}")
+        raise RuntimeError(f"Failed to tag resource: {str(e)}")
 
 
 def tag_guardduty_resource(tags: List[str], resource_arn: str):
-    guardduty_client = connect_to_guardduty()
+    guardduty_client = get_guardduty_client()
     tags_dict = {tag: "" for tag in tags}
     guardduty_client.tag_resource(ResourceArn=resource_arn, Tags=tags_dict)
+
+
+def tag_dynamodb_table_resource(tags: List[str], resource_arn: str):
+    dynamodb_client = get_dynamodb_client()
+    tags_list = [{"Key": tag, "Value": ""} for tag in tags]
+    dynamodb_client.tag_resource(ResourceArn=resource_arn, Tags=tags_list)
 
 
 def get_required_tags_from_event(event):
@@ -12281,7 +13307,7 @@ def get_required_tags_from_event(event):
             },
             "RequiredTagKeys": {
               "default": [
-                "SO0111-GuardDutyResource",
+                "SO0111-ASR-GuardDutyResource",
               ],
               "description": "Required tag keys for GuardDuty.2",
               "type": "StringList",
@@ -12303,7 +13329,7 @@ def get_required_tags_from_event(event):
     },
     "ASRUpdateSecretRotationPeriod": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait12",
       ],
       "Properties": {
         "Content": {
@@ -12540,6 +13566,23 @@ def lambda_handler(event, _):
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
     },
+    "CreateWait14": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait13",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
     "CreateWait2": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -12722,11 +13765,11 @@ def lambda_handler(event, _):
     "DeletWait10": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ASRDisableTGWAutoAcceptSharedAttachments",
-        "ASRDisableUnrestrictedAccessToHighRiskPorts",
-        "ASREnablePrivateRepositoryScanning",
-        "ASRSetS3LifecyclePolicy",
-        "ASRUpdateSecretRotationPeriod",
+        "ASREnableDynamoDBDeletionProtection",
+        "ASREnableElastiCacheBackups",
+        "ASREnableElastiCacheReplicationGroupFailover",
+        "ASREnforceHTTPSForALB",
+        "ASRLimitECSRootFilesystemAccess",
         "DeletWait9",
       ],
       "Properties": {
@@ -12744,11 +13787,11 @@ def lambda_handler(event, _):
     "DeletWait11": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ASREnableAutoSecretRotation",
-        "ASREnableGuardDuty",
-        "ASRRemoveUnusedSecret",
-        "ASRRevokeUnauthorizedInboundRules",
-        "ASRTagGuardDutyResource",
+        "ASRDisableUnrestrictedAccessToHighRiskPorts",
+        "ASREnableElastiCacheVersionUpgrades",
+        "ASREnablePrivateRepositoryScanning",
+        "ASRSetCloudFrontOriginDomain",
+        "ASRSetS3LifecyclePolicy",
         "DeletWait10",
       ],
       "Properties": {
@@ -12766,11 +13809,11 @@ def lambda_handler(event, _):
     "DeletWait12": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ASRConfigureAutoScalingLaunchConfigNoPublicIP",
-        "ASRConfigureAutoScalingLaunchConfigToRequireIMDSv2",
-        "ASREnableAPIGatewayCacheDataEncryption",
-        "ASREnableMacie",
-        "ASRSetLogGroupRetentionDays",
+        "ASRDisableTGWAutoAcceptSharedAttachments",
+        "ASREnableGuardDuty",
+        "ASRTagDynamoDBTableResource",
+        "ASRTagGuardDutyResource",
+        "ASRUpdateSecretRotationPeriod",
         "DeletWait11",
       ],
       "Properties": {
@@ -12788,9 +13831,34 @@ def lambda_handler(event, _):
     "DeletWait13": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "ASREnableAPIGatewayCacheDataEncryption",
+        "ASREnableAutoSecretRotation",
+        "ASRRemoveUnusedSecret",
+        "ASRRevokeUnauthorizedInboundRules",
+        "ASRSetLogGroupRetentionDays",
+        "DeletWait12",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait14": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASRConfigureAutoScalingLaunchConfigNoPublicIP",
+        "ASRConfigureAutoScalingLaunchConfigToRequireIMDSv2",
         "ASREnableAPIGatewayExecutionLogs",
         "ASREnableAthenaWorkGroupLogging",
-        "DeletWait12",
+        "ASREnableMacie",
+        "DeletWait13",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -12964,8 +14032,8 @@ def lambda_handler(event, _):
         "ASRAttachServiceVPCEndpoint",
         "ASRAttachSSMPermissionsToEC2",
         "ASRBlockSSMDocumentPublicAccess",
+        "ASRConfigureDynamoDBAutoScaling",
         "ASREnableBucketEventNotifications",
-        "ASRSetCloudFrontOriginDomain",
         "DeletWait8",
       ],
       "Properties": {

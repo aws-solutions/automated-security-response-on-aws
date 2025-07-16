@@ -5,6 +5,14 @@ from botocore.exceptions import ClientError
 from simtest.boto_session import get_session
 from simtest.remediation_test import ControlTest, RemediationTest
 
+REMOVE_CLOUDTRAIL_INSTRUCTION = (
+    '1) Remove the CloudTrail named "multi-region-cloud-trail", if it exists already.'
+)
+SETUP_HEADER = "SETUP\n=====\n"
+VERIFICATION_HEADER = "\nVERIFICATION\n============\n"
+SEPARATOR = "===============\n"
+ERROR_MESSAGE = "Something went wrong"
+
 
 def run_create_multi_region_cloudtrail(remediation, account, region):
     aws = get_session()
@@ -36,7 +44,7 @@ def run_create_multi_region_cloudtrail(remediation, account, region):
 
     else:
         instructions = [
-            '1) Remove the CloudTrail named "multi-region-cloud-trail", if it exists already.',
+            REMOVE_CLOUDTRAIL_INSTRUCTION,
             f"2) Remove the two buckets, so0111-access-logs-{region}-{account} and so0111-aws-cloudtrail-{account}",
         ]
         remtest.print_prep_instructions(instructions)
@@ -52,7 +60,7 @@ def run_enable_cloudtrail_logfile_validation(remediation, account, region):
         "This test requires a CloudTrail in the region being tested. You can create one or use an existing trail. If you create one, deselect log file validation. This test will enable it.\n"
     )
 
-    print("SETUP\n=====\n")
+    print(SETUP_HEADER)
     print("1) Create a CloudTrail")
     print("\tLog File Validation should be FALSE")
     print("\tTrail must be in the same region as the test\n")
@@ -68,22 +76,22 @@ def run_enable_cloudtrail_logfile_validation(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print(f"1) {trail_name} has log file validation enabled")
 
 
-def run_make_cloudtrail_s3_bucket_private(remediation, account, region):
+def run_make_cloudtrail_s3_bucket_private(remediation, account):
     print(
         "This test disables public access to a bucket. Rather than create a public bucket (which will result in an internal SEV2 ticket), use any private bucket or create a new bucket.\n"
     )
 
-    print("SETUP\n=====\n")
+    print(SETUP_HEADER)
     print(
         "1) Create an S3 bucket in the same region as the test. DO NOT MAKE IT PUBLIC!"
     )
     print("(the test will still set private access, even if already private)\n")
 
-    test = RemediationTest("cis23", account)
+    test = RemediationTest(remediation, account)
 
     # Alter the test data
     bucket_name = input("Name of an S3 bucket: ")
@@ -97,7 +105,7 @@ def run_make_cloudtrail_s3_bucket_private(remediation, account, region):
 def run_log_cloudtrail_to_cloudwatch(remediation, account, region):
     print("This test creates a CloudWatch logs group for CloudTrail.\n")
 
-    print("SETUP\n=====\n")
+    print(SETUP_HEADER)
     print("1) Use the CloudTrail created for cis22 (or create a new one)\n")
 
     test = RemediationTest(remediation, account, wrap_it_in_findings=True)
@@ -120,7 +128,7 @@ def run_log_cloudtrail_to_cloudwatch(remediation, account, region):
 def run_create_ct_access_logging(remediation, account, region):
     print("This test creates an access logging bucket the CloudTrail S3 bucket.\n")
 
-    print("SETUP\n=====\n")
+    print(SETUP_HEADER)
     print("1) Use the S3 bucket created for cis23 (or create a new one)\n")
 
     test = RemediationTest(remediation, account)
@@ -145,7 +153,7 @@ def run_enable_ct_encryption(remediation, account, region):
     print("This test enables encryption on a CloudTrail\n")
 
     print("Automatic Setup\n")
-    print("===============\n")
+    print(SEPARATOR)
     print("1) Removes KmsKeyId from the test cloudtrail")
 
     cloudtrail = input("CloudTrail to test with? ")
@@ -163,7 +171,7 @@ def run_enable_ct_encryption(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print(f"1) CloudTrail {cloudtrail} is encrypted")
 
 
@@ -177,10 +185,8 @@ def run_create_cloudtrail_multi_region_trail(remediation, account, region):
 
     if account == aws.get_account():
         print("Automatic Setup\n")
-        print("===============\n")
-        print(
-            '1) Remove the CloudTrail named "multi-region-cloud-trail", if it exists already.'
-        )
+        print(SEPARATOR)
+        print(REMOVE_CLOUDTRAIL_INSTRUCTION)
         print(
             f"2) Remove the two buckets, so0111-access-logs-{region}-{account} and so0111-aws-cloudtrail-{account}"
         )
@@ -192,10 +198,8 @@ def run_create_cloudtrail_multi_region_trail(remediation, account, region):
         delete_bucket(f"so0111-access-logs-{region}-{account}")
     else:
         print("Manual Setup\n")
-        print("===============\n")
-        print(
-            '1) Remove the CloudTrail named "multi-region-cloud-trail", if it exists already.'
-        )
+        print(SEPARATOR)
+        print(REMOVE_CLOUDTRAIL_INSTRUCTION)
         print(
             f"2) Remove the two buckets, so0111-access-logs-{region}-{account} and so0111-aws-cloudtrail-{account}"
         )
@@ -209,7 +213,7 @@ def run_create_cloudtrail_multi_region_trail(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print(
         '1) CloudTrail "multi-region-cloud-trail" was created, is encrypted, and is enabled for all regions'
     )
@@ -240,7 +244,7 @@ def delete_cloudtrail(trailname):
             raise
     except Exception as e:
         print(e)
-        print("Something went wrong")
+        print(ERROR_MESSAGE)
         raise
 
 
@@ -262,7 +266,7 @@ def remove_cloudtrail_encryption(trailname, account):
                 raise
         except Exception as e:
             print(e)
-            print("Something went wrong")
+            print(ERROR_MESSAGE)
             raise
     else:
         print(f"Manually disable encryption on {trailname} in {account}")
@@ -290,5 +294,5 @@ def delete_bucket(bucketname):
             raise
     except Exception as e:
         print(e)
-        print("Something went wrong")
+        print(ERROR_MESSAGE)
         raise

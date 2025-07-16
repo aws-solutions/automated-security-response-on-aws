@@ -4,7 +4,7 @@ from simtest.boto_session import get_session
 from simtest.remediation_test import RemediationTest
 
 
-def run_remove_old_credentials(remediation, account, region):
+def run_remove_old_credentials(remediation, account):
     print(
         "A full test requires an IAM user ID with keys/credentials older than 90 days. Unless you have a time machine, you may wish to simply test that the permissions allow the API calls without remediating any actual keys.\n"
     )
@@ -28,7 +28,7 @@ def run_remove_old_credentials(remediation, account, region):
     test.run()
 
 
-def run_revoke_unrotated_keys(remediation, account, region):
+def run_revoke_unrotated_keys(remediation, account):
     test = RemediationTest(remediation, account, True)
 
     key_user = input("Name of an IAM user: ")
@@ -43,7 +43,7 @@ def run_revoke_unrotated_keys(remediation, account, region):
     test.run()
 
 
-def run_set_password_policy(remediation, account, region):
+def run_set_password_policy(remediation, account):
     print("Remediates the finding by putting in place an account password policy.\n")
     print("SETUP\n=====\n")
     print("1) Go to IAM in the console")

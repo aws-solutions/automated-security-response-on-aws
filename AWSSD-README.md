@@ -3,7 +3,7 @@
 - [Updating the Solution](#updating)
 - [Playbook Structure](#playbooks)
 - [Creating a Playbook](#creating)
-- [Remediation Design - SHARR Runbooks](#remediation-design)
+- [Remediation Design - Runbooks](#remediation-design)
 
 ## Notes
 
@@ -45,7 +45,7 @@ upload-s3-dist.sh <region>
 <a name="playbooks"></a>
 # Playbook Structure
 
-## SHARR v1.2+ Architecture
+## ASR v1.2+ Architecture
 
 * Uses SSM runbooks. Follow prescription for creating runbook structure and storing runbook yaml files.
 * Uses same version_description.txt, support.txt, and README.md files as v1.0.
@@ -70,18 +70,18 @@ upload-s3-dist.sh <region>
 
 ## Adding a Playbook
 
-SHARR v1.2 and later use a Step Function in the Admin account to validates inputs, extract finding data, and execute the target remediation using Systems Manager Runbooks in the member account. These are referred to as "SHARR Runbooks."
+ASR v1.2 and later use a Step Function in the Admin account to validates inputs, extract finding data, and execute the target remediation using Systems Manager Runbooks in the member account. These are referred to as "ASR Runbooks."
 
-The logic is simple and extensible: a CloudWatch Event Rule matches findings and sends them to the Orchestrator Step Function. The Step Function extracts the control Id and uses it to derive the target SHARR Runbook algorithmically - there is no mapping, no if-then-else logic, and therefore nothing to add or update to introduce a new remediation.
+The logic is simple and extensible: a CloudWatch Event Rule matches findings and sends them to the Orchestrator Step Function. The Step Function extracts the control Id and uses it to derive the target ASR Runbook algorithmically - there is no mapping, no if-then-else logic, and therefore nothing to add or update to introduce a new remediation.
 
-Security is **Job 0**. SHARR Runbooks must be tightly secured, validate inputs, and have least-privilege access to **Remediation Runbooks**: runbooks that execute the actual remediation actions. This division of security and function allows for sharing of a remediation action for common controls that exist in more than one standard. SHARR Runbooks should not remediate directly, but use Remediation Runbooks.
+Security is **Job 0**. ASR Runbooks must be tightly secured, validate inputs, and have least-privilege access to **Remediation Runbooks**: runbooks that execute the actual remediation actions. This division of security and function allows for sharing of a remediation action for common controls that exist in more than one standard. ASR Runbooks should not remediate directly, but use Remediation Runbooks.
 
-**Remediation Runbooks** are AWS-owned or SHARR-owned runbooks that perform a single remediation or remediation step for a specific resource. For example, creating a logging bucket, enabling an AWS Service, or setting a parameter on an AWS Service. The permissions to the service APIs are within the definition of the Remediation Runbook; SHARR Runbooks must be allowed to assume the remediation role.
+**Remediation Runbooks** are AWS-owned or ASR-owned runbooks that perform a single remediation or remediation step for a specific resource. For example, creating a logging bucket, enabling an AWS Service, or setting a parameter on an AWS Service. The permissions to the service APIs are within the definition of the Remediation Runbook; ASR Runbooks must be allowed to assume the remediation role.
 
 A playbook is a set of remediations within a Security Standard (ex. "CIS", "FSBP"). Each Playbook has a standard-specific Step Function ("Orchestrator") that "understands" the JSON format of that standard's Finding data. The Orchestrator does the following:
 1. Verify the finding data matches the Standard (ex. CIS, PCI, FSBP)
 2. Identify the control id and target account in the JSON data
-3. Derive the runbook name (SHARR-\<standard\>-\<version\>-\<controlid\>)
+3. Derive the runbook name (ASR-\<standard\>-\<version\>-\<controlid\>)
 4. Check the status of the runbook in the target account
 5. Execute the runbook
 6. Monitor until completion
@@ -162,7 +162,7 @@ A sample Playbook is provided as a starting point. The estimated time to create 
 	 *****************************************************************************/
 	import 'source-map-support/register';
 	import * as cdk from '@aws-cdk/core';
-	import {  PlaybookPrimaryStack, PlaybookMemberStack  } from '../../../lib/sharrplaybook-construct';
+	import {  PlaybookPrimaryStack, PlaybookMemberStack  } from '../../../lib/playbook-construct';
 	
 	// SOLUTION_* - set by solution_env.sh
 	const SOLUTION_ID = process.env['SOLUTION_ID'] || 'undefined';
@@ -240,7 +240,7 @@ At this point you should be able to successfully run build-s3-dist.sh from the /
 
 1. Using the provided example, create a runbook definition for each remediation
   * Runbook json files should be logically named
-  * The Runbook they produce will be named SHARR-\<standard\>-\<version\>-\<control\>
+  * The Runbook they produce will be named ASR-\<standard\>-\<version\>-\<control\>
   	 * standard: abbreviation for the standard. It must match the value for *standardShortName* in the CDK that defines the playbook
   	 * version: version of the standard in semver format. Ex. "1.0.0"
   	 * control: must match the value parsed from *StandardsControlArn* in the finding data.
@@ -260,9 +260,9 @@ At this point you should be able to successfully run build-s3-dist.sh from the /
   * version_description.txt - describes this playbook version
 
 <a name="remediation-design"></a>
-# Remediation Design - SHARR Runbooks
+# Remediation Design - Runbooks
 
-SHARR Runbooks receive findings from the Orchestrator Step Function. Their role is to parse, validate, and route the finding data to a remediation runbook, and handle the Finding update. A SHARR runbook generally consists of 4 steps:
+ASR Runbooks receive findings from the Orchestrator Step Function. Their role is to parse, validate, and route the finding data to a remediation runbook, and handle the Finding update. A ASR runbook generally consists of 4 steps:
 
 **ParseInput**: extracts the data required for the remediation from the finding and environment, determines the AffectedObject (subject of the remediation)
 **ExecRemediation**: perform the remediation
@@ -329,7 +329,7 @@ During the build-s3-dist.sh process, the CDK script will insert the script as in
 
 # Shared Remediations
 
-In SHARR v1.3 we introduced shared remediations - remediation code that is separate from the security controls. SHARR remediation document names start with **SHARR-** and a name describing what the runbook does. Ex. **SHARR-CreateAccessLoggingBucket** creates a bucket for logging access to another bucket.
+In ASR v1.3 we introduced shared remediations - remediation code that is separate from the security controls. ASR remediation document names start with **ASR-** and a name describing what the runbook does. Ex. **ASR-CreateAccessLoggingBucket** creates a bucket for logging access to another bucket.
 
 ## Roles 
 
@@ -346,11 +346,11 @@ Note that these will be replaced with the AWS-Owned version once they are suppor
 
 ## Add it to the template
 
-source/solution_deploy/lib/remediation_runbook-stack.ts
+source/solution_deploy/lib/remediation-runbook-stack.ts
 
 # Processing Runbook Output
 
-**`check_ssm_execution.py`** is responsible for monitoring SHARR Parse Runbooks until they finish, determining the outcome, collecting and logging metrics and log data.
+**`check_ssm_execution.py`** is responsible for monitoring ASR Parse Runbooks until they finish, determining the outcome, collecting and logging metrics and log data.
 
 Runbook output (AutomationExecutionMetadataList Outputs) contains the output from the runbook. Parse runbooks must retrieve this data from child runbooks.
 
@@ -399,18 +399,18 @@ Logdata comes from one or more of:
 
 Remediation structure generally looks like this:
 
-SHARR Remediation -> Remediation Runbook -> Scripts
+ASR Remediation -> Remediation Runbook -> Scripts
 
-SHARR Remediations are runbooks named per a defined standard that enables derivation of the name of the automation from the finding data: ```
-SHARR-<standard>_<version>_<control>
+ASR Remediations are runbooks named per a defined standard that enables derivation of the name of the automation from the finding data: ```
+ASR-<standard>_<version>_<control>
 ```
 
-Remediation Runbooks can be SHARR-owned or AWS-owned. For SHARR-owned, the solution completely controls the inputs and outputs. For AWS-owned, SHARR gets whatever the author has enabled.
+Remediation Runbooks can be ASR-owned or AWS-owned. For ASR-owned, the solution completely controls the inputs and outputs. For AWS-owned, ASR gets whatever the author has enabled.
 
-Scripts for SHARR-owned documents are stored externally to the runbook yaml and assembled in the build. SHARR developers have complete control over their content.
+Scripts for ASR-owned documents are stored externally to the runbook yaml and assembled in the build. ASR developers have complete control over their content.
 
 #### Remediation.Output
-Most SHARR runbooks have the following **outputs** declared. For consistency, make sure all remediation runbooks make their output available such that the SHARR remediation is able to retrieve meaningful log data. This must start from the very bottom.
+Most ASR runbooks have the following **outputs** declared. For consistency, make sure all remediation runbooks make their output available such that the ASR remediation is able to retrieve meaningful log data. This must start from the very bottom.
 
 ```
 outputs:
@@ -422,11 +422,11 @@ outputs:
 
 Remediation runbooks should fail when the remediation they perform fails. Testing success of the remediation then does not require checking an output field: if the runbook succeeded then the remediation step it performed succeeded.
 
-Scripts support this by using python **exit** and a message. The message goes to the automation output in the console as well as the SHARR logs, so it must be concise and informative.
+Scripts support this by using python **exit** and a message. The message goes to the automation output in the console as well as the ASR logs, so it must be concise and informative.
 
 > Do not use **raise** to signal failure. Use **exit**.
 
-### Child Runbook - SHARR-owned Remediation
+### Child Runbook - ASR-owned Remediation
 
 * Runbook output is always in Output
 * Scripts must write to stdout or return data
@@ -486,7 +486,7 @@ name: Remediation
 
 ### Child Runbook - AWS-owned
 
-> As of v1.3.0, there are 88 AWS-owned runbooks named **AWSConfigRemediation-\*** that were written for the SSM Service Team. They are not yet available in US GovCloud or China. Any of these runbooks that are needed for remediations can be copied into source/remediation_runbooks. They will be installed as SHARR runbooks. Make no changes to the runbook code (other than bugfixes).
+> As of v1.3.0, there are 88 AWS-owned runbooks named **AWSConfigRemediation-\*** that were written for the SSM Service Team. They are not yet available in US GovCloud or China. Any of these runbooks that are needed for remediations can be copied into source/remediation_runbooks. They will be installed as ASR runbooks. Make no changes to the runbook code (other than bugfixes).
 
 For AWS-owned runbooks you must examine the code to see what is stored in Output for the runbook. Generally, the check\_ssm\_execution lambda should recognize the output and place it appropriately-formatted in the logs.
 # Permissions
@@ -497,26 +497,26 @@ Roles are copied per region by appending the region name to the role. This is be
 There are two roles for the Orchestrator. One used by the step function, and one by the lambdas.
 
 ### Step Function Role
-**Name:** SHARR-\<version\>-orchestratorRole\<hash\>
+**Name:** ASR-\<version\>-orchestratorRole\<hash\>
 
 Allows actions performed directly by the step function.
 
 ### Lambda Roles
-**Name:** SO0111-SHARR-Orchestrator-Admin_\<region\>
+**Name:** SO0111-ASR-Orchestrator-Admin_\<region\>
 
-Statically-named role that allows cross-account and cross-region assume-role to SO0111-SHARR-Orchestrator-Member_\<region\> and all SO0111-Remediate-* roles, as well as access to Systems Manager Parameter Store Solutions/SO0111/* parameters.
+Statically-named role that allows cross-account and cross-region assume-role to SO0111-ASR-Orchestrator-Member_\<region\> and all SO0111-Remediate-* roles, as well as access to Systems Manager Parameter Store Solutions/SO0111/* parameters.
 
-This role is used by Lambdas **SO0111-SHARR-checkSSMDocState**, **SO0111-SHARR-execAutomation**, and **SO0111-SHARR-monitorSSMExecState**.
+This role is used by Lambdas **SO0111-ASR-checkSSMDocState**, **SO0111-ASR-execAutomation**, and **SO0111-ASR-monitorSSMExecState**.
 
-**Name:** SHARR-\<version\>-notifyRole\<hash\>
+**Name:** ASR-\<version\>-notifyRole\<hash\>
 
-Used by SO0111-SHARR-sendNotifications Lambda function
+Used by SO0111-ASR-sendNotifications Lambda function
 
 ### Runbook Roles
 
 **Name:** SO0111-Remediate-\<standard\>-\<version\>-\<control\>_\<region\>
 
-Statically-named (must be derivable) roles for SHARR Runbooks, which are the top-level runbook in member accounts. Their job is to parse the finding and perform remediation via remediation runbooks.
+Statically-named (must be derivable) roles for ASR Runbooks, which are the top-level runbook in member accounts. Their job is to parse the finding and perform remediation via remediation runbooks.
 
 **Name:** SO0111-\<action\>_\<region\>
 
@@ -527,9 +527,9 @@ These roles allow the Orchestrator Admin role to assume/pass the role to remedia
 The Markdown in the Description for each SSM Document is displayed in the console as rendered Markdown. Attention to this section is important, as this impacts the customer's console experience.
 
 ## Parse Runbooks
-"Parse Runbooks" receive the finding record from the Orchestrator and parse the data to get the identifiers needed for remediation. We prefix all Runbook names with **SHARR-**. Parse runbook names follow the standard 
+"Parse Runbooks" receive the finding record from the Orchestrator and parse the data to get the identifiers needed for remediation. We prefix all Runbook names with **ASR-**. Parse runbook names follow the standard 
 ```
-SHARR-<standard>_<version>_<control>
+ASR-<standard>_<version>_<control>
 ```
 
 * **standard**: abbreviation for the Security Standard. The abbreviation is set in an SSM Parameter, /**/Solutions/SO0111/<name>/<version/shortname**. For example, **/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname** = **FSBP**
@@ -537,12 +537,12 @@ SHARR-<standard>_<version>_<control>
 * **control**: control Id within the standard. Ex. **2.1** (CIS), **CloudTrail.1** (FSBP)
 
 ### Example Document Names
-* **SHARR-FSBP-v1.0.0-CloudTrail.1**
-* **SHARR-CIS-v1.2.0-2.1**
+* **ASR-FSBP-v1.0.0-CloudTrail.1**
+* **ASR-CIS-v1.2.0-2.1**
 
 ### Header Template
 ```
-### Document Name - SHARR-<standard>_<version>_<control>
+### Document Name - ASR-<standard>_<version>_<control>
 
 ## What does this document do?
 <one or more lines briefly describing what it does>
@@ -559,7 +559,7 @@ SHARR-<standard>_<version>_<control>
 
 ### Example
 ``` 
-### Document Name - SHARR-CIS_1.2.0_4.3
+### Document Name - ASR-CIS_1.2.0_4.3
 
 ## What does this document do?
 Removes public access from an EC2 Security Group for controls CIS 4.1 and CIS 4.2
@@ -576,14 +576,14 @@ Removes public access from an EC2 Security Group for controls CIS 4.1 and CIS 4.
 ```
 
 ## Remediation Runbooks
-Remediation runbooks often support more than one Control. They are called by the "Parse Runbooks." We prefix Remediation Runbook names with **SHARR-** to make them easily identifiable, but also to minimize name length.
+Remediation runbooks often support more than one Control. They are called by the "Parse Runbooks." We prefix Remediation Runbook names with **ASR-** to make them easily identifiable, but also to minimize name length.
 
-**NOTE:** Remediation runbooks are designed with the intent of eventually becoming AWS-owned documents. Because SHARR remediations use a mix of executeAWSAPI, executeAutomation, and executeScript, user-agent-extra is not supported in remediation runbooks so that the calling runbook does not have to be concerned with whether the remediation runbooks it calls are AWS-owned or not, or whether or not it supports SolutionId and SolutionVersion.
+**NOTE:** Remediation runbooks are designed with the intent of eventually becoming AWS-owned documents. Because ASR remediations use a mix of executeAWSAPI, executeAutomation, and executeScript, user-agent-extra is not supported in remediation runbooks so that the calling runbook does not have to be concerned with whether the remediation runbooks it calls are AWS-owned or not, or whether or not it supports SolutionId and SolutionVersion.
 
 ### Header Template
 
 ```
-  ### Document name - SHARR-<descriptive name>
+  ### Document name - ASR-<descriptive name>
 
   ## What does this document do?
   <one or more lines briefly describing what it does>
@@ -604,7 +604,7 @@ Remediation runbooks often support more than one Control. They are called by the
 ### Example Header
 
 ```
-  ### Document name - SHARR-EnableAutoScalingGroupELBHealthCheck
+  ### Document name - ASR-EnableAutoScalingGroupELBHealthCheck
 
   ## What does this document do?
   This runbook enables health checks for the Amazon EC2 Auto Scaling (Auto Scaling) group you specify using the [UpdateAutoScalingGroup](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_UpdateAutoScalingGroup.html) API.
@@ -662,7 +662,7 @@ Solutions
 ## For Each Runbook:
 
 - [ ] Runbook has markdown documentation as described in Appendix A
-- [ ] UpdateFinding **UpdatedBy** has the correct name of the Parse Runbook (ex `SHARR-CIS_v1.2.0_2.1`)
+- [ ] UpdateFinding **UpdatedBy** has the correct name of the Parse Runbook (ex `ASR-CIS_v1.2.0_2.1`)
 - [ ] Runbook Markdown renders properly in the console
  
 

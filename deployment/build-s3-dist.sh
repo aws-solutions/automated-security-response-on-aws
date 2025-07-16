@@ -195,7 +195,7 @@ main() {
         fi
         echo Create $playbook playbook
         pushd "$source_dir"/playbooks/"$playbook"
-        npx cdk synth
+        npx cdk synth --asset-metadata false --path-metadata false --version-reporting false --quiet
         cd cdk.out
         for template in $(ls *.template.json); do
             cp "$template" "$template_dist_dir"/playbooks/${template%.json}
@@ -203,7 +203,7 @@ main() {
         popd
     done
 
-    header "[Create] Blueprint templates"
+   header "[Create] Blueprint templates"
 
    pushd "$source_dir"/blueprints
        for blueprintDir in */; do
@@ -213,7 +213,7 @@ main() {
 
            pushd ${blueprintDir}/cdk
            echo Create $blueprintDir blueprint
-           npx cdk synth
+           npx cdk synth --asset-metadata false --path-metadata false --version-reporting false --quiet
            cd cdk.out
            for template in $(ls *.template.json); do
                cp "$template" "$template_dist_dir"/blueprints/${template%.json}
@@ -222,27 +222,27 @@ main() {
        done
    popd
 
-    header "[Create] Deployment Templates"
+  header "[Create] Deployment Templates"
 
-    pushd "$source_dir"/solution_deploy
+  pushd "$source_dir"/solution_deploy
 
-    npx cdk synth --no-version-reporting --path-metadata false
-    cd cdk.out
-    for template in $(ls *.template.json); do
-        cp "$template" "$template_dist_dir"/${template%.json}
-    done
-    popd
+  npx cdk synth --asset-metadata false --path-metadata false --version-reporting false --quiet
+  cd cdk.out
+  for template in $(ls *.template.json); do
+      cp "$template" "$template_dist_dir"/${template%.json}
+  done
+  popd
 
-    [ -e "$template_dir"/*.template ] && cp "$template_dir"/*.template "$template_dist_dir"/
+  [ -e "$template_dir"/*.template ] && cp "$template_dir"/*.template "$template_dist_dir"/
 
-    mv "$template_dist_dir"/SolutionDeployStack.template "$template_dist_dir"/aws-sharr-deploy.template
-    mv "$template_dist_dir"/MemberStack.template "$template_dist_dir"/aws-sharr-member.template
-    mv "$template_dist_dir"/MemberStackMemberCloudTrail*.nested.template "$template_dist_dir"/aws-sharr-member-cloudtrail.template
-    mv "$template_dist_dir"/RunbookStack.template "$template_dist_dir"/aws-sharr-remediations.template
-    mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/aws-sharr-orchestrator-log.template
-    mv "$template_dist_dir"/MemberRoleStack.template "$template_dist_dir"/aws-sharr-member-roles.template
+  mv "$template_dist_dir"/SolutionDeployStack.template "$template_dist_dir"/automated-security-response-admin.template
+  mv "$template_dist_dir"/MemberStack.template "$template_dist_dir"/automated-security-response-member.template
+  mv "$template_dist_dir"/MemberCloudTrail*.template "$template_dist_dir"/automated-security-response-member-cloudtrail.template
+  mv "$template_dist_dir"/RunbookStack.template "$template_dist_dir"/automated-security-response-remediation-runbooks.template
+  mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/automated-security-response-orchestrator-log.template
+  mv "$template_dist_dir"/MemberRolesStack.template "$template_dist_dir"/automated-security-response-member-roles.template
 
-    rm "$template_dist_dir"/*.nested.template
+  rm "$template_dist_dir"/*.nested.template
 }
 
 main "$@"

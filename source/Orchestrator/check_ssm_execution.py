@@ -9,14 +9,13 @@ from typing import TYPE_CHECKING, Any, Optional
 from layer import tracer_utils, utils
 from layer.awsapi_cached_client import BotoSession
 from layer.logger import Logger
-from layer.metrics import Metrics
 
 if TYPE_CHECKING:
     from mypy_boto3_ssm.client import SSMClient
 else:
     SSMClient = object
 
-ORCH_ROLE_NAME = "SO0111-SHARR-Orchestrator-Member"  # role to use for cross-account
+ORCH_ROLE_NAME = "SO0111-ASR-Orchestrator-Member"  # role to use for cross-account
 
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
@@ -212,9 +211,6 @@ def lambda_handler(event, _):
             "ERROR: missing remediation account information. SSMExecution missing region or account."
         )
 
-    metrics_obj = Metrics(event["EventType"])
-    metrics_data = metrics_obj.get_metrics_from_event(event)
-
     try:
         automation_exec_info = AutomationExecution(
             SSM_EXEC_ID, SSM_ACCOUNT, ORCH_ROLE_NAME, SSM_REGION
@@ -289,14 +285,6 @@ def lambda_handler(event, _):
                 "logdata": json.dumps(remediation_logdata, default=str),
             }
         )
-
-        try:
-            metrics_data["status"] = status_for_message
-            metrics_obj.send_metrics(metrics_data)
-        except Exception as e:
-            LOGGER.error(e)
-            LOGGER.error("Failed to send metrics")
-
     else:
         answer.update(
             {

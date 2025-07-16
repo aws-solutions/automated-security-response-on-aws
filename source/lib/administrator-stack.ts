@@ -1,8 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';
-import { App, CfnOutput, Fn, Stack } from 'aws-cdk-lib';
+import { App, CfnOutput, Fn } from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -29,7 +28,9 @@ import { CloudWatchMetrics } from './cloudwatch_metrics';
 import { AdminPlaybook } from './admin-playbook';
 import { scPlaybookProps, standardPlaybookProps } from '../playbooks/playbook-index';
 import { ActionLog } from './action-log';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import AccountTargetParam from './parameters/account-target-param';
+import MetricResources from './cdk-helper/metric-resources';
 
 export interface ASRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -44,19 +45,23 @@ export interface ASRStackProps extends cdk.StackProps {
 }
 
 export class AdministratorStack extends cdk.Stack {
-  SEND_ANONYMIZED_DATA = 'Yes';
+  private static readonly sendAnonymizedData: string = 'Yes';
   private readonly primarySolutionSNSTopicARN: string;
-  readonly nestedStacksWithAppRegistry: Stack[] = [];
 
   constructor(scope: App, id: string, props: ASRStackProps) {
     super(scope, id, props);
     const stack = cdk.Stack.of(this);
     const RESOURCE_NAME_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
 
+    //=============================================================================================
+    // Parameters
+    //=============================================================================================
+    const accountTargetParam = new AccountTargetParam(this, 'AccountTargetParams');
+
     //-------------------------------------------------------------------------
     // Solutions Bucket - Source Code
     //
-    const SolutionsBucket = s3.Bucket.fromBucketAttributes(this, 'SolutionsBucket', {
+    const solutionsBucket = s3.Bucket.fromBucketAttributes(this, 'SolutionsBucket', {
       bucketName: props.solutionDistBucket + '-' + this.region,
     });
 
@@ -87,7 +92,7 @@ export class AdministratorStack extends cdk.Stack {
         ArnEquals: {
           'kms:EncryptionContext:aws:logs:arn': this.formatArn({
             service: 'logs',
-            resource: 'log-group:SO0111-SHARR-*',
+            resource: 'log-group:SO0111-ASR-*',
           }),
         },
       },
@@ -117,7 +122,7 @@ export class AdministratorStack extends cdk.Stack {
     // SNS Topic for notification fanout on Playbook completion
     //
     const primarySolutionTopic = new sns.Topic(this, 'SHARR-Topic', {
-      displayName: 'SHARR Playbook Topic (' + RESOURCE_NAME_PREFIX + ')',
+      displayName: `Automated Security Response on AWS (${RESOURCE_NAME_PREFIX}) Status Topic`,
       topicName: props.SNSTopicName,
       masterKey: kmsKey,
     });
@@ -125,13 +130,13 @@ export class AdministratorStack extends cdk.Stack {
 
     new StringParameter(this, 'SHARR_SNS_Topic', {
       description:
-        'SNS Topic ARN where SHARR will send status messages. This topic can be useful for driving additional actions, such as email notifications, trouble ticket updates.',
+        'SNS Topic ARN where ASR will send status messages. This topic can be useful for driving additional actions, such as email notifications, trouble ticket updates.',
       parameterName: '/Solutions/' + RESOURCE_NAME_PREFIX + '/SNS_Topic_ARN',
       stringValue: primarySolutionTopic.topicArn,
     });
 
     const mapping = new cdk.CfnMapping(this, 'mappings');
-    mapping.setValue('sendAnonymizedMetrics', 'data', this.SEND_ANONYMIZED_DATA);
+    mapping.setValue('sendAnonymizedMetrics', 'data', AdministratorStack.sendAnonymizedData);
 
     new StringParameter(this, 'SHARR_SendAnonymousMetrics', {
       description: 'Flag to enable or disable sending anonymous metrics.',
@@ -150,7 +155,7 @@ export class AdministratorStack extends cdk.Stack {
       description: 'SO0111 ASR Common functions used by the solution',
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/layer.zip',
       ),
     });
@@ -160,11 +165,15 @@ export class AdministratorStack extends cdk.Stack {
      * @type {Policy}
      */
     const orchestratorPolicy = new Policy(this, 'orchestratorPolicy', {
-      policyName: RESOURCE_NAME_PREFIX + '-SHARR_Orchestrator',
+      policyName: RESOURCE_NAME_PREFIX + '-ASR_Orchestrator',
       statements: [
         new PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-          resources: ['*'],
+          actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*:log-stream:*`],
+        }),
+        new PolicyStatement({
+          actions: ['logs:CreateLogGroup'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*`],
         }),
         new PolicyStatement({
           actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter'],
@@ -173,7 +182,7 @@ export class AdministratorStack extends cdk.Stack {
         new PolicyStatement({
           actions: ['sts:AssumeRole'],
           resources: [
-            `arn:${this.partition}:iam::*:role/${RESOURCE_NAME_PREFIX}-SHARR-Orchestrator-Member`,
+            `arn:${this.partition}:iam::*:role/${RESOURCE_NAME_PREFIX}-ASR-Orchestrator-Member`,
             //'arn:' + this.partition + ':iam::*:role/' + RESOURCE_NAME_PREFIX +
             //'-Remediate-*',
           ],
@@ -200,22 +209,15 @@ export class AdministratorStack extends cdk.Stack {
       };
     }
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(orchestratorPolicy, [
-      {
-        id: 'AwsSolutions-IAM5',
-        reason: 'Resource * is required for read-only policies used by orchestrator Lambda functions.',
-      },
-    ]);
-
     /**
      * @description Role used by common Orchestrator Lambdas
      * @type {Role}
      */
 
-    const orchestratorRole = new Role(this, 'orchestratorRole', {
+    const orchestratorRole: Role = new Role(this, 'orchestratorRole', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       description: 'Lambda role to allow cross account read-only ASR orchestrator functions',
-      roleName: `${RESOURCE_NAME_PREFIX}-SHARR-Orchestrator-Admin`,
+      roleName: `${RESOURCE_NAME_PREFIX}-ASR-Orchestrator-Admin`,
     });
 
     orchestratorRole.attachInlinePolicy(orchestratorPolicy);
@@ -242,7 +244,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Checks the status of an SSM Automation Document in the target account',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/check_ssm_doc_state.py.zip',
       ),
       environment: {
@@ -287,12 +289,12 @@ export class AdministratorStack extends cdk.Stack {
      * @type {lambda.Function}
      */
     const getApprovalRequirement = new lambda.Function(this, 'getApprovalRequirement', {
-      functionName: RESOURCE_NAME_PREFIX + '-SHARR-getApprovalRequirement',
+      functionName: RESOURCE_NAME_PREFIX + '-ASR-getApprovalRequirement',
       handler: 'get_approval_requirement.lambda_handler',
       runtime: props.runtimePython,
       description: 'Determines if a manual approval is required for remediation',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/get_approval_requirement.py.zip',
       ),
       environment: {
@@ -338,12 +340,12 @@ export class AdministratorStack extends cdk.Stack {
      * @type {lambda.Function}
      */
     const execAutomation = new lambda.Function(this, 'execAutomation', {
-      functionName: RESOURCE_NAME_PREFIX + '-SHARR-execAutomation',
+      functionName: RESOURCE_NAME_PREFIX + '-ASR-execAutomation',
       handler: 'exec_ssm_doc.lambda_handler',
       runtime: props.runtimePython,
       description: 'Executes an SSM Automation Document in a target account',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/exec_ssm_doc.py.zip',
       ),
       environment: {
@@ -388,12 +390,12 @@ export class AdministratorStack extends cdk.Stack {
      * @type {lambda.Function}
      */
     const monitorSSMExecState = new lambda.Function(this, 'monitorSSMExecState', {
-      functionName: RESOURCE_NAME_PREFIX + '-SHARR-monitorSSMExecState',
+      functionName: RESOURCE_NAME_PREFIX + '-ASR-monitorSSMExecState',
       handler: 'check_ssm_execution.lambda_handler',
       runtime: props.runtimePython,
       description: 'Checks the status of an SSM automation document execution',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/check_ssm_execution.py.zip',
       ),
       environment: {
@@ -438,7 +440,7 @@ export class AdministratorStack extends cdk.Stack {
      * @type {Policy}
      */
     const notifyPolicy = new Policy(this, 'notifyPolicy', {
-      policyName: RESOURCE_NAME_PREFIX + '-SHARR_Orchestrator_Notifier',
+      policyName: RESOURCE_NAME_PREFIX + '-ASR_Orchestrator_Notifier',
       statements: [
         new PolicyStatement({
           actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
@@ -458,7 +460,7 @@ export class AdministratorStack extends cdk.Stack {
         }),
         new PolicyStatement({
           actions: ['sns:Publish'],
-          resources: [`arn:${this.partition}:sns:${this.region}:${this.account}:${RESOURCE_NAME_PREFIX}-SHARR_Topic`],
+          resources: [`arn:${this.partition}:sns:${this.region}:${this.account}:${RESOURCE_NAME_PREFIX}-ASR_Topic`],
         }),
         new PolicyStatement({
           actions: ['cloudwatch:PutMetricData'],
@@ -490,14 +492,6 @@ export class AdministratorStack extends cdk.Stack {
       };
     }
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(notifyPolicy, [
-      {
-        id: 'AwsSolutions-IAM5',
-        reason:
-          'Resource * is required for CloudWatch Logs and Security Hub policies used by core solution Lambda function for notifications.',
-      },
-    ]);
-
     notifyPolicy.attachToRole(orchestratorRole); // Any Orchestrator Lambda can send to sns
 
     /**
@@ -505,7 +499,7 @@ export class AdministratorStack extends cdk.Stack {
      * @type {Role}
      */
 
-    const notifyRole = new Role(this, 'notifyRole', {
+    const notifyRole: Role = new Role(this, 'notifyRole', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       description: 'Lambda role to perform notification and logging from orchestrator step function',
     });
@@ -544,12 +538,12 @@ export class AdministratorStack extends cdk.Stack {
      * @type {lambda.Function}
      */
     const sendNotifications = new lambda.Function(this, 'sendNotifications', {
-      functionName: RESOURCE_NAME_PREFIX + '-SHARR-sendNotifications',
+      functionName: RESOURCE_NAME_PREFIX + '-ASR-sendNotifications',
       handler: 'send_notifications.lambda_handler',
       runtime: props.runtimePython,
       description: 'Sends notifications and log messages',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/send_notifications.py.zip',
       ),
       environment: {
@@ -594,15 +588,19 @@ export class AdministratorStack extends cdk.Stack {
     // Custom Lambda Policy
     //
     const createCustomActionPolicy = new Policy(this, 'createCustomActionPolicy', {
-      policyName: RESOURCE_NAME_PREFIX + '-SHARR_Custom_Action',
+      policyName: RESOURCE_NAME_PREFIX + '-ASR_Custom_Action',
       statements: [
         new PolicyStatement({
           actions: ['cloudwatch:PutMetricData'],
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-          resources: ['*'],
+          actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*:log-stream:*`],
+        }),
+        new PolicyStatement({
+          actions: ['logs:CreateLogGroup'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*`],
         }),
         new PolicyStatement({
           actions: [
@@ -631,13 +629,6 @@ export class AdministratorStack extends cdk.Stack {
         ],
       },
     };
-
-    cdk_nag.NagSuppressions.addResourceSuppressions(createCustomActionPolicy, [
-      {
-        id: 'AwsSolutions-IAM5',
-        reason: 'Resource * is required for CloudWatch Logs policies used on Lambda functions.',
-      },
-    ]);
 
     //-------------------------------------------------------------------------
     // Custom Lambda Role
@@ -671,7 +662,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Custom resource to create or retrieve an action target in Security Hub',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/action_target_provider.zip',
       ),
       environment: {
@@ -748,8 +739,6 @@ export class AdministratorStack extends cdk.Stack {
       sqsQueue: schedulingQueue,
     });
 
-    this.nestedStacksWithAppRegistry.push(orchestrator.nestedStack as cdk.Stack);
-
     const orchStateMachine = orchestrator.node.findChild('StateMachine') as StateMachine;
     const stateMachineConstruct = orchStateMachine.node.defaultChild as CfnStateMachine;
     const orchArnParm = orchestrator.node.findChild('SHARR_Orchestrator_Arn') as StringParameter;
@@ -805,11 +794,10 @@ export class AdministratorStack extends cdk.Stack {
         stackDependencies: [stateMachineConstruct, orchestratorArn],
         defaultState: playbookProps.defaultParameterValue,
         description: playbookProps.description,
+        targetAccountIDs: accountTargetParam.targetAccountIDs,
+        targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
       });
       securityStandardPlaybookNames.push(playbook.parameterName);
-      if (playbookProps.useAppRegistry) {
-        this.nestedStacksWithAppRegistry.push(playbook.playbookStack);
-      }
     });
 
     const scPlaybook = new AdminPlaybook(this, {
@@ -817,6 +805,8 @@ export class AdministratorStack extends cdk.Stack {
       stackDependencies: [stateMachineConstruct, orchestratorArn],
       defaultState: scPlaybookProps.defaultParameterValue,
       description: scPlaybookProps.description,
+      targetAccountIDs: accountTargetParam.targetAccountIDs,
+      targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
     });
 
     //---------------------------------------------------------------------
@@ -825,7 +815,9 @@ export class AdministratorStack extends cdk.Stack {
     const schedulingTable = new dynamodb.Table(this, 'SchedulingTable', {
       partitionKey: { name: 'AccountID-Region', type: dynamodb.AttributeType.STRING },
       encryption: dynamodb.TableEncryption.AWS_MANAGED,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
       timeToLiveAttribute: 'TTL',
       deletionProtection: true,
     });
@@ -842,11 +834,15 @@ export class AdministratorStack extends cdk.Stack {
     addCfnGuardSuppression(schedulingTable, 'DYNAMODB_TABLE_ENCRYPTED_KMS');
 
     const schedulingLamdbdaPolicy = new Policy(this, 'SchedulingLambdaPolicy', {
-      policyName: RESOURCE_NAME_PREFIX + '-SHARR_Scheduling_Lambda',
+      policyName: RESOURCE_NAME_PREFIX + '-ASR_Scheduling_Lambda',
       statements: [
         new PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-          resources: ['*'],
+          actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*:log-stream:*`],
+        }),
+        new PolicyStatement({
+          actions: ['logs:CreateLogGroup'],
+          resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*`],
         }),
         new PolicyStatement({
           actions: ['ssm:GetParameter', 'ssm:PutParameter'],
@@ -859,13 +855,6 @@ export class AdministratorStack extends cdk.Stack {
       ],
     });
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(schedulingLamdbdaPolicy, [
-      {
-        id: 'AwsSolutions-IAM5',
-        reason: 'Resource * is required for CloudWatch Logs used by the Scheduling Lambda function.',
-      },
-    ]);
-
     const schedulingLambdaRole = new Role(this, 'SchedulingLambdaRole', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       description: 'Lambda role to schedule remediations that are sent to SQS through the orchestrator',
@@ -877,12 +866,12 @@ export class AdministratorStack extends cdk.Stack {
      * @type {lambda.Function}
      */
     const schedulingLambdaTrigger = new lambda.Function(this, 'schedulingLambdaTrigger', {
-      functionName: RESOURCE_NAME_PREFIX + '-SHARR-schedulingLambdaTrigger',
+      functionName: RESOURCE_NAME_PREFIX + '-ASR-schedulingLambdaTrigger',
       handler: 'schedule_remediation.lambda_handler',
       runtime: props.runtimePython,
       description: 'SO0111 ASR function that schedules remediations in member accounts',
       code: lambda.Code.fromBucket(
-        SolutionsBucket,
+        solutionsBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/schedule_remediation.py.zip',
       ),
       environment: {
@@ -916,68 +905,14 @@ export class AdministratorStack extends cdk.Stack {
       enhancedMetricsEnabled: enhancedMetricsEnabled,
     });
 
-    const customResourceLambdaPolicyDocument = new PolicyDocument({
-      statements: [
-        new PolicyStatement({ actions: ['cloudwatch:PutMetricData'], resources: ['*'] }),
-        new PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-          resources: ['*'],
-        }),
-        new PolicyStatement({
-          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter'],
-          resources: [`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`],
-        }),
-      ],
+    new MetricResources(this, 'MetricResources', {
+      solutionTMN: props.solutionTMN,
+      solutionVersion: props.solutionVersion,
+      solutionId: props.solutionId,
+      runtimePython: props.runtimePython,
+      solutionsBucket: solutionsBucket,
+      lambdaLayer: asrLambdaLayer,
     });
-
-    const customResourceLambdaRole = new Role(this, `${id}Role`, {
-      assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
-      inlinePolicies: { LambdaPolicy: customResourceLambdaPolicyDocument },
-    });
-
-    const customResourceFunction = new lambda.Function(this, 'ASR-DeploymentCustomResource-Lambda', {
-      code: lambda.Code.fromBucket(
-        SolutionsBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/deployment_metrics_custom_resource.zip',
-      ),
-      handler: 'deployment_metrics_custom_resource.lambda_handler',
-      runtime: props.runtimePython,
-      description: 'ASR - Handles deployment related custom actions',
-      environment: {
-        LOG_LEVEL: 'INFO',
-        AWS_PARTITION: this.partition,
-        SOLUTION_ID: props.solutionId,
-        SOLUTION_VERSION: props.solutionVersion,
-      },
-      memorySize: 256,
-      timeout: cdk.Duration.seconds(5),
-      role: customResourceLambdaRole,
-      layers: [asrLambdaLayer],
-    });
-
-    addCfnGuardSuppression(customResourceFunction, 'LAMBDA_INSIDE_VPC');
-    addCfnGuardSuppression(customResourceFunction, 'LAMBDA_CONCURRENCY_CHECK');
-
-    new cdk.CustomResource(this, `ASR-DeploymentMetricsCustomResource`, {
-      resourceType: 'Custom::DeploymentMetrics',
-      serviceToken: customResourceFunction.functionArn,
-      properties: {
-        CloudWatchMetricsDashboardEnabled: cloudWatchMetrics.getCloudWatchMetricsParameterValue(),
-      },
-    });
-
-    cdk_nag.NagSuppressions.addResourceSuppressions(
-      customResourceLambdaRole,
-      [
-        {
-          id: 'AwsSolutions-IAM5',
-          reason: 'Resource * is needed for CloudWatch Logs policies used on Lambda functions.',
-        },
-      ],
-      true,
-    );
-    addCfnGuardSuppression(customResourceLambdaRole, 'IAM_NO_INLINE_POLICY_CHECK');
-    addCfnGuardSuppression(customResourceLambdaRole, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
 
     const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
 
@@ -998,15 +933,29 @@ export class AdministratorStack extends cdk.Stack {
           },
           {
             Label: { default: 'CloudWatch Metrics' },
-            Parameters: [...cloudWatchMetrics.getParameterIds(), enableEnhancedCloudWatchMetrics.logicalId],
+            Parameters: [...cloudWatchMetrics.getStandardParameterIds()],
+          },
+          {
+            Label: { default: '(Optional) Enhanced CloudWatch Metrics' },
+            Parameters: [enableEnhancedCloudWatchMetrics.logicalId, ...cloudWatchMetrics.getEnhancedParameterIds()],
           },
           {
             Label: { default: '(Optional) Ticketing Service Integration' },
             Parameters: [orchestrator.ticketGenFunctionNameParamId],
           },
+          {
+            Label: { default: '(Optional) Target accounts' },
+            Parameters: [
+              accountTargetParam.targetAccountIDs.logicalId,
+              accountTargetParam.targetAccountIDsStrategy.logicalId,
+            ],
+          },
         ],
         ParameterLabels: {
-          ...cloudWatchMetrics.getParameterIdsAndLabels(),
+          SecurityStandardPlaybooks: {
+            default:
+              'For more details see: https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/enable-fully-automated-remediations.html',
+          },
         },
       },
     };

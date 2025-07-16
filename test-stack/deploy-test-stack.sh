@@ -20,7 +20,7 @@ pushd ./cdk || exit
 
 echo "Synthesizing stacks..."
 
-cdk synth
+cdk synth --asset-metadata false --path-metadata false --version-reporting false --quiet
 
 echo "Deploying stacks..."
 

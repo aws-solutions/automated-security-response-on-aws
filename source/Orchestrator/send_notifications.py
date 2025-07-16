@@ -93,12 +93,7 @@ class Event(TypedDict):
 def lambda_handler(event: Event, _: LambdaContext) -> None:
     message_prefix, message_suffix = set_message_prefix_and_suffix(event)
 
-    # Get finding status
-    finding_status = "FAILED"  # default state
-    if event["Notification"]["State"].upper() == "SUCCESS":
-        finding_status = "RESOLVED"
-    elif event["Notification"]["State"].upper() == "QUEUED":
-        finding_status = "PENDING"
+    status_from_event = event.get("Notification", {}).get("State", "").upper()
 
     finding = None
     finding_info: Union[str, dict[str, Any]] = ""
@@ -116,8 +111,6 @@ def lambda_handler(event: Event, _: LambdaContext) -> None:
             "finding_arn": finding.arn,
         }
 
-    event_state = event["Notification"]["State"].upper()
-
     control_id = (
         event["Finding"].get("Compliance", {}).get("SecurityControlId", "")
         if "Finding" in event
@@ -127,40 +120,39 @@ def lambda_handler(event: Event, _: LambdaContext) -> None:
         event["CustomActionName"] if "CustomActionName" in event else ""
     )
 
-    # Send anonymous metrics
     if "EventType" in event:
         metrics = Metrics(event["EventType"])
         metrics_data = metrics.get_metrics_from_event(event)
-        metrics_data["status"] = finding_status
+        metrics_data["status"], metrics_data["status_reason"] = (
+            Metrics.get_status_for_anonymized_metrics(status_from_event)
+        )
+        # Send anonymized metrics
         metrics.send_metrics(metrics_data)
 
-        create_and_send_cloudwatch_metrics(event_state, control_id, custom_action_name)
+        # Send CloudWatch metrics for ASR's custom dashboard
+        create_and_send_cloudwatch_metrics(
+            status_from_event, control_id, custom_action_name
+        )
 
-    if event_state in ("SUCCESS", "QUEUED"):
-        notification = sechub_findings.SHARRNotification(
-            event.get("SecurityStandard", "SHARR"),
+    if status_from_event in ("SUCCESS", "QUEUED"):
+        notification = sechub_findings.ASRNotification(
+            event.get("SecurityStandard", "ASR"),
             AWS_REGION,
             event.get("ControlId", None),
         )
         notification.severity = "INFO"
         notification.send_to_sns = True
-
-    elif event_state == "FAILED":
-        notification = sechub_findings.SHARRNotification(
-            event.get("SecurityStandard", "SHARR"),
+    elif status_from_event == "FAILED":
+        notification = sechub_findings.ASRNotification(
+            event.get("SecurityStandard", "ASR"),
             AWS_REGION,
             event.get("ControlId", None),
         )
         notification.severity = "ERROR"
         notification.send_to_sns = True
-
-    elif event_state in {"WRONGSTANDARD", "LAMBDAERROR"}:
-        notification = sechub_findings.SHARRNotification("SHARR", AWS_REGION, None)
-        notification.severity = "ERROR"
-        notification.send_to_sns = True
     else:
-        notification = sechub_findings.SHARRNotification(
-            event.get("SecurityStandard", "SHARR"),
+        notification = sechub_findings.ASRNotification(
+            event.get("SecurityStandard", "ASR"),
             AWS_REGION,
             event.get("ControlId", None),
         )
@@ -168,6 +160,7 @@ def lambda_handler(event: Event, _: LambdaContext) -> None:
         if finding:
             finding.flag(event["Notification"]["Message"])
         notification.send_to_sns = True
+
     build_and_send_notification(
         event, notification, message_prefix, message_suffix, control_id, finding_info
     )
@@ -175,7 +168,7 @@ def lambda_handler(event: Event, _: LambdaContext) -> None:
 
 def build_and_send_notification(
     event: Event,
-    notification: sechub_findings.SHARRNotification,
+    notification: sechub_findings.ASRNotification,
     message_prefix: str,
     message_suffix: str,
     control_id: str,

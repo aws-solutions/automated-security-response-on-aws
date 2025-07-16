@@ -9,7 +9,9 @@ _orchestrator = None
 
 def get_orchestrator():
     if not _orchestrator:
-        raise Exception("Orchestrator has not been initialized")
+        raise Exception(  # NOSONAR Used for testing purpose only
+            "Orchestrator has not been initialized"
+        )
     return _orchestrator
 
 
@@ -23,7 +25,7 @@ class Orchestrator:
     def __init__(self, region):
         self._session = get_session()
         self._region = region
-        self._arn = f"arn:{self._session.get_partition()}:states:{self._region}:{self._session.get_account()}:stateMachine:SO0111-SHARR-Orchestrator"
+        self._arn = f"arn:{self._session.get_partition()}:states:{self._region}:{self._session.get_account()}:stateMachine:SO0111-ASR-Orchestrator"
 
     def invoke(self, payload):
         try:

@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 from simtest.remediation_test import RemediationTest
 
+MANUAL_SETUP_HEADER = "Manual Setup"
+VERIFICATION_HEADER = "\nVERIFICATION\n============\n"
+SEPARATOR = "============\n"
+
 
 def run_make_rds_snapshot_private(remediation, account, region):
     print("This test makes an RDS snapshot private.\n")
@@ -9,8 +13,8 @@ def run_make_rds_snapshot_private(remediation, account, region):
     print("WARNING: This test may result in a Sev 2!\n")
     input("Press ENTER to confirm that you read the warning.")
 
-    print("Manual Setup")
-    print("============\n")
+    print(MANUAL_SETUP_HEADER)
+    print(SEPARATOR)
     print("This test requires an unencrypted RDS database")
     print(
         "1) Create an unencrypted RDS snapshot from a cluster with NO CUSTOMER OR SENSITIVE DATA."
@@ -26,17 +30,17 @@ def run_make_rds_snapshot_private(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print("1) In RDS, verify that the snapshot is not public.")
 
 
-def run_enable_enhanced_monitoring_on_rds_instance(remediation, account, region):
+def run_enable_enhanced_monitoring_on_rds_instance(remediation, account):
     print("Simulate AWS FSBP RDS.6 Findings\n")
 
     print("This test enables enhanced monitoring on an RDS cluster.\n")
 
-    print("Manual Setup")
-    print("============\n")
+    print(MANUAL_SETUP_HEADER)
+    print(SEPARATOR)
     print(
         "1) Select an RDS database cluster to test with. Be sure to deselect Enable Encryption under Additional Configuration when you create the cluster to test with."
     )
@@ -56,17 +60,17 @@ def run_enable_enhanced_monitoring_on_rds_instance(remediation, account, region)
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print("1) In RDS, verify that enhanced monitoring is enabled.")
 
 
-def run_enable_rds_cluster_deletion_protection(remediation, account, region):
+def run_enable_rds_cluster_deletion_protection(remediation, account):
     print("Simulate AWS FSBP RDS.7 Findings\n")
 
     print("This test enables termination protection.\n")
 
-    print("Manual Setup")
-    print("============\n")
+    print(MANUAL_SETUP_HEADER)
+    print(SEPARATOR)
     print("1) Select an RDS cluster to test with.")
     print(
         "2) Disable Termination Protection for the RDS cluster (Modify button, Deletion protection)"
@@ -84,5 +88,5 @@ def run_enable_rds_cluster_deletion_protection(remediation, account, region):
 
     test.run()
 
-    print("\nVERIFICATION\n============\n")
+    print(VERIFICATION_HEADER)
     print("1) In RDS, verify that termination protection is enabled.")

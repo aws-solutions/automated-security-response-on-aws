@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
+import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/playbook-construct';
 import { omitWaitResourceHash } from '../../../test/utils';
 
 function getPrimaryStack(): Stack {

@@ -4,9 +4,10 @@ const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const {
   PutLogEventsCommand,
   CreateLogStreamCommand,
-  CloudWatchLogsClient,
 } = require('@aws-sdk/client-cloudwatch-logs');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
+const { gunzip } = require('node:zlib');
+const { promisify } = require('node:util');
 const logGroupName = process.env.LOG_GROUP_NAME ?? '/aws/lambda/SO0111-ASR-CloudTrailEvents';
 
 const s3Client = new S3Client({});
@@ -19,16 +20,9 @@ async function getLogsFromS3(bucket, key) {
   // CloudTrail data in S3 is compressed in .gz, need to decompress before processing the logs
   const compressedData = await response.Body.transformToByteArray();
 
-  const decompressedData = await new Promise((resolve, reject) => {
-    const zlib = require('zlib');
-    zlib.gunzip(compressedData, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
+  const gunzipPromise = promisify(gunzip);
+  const decompressedData = await gunzipPromise(compressedData);
+
   return JSON.parse(decompressedData.toString());
 }
 

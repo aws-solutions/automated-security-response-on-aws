@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/sharrplaybook-construct';
-import * as cdk_nag from 'cdk-nag';
+import { PlaybookPrimaryStack, PlaybookMemberStack } from '../../../lib/playbook-construct';
 import * as cdk from 'aws-cdk-lib';
 import 'source-map-support/register';
 import { PCI321_REMEDIATIONS } from '../lib/pci321_remediations';
@@ -24,7 +23,6 @@ const standardLongName = 'pci-dss';
 const standardVersion = '3.2.1'; // DO NOT INCLUDE 'V'
 
 const app = new cdk.App();
-cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 
 const adminStack = new PlaybookPrimaryStack(app, 'PCI321Stack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

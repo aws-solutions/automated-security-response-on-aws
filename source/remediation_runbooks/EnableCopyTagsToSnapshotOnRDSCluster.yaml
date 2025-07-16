@@ -10,7 +10,7 @@ description: |
 
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * DbClusterResourceId: (Required) Resource ID of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
+  * RDSClusterARN: (Required) ARN of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
   * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance. By default, this parameter is disabled.
     * Default: false
 
@@ -23,10 +23,10 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  DbClusterResourceId:
+  RDSClusterARN:
     type: String
     description: (Required) Resource ID of the Amazon RDS Cluster for which CopyTagsToSnapshot needs to be enabled.
-    allowedPattern: '^cluster-[A-Z0-9]+$'
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:cluster:.+$'
   ApplyImmediately:
     type: Boolean
     description: (Optional) A value that indicates whether the modifications in this request and any pending modifications are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance.  By default, this parameter is disabled.
@@ -35,23 +35,22 @@ parameters:
 outputs:
   - EnableCopyTagsToSnapshot.Output
 mainSteps:
-- name: GetDBClusterIdentifier
+- name: DescribeDBClusters
   action: aws:executeAwsApi
   description: |
-    ## GetDBClusterIdentifier
-    Accepts the Resource ID as input and returns the DB cluster identifier.
+    ## GetRDSInstanceIdentifier
+    Makes DescribeDBClusters API call using Amazon RDS Instance ARN to get DbClusterIdentifier.
     ## Outputs
-    * DBClusterIdentifier: The ID of the DB cluster.
+    * DbClusterIdentifier: Identifier of the Amazon RDS Cluster.
   timeoutSeconds: 600
   isEnd: false
   inputs:
-    Service: config
-    Api: GetResourceConfigHistory
-    resourceId: "{{ DbClusterResourceId }}"
-    resourceType: AWS::RDS::DBCluster
+    Service: rds
+    Api: DescribeDBClusters
+    DBClusterIdentifier: "{{ RDSClusterARN }}"
   outputs:
-    - Name: DBClusterIdentifier
-      Selector: $.configurationItems[0].resourceName
+    - Name: DbClusterIdentifier
+      Selector: $.DBClusters[0].DBClusterIdentifier
       Type: String
 - name: VerifyStatus
   action: aws:assertAwsResourceProperty
@@ -63,7 +62,7 @@ mainSteps:
   inputs:
     Service: rds
     Api: DescribeDBClusters
-    DBClusterIdentifier: "{{ GetDBClusterIdentifier.DBClusterIdentifier }}"
+    DBClusterIdentifier: "{{ RDSClusterARN }}"
     PropertySelector: $.DBClusters[0].Status
     DesiredValues:
       - "available"
@@ -79,7 +78,7 @@ mainSteps:
   inputs:
     Service: rds
     Api: ModifyDBCluster
-    DBClusterIdentifier: "{{ GetDBClusterIdentifier.DBClusterIdentifier }}"
+    DBClusterIdentifier: "{{ DescribeDBClusters.DbClusterIdentifier }}"
     ApplyImmediately: "{{ ApplyImmediately }}"
     CopyTagsToSnapshot: True
   outputs:
@@ -98,7 +97,7 @@ mainSteps:
   inputs:
     Service: rds
     Api: DescribeDBClusters
-    DBClusterIdentifier: "{{ GetDBClusterIdentifier.DBClusterIdentifier }}"
+    DBClusterIdentifier: "{{ DescribeDBClusters.DbClusterIdentifier }}"
     PropertySelector: $.DBClusters[0].CopyTagsToSnapshot
     DesiredValues:
       - "True"

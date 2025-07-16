@@ -16,37 +16,37 @@ def test_enable_minor_version_upgrade_rds_cluster(mocker):
     stub_rds = Stubber(rds)
     clients = {"rds": rds}
 
-    instanceId = "database-instance"
-    clusterId = "database-cluster"
+    instance_arn = "arn:aws:rds:us-east-2:123456789012:db:database-instance"
+    cluster_id = "database-cluster"
 
     stub_rds.add_response(
         "describe_db_instances",
         getDescribedClusterInstance(),
-        {"DBInstanceIdentifier": instanceId},
+        {"DBInstanceIdentifier": instance_arn},
     )
 
     stub_rds.add_response(
         "describe_db_clusters",
         getDescribedMultiAZCluster(),
-        {"DBClusterIdentifier": clusterId},
+        {"DBClusterIdentifier": cluster_id},
     )
 
     stub_rds.add_response(
         "modify_db_cluster",
         {},
-        {"DBClusterIdentifier": clusterId, "AutoMinorVersionUpgrade": True},
+        {"DBClusterIdentifier": cluster_id, "AutoMinorVersionUpgrade": True},
     )
 
     stub_rds.add_response(
         "describe_db_clusters",
         getDescribedMultiAZClusterMinorVersionUpgrade(),
-        {"DBClusterIdentifier": clusterId, "MaxRecords": 100},
+        {"DBClusterIdentifier": cluster_id, "MaxRecords": 100},
     )
 
     stub_rds.activate()
 
     with patch("boto3.client", side_effect=lambda service, **_: clients[service]):
-        event = {"DBInstanceIdentifier": instanceId}
+        event = {"RDSInstanceARN": instance_arn}
         response = lambda_handler(event, {})
         assert response == {"AutoMinorVersionUpgrade": True}
 
@@ -57,30 +57,31 @@ def test_enable_minor_version_upgrade_rds_instance(mocker):
     stub_rds = Stubber(rds)
     clients = {"rds": rds}
 
-    instanceId = "database-instance"
+    instance_id = "database-instance"
+    instance_arn = "arn:aws:rds:us-east-2:123456789012:db:database-instance"
 
     stub_rds.add_response(
         "describe_db_instances",
         getDescribedInstance(),
-        {"DBInstanceIdentifier": instanceId},
+        {"DBInstanceIdentifier": instance_arn},
     )
 
     stub_rds.add_response(
         "modify_db_instance",
         {},
-        {"DBInstanceIdentifier": instanceId, "AutoMinorVersionUpgrade": True},
+        {"DBInstanceIdentifier": instance_id, "AutoMinorVersionUpgrade": True},
     )
 
     stub_rds.add_response(
         "describe_db_instances",
         getDescribedInstanceMinorVersionUpgrade(),
-        {"DBInstanceIdentifier": instanceId, "MaxRecords": 100},
+        {"DBInstanceIdentifier": instance_id, "MaxRecords": 100},
     )
 
     stub_rds.activate()
 
     with patch("boto3.client", side_effect=lambda service, **_: clients[service]):
-        event = {"DBInstanceIdentifier": instanceId}
+        event = {"RDSInstanceARN": instance_arn}
         response = lambda_handler(event, {})
         assert response == {"AutoMinorVersionUpgrade": True}
 
