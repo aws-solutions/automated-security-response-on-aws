@@ -17,11 +17,10 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import { LambdaInvoke, SqsSendMessage } from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import * as cdk_nag from 'cdk-nag';
 import { Timeout } from 'aws-cdk-lib/aws-stepfunctions';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import TicketingFunctionNameParam from './parameters/ticketing-function-name-param';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 
 export interface ConstructProps {
   roleArn: string;
@@ -104,7 +103,7 @@ export class OrchestratorConstruct extends Construct {
       parameters: {
         Notification: {
           'Message.$': "States.Format('Orchestrator failed: {}', $.Error)",
-          'State.$': "States.Format('LAMBDAERROR')",
+          'State.$': "States.Format('LAMBDA_ERROR')",
           'Details.$': "States.Format('Cause: {}', $.Cause)",
         },
         'Payload.$': '$',
@@ -120,7 +119,7 @@ export class OrchestratorConstruct extends Construct {
         'Message.$': '$.Payload.message',
         'SecurityStandard.$': '$.Payload.securitystandard',
         'SecurityStandardVersion.$': '$.Payload.securitystandardversion',
-        'SecurityStandardSupported.$': '$.Payload.standardsupported',
+        'PlaybookEnabled.$': '$.Payload.playbookenabled',
         'ControlId.$': '$.Payload.controlid',
         'AccountId.$': '$.Payload.accountid',
         'RemediationRole.$': '$.Payload.remediationrole',
@@ -266,7 +265,7 @@ export class OrchestratorConstruct extends Construct {
       parameters: {
         Notification: {
           'Message.$': "States.Format('Finding Workflow State is not NEW ({}).', $.Finding.Workflow.Status)",
-          'State.$': "States.Format('NOTNEW')",
+          'State.$': "States.Format('NOT_NEW')",
         },
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
@@ -282,7 +281,7 @@ export class OrchestratorConstruct extends Construct {
         Notification: {
           'Message.$':
             "States.Format('Automation Document ({}) is not active ({}) in the member account({}).', $.AutomationDocId, $.AutomationDocument.DocState, $.Finding.AwsAccountId)",
-          'State.$': "States.Format('REMEDIATIONNOTACTIVE')",
+          'State.$': "States.Format('RUNBOOK_NOT_ACTIVE')",
           updateSecHub: 'yes',
         },
         'EventType.$': '$.EventType',
@@ -296,12 +295,12 @@ export class OrchestratorConstruct extends Construct {
       },
     });
 
-    const controlNoRemediation = new sfn.Pass(this, 'No Remediation for Control', {
+    const controlNoRemediation = new sfn.Pass(this, 'No Runbook for Control', {
       parameters: {
         Notification: {
           'Message.$':
-            "States.Format('Security Standard {} v{} control {} has no automated remediation.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion, $.AutomationDocument.ControlId)",
-          'State.$': "States.Format('NOREMEDIATION')",
+            "States.Format('ASR runbook for control {} in Security Standard {} v{} could not be found in account {} in region {}. Verify that the member stacks are deployed in this account & region, and that this control is supported by ASR.', $.AutomationDocument.ControlId, $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion, $.Finding.AwsAccountId, $.Finding.Region)",
+          'State.$': "States.Format('NO_RUNBOOK')",
           updateSecHub: 'yes',
         },
         'EventType.$': '$.EventType',
@@ -315,12 +314,30 @@ export class OrchestratorConstruct extends Construct {
       },
     });
 
-    const standardNotEnabled = new sfn.Pass(this, 'Security Standard is not enabled', {
+    const assumeRoleFailure = new sfn.Pass(this, 'Assume Role Failure', {
       parameters: {
         Notification: {
           'Message.$':
-            "States.Format('Security Standard ({}) v{} is not enabled.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion)",
-          'State.$': "States.Format('STANDARDNOTENABLED')",
+            "States.Format('Unable to assume the Orchestrator Member Role (SO0111-ASR-Orchestrator-Member) in account {}. Please verify that the automated-security-response-member-roles stack is deployed in the account and the Orchestrator Member Role is valid.', $.Finding.AwsAccountId)",
+          'State.$': "States.Format('ASSUME_ROLE_FAILURE')",
+        },
+        'EventType.$': '$.EventType',
+        'Finding.$': '$.Finding',
+        'AccountId.$': '$.AutomationDocument.AccountId',
+        'AutomationDocId.$': '$.AutomationDocument.AutomationDocId',
+        'RemediationRole.$': '$.AutomationDocument.RemediationRole',
+        'ControlId.$': '$.AutomationDocument.ControlId',
+        'SecurityStandard.$': '$.AutomationDocument.SecurityStandard',
+        'SecurityStandardVersion.$': '$.AutomationDocument.SecurityStandardVersion',
+      },
+    });
+
+    const playbookNotEnabled = new sfn.Pass(this, 'Playbook is not enabled', {
+      parameters: {
+        Notification: {
+          'Message.$':
+            "States.Format('ASR playbook for ({}) v{} is not enabled.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion)",
+          'State.$': "States.Format('PLAYBOOK_NOT_ENABLED')",
           updateSecHub: 'yes',
         },
         'EventType.$': '$.EventType',
@@ -338,7 +355,7 @@ export class OrchestratorConstruct extends Construct {
       parameters: {
         Notification: {
           'Message.$': "States.Format('check_ssm_doc_state returned an error: {}', $.AutomationDocument.Message)",
-          'State.$': "States.Format('LAMBDAERROR')",
+          'State.$': "States.Format('LAMBDA_ERROR')",
         },
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
@@ -438,15 +455,18 @@ export class OrchestratorConstruct extends Construct {
 
     checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'ACTIVE'), sendTaskToken);
     checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTACTIVE'), docStateNotActive);
-    checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTENABLED'), standardNotEnabled);
+    checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTENABLED'), playbookNotEnabled);
     checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'NOTFOUND'), controlNoRemediation);
+    checkDocState.when(sfn.Condition.stringEquals('$.AutomationDocument.DocState', 'ACCESSDENIED'), assumeRoleFailure);
     checkDocState.otherwise(docStateError);
 
     docStateNotActive.next(notify);
 
-    standardNotEnabled.next(notify);
+    playbookNotEnabled.next(notify);
 
     controlNoRemediation.next(notify);
+
+    assumeRoleFailure.next(notify);
 
     docStateError.next(notify);
 
@@ -567,18 +587,11 @@ export class OrchestratorConstruct extends Construct {
       };
     }
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(orchestratorRole, [
-      {
-        id: 'AwsSolutions-IAM5',
-        reason:
-          'CloudWatch Logs permissions require resource * except for DescribeLogGroups, except for GovCloud, which only works with resource *',
-      },
-    ]);
     addCfnGuardSuppression(orchestratorRole, 'IAM_NO_INLINE_POLICY_CHECK');
 
     const orchestratorStateMachine = new sfn.StateMachine(this, 'StateMachine', {
       definitionBody: sfn.DefinitionBody.fromChainable(extractFindings),
-      stateMachineName: `${RESOURCE_PREFIX}-SHARR-Orchestrator`,
+      stateMachineName: `${RESOURCE_PREFIX}-ASR-Orchestrator`,
       timeout: Duration.minutes(90),
       role: orchestratorRole,
       tracingEnabled: true,
@@ -586,7 +599,7 @@ export class OrchestratorConstruct extends Construct {
 
     new StringParameter(this, 'SHARR_Orchestrator_Arn', {
       description:
-        'Arn of the SHARR Orchestrator Step Function. This step function routes findings to remediation runbooks.',
+        'Arn of the ASR Orchestrator Step Function. This step function routes findings to remediation runbooks.',
       parameterName: '/Solutions/' + RESOURCE_PREFIX + '/OrchestratorArn',
       stringValue: orchestratorStateMachine.stateMachineArn,
     });
@@ -616,11 +629,6 @@ export class OrchestratorConstruct extends Construct {
       roleToModify.node.tryRemoveChild('DefaultPolicy');
     }
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(orchestratorStateMachine, [
-      { id: 'AwsSolutions-SF1', reason: 'False alarm. Logging configuration is overridden to log ALL.' },
-      { id: 'AwsSolutions-SF2', reason: 'X-Ray is not needed for this use case.' },
-    ]);
-
     this.ticketGenFunctionNameParamId = ticketGenFunctionNameParam.paramId;
     this.ticketGenFunctionARN = ticketGenFunctionNameParam.functionARN;
     this.ticketingEnabled = ticketingEnabled;
@@ -629,7 +637,8 @@ export class OrchestratorConstruct extends Construct {
   private createLogStack(kmsKeyParm: StringParameter): NestedStack {
     const reuseOrchLogGroup = new CfnParameter(this, 'Reuse Log Group', {
       type: 'String',
-      description: `Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no"`,
+      description: `Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no".
+       If you are upgrading to v2.3.0+ from an earlier version choose "no".`,
       default: 'no',
       allowedValues: ['yes', 'no'],
     });
@@ -650,7 +659,7 @@ export class OrchestratorConstruct extends Construct {
         Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
         '-reference.s3.amazonaws.com/' +
         Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
-        '/aws-sharr-orchestrator-log.template',
+        '/automated-security-response-orchestrator-log.template',
     );
     return logStack;
   }

@@ -2,10 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { NIST80053PlaybookMemberStack } from '../lib/NIST80053_playbook-construct';
-import { App, Aspects, DefaultStackSynthesizer } from 'aws-cdk-lib';
-import { AwsSolutionsChecks } from 'cdk-nag';
+import { App, DefaultStackSynthesizer } from 'aws-cdk-lib';
 import 'source-map-support/register';
-import { PlaybookPrimaryStack } from '../../../lib/sharrplaybook-construct';
+import { PlaybookPrimaryStack } from '../../../lib/playbook-construct';
 import { NIST80053_REMEDIATIONS } from '../lib/nist80053_remediations';
 import { splitMemberStack } from '../../split_member_stacks';
 
@@ -25,7 +24,6 @@ const standardLongName = 'nist-800-53';
 const standardVersion = '5.0.0'; // DO NOT INCLUDE 'V'
 
 const app = new App();
-Aspects.of(app).add(new AwsSolutionsChecks());
 
 const adminStack = new PlaybookPrimaryStack(app, 'NIST80053Stack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

@@ -1,23 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
 import { AdministratorStack } from '../lib/administrator-stack';
-import { AppRegister } from '../lib/appregistry/applyAppRegistry';
 
 function getTestStack(): Stack {
   const envEU = { account: '111111111111', region: 'eu-west-1' };
   const app = new App();
-  const appName = 'automated-security-response-on-aws';
-  const appregistry = new AppRegister({
-    solutionId: 'SO0111',
-    solutionName: appName,
-    solutionVersion: 'v1.0.0',
-    appRegistryApplicationName: appName,
-    applicationType: 'AWS-Solutions',
-  });
+
   const stack = new AdministratorStack(app, 'stack', {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     env: envEU,
@@ -28,11 +19,9 @@ function getTestStack(): Stack {
     solutionName: 'AWS Security Hub Automated Response & Remediation',
     runtimePython: Runtime.PYTHON_3_11,
     orchestratorLogGroup: 'ORCH_LOG_GROUP',
-    SNSTopicName: 'SHARR_Topic',
+    SNSTopicName: 'ASR_Topic',
     cloudTrailLogGroupName: 'some-loggroup-name',
   });
-  appregistry.applyAppRegistry(stack, stack.nestedStacksWithAppRegistry, stack.getPrimarySolutionSNSTopicARN());
-  Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
 

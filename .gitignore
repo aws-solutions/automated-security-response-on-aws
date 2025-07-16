@@ -4,9 +4,10 @@
 /deployment/regional-s3-assets/
 /deployment/setenv.sh
 /deployment/temp/
-
+/build
 # test
 /deployment/test/coverage-reports/
+requirements_dev.txt
 
 # Typescript
 /source/dist/

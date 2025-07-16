@@ -25,7 +25,7 @@ import * as cis_140_3_8 from '../ssmdocs/CIS140_3.8';
 import * as cis_140_3_9 from '../ssmdocs/CIS140_3.9';
 import * as cis_140_4_1 from '../ssmdocs/CIS140_4.1';
 import * as cis_140_5_3 from '../ssmdocs/CIS140_5.3';
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 
 export interface ControlRunbooksProps {
   standardShortName: string;

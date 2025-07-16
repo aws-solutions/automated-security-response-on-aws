@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import TYPE_CHECKING, List, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     from mypy_boto3_apigateway import APIGatewayClient
@@ -23,8 +23,6 @@ class MethodSettings(TypedDict):
 
 class Event(TypedDict):
     APIGatewayStageArn: str
-    StageName: str
-    MethodSettings: List[MethodSettings]
 
 
 def enable_data_encryption(event: Event, _):
@@ -33,18 +31,17 @@ def enable_data_encryption(event: Event, _):
 
     try:
         api_id = event["APIGatewayStageArn"].split("/")[2]
-
-        for method_settings in event["MethodSettings"]:
-            resource_path = method_settings["ResourcePath"]
-            http_method = method_settings["HttpMethod"]
-
+        stage_name = event["APIGatewayStageArn"].split("/")[4]
+        print(api_id, stage_name)
+        stage_details = apigateway.get_stage(restApiId=api_id, stageName=stage_name)
+        for method_key, method_value in stage_details["methodSettings"].items():
             apigateway.update_stage(
                 restApiId=api_id,
-                stageName=event["StageName"],
+                stageName=stage_name,
                 patchOperations=[
                     {
                         "op": "replace",
-                        "path": f"/{resource_path}/{http_method}/caching/dataEncrypted",
+                        "path": f"/{method_key}/caching/dataEncrypted",
                         "value": "true",
                     },
                 ],

@@ -3,7 +3,7 @@
 from simtest.remediation_test import RemediationTest
 
 
-def run_setup_key_rotation(remediation, account, region):
+def run_setup_key_rotation(remediation, account):
     print("This test enables rotation on a KMS key.\n")
 
     print("SETUP\n=====\n")

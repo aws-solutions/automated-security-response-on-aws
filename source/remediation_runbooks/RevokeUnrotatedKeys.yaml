@@ -9,7 +9,7 @@ description: |
   This document disables active keys that have not been rotated for more than 90 days. Note that this remediation is **DISRUPTIVE**. It will disabled keys that have been used within the previous 90 days by have not been rotated by using the [UpdateAccessKey API](https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html). Please note, this automation document requires AWS Config to be enabled.
 
   ## Input Parameters
-  * Finding: (Required) Security Hub finding details JSON
+  * IAMUserName: (Required) User Name for the non-compliant IAM User.
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * MaxCredentialUsageAge: (Optional) Maximum number of days a key is allowed to be unrotated before revoking it. DEFAULT: 90
 
@@ -22,13 +22,13 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  IAMResourceId:
+  IAMUserName:
     type: String
     description: (Required) IAM resource unique identifier.
     allowedPattern: ^[\w+=,.@_-]{1,128}$
   MaxCredentialUsageAge:
     type: String
-    description: (Required) Maximum number of days within which a credential must be used. The default value is 90 days.
+    description: (Optional) Maximum number of days within which a credential must be used. The default value is 90 days.
     allowedPattern: ^(?:[1-9]\d{0,3}|10000)$
     default: "90"
 outputs:
@@ -48,7 +48,7 @@ mainSteps:
       Runtime: python3.11
       Handler: unrotated_key_handler
       InputPayload:
-        IAMResourceId: "{{ IAMResourceId }}"
+        IAMUserName: "{{ IAMUserName }}"
         MaxCredentialUsageAge: "{{ MaxCredentialUsageAge }}"
       Script: |-
         %%SCRIPT=RevokeUnrotatedKeys.py%%

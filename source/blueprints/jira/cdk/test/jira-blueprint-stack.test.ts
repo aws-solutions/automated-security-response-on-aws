@@ -1,9 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
 import { JiraBlueprintStack } from '../jira-blueprint-stack';
 
 const description = 'ASR Blueprint Stack';
@@ -33,7 +32,6 @@ function getStack(): Stack {
     uriPattern: String.raw`^https:\/\/.+\.atlassian\.net$`,
   });
 
-  Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
 
@@ -79,9 +77,44 @@ describe('JiraBlueprintStack', () => {
               },
             },
             {
-              Action: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
+              Action: ['logs:CreateLogStream', 'logs:PutLogEvents'],
               Effect: 'Allow',
-              Resource: '*',
+              Resource: {
+                'Fn::Join': [
+                  '',
+                  [
+                    'arn:',
+                    {
+                      Ref: 'AWS::Partition',
+                    },
+                    ':logs:*:',
+                    {
+                      Ref: 'AWS::AccountId',
+                    },
+                    ':log-group:*:log-stream:*',
+                  ],
+                ],
+              },
+            },
+            {
+              Action: 'logs:CreateLogGroup',
+              Effect: 'Allow',
+              Resource: {
+                'Fn::Join': [
+                  '',
+                  [
+                    'arn:',
+                    {
+                      Ref: 'AWS::Partition',
+                    },
+                    ':logs:*:',
+                    {
+                      Ref: 'AWS::AccountId',
+                    },
+                    ':log-group:*',
+                  ],
+                ],
+              },
             },
             {
               Action: 'organizations:ListAccounts',

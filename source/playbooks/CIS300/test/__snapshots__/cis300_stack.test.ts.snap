@@ -60,7 +60,7 @@ exports[`CISv3.0.0 member stack snapshot 1`] = `
     "Namespace": {
       "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
       "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
-      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment, but does not need to be changed during stack updates.",
       "MaxLength": 9,
       "MinLength": 3,
       "Type": "String",
@@ -281,15 +281,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -789,15 +789,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -1194,15 +1194,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -1463,6 +1463,152 @@ def parse_event(event, _):
 
 exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
 {
+  "Conditions": {
+    "CIS18IsAllExclude39002AE6": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS18IsAllInclude1E8D0038": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS18IsInclude082287DD": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+    "CIS211IsAllExclude5A6B6416": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS211IsAllIncludeBF0D50A1": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS211IsIncludeF2527826": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+    "CIS214IsAllExclude2FCE4209": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS214IsAllInclude2CC8F85E": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS214IsInclude41A56251": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+  },
   "Description": "test",
   "Mappings": {
     "SourceCode": {
@@ -1504,6 +1650,26 @@ exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
       "Default": "/Solutions/SO0111/OrchestratorArn",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "TargetAccountIDs": {
+      "AllowedPattern": "^(ALL|\\d{12}(,\\s*\\d{12})*)$",
+      "ConstraintDescription": "Must be "ALL" or a comma-separated list of 12-digit AWS account IDs (e.g., "123456789012,098765432109")",
+      "Default": "ALL",
+      "Description": "List of AWS Account IDs. Use "ALL" to target all accounts, or provide a comma-separated list of 12-digit AWS account IDs.",
+      "MaxLength": 3360,
+      "Type": "String",
+    },
+    "TargetAccountIDsStrategy": {
+      "AllowedValues": [
+        "INCLUDE",
+        "EXCLUDE",
+      ],
+      "Default": "INCLUDE",
+      "Description": "INCLUDE: Apply automated remediation only to the accounts listed. 
+      EXCLUDE: Apply automated remediation to all accounts except those listed. 
+
+      You must manually enable automatic remediations in the Admin account after deploying (create/update) the solution's CloudFormation stacks.",
+      "Type": "String",
+    },
   },
   "Resources": {
     "CIS18AutoEventRule30B4F305": {
@@ -1512,6 +1678,49 @@ exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "CIS18IsAllInclude1E8D0038",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "CIS18IsAllExclude39002AE6",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "CIS18IsInclude082287DD",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -1612,6 +1821,49 @@ exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "CIS211IsAllIncludeBF0D50A1",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "CIS211IsAllExclude5A6B6416",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "CIS211IsIncludeF2527826",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -1712,6 +1964,49 @@ exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "CIS214IsAllInclude2CC8F85E",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "CIS214IsAllExclude2FCE4209",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "CIS214IsInclude41A56251",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -1817,7 +2112,7 @@ exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
     },
     "StandardVersionCB2C6951": {
       "Properties": {
-        "Description": "This parameter controls whether the SHARR step function will process findings for this version of the standard.",
+        "Description": "This parameter controls whether the ASR step function will process findings for this version of the standard.",
         "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/3.0.0/status",
         "Type": "String",
         "Value": "enabled",

@@ -10,7 +10,7 @@ from layer.cloudwatch_metrics import CloudWatchMetrics
 from layer.logger import Logger
 from layer.sechub_findings import Finding
 
-ORCH_ROLE_NAME = "SO0111-SHARR-Orchestrator-Member"  # role to use for cross-account
+ORCH_ROLE_NAME = "SO0111-ASR-Orchestrator-Member"  # role to use for cross-account
 
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
@@ -134,7 +134,7 @@ def lambda_handler(event, _):
                 "securitystandard": "N/A",
                 "securitystandardversion": "N/A",
                 "controlid": "N/A",
-                "standardsupported": "N/A",
+                "playbookenabled": "N/A",
                 "accountid": non_sec_hub_finding["AwsAccountId"],
                 "resourceregion": resource_region,
                 "automationdocid": workflow_doc["WorkflowDocument"],
@@ -159,7 +159,7 @@ def lambda_handler(event, _):
             ),
             "securitystandardversion": finding.standard_version,
             "controlid": finding.standard_control,
-            "standardsupported": finding.standard_version_supported,
+            "playbookenabled": finding.playbook_enabled,
             "accountid": finding.account_id,
             "resourceregion": finding.resource_region,
             "remediationrole": "",
@@ -167,7 +167,7 @@ def lambda_handler(event, _):
         }
     )
 
-    if finding.standard_version_supported != "True":
+    if finding.playbook_enabled != "True":
         answer.update(
             {
                 "status": "NOTENABLED",

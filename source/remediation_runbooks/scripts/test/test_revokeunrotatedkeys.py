@@ -34,7 +34,7 @@ def iam_resource():
 
 
 def event():
-    return {"IAMResourceId": "AIDACKCEVSQ6C2EXAMPLE", "MaxCredentialUsageAge": "90"}
+    return {"IAMUserName": "someuser", "MaxCredentialUsageAge": "90"}
 
 
 def access_keys():
@@ -129,19 +129,6 @@ def successful():
 # =====================================================================================
 def test_success(mocker):
     # Clients
-    cfg_client = botocore.session.get_session().create_client(
-        "config", config=BOTO_CONFIG
-    )
-    cfg_stubber = Stubber(cfg_client)
-
-    cfg_stubber.add_response(
-        "list_discovered_resources",
-        iam_resource(),
-        {"resourceType": "AWS::IAM::User", "resourceIds": ["AIDACKCEVSQ6C2EXAMPLE"]},
-    )
-
-    cfg_stubber.activate()
-
     iam_client = botocore.session.get_session().create_client("iam", config=BOTO_CONFIG)
     iam_stubber = Stubber(iam_client)
 
@@ -177,10 +164,8 @@ def test_success(mocker):
 
     iam_stubber.activate()
 
-    mocker.patch("RevokeUnrotatedKeys.connect_to_config", return_value=cfg_client)
     mocker.patch("RevokeUnrotatedKeys.connect_to_iam", return_value=iam_client)
 
     assert remediation.unrotated_key_handler(event(), {}) == successful()
 
-    cfg_stubber.deactivate()
     iam_stubber.deactivate()

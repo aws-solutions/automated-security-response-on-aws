@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Stack, App, CfnParameter, CfnOutput } from 'aws-cdk-lib';
-import { Function, Tracing } from 'aws-cdk-lib/aws-lambda';
+import { Tracing } from 'aws-cdk-lib/aws-lambda';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 import { BlueprintProps, BlueprintStack } from '../../cdk/blueprint-stack';
@@ -37,7 +37,7 @@ export class ServiceNowBlueprintStack extends BlueprintStack {
       },
     };
 
-    const ticketGeneratorFunction = new Function(this, 'ServiceNowTicketGenerator', {
+    const ticketGeneratorFunction = new lambda.Function(this, 'ServiceNowTicketGenerator', {
       functionName: props.functionName,
       handler: 'servicenow_ticket_generator.lambda_handler',
       runtime: props.solutionInfo.runtimePython,

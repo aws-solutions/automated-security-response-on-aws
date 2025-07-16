@@ -9,9 +9,9 @@ from time import sleep
 
 import cfnresponse
 
-basicConfig(
-    level=getLevelName(getenv("LOG_LEVEL", "INFO"))
-)  # NOSONAR This configures logging based on the environment variable that is set.
+# fmt: off
+basicConfig(level=getLevelName(getenv("LOG_LEVEL", "INFO")))  # NOSONAR This configures logging based on the environment variable that is set.
+# fmt: on
 logger = getLogger(__name__)
 
 

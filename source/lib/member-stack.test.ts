@@ -1,11 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { App, Aspects, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AwsSolutionsChecks } from 'cdk-nag';
 import { MemberStack } from './member-stack';
-import { AppRegister } from './appregistry/applyAppRegistry';
 import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
 import { NIST80053_REMEDIATIONS } from '../playbooks/NIST80053/lib/nist80053_remediations';
 import { AFSBP_REMEDIATIONS } from '../playbooks/AFSBP/lib/afsbp_remediations';
@@ -33,14 +31,6 @@ const totalRemediationsRecord: Record<string, number> = {
 
 function getMemberStack(): Stack {
   const app = new App();
-  const appName = 'automated-security-response-on-aws';
-  const appregistry = new AppRegister({
-    solutionId: 'SO0111',
-    solutionName: appName,
-    solutionVersion: 'v1.0.0',
-    appRegistryApplicationName: appName,
-    applicationType: 'AWS-Solutions',
-  });
   const stack = new MemberStack(app, 'MemberStack', {
     analyticsReporting: false,
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -50,11 +40,9 @@ function getMemberStack(): Stack {
     solutionVersion,
     solutionDistBucket,
     runtimePython: Runtime.PYTHON_3_11,
-    SNSTopicName: 'SHARR_Topic',
+    SNSTopicName: 'ASR_Topic',
     cloudTrailLogGroupName: 'SO0111-ASR-CloudTrailEvents',
   });
-  appregistry.applyAppRegistry(stack, stack.nestedStacksWithAppRegistry, stack.getPrimarySolutionSNSTopicARN());
-  Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
 
@@ -360,7 +348,7 @@ describe('member stack', function () {
 
     it('for runbooks is present', function () {
       template.hasResourceProperties('AWS::CloudFormation::Stack', {
-        TemplateURL: getExpectedTemplateURL('aws-sharr-remediations.template'),
+        TemplateURL: getExpectedTemplateURL('automated-security-response-remediation-runbooks.template'),
       });
     });
 

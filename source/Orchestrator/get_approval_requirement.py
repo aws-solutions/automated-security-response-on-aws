@@ -20,6 +20,7 @@ from layer import tracer_utils, utils
 from layer.awsapi_cached_client import BotoSession
 from layer.logger import Logger
 from layer.sechub_findings import Finding
+from layer.simple_validation import extract_safe_product_name, safe_ssm_path
 
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
@@ -108,7 +109,7 @@ def _get_alternate_workflow(accountid):
 
 def _doc_is_active(doc, account):
     try:
-        ssm = _get_ssm_client(account, SOLUTION_ID + "-SHARR-Orchestrator-Member")
+        ssm = _get_ssm_client(account, SOLUTION_ID + "-ASR-Orchestrator-Member")
         docinfo = ssm.describe_document(Name=doc)["Document"]
 
         doctype = docinfo.get("DocumentType", "unknown")
@@ -163,22 +164,11 @@ def lambda_handler(event, _):
     if product_name != "Security Hub":
         non_sec_hub_finding = event["Finding"]
         try:
-            ssm_param = "/Solutions/SO0111/"
-            if product_name == "Config":
-                ssm_param += non_sec_hub_finding["Title"]
-            elif product_name == "Health":
-                ssm_param += non_sec_hub_finding["GeneratorId"]
-            elif product_name == "GuardDuty":
-                ssm_param_type_array = non_sec_hub_finding.get("Types", "")
-                ssm_param_id = ssm_param_type_array[0].split("-")[1]
-                ssm_param += ssm_param_id
-            elif product_name == "Inspector":
-                ssm_param_id = non_sec_hub_finding.get("ProductFields", {}).get(
-                    "attributes/RULE_TYPE", ""
-                )
-                ssm_param += ssm_param_id
-            else:
-                ssm_param += non_sec_hub_finding["Title"]
+            base_path = "/Solutions/SO0111"
+            safe_product_name = extract_safe_product_name(
+                non_sec_hub_finding, product_name
+            )
+            ssm_param = safe_ssm_path(base_path, safe_product_name)
             BOTO_CONFIG = Config(retries={"mode": "standard", "max_attempts": 10})
             ssm_client = boto3.client("ssm", config=BOTO_CONFIG)
             string_workflow_args = ssm_client.get_parameter(Name=ssm_param)
@@ -230,7 +220,7 @@ def lambda_handler(event, _):
     # ---------------------------
     # workflow_data can be modified to suit your needs. This data is passed to the
     # alt_workflow. Using the alt_workflow redirects the remediation to your workflow
-    # only! The normal SHARR workflow will not be executed.
+    # only! The normal ASR workflow will not be executed.
     # ----------------------------------------------------------------------------------
     if alt_workflow and use_alt_workflow:
         answer.update(

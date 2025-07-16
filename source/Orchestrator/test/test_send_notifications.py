@@ -56,7 +56,7 @@ def setup(mocker):
     sharr_notification_stub = mocker.stub()
     sharr_notification_stub.notify = mocker.Mock()
     mocker.patch(
-        "send_notifications.sechub_findings.SHARRNotification",
+        "send_notifications.sechub_findings.ASRNotification",
         return_value=sharr_notification_stub,
     )
     mocker.patch("send_notifications.CloudWatchMetrics.send_metric", return_value=None)

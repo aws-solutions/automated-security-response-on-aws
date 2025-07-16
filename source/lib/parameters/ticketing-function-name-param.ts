@@ -4,6 +4,7 @@ import { CfnParameter, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 export default class TicketingFunctionNameParam extends Construct {
+  public static readonly functionNameRegex: string = '^$|^([a-zA-Z0-9\\-_]{1,64})?$';
   public readonly paramId: string;
   public readonly value: string;
   public readonly functionARN: string;
@@ -12,7 +13,6 @@ export default class TicketingFunctionNameParam extends Construct {
     super(scope, id);
     const stack = Stack.of(this);
 
-    const functionNameRegex = String.raw`^([a-zA-Z0-9\-_]{1,64})?$`;
     const param = new CfnParameter(this, 'Ticket Generator Function Name', {
       description:
         'Enter the name of the Lambda function you would like to use to generate tickets when remediations are successfully completed. This function must be in the same region where you are deploying this stack. ' +
@@ -20,7 +20,8 @@ export default class TicketingFunctionNameParam extends Construct {
         'The function you provide should be implemented to create a ticket in your service of choice based on input from the Orchestrator step function. ' +
         `To reference or use the provided Ticket Generator function for Jira or ServiceNow, see the Blueprint stacks in the solution's implementation guide.`,
       type: 'String',
-      allowedPattern: functionNameRegex,
+      default: '',
+      allowedPattern: TicketingFunctionNameParam.functionNameRegex,
     });
     param.overrideLogicalId(`TicketGenFunctionName`);
     this.paramId = param.logicalId;

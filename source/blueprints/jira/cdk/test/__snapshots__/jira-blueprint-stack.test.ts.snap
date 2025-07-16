@@ -174,17 +174,6 @@ exports[`JiraBlueprintStack Matches snapshot 1`] = `
     },
     "TicketGeneratorPolicyJira9E5DAA96": {
       "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "applies_to": [
-                "Resource::*",
-              ],
-              "id": "AwsSolutions-IAM5",
-              "reason": "Resource * is required to create CloudWatch logs.",
-            },
-          ],
-        },
         "cfn_nag": {
           "rules_to_suppress": [
             {
@@ -206,12 +195,46 @@ exports[`JiraBlueprintStack Matches snapshot 1`] = `
             },
             {
               "Action": [
-                "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
               ],
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:*:log-stream:*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "logs:CreateLogGroup",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:*",
+                  ],
+                ],
+              },
             },
             {
               "Action": "organizations:ListAccounts",

@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-07-16
+
+### Added
+
+- Remediations for additional control ids, see `source/playbooks/SC/lib/sc_remediations.ts` for details
+- Filtering by Account ID for automated remediation executions
+- AssumeRoleFailure step to the Orchestrator Step Function for error handling
+- Enhanced failure metric states
+- Anonymized metrics for CloudFormation parameter selections
+- SSM parameters security validation
+
+### Removed
+
+- ServiceCatalog Application Registry integration
+- Deprecated `zlib` package from CloudTrail Event Processor lambda
+- `requirements_dev.txt` from version control
+- Redundant anonymized metric publishing from check_ssm_execution lambda
+
+### Changed
+
+- Upgraded NodeJS runtime for CloudTrail Event Processor lambda from 20->22
+- Refactored member roles & remediation runbook stacks into separate files
+- Replaced resource names and references to old solution name ("SHARR") with current solution name ("ASR")
+  - Some logical IDs with references to "SHARR" were not changed to avoid breaking the update path
+  - Any KMS key names/aliases/logical IDs were left unchanged to avoid disrupting encryption.
+- Renamed error strings published by Orchestrator steps as "States" and consumed in cloudwatch_metrics.ts
+- Removed AwsSolutionsChecks from CDK build
+- Updated grouping of CloudWatch metrics parameters for clarity
+- Updated dependencies: Jinja2, Cryptography, babel, aws-cdk-lib, aws-cdk, urllib3, moto, @cdklabs/cdk-ssm-documents, jest libs
+- Support for Poetry v2
+- Refactored lambdas and runbooks for code quality
+- 'Estimated Hours Saved' dashboard widget
+- Renamed CloudFormation templates to align with current solution name: Automated Security Response on AWS (ASR)
+- Appended account ID to action log ManagementEvents S3 bucket to avoid bucket name clashing among member stack deployments with the same `namespace`
+
+### Fixed
+
+- Python handler referenced in RevokeUnusedIAMUserCredentials.yaml to match RevokeUnusedIAMUserCredentials.py
+- Remediation runbooks that rely on unstable Resources.Details finding field
+- Regular expression patterns used in runbooks to match KMS Key ARNs
+- Race condition in applogger.py when two instances of SendNotifications lambda are running in parallel
+  - Caused by lack of exception handling when log group does not yet exist
+
 ## [2.2.1] - 2025-01-27
 
 ### Changed
@@ -12,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modified the org-id-lookup custom resource to avoid throwing an error when the Admin stack is deployed in a non-Organization account.
 
 ### Security
+
 - Upgrade jinja2 to mitigate [CVE-2024-56201](https://avd.aquasec.com/nvd/cve-2024-56201)
 
 ## [2.2.0] - 2024-12-16
@@ -39,7 +83,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Config.1 remediation script to allow non-"default" Config recorder name
 - parse_non_string_types.py script to allow boolean values
-
 
 ## [2.1.4] - 2024-11-18
 

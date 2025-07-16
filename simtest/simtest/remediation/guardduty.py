@@ -4,7 +4,7 @@ from simtest.boto_session import get_session
 from simtest.remediation_test import RemediationTest
 
 
-def run_guardduty_1(remediation, account, region):
+def run_guardduty_1(remediation, account):
     print("Simulate AWS FSBP GuardDuty.1 Findings\n")
 
     print("This test enables GuardDuty in the finding region.\n")

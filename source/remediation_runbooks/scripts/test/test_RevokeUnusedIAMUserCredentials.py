@@ -21,7 +21,6 @@ def setup(mocker):
     # Mocking config with moto requires significant setup that is out of scope for these tests,
     # so get_user_name is patched for most tests here.
     iam_client = boto3.client("iam", region_name=REGION, config=BOTO_CONFIG)
-    mocker.patch("RevokeUnusedIAMUserCredentials.get_user_name", return_value=TEST_USER)
     iam_client.create_user(
         UserName=TEST_USER,
     )
@@ -62,11 +61,16 @@ def setup_client_stubber(client, method, mocker):
     return stubber
 
 
-def credentials_are_deleted():
+def credentials_are_deleted(user_name: str):
     iam_client = boto3.client("iam", region_name=REGION, config=BOTO_CONFIG)
     try:
-        response = iam_client.get_user(UserName="string")
-        return response["User"]
+        access_keys = iam_client.list_access_keys(UserName=user_name)
+        login_profile = iam_client.get_login_profile(UserName=user_name)["LoginProfile"]
+
+        if access_keys["AccessKeyMetadata"] or login_profile:
+            return False
+
+        return True
     except iam_client.exceptions.NoSuchEntityException:
         return True
 
@@ -91,13 +95,13 @@ def test_handler(mocker):
     use_iam_credentials(test_access_key_id, test_secret_access_key)
 
     response = remediation.handler(
-        {"IAMResourceId": TEST_USER, "MaxCredentialUsageAge": -1}, None
+        {"IAMUserName": TEST_USER, "MaxCredentialUsageAge": -1}, None
     )
 
     assert response["Status"] == "Success"
     assert response["DeactivatedKeys"] == str([test_access_key_id])
     assert response["DeletedProfile"] == TEST_USER
-    assert credentials_are_deleted()
+    assert credentials_are_deleted(TEST_USER)
 
 
 @mock_aws(config={"iam": {"load_aws_managed_policies": True}})
@@ -105,54 +109,13 @@ def test_handler_without_using_access_key(mocker):
     test_access_key_id, test_secret_access_key = setup(mocker)
 
     response = remediation.handler(
-        {"IAMResourceId": TEST_USER, "MaxCredentialUsageAge": -1}, None
+        {"IAMUserName": TEST_USER, "MaxCredentialUsageAge": -1}, None
     )
 
     assert response["Status"] == "Success"
     assert response["DeactivatedKeys"] == str([test_access_key_id])
     assert response["DeletedProfile"] == TEST_USER
-    assert credentials_are_deleted()
-
-
-def test_get_user_name(mocker):
-    test_resource_id = "iam_user_resource_id"
-    client = botocore.session.get_session().create_client("config", config=BOTO_CONFIG)
-    stubber = Stubber(client)
-
-    stubber.add_response(
-        "list_discovered_resources",
-        service_response={
-            "resourceIdentifiers": [
-                {
-                    "resourceName": TEST_USER,
-                },
-            ],
-        },
-        expected_params={
-            "resourceType": "AWS::IAM::User",
-            "resourceIds": [test_resource_id],
-        },
-    )
-    mocker.patch(
-        "RevokeUnusedIAMUserCredentials.connect_to_service", return_value=client
-    )
-    stubber.activate()
-
-    response = remediation.get_user_name(test_resource_id)
-
-    assert response == TEST_USER
-    stubber.deactivate()
-
-
-def test_get_user_name_error(mocker):
-    config_stubber = setup_client_stubber("config", "list_discovered_resources", mocker)
-    config_stubber.activate()
-
-    with pytest.raises(Exception) as e:
-        remediation.get_user_name("my-resource-id")
-
-    assert re.match(r"Encountered error fetching user name for resource", str(e.value))
-    config_stubber.deactivate()
+    assert credentials_are_deleted(TEST_USER)
 
 
 def test_delete_unused_password_error(mocker):

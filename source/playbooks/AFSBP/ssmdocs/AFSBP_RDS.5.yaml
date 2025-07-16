@@ -45,8 +45,8 @@ mainSteps:
     Script: |-
       %%SCRIPT=common/parse_input.py%%
   outputs:
-  - Name: 'DbInstanceResourceId'
-    Selector: '$.Payload.details.AwsRdsDbInstance.DbiResourceId'
+  - Name: 'RDSInstanceARN'
+    Selector: '$.Payload.resource.Id'
     Type: 'String'
   - Name: 'AffectedObject'
     Selector: '$.Payload.object'
@@ -74,7 +74,7 @@ mainSteps:
         - '{{ParseInput.RemediationRegion}}'
         ExecutionRoleName: '{{RemediationRoleName}}'
     RuntimeParameters:
-      DbiResourceId: '{{ParseInput.DbInstanceResourceId}}'
+      RDSInstanceARN: '{{ParseInput.RDSInstanceARN}}'
       ApplyImmediately: true
       AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
 - name: 'UpdateFinding'

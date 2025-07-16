@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { PlaybookPrimaryStack } from '../../../lib/sharrplaybook-construct';
-import * as cdk_nag from 'cdk-nag';
+import { PlaybookPrimaryStack } from '../../../lib/playbook-construct';
 import * as cdk from 'aws-cdk-lib';
 import 'source-map-support/register';
 import { CIS300PlaybookMemberStack } from '../lib/cis300_playbook-construct';
@@ -25,7 +24,6 @@ const standardLongName = 'cis-aws-foundations-benchmark';
 const standardVersion = '3.0.0'; // DO NOT INCLUDE 'V'
 
 const app = new cdk.App();
-cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks());
 
 const adminStack = new PlaybookPrimaryStack(app, 'CIS300Stack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

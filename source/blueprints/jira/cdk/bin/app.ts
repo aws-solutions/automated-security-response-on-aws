@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';
 import { JiraBlueprintStack } from '../jira-blueprint-stack';
 import { SolutionProps } from '../../../cdk/blueprint-stack';
@@ -18,7 +17,6 @@ const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_11;
 const JIRA_FUNCTION_NAME = SOLUTION_ID + '-ASR-Jira-TicketGenerator';
 
 const app = new cdk.App();
-cdk.Aspects.of(app).add(new cdk_nag.AwsSolutionsChecks({ verbose: true }));
 
 const solutionProps: SolutionProps = {
   solutionId: SOLUTION_ID,
@@ -41,26 +39,7 @@ const jiraBlueprintStack = new JiraBlueprintStack(app, 'JiraBlueprintStack', {
 });
 jiraBlueprintStack.templateOptions.templateFormatVersion = '2010-09-09';
 
-// ========== CDK Nag Suppressions ============
-
-cdk_nag.NagSuppressions.addResourceSuppressionsByPath(
-  jiraBlueprintStack,
-  '/JiraBlueprintStack/TicketGeneratorRole-Jira/DefaultPolicy/Resource',
-  [
-    {
-      id: 'AwsSolutions-IAM5',
-      reason: 'Resource * is required to enable x-ray tracing.',
-      appliesTo: ['Resource::*'],
-    },
-  ],
-);
-cdk_nag.NagSuppressions.addStackSuppressions(
-  jiraBlueprintStack,
-  [
-    {
-      id: 'AwsSolutions-L1',
-      reason: 'Python 3.12 runtime not yet available in GovCloud/China regions',
-    },
-  ],
-  true,
-);
+// add metadata tags to all resources
+cdk.Tags.of(app).add('Solutions:SolutionID', SOLUTION_ID);
+cdk.Tags.of(app).add('Solutions:SolutionName', SOLUTION_TMN);
+cdk.Tags.of(app).add('Solutions:SolutionVersion', SOLUTION_VERSION);

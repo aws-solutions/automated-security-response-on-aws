@@ -9,14 +9,13 @@ from os import getenv
 import cfnresponse
 from layer.metrics import Metrics
 
-basicConfig(
-    level=getLevelName(getenv("LOG_LEVEL", "INFO"))
-)  # NOSONAR This configures logging based on the environment variable that is set.
+# fmt: off
+basicConfig(level=getLevelName(getenv("LOG_LEVEL", "INFO")))  # NOSONAR This configures logging based on the environment variable that is set.
+# fmt: on
 logger = getLogger(__name__)
 
 
 def lambda_handler(event, context):
-    """Handle the Lambda request for a deployment action"""
     response_data: dict[str, str] = {}
     logger.debug(f"received event: {json.dumps(event)}")
 
@@ -40,13 +39,12 @@ def lambda_handler(event, context):
 
 
 def send_deployment_metrics(properties, request_type):
-    """Send deployment metrics"""
     metrics_obj = Metrics()
+
+    stack_parameters = properties.get("StackParameters", {})
     metrics_data = {
         "Event": f"Solution{request_type}",
-        "CloudWatchDashboardEnabled": properties.get(
-            "CloudWatchMetricsDashboardEnabled", {}
-        ),
+        "RequestType": request_type,
+        **stack_parameters,  # Spread all stack parameters directly
     }
-
     metrics_obj.send_metrics(metrics_data)

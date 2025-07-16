@@ -4,10 +4,9 @@
 import { Construct } from 'constructs';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { OrganizationPrincipal, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
-import * as cdk_nag from 'cdk-nag';
 import { RemovalPolicy } from 'aws-cdk-lib';
 import { OrgIdLookupConstruct } from './org-id-lookup';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 
 interface ActionLogProps {
   logGroupName: string;
@@ -21,7 +20,7 @@ export class ActionLog extends Construct {
     // target LogGroup for ASR events. EventProcessor lambdas in member accounts will write filtered CloudTrail event here.
     const logGroup = new LogGroup(scope, 'CloudTrailEventsLogGroup', {
       logGroupName: props.logGroupName,
-      retention: RetentionDays.ONE_YEAR,
+      retention: RetentionDays.TEN_YEARS,
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
@@ -44,16 +43,6 @@ export class ActionLog extends Construct {
     );
     logGroup.grantWrite(crossAccountRole);
 
-    cdk_nag.NagSuppressions.addResourceSuppressions(
-      crossAccountRole,
-      [
-        {
-          id: 'AwsSolutions-IAM5',
-          reason: 'Resource * is required to write to arbitrary LogStreams in this LogGroup',
-        },
-      ],
-      true, // apply to children
-    );
     addCfnGuardSuppression(crossAccountRole, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
   }
 }

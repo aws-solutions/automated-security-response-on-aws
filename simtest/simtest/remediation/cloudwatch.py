@@ -3,7 +3,7 @@
 from simtest.remediation_test import RemediationTest
 
 
-def run_log_and_filter(remediation, account, region):
+def run_log_and_filter(remediation, account):
     print("This test creates a log metric filter and alarm")
 
     print("SETUP\n=====\n")

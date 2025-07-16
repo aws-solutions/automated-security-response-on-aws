@@ -36,7 +36,7 @@ parameters:
     type: 'String'
     default: 'alias/aws/rds'
     description: '(Optional) ID, ARN or Alias for the AWS KMS Customer-Managed Key (CMK) to use to encrypt the snapshot.'
-    allowedPattern: '^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:alias/[A-Za-z0-9/_-]+)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
+    allowedPattern: '^(?:arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:)?(?:(?:^(alias/)[a-zA-Z0-9:/_-]+$)|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$'
 mainSteps:
 - name: 'ParseInput'
   action: 'aws:executeScript'

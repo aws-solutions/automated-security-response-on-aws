@@ -4,7 +4,7 @@ import json
 import urllib.parse
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 from urllib.request import Request, urlopen
 
 import boto3
@@ -15,6 +15,21 @@ if TYPE_CHECKING:
     from mypy_boto3_ssm.client import SSMClient
 else:
     SSMClient = object
+
+# Mapping of error cases from the Orchestrator Step Function
+# to more descriptive strings for metric publishing
+NORMALIZED_STATUS_REASON_MAPPING = {
+    "FAILED": "REMEDIATION_FAILED",
+    "LAMBDA_ERROR": "ORCHESTRATOR_FAILED",
+    "RUNBOOK_NOT_ACTIVE": "RUNBOOK_NOT_ACTIVE",
+    "PLAYBOOK_NOT_ENABLED": "PLAYBOOK_NOT_ENABLED",
+    "TIMEDOUT": "REMEDIATION_TIMED_OUT",
+    "CANCELLED": "REMEDIATION_CANCELLED",
+    "CANCELLING": "REMEDIATION_CANCELLED",
+    "ASSUME_ROLE_FAILURE": "ACCOUNT_NOT_ONBOARDED",
+    "NO_RUNBOOK": "NO_REMEDIATION_AVAILABLE",
+    "NOT_NEW": "FINDING_WORKFLOW_STATE_NOT_NEW",
+}
 
 
 class Metrics(object):
@@ -173,3 +188,26 @@ class Metrics(object):
             headers={"Content-Type": "application/json"},
         )
         urlopen(req)  # nosec
+
+    @staticmethod
+    def get_status_for_anonymized_metrics(status_from_event: str) -> Tuple[str, str]:
+        """
+        Takes the status received from the event which invoked SendNotifications
+        and returns an object containing the normalized status & reason for the status.
+        A reason will only be provided if the status is "FAILED".
+        """
+        status_from_event_upper = status_from_event.upper()
+        if status_from_event_upper == "SUCCESS":
+            status = "SUCCESS"
+        elif status_from_event_upper == "QUEUED":
+            status = "PENDING"
+        else:
+            status = "FAILED"
+
+        reason = ""
+        if status == "FAILED":
+            reason = NORMALIZED_STATUS_REASON_MAPPING.get(
+                status_from_event_upper, "UNKNOWN"
+            )
+
+        return status, reason

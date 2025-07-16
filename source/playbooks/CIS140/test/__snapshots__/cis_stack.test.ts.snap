@@ -2,6 +2,152 @@
 
 exports[`default stack 1`] = `
 {
+  "Conditions": {
+    "CIS11IsAllExcludeA7FF71E7": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS11IsAllInclude6DE7A89F": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS11IsInclude538AAF5C": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+    "CIS12IsAllExclude3C3C8A8D": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS12IsAllInclude87770CD4": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS12IsIncludeEB0BA8A4": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+    "CIS13IsAllExcludeF57B987E": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS13IsAllInclude196BFD56": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "CIS13IsInclude6F825FB8": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+  },
   "Description": "test;",
   "Mappings": {
     "SourceCode": {
@@ -43,6 +189,26 @@ exports[`default stack 1`] = `
       "Default": "/Solutions/SO0111/OrchestratorArn",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "TargetAccountIDs": {
+      "AllowedPattern": "^(ALL|\\d{12}(,\\s*\\d{12})*)$",
+      "ConstraintDescription": "Must be "ALL" or a comma-separated list of 12-digit AWS account IDs (e.g., "123456789012,098765432109")",
+      "Default": "ALL",
+      "Description": "List of AWS Account IDs. Use "ALL" to target all accounts, or provide a comma-separated list of 12-digit AWS account IDs.",
+      "MaxLength": 3360,
+      "Type": "String",
+    },
+    "TargetAccountIDsStrategy": {
+      "AllowedValues": [
+        "INCLUDE",
+        "EXCLUDE",
+      ],
+      "Default": "INCLUDE",
+      "Description": "INCLUDE: Apply automated remediation only to the accounts listed. 
+      EXCLUDE: Apply automated remediation to all accounts except those listed. 
+
+      You must manually enable automatic remediations in the Admin account after deploying (create/update) the solution's CloudFormation stacks.",
+      "Type": "String",
+    },
   },
   "Resources": {
     "CIS11AutoEventRule5178D649": {
@@ -51,6 +217,49 @@ exports[`default stack 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "CIS11IsAllInclude6DE7A89F",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "CIS11IsAllExcludeA7FF71E7",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "CIS11IsInclude538AAF5C",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -151,6 +360,49 @@ exports[`default stack 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "CIS12IsAllInclude87770CD4",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "CIS12IsAllExclude3C3C8A8D",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "CIS12IsIncludeEB0BA8A4",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -251,6 +503,49 @@ exports[`default stack 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "CIS13IsAllInclude196BFD56",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "CIS13IsAllExcludeF57B987E",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "CIS13IsInclude6F825FB8",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -356,7 +651,7 @@ exports[`default stack 1`] = `
     },
     "StandardVersionCB2C6951": {
       "Properties": {
-        "Description": "This parameter controls whether the SHARR step function will process findings for this version of the standard.",
+        "Description": "This parameter controls whether the ASR step function will process findings for this version of the standard.",
         "Name": "/Solutions/SO0111/cis-aws-foundations-benchmark/1.4.0/status",
         "Type": "String",
         "Value": "enabled",
@@ -427,7 +722,7 @@ exports[`default stack 2`] = `
     "Namespace": {
       "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
       "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
-      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment, but does not need to be changed during stack updates.",
       "MaxLength": 9,
       "MinLength": 3,
       "Type": "String",
@@ -477,7 +772,7 @@ SEE AWSConfigRemediation-RevokeUnusedIAMUserCredentials
                   "expected_control_id": [
                     "1.12",
                   ],
-                  "parse_id_pattern": "",
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):iam::\\d{12}:user(?:(?:\\/)|(?:\\/.{1,510}\\/))([\\w+=,.@_-]{1,64})$",
                 },
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -647,15 +942,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -758,8 +1053,8 @@ def parse_event(event, _):
                   "Type": "StringMap",
                 },
                 {
-                  "Name": "IAMResourceId",
-                  "Selector": "$.Payload.details.AwsIamUser.UserId",
+                  "Name": "IAMUserName",
+                  "Selector": "$.Payload.resource_id",
                   "Type": "String",
                 },
               ],
@@ -770,7 +1065,7 @@ def parse_event(event, _):
                 "DocumentName": "ASR-RevokeUnusedIAMUserCredentials",
                 "RuntimeParameters": {
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
-                  "IAMResourceId": "{{ ParseInput.IAMResourceId }}",
+                  "IAMUserName": "{{ ParseInput.IAMUserName }}",
                   "MaxCredentialUsageAge": "45",
                 },
               },
@@ -877,7 +1172,7 @@ This document disables active keys that have not been rotated for more than 90 d
                   "expected_control_id": [
                     "1.14",
                   ],
-                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):iam::\\d{12}:user(?:(?:\\u002F)|(?:\\u002F[\\u0021-\\u007F]{1,510}\\u002F))([\\w+=,.@-]{1,64})$",
+                  "parse_id_pattern": "^arn:(?:aws|aws-cn|aws-us-gov):iam::\\d{12}:user(?:(?:\\/)|(?:\\/.{1,510}\\/))([\\w+=,.@_-]{1,64})$",
                 },
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -1047,15 +1342,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -1158,13 +1453,8 @@ def parse_event(event, _):
                   "Type": "StringMap",
                 },
                 {
-                  "Name": "IAMUser",
+                  "Name": "IAMUserName",
                   "Selector": "$.Payload.resource_id",
-                  "Type": "String",
-                },
-                {
-                  "Name": "IAMResourceId",
-                  "Selector": "$.Payload.details.AwsIamUser.UserId",
                   "Type": "String",
                 },
               ],
@@ -1175,7 +1465,7 @@ def parse_event(event, _):
                 "DocumentName": "ASR-RevokeUnrotatedKeys",
                 "RuntimeParameters": {
                   "AutomationAssumeRole": "arn:{{ global:AWS_PARTITION }}:iam::{{ global:ACCOUNT_ID }}:role/{{ RemediationRoleName }}",
-                  "IAMResourceId": "{{ ParseInput.IAMResourceId }}",
+                  "IAMUserName": "{{ ParseInput.IAMUserName }}",
                   "MaxCredentialUsageAge": "{{ MaxCredentialUsageAge }}",
                 },
               },
@@ -1192,7 +1482,7 @@ def parse_event(event, _):
                   },
                 ],
                 "Note": {
-                  "Text": "Deactivated unrotated keys for {{ ParseInput.IAMUser }}.",
+                  "Text": "Deactivated unrotated keys for {{ ParseInput.IAMUserName }}.",
                   "UpdatedBy": "ASR-CIS_1.4.0_1.14",
                 },
                 "Service": "securityhub",
@@ -1461,15 +1751,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)

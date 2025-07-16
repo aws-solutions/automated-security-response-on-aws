@@ -1,0 +1,167 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+---
+description: |
+  ### Document Name - ASR-ConfigureDynamoDBAutoScaling
+
+  ## Overview
+  This document registers a DynamoDB table in provisioned mode with Application Auto Scaling and creates a new scaling policy based on the 
+  parameters provided by the DynamoDB.1 control in Security Hub.
+
+  ## Pre-requisites
+  * Configure the parameters for the DynamoDB.1 control in Security Hub.
+  * DynamoDB auto scaling requires the presence of a service linked role (AWSServiceRoleForApplicationAutoScaling_DynamoDBTable) that performs auto scaling actions on your behalf.
+
+  ## What does this document do?
+  Registers the DynamoDB table with Application Auto Scaling; creates a new scaling policy with targetReadUtilization/targetWriteUtilization.
+  Since only the minProvisionedReadCapacity & minProvisionedWriteCapacity are provided in the finding data, the "max" counterpart is set to (2 * minProvisionedXXXXCapacity).
+
+  ## Input Parameters
+  * TableId: (Required) VPC to be remediated.
+  * MinProvisionedReadCapacity: (Required) Minimum number of provisioned read capacity units for DynamoDB auto scaling.
+  * TargetReadUtilization: (Required) Target utilization percentage for read capacity.
+  * MinProvisionedWriteCapacity: (Required) Minimum number of provisioned write capacity units for DynamoDB auto scaling.
+  * TargetWriteUtilization: (Required) Target utilization percentage for write capacity.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * PutWriteScalingPolicy.Output
+  * PutReadScalingPolicy.Output
+
+schemaVersion: '0.3'
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  TableId:
+    type: String
+    description: (Required) DynamoDB Table to be remediated.
+    allowedPattern: '^[a-zA-Z0-9._-]{3,255}$'
+  MinProvisionedReadCapacity:
+    type: String
+    description: (Required) Minimum number of provisioned read capacity units for DynamoDB auto scaling.
+    allowedPattern: '^\d+$'
+  TargetReadUtilization:
+    type: String
+    description: (Required) Target utilization percentage for read capacity.
+    allowedPattern: '^\d+$'
+  MinProvisionedWriteCapacity:
+    type: String
+    description: (Required) Minimum number of provisioned write capacity units for DynamoDB auto scaling.
+    allowedPattern: '^\d+$'
+  TargetWriteUtilization:
+    type: String
+    description: (Required) Target utilization percentage for write capacity.
+    allowedPattern: '^\d+$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+mainSteps:
+  - name: CalculateMaxCapacity
+    action: aws:executeScript
+    isEnd: false
+    inputs:
+      InputPayload:
+        MinProvisionedReadCapacity: '{{ MinProvisionedReadCapacity }}'
+        MinProvisionedWriteCapacity: '{{ MinProvisionedWriteCapacity }}'
+      Runtime: python3.11
+      Handler: calculate_max_capacity
+      Script: |
+        def calculate_max_capacity(event, _):
+            return { "MaxReadCapacity" : int(event['MinProvisionedReadCapacity']) * 2, "MaxWriteCapacity":  int(event['MinProvisionedWriteCapacity']) * 2}
+    outputs:
+      - Name: MaxReadCapacity
+        Selector: $.Payload.MaxReadCapacity
+        Type: Integer
+      - Name: MaxWriteCapacity
+        Selector: $.Payload.MaxWriteCapacity
+        Type: Integer
+  - name: StringParamsToInt
+    action: aws:executeScript
+    isEnd: false
+    inputs:
+      InputPayload:
+        MinProvisionedReadCapacity: '{{ MinProvisionedReadCapacity }}'
+        MinProvisionedWriteCapacity: '{{ MinProvisionedWriteCapacity }}'
+        TargetReadUtilization: '{{ TargetReadUtilization }}'
+        TargetWriteUtilization: '{{ TargetWriteUtilization }}'
+      Runtime: python3.11
+      Handler: convert_string_to_int
+      Script: |
+        def convert_string_to_int(event, _):
+            return { "MinProvisionedReadCapacity" : int(event['MinProvisionedReadCapacity']), "MinProvisionedWriteCapacity":  int(event['MinProvisionedWriteCapacity']), "TargetReadUtilization":  int(event['TargetReadUtilization']), "TargetWriteUtilization": int(event['TargetWriteUtilization'])}
+    outputs:
+      - Name: MinProvisionedReadCapacity
+        Selector: $.Payload.MinProvisionedReadCapacity
+        Type: Integer
+      - Name: MinProvisionedWriteCapacity
+        Selector: $.Payload.MinProvisionedReadCapacity
+        Type: Integer
+      - Name: TargetReadUtilization
+        Selector: $.Payload.TargetReadUtilization
+        Type: Integer
+      - Name: TargetWriteUtilization
+        Selector: $.Payload.TargetWriteUtilization
+        Type: Integer
+  - name: RegisterScalableTarget_WriteUnits
+    action: aws:executeAwsApi
+    isEnd: false
+    inputs:
+      Service: application-autoscaling
+      Api: RegisterScalableTarget
+      ResourceId: 'table/{{ TableId }}'
+      ScalableDimension: "dynamodb:table:WriteCapacityUnits"
+      ServiceNamespace: "dynamodb"
+      MinCapacity: '{{ StringParamsToInt.MinProvisionedWriteCapacity }}'
+      MaxCapacity: '{{ CalculateMaxCapacity.MaxWriteCapacity }}'
+  - name: RegisterScalableTarget_ReadUnits
+    action: aws:executeAwsApi
+    isEnd: false
+    inputs:
+      Service: application-autoscaling
+      Api: RegisterScalableTarget
+      ResourceId: 'table/{{ TableId }}'
+      ScalableDimension: "dynamodb:table:ReadCapacityUnits"
+      ServiceNamespace: "dynamodb"
+      MinCapacity: '{{ StringParamsToInt.MinProvisionedReadCapacity }}'
+      MaxCapacity: '{{ CalculateMaxCapacity.MaxReadCapacity }}'
+  - name: PutWriteScalingPolicy
+    action: aws:executeAwsApi
+    maxAttempts: 5
+    isEnd: false
+    inputs:
+      Service: application-autoscaling
+      Api: PutScalingPolicy
+      ServiceNamespace: "dynamodb"
+      ScalableDimension: "dynamodb:table:WriteCapacityUnits"
+      ResourceId: 'table/{{ TableId }}'
+      PolicyName: "SO0111-ASR-WriteCapacity-Scaling-Policy"
+      PolicyType: "TargetTrackingScaling"
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: "DynamoDBWriteCapacityUtilization"
+        TargetValue: '{{ StringParamsToInt.TargetWriteUtilization }}'
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+  - name: PutReadScalingPolicy
+    action: aws:executeAwsApi
+    maxAttempts: 5
+    isEnd: true
+    inputs:
+      Service: application-autoscaling
+      Api: PutScalingPolicy
+      ServiceNamespace: "dynamodb"
+      ScalableDimension: "dynamodb:table:ReadCapacityUnits"
+      ResourceId: 'table/{{ TableId }}'
+      PolicyName: "SO0111-ASR-ReadCapacity-Scaling-Policy"
+      PolicyType: "TargetTrackingScaling"
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: "DynamoDBReadCapacityUtilization"
+        TargetValue: '{{ StringParamsToInt.TargetReadUtilization }}'
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

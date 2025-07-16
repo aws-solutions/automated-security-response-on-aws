@@ -1,5 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import json
 from typing import TYPE_CHECKING, Any, Dict
 
 import boto3
@@ -31,7 +32,25 @@ def is_sse_s3_encrypted(config: GetBucketEncryptionOutputTypeDef) -> bool:
     return False
 
 
-def test_bucket_created_with_encryption() -> None:
+def has_ssl_policy(bucket_policy) -> bool:
+    if not bucket_policy:
+        return False
+
+    policy = json.loads(bucket_policy["Policy"])
+    for statement in policy.get("Statement", []):
+        if (
+            statement.get("Sid") == "AllowSSLRequestsOnly"
+            and statement.get("Effect") == "Deny"
+            and statement.get("Condition", {})
+            .get("Bool", {})
+            .get("aws:SecureTransport")
+            == "false"
+        ):
+            return True
+    return False
+
+
+def test_bucket_created_with_encryption_and_ssl_policy() -> None:
     bucket_name = "my-bucket"
     event: Event = {"BucketName": bucket_name, "AWS_REGION": "us-east-1"}
 
@@ -41,6 +60,10 @@ def test_bucket_created_with_encryption() -> None:
         s3 = boto3.client("s3")
         bucket_encryption = s3.get_bucket_encryption(Bucket=bucket_name)
         assert is_sse_s3_encrypted(bucket_encryption)
+
+        # Check for SSL policy
+        bucket_policy = s3.get_bucket_policy(Bucket=bucket_name)
+        assert has_ssl_policy(bucket_policy)
 
 
 def get_region() -> str:
@@ -79,6 +102,30 @@ def test_create_logging_bucket(mocker):
                 ]
             },
         },
+    )
+
+    # Expect the SSL/TLS policy to be set
+    expected_ssl_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AllowSSLRequestsOnly",
+                "Action": "s3:*",
+                "Effect": "Deny",
+                "Resource": [
+                    f"arn:aws:s3:::{event['BucketName']}",
+                    f"arn:aws:s3:::{event['BucketName']}/*",
+                ],
+                "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                "Principal": "*",
+            }
+        ],
+    }
+
+    s3_stubber.add_response(
+        "put_bucket_policy",
+        {},
+        {"Bucket": event["BucketName"], "Policy": json.dumps(expected_ssl_policy)},
     )
     s3_stubber.activate()
     mocker.patch(

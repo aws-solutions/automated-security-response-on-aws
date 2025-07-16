@@ -1,0 +1,54 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-LimitECSRootFilesystemAccess
+
+  ## Overview
+  This document limits root filesystem access to readonly for the ECS Task Definition.
+
+  ## Pre-requisites
+  * None
+
+  ## What does this document do?
+  Creates a new revision for the non-compliant task definition and sets root filesystem access to readonly.
+
+  ## Input Parameters
+  * TaskDefinitionId: (Required) VPC to be remediated.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * LimitECSRootFilesystemAccess.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  TaskDefinitionId:
+    type: String
+    description: (Required) The ECS task definition Id.
+    allowedPattern: '^[a-zA-Z0-9_-]{1,255}:\d$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - LimitECSRootFilesystemAccess.Output
+mainSteps:
+  -
+    name: LimitECSRootFilesystemAccess
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Creates a new task definition revision with root filesystem access to readonly.
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        TaskDefinitionId: '{{TaskDefinitionId}}'
+      Runtime: python3.11
+      Handler: handler
+      Script: |-
+        %%SCRIPT=LimitECSRootFilesystemAccess.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

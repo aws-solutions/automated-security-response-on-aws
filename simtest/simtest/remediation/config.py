@@ -6,6 +6,8 @@ from simtest.boto_session import get_session
 from simtest.remediation.cloudtrail import delete_bucket
 from simtest.remediation_test import RemediationTest
 
+ERROR_MESSAGE = "Something went wrong"
+
 
 def run_setup_config(remediation, account, region):
     aws = get_session()
@@ -76,7 +78,7 @@ def delete_default_config_recorder():
             raise
     except Exception as e:
         print(e)
-        print("Something went wrong")
+        print(ERROR_MESSAGE)
         raise
 
 
@@ -98,7 +100,7 @@ def delete_default_delivery_channel():
             raise
     except Exception as e:
         print(e)
-        print("Something went wrong")
+        print(ERROR_MESSAGE)
         raise
 
 
@@ -121,5 +123,5 @@ def delete_sns_topic(topicname, account, region):
             raise
     except Exception as e:
         print(e)
-        print("Something went wrong")
+        print(ERROR_MESSAGE)
         raise

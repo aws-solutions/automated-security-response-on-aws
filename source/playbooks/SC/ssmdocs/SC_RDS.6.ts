@@ -32,9 +32,9 @@ export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunboo
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
-      name: 'DbiResourceId',
+      name: 'RDSInstanceARN',
       outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.resource.Details.AwsRdsDbInstance.DbiResourceId',
+      selector: '$.Payload.resource.Id',
     });
 
     return outputs;
@@ -61,7 +61,7 @@ export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunboo
   protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
-    params.ResourceId = StringVariable.of('ParseInput.DbiResourceId');
+    params.RDSInstanceARN = StringVariable.of('ParseInput.RDSInstanceARN');
     params.MonitoringRoleArn = StringVariable.of('GetMonitoringRoleArn.Arn');
 
     return params;

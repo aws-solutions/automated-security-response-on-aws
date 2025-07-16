@@ -4,7 +4,7 @@ import { Stack, App, StackProps, CfnParameter, Aspects } from 'aws-cdk-lib';
 import { ControlRunbooks } from './control_runbooks-construct';
 import AdminAccountParam from '../../../lib/parameters/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { IControl } from '../../../lib/sharrplaybook-construct';
+import { IControl } from '../../../lib/playbook-construct';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
 import NamespaceParam from '../../../lib/parameters/namespace-param';

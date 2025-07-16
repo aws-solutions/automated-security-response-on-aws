@@ -76,7 +76,7 @@ def test_parse_cis_v120(mocker):
     assert finding.standard_shortname == "CIS"
     assert finding.standard_version == "1.2.0"
     assert finding.standard_control == "1.3"
-    assert finding.standard_version_supported == "True"
+    assert finding.playbook_enabled == "True"
 
     stubbed_ssm_client.deactivate()
 
@@ -138,7 +138,7 @@ def test_parse_unsupported_version(mocker):
     assert finding.standard_shortname == "CIS"
     assert finding.standard_version == "1.7.0"
     assert finding.standard_control == "1.6"
-    assert finding.standard_version_supported == "False"
+    assert finding.playbook_enabled == "False"
 
     stubbed_ssm_client.deactivate()
 
@@ -196,7 +196,7 @@ def test_parse_afsbp_v100(mocker):
     assert finding.standard_shortname == "AFSBP"
     assert finding.standard_version == "1.0.0"
     assert finding.standard_control == "EC2.7"
-    assert finding.standard_version_supported == "True"
+    assert finding.playbook_enabled == "True"
 
     stubbed_ssm_client.deactivate()
 
@@ -240,7 +240,7 @@ def test_undefined_security_standard(mocker):
     assert finding.security_standard == "notfound"
     assert finding.standard_version == "1.2.3"
     assert finding.standard_control == "ABC.1"
-    assert finding.standard_version_supported == "False"
+    assert finding.playbook_enabled == "False"
 
     stubbed_ssm_client.deactivate()
 

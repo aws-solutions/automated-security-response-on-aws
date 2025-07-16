@@ -25,7 +25,7 @@ export class TagGuardDutyResource extends ControlRunbookDocument {
   protected override getExtraSteps(): AutomationStep[] {
     return [
       super.getInputParamsStep({
-        requiredTagKeys: 'SO0111-GuardDutyFilter',
+        requiredTagKeys: 'SO0111-ASR-GuardDutyFilter',
       }),
     ];
   }

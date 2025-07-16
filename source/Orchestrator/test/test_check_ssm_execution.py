@@ -90,7 +90,7 @@ test_event: Any = {
         "RemediationRole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
         "ControlId": "AutoScaling.1",
         "SecurityStandard": "AFSBP",
-        "SecurityStandardSupported": "True",
+        "PlaybookEnabled": "True",
     },
     "SSMExecution": {
         "Message": "AutoScaling.1remediation was successfully invoked via AWS Systems Manager in account 111111111111: 43374019-a309-4627-b8a2-c641e0140262",
@@ -182,7 +182,6 @@ def test_failed_remediation(mocker):
     }
 
     ssmc_stub = Stubber(ssm_c)
-    ssmc_stub.add_response("get_parameter", {})
     ssmc_stub.add_response(
         "describe_automation_executions",
         ssm_mocked_failed_response,
@@ -239,11 +238,6 @@ def test_successful_remediation(mocker):
     ssmc_stub.activate()
 
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
-    mocker.patch("check_ssm_execution.Metrics.send_metrics", return_value=False)
-    mocker.patch(
-        "check_ssm_execution.Metrics.get_metrics_from_event", return_value=False
-    )
-    mocker.patch("check_ssm_execution.Metrics.__init__", return_value=None)
 
     response = lambda_handler(test_event, {})
     assert response == expected_result
@@ -359,11 +353,6 @@ def test_missing_account_id(mocker):
     ssmc_stub.activate()
 
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
-    mocker.patch("check_ssm_execution.Metrics.send_metrics", return_value=False)
-    mocker.patch(
-        "check_ssm_execution.Metrics.get_metrics_from_event", return_value=False
-    )
-    mocker.patch("check_ssm_execution.Metrics.__init__", return_value=None)
 
     with pytest.raises(SystemExit) as response:
         lambda_handler(test_event, {})
@@ -401,11 +390,6 @@ def test_missing_region(mocker):
     ssmc_stub.activate()
 
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
-    mocker.patch("check_ssm_execution.Metrics.send_metrics", return_value=False)
-    mocker.patch(
-        "check_ssm_execution.Metrics.get_metrics_from_event", return_value=False
-    )
-    mocker.patch("check_ssm_execution.Metrics.__init__", return_value=None)
 
     with pytest.raises(SystemExit) as response:
         lambda_handler(test_event, {})

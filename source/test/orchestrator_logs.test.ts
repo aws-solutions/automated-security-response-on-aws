@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import * as cdk from 'aws-cdk-lib';
 import { OrchLogStack } from '../lib/orchestrator-log-stack';
-import { AwsSolutionsChecks } from 'cdk-nag';
-import { Aspects, DefaultStackSynthesizer } from 'aws-cdk-lib';
+import { DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 
 function getTestStack(): cdk.Stack {
@@ -14,7 +13,6 @@ function getTestStack(): cdk.Stack {
     solutionId: 'SO0111',
     logGroupName: 'TestLogGroup',
   });
-  Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
   return stack;
 }
 test('Global Roles Stack', () => {

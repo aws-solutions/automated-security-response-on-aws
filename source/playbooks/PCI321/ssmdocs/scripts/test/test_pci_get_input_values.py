@@ -5,11 +5,11 @@ from pci_get_input_values import verify
 
 def expected():
     return {
-        "filter_name": "SHARR_Filter_PCI_321_Finding_CW1_RootAccountUsage",
+        "filter_name": "ASR_Filter_PCI_321_Finding_CW1_RootAccountUsage",
         "filter_pattern": '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
-        "metric_name": "SHARR_PCI_321_Finding_CW1_RootAccountUsage",
+        "metric_name": "ASR_PCI_321_Finding_CW1_RootAccountUsage",
         "metric_value": 1,
-        "alarm_name": "SHARR_Alarm_PCI_321_Finding_CW1_RootAccountUsage",
+        "alarm_name": "ASR_Alarm_PCI_321_Finding_CW1_RootAccountUsage",
         "alarm_desc": "Alarm for PCI finding CW.1 RootAccountUsage",
         "alarm_threshold": 1,
     }

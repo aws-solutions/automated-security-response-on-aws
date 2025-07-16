@@ -1,0 +1,48 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-EnableElastiCacheVersionUpgrades
+
+  ## Overview
+  This document enables automatic minor version upgrades for the given ElastiCache cluster.
+
+  ## Pre-requisites
+  The cluster engine must be Valkey 7.2 or Redis OSS engine version 6.0 or later.
+
+  ## What does this document do?
+  Updates the given ElastiCache cluster to enable automatic minor version upgrades.
+
+  ## Input Parameters
+  * ClusterId: (Required) ID of the ElastiCache cluster.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableAutomaticMinorVersionUpgrades.Output
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  ClusterId:
+    type: String
+    description: (Required) ID of the ElastiCache cluster.
+    allowedPattern: '^[a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|^[a-zA-Z]$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnableAutomaticMinorVersionUpgrades.Output
+mainSteps:
+  - name: EnableAutomaticMinorVersionUpgrades
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: elasticache
+      Api: ModifyCacheCluster
+      CacheClusterId: '{{ ClusterId }}'
+      AutoMinorVersionUpgrade: true
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

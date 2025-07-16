@@ -41,7 +41,7 @@ def _get_iam_client(accountid, role):
 
 
 def lambda_role_exists(account, rolename):
-    iam = _get_iam_client(account, SOLUTION_ID + "-SHARR-Orchestrator-Member")
+    iam = _get_iam_client(account, SOLUTION_ID + "-ASR-Orchestrator-Member")
     try:
         iam.get_role(RoleName=rolename)
         return True
@@ -122,7 +122,7 @@ def lambda_handler(event, _):
     #
     # In most cases the Orchestrator Member role is used, and it passes
     # the value in RemediationRole as the AutomationExectutionRole
-    remediation_role = SOLUTION_ID + "-SHARR-Orchestrator-Member"  # default
+    remediation_role = SOLUTION_ID + "-ASR-Orchestrator-Member"  # default
     if alt_workflow_doc and alt_workflow_role:
         remediation_role = alt_workflow_role
     elif lambda_role_exists(execution_account, automation_doc["RemediationRole"]):

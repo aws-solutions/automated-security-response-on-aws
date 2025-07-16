@@ -30,7 +30,7 @@ parameters:
     allowedPattern: '(arn:(?:aws|aws-cn|aws-us-gov):guardduty:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:detector\/.*)'
   RequiredTagKeys:
     type: StringList
-    default: ['SO0111-GuardDutyResource']
+    default: ['SO0111-ASR-GuardDutyResource']
     description: Required tag keys for GuardDuty.2
   AutomationAssumeRole:
     type: String
@@ -50,10 +50,11 @@ mainSteps:
       InputPayload:
         RequiredTagKeys: '{{RequiredTagKeys}}'
         ResourceArn: '{{ResourceArn}}'
+        ResourceType: 'GuardDuty'
       Runtime: python3.11
       Handler: lambda_handler
       Script: |-
-        %%SCRIPT=TagGuardDutyResource.py%%
+        %%SCRIPT=TagResource.py%%
     outputs:
       - Name: Output
         Selector: $.Payload.response

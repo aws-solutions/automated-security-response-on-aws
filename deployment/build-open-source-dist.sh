@@ -32,7 +32,8 @@ main() {
         -x ".viperlightrc.*" \
         -x "codescan-*.sh" \
         -x "Config" \
-        -x ".nightswatch/*"
+        -x ".nightswatch/*" \
+        -x "build-tools/*"
     popd
 }
 

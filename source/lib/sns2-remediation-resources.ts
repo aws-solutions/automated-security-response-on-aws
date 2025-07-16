@@ -1,10 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import * as cdk_nag from 'cdk-nag';
 import * as cdk from 'aws-cdk-lib';
 import { Effect, Policy, PolicyStatement, Role, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { addCfnGuardSuppression } from './cdk-helper/add-cfn-nag-suppression';
+import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 
 export interface ISNS2DeliveryStatusLoggingRole {
   roleName: string;
@@ -16,9 +15,6 @@ export class SNS2DeliveryStatusLoggingRole extends Construct {
     super(scope, id);
 
     const deliveryStatusLoggingPolicy = new Policy(this, 'Delivery-Status-Logging-Policy');
-    cdk_nag.NagSuppressions.addResourceSuppressions(deliveryStatusLoggingPolicy, [
-      { id: 'AwsSolutions-IAM5', reason: 'Resource * is required to allow delivery status logging for any topic.' },
-    ]);
 
     const perms = new PolicyStatement({
       effect: Effect.ALLOW,

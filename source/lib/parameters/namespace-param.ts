@@ -3,10 +3,9 @@
 import { CfnParameter } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
-export const NAMESPACE_REGEX =
-  /(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$/;
-
 export default class NamespaceParam extends Construct {
+  public static readonly NAMESPACE_REGEX: string =
+    '(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$';
   public readonly paramId: string;
   public readonly value: string;
 
@@ -15,11 +14,11 @@ export default class NamespaceParam extends Construct {
 
     const param = new CfnParameter(this, 'IAM Role Namespace', {
       description:
-        'Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.',
+        'Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment, but does not need to be changed during stack updates.',
       type: 'String',
       maxLength: 9,
       minLength: 3,
-      allowedPattern: NAMESPACE_REGEX.source,
+      allowedPattern: NamespaceParam.NAMESPACE_REGEX,
       constraintDescription:
         'The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html',
     });

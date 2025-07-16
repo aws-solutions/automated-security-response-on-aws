@@ -24,9 +24,9 @@ export class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDo
     const outputs = super.getParseInputStepOutputs();
 
     outputs.push({
-      name: 'DbiResourceId',
+      name: 'RDSClusterARN',
       outputType: DataTypeEnum.STRING,
-      selector: '$.Payload.details.AwsRdsDbCluster.DbClusterResourceId',
+      selector: '$.Payload.resource.Id',
     });
 
     return outputs;
@@ -35,7 +35,7 @@ export class EnableRDSClusterDeletionProtectionDocument extends ControlRunbookDo
   protected override getRemediationParams(): Record<string, any> {
     const params = super.getRemediationParams();
 
-    params.ClusterId = StringVariable.of('ParseInput.DbiResourceId');
+    params.RDSClusterARN = StringVariable.of('ParseInput.RDSClusterARN');
 
     return params;
   }

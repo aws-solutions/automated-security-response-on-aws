@@ -2,6 +2,152 @@
 
 exports[`default stack 1`] = `
 {
+  "Conditions": {
+    "PCIPCIAutoScaling1IsAllExclude8789FB53": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "PCIPCIAutoScaling1IsAllInclude5746FBD3": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "PCIPCIAutoScaling1IsIncludeD3092769": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+    "PCIPCIEC26IsAllExclude96B7DEE9": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "PCIPCIEC26IsAllInclude1FD9DBF9": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "PCIPCIEC26IsIncludeAFCFB268": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+    "PCIPCIIAM8IsAllExcludeA7B7DC33": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "EXCLUDE",
+          ],
+        },
+      ],
+    },
+    "PCIPCIIAM8IsAllInclude499F259C": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDs",
+            },
+            "ALL",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TargetAccountIDsStrategy",
+            },
+            "INCLUDE",
+          ],
+        },
+      ],
+    },
+    "PCIPCIIAM8IsInclude2EF5F020": {
+      "Fn::Equals": [
+        {
+          "Ref": "TargetAccountIDsStrategy",
+        },
+        "INCLUDE",
+      ],
+    },
+  },
   "Description": "test;",
   "Mappings": {
     "SourceCode": {
@@ -43,6 +189,26 @@ exports[`default stack 1`] = `
       "Default": "/Solutions/SO0111/OrchestratorArn",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "TargetAccountIDs": {
+      "AllowedPattern": "^(ALL|\\d{12}(,\\s*\\d{12})*)$",
+      "ConstraintDescription": "Must be "ALL" or a comma-separated list of 12-digit AWS account IDs (e.g., "123456789012,098765432109")",
+      "Default": "ALL",
+      "Description": "List of AWS Account IDs. Use "ALL" to target all accounts, or provide a comma-separated list of 12-digit AWS account IDs.",
+      "MaxLength": 3360,
+      "Type": "String",
+    },
+    "TargetAccountIDsStrategy": {
+      "AllowedValues": [
+        "INCLUDE",
+        "EXCLUDE",
+      ],
+      "Default": "INCLUDE",
+      "Description": "INCLUDE: Apply automated remediation only to the accounts listed. 
+      EXCLUDE: Apply automated remediation to all accounts except those listed. 
+
+      You must manually enable automatic remediations in the Admin account after deploying (create/update) the solution's CloudFormation stacks.",
+      "Type": "String",
+    },
   },
   "Resources": {
     "PCIPCIAutoScaling1AutoEventRuleCDFEB9FF": {
@@ -51,6 +217,49 @@ exports[`default stack 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "PCIPCIAutoScaling1IsAllInclude5746FBD3",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "PCIPCIAutoScaling1IsAllExclude8789FB53",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "PCIPCIAutoScaling1IsIncludeD3092769",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -151,6 +360,49 @@ exports[`default stack 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "PCIPCIEC26IsAllInclude1FD9DBF9",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "PCIPCIEC26IsAllExclude96B7DEE9",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "PCIPCIEC26IsIncludeAFCFB268",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -251,6 +503,49 @@ exports[`default stack 1`] = `
         "EventPattern": {
           "detail": {
             "findings": {
+              "AwsAccountId": {
+                "Fn::If": [
+                  "PCIPCIIAM8IsAllInclude499F259C",
+                  {
+                    "Ref": "AWS::NoValue",
+                  },
+                  {
+                    "Fn::If": [
+                      "PCIPCIIAM8IsAllExcludeA7B7DC33",
+                      [
+                        {
+                          "exists": false,
+                        },
+                      ],
+                      {
+                        "Fn::If": [
+                          "PCIPCIIAM8IsInclude2EF5F020",
+                          {
+                            "Fn::Split": [
+                              ",",
+                              {
+                                "Ref": "TargetAccountIDs",
+                              },
+                            ],
+                          },
+                          [
+                            {
+                              "anything-but": {
+                                "Fn::Split": [
+                                  ",",
+                                  {
+                                    "Ref": "TargetAccountIDs",
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
               "Compliance": {
                 "Status": [
                   "FAILED",
@@ -356,7 +651,7 @@ exports[`default stack 1`] = `
     },
     "StandardVersionCB2C6951": {
       "Properties": {
-        "Description": "This parameter controls whether the SHARR step function will process findings for this version of the standard.",
+        "Description": "This parameter controls whether the ASR step function will process findings for this version of the standard.",
         "Name": "/Solutions/SO0111/pci-dss/3.2.1/status",
         "Type": "String",
         "Value": "enabled",
@@ -427,7 +722,7 @@ exports[`default stack 2`] = `
     "Namespace": {
       "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
       "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
-      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment.",
+      "Description": "Choose a unique namespace to be added as a suffix to remediation IAM role names. The same namespace should be used in the Member Roles and Member stacks. This string should be unique for each solution deployment, but does not need to be changed during stack updates.",
       "MaxLength": 9,
       "MinLength": 3,
       "Type": "String",
@@ -647,15 +942,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -1068,15 +1363,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
@@ -1493,15 +1788,15 @@ class FindingEvent:
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
         self.finding_id = self.finding_json.get("Id", None)  # deprecate
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if not re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
-            self.product_arn,
+        if (
+            not re.match(
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                self.product_arn,
+            )
+            and self.valid_finding
         ):
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = (
-                    f"ProductArn is invalid: {self.product_arn}"
-                )
+            self.valid_finding = False
+            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
         self.details = self.finding_json["Resources"][0].get("Details", {})
         # Test mode is used with fabricated finding data to tell the
         # remediation runbook to run in test more (where supported)
