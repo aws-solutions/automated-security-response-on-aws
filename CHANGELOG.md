@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Remove tag for EventSourceMapping
-- Added missing condition on KMS Key in Admin stack to skip creation on solution re-deployment
+- Added missing condition on log group in Admin stack to skip creation on solution re-deployment
 
 ## [2.3.0] - 2025-07-16
 
