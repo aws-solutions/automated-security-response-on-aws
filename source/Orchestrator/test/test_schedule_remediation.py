@@ -1,9 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Unit Test: schedule_remediation.py
-Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
-"""
 import json
 import os
 from datetime import datetime, timezone
@@ -14,6 +10,8 @@ from botocore.config import Config
 from botocore.stub import Stubber
 from moto import mock_aws
 from schedule_remediation import lambda_handler
+
+from .test_orc_utils import create_lambda_context
 
 os.environ["SchedulingTableName"] = "TestTable"
 os.environ["RemediationWaitTime"] = "3"
@@ -94,7 +92,7 @@ def test_new_account_remediation(mocker):
 
     sfn_stub.activate()
     with patch(client, side_effect=lambda service, **_: clients[service]):
-        response = lambda_handler(event, {})
+        response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
         )
@@ -145,7 +143,7 @@ def test_no_recent_remediation(mocker):
     sfn_stub.activate()
 
     with patch(client, side_effect=lambda service, **_: clients[service]):
-        response = lambda_handler(event, {})
+        response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
         )
@@ -197,7 +195,7 @@ def test_recent_remediation(mocker):
     sfn_stub.activate()
 
     with patch(client, side_effect=lambda service, **_: clients[service]):
-        response = lambda_handler(event, {})
+        response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
         )
@@ -238,7 +236,7 @@ def test_account_missing_last_executed(mocker):
 
     sfn_stub.activate()
     with patch(client, side_effect=lambda service, **_: clients[service]):
-        response = lambda_handler(event, {})
+        response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
         )
@@ -271,6 +269,6 @@ def test_failure(mocker):
 
     sfn_stub.activate()
     with patch(client, side_effect=lambda service, **_: clients[service]):
-        lambda_handler(event, {})
+        lambda_handler(event, create_lambda_context())
 
     sfn_stub.deactivate()

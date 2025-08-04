@@ -8,12 +8,12 @@ from typing import Any
 import boto3
 from botocore.exceptions import UnknownRegionError
 from layer.awsapi_cached_client import AWSCachedClient
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
 LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
+LOGGER = get_logger("utils", LOG_LEVEL)
 
 properties = [
     "status",

@@ -5,11 +5,11 @@ import os
 from json.decoder import JSONDecodeError
 from typing import Any, NotRequired, TypedDict, Union
 
-from aws_lambda_powertools.utilities.typing import LambdaContext
-from layer import sechub_findings, tracer_utils
+from layer import sechub_findings
 from layer.cloudwatch_metrics import CloudWatchMetrics
-from layer.logger import Logger
 from layer.metrics import Metrics
+from layer.powertools_logger import get_logger
+from layer.tracer_utils import init_tracer
 from layer.utils import get_account_alias
 
 # Get AWS region from Lambda environment. If not present then we're not
@@ -24,14 +24,11 @@ WEB_PARTITION = {
     "aws": "aws.amazon",
 }
 
-# initialise loggers
-LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
-
-tracer = tracer_utils.init_tracer()
+logger = get_logger("send_notifications")
+tracer = init_tracer()
 
 
-def format_details_for_output(details):
+def format_details_for_output(details: Any) -> list[str]:
     """Handle various possible formats in the details"""
     details_formatted = []
     if isinstance(details, list):
@@ -88,9 +85,8 @@ class Event(TypedDict):
     ControlId: NotRequired[str]
 
 
-# powertools tracer decorator is not typed
 @tracer.capture_lambda_handler  # type: ignore[misc]
-def lambda_handler(event: Event, _: LambdaContext) -> None:
+def lambda_handler(event: Event, _: Any) -> None:
     message_prefix, message_suffix = set_message_prefix_and_suffix(event)
 
     status_from_event = event.get("Notification", {}).get("State", "").upper()
@@ -254,4 +250,4 @@ def create_and_send_cloudwatch_metrics(
         }
         cloudwatch_metrics.send_metric(cloudwatch_metric)
     except Exception as e:
-        LOGGER.debug(f"Encountered error sending Cloudwatch metric: {str(e)}")
+        logger.debug(f"Encountered error sending Cloudwatch metric: {str(e)}")

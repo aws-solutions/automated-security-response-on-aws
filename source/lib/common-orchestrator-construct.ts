@@ -250,7 +250,7 @@ export class OrchestratorConstruct extends Construct {
 
     const processFindings = new sfn.Map(this, 'Process Findings', {
       comment: 'Process all findings in CloudWatch Event',
-      parameters: {
+      itemSelector: {
         'Finding.$': '$$.Map.Item.Value',
         'EventType.$': '$.EventType',
         'CustomActionName.$': '$.CustomActionName',

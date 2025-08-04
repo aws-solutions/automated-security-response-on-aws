@@ -2,6 +2,16 @@
 
 exports[`Global Roles Stack 1`] = `
 {
+  "Conditions": {
+    "EncryptedLogGroup": {
+      "Fn::Equals": [
+        {
+          "Ref": "ReuseOrchestratorLogGroup",
+        },
+        "no",
+      ],
+    },
+  },
   "Description": "test;",
   "Parameters": {
     "KmsKeyArn": {
@@ -21,6 +31,7 @@ exports[`Global Roles Stack 1`] = `
   },
   "Resources": {
     "OrchestratorLogsEncrypted072D6E38": {
+      "Condition": "EncryptedLogGroup",
       "DeletionPolicy": "Retain",
       "Properties": {
         "KmsKeyId": {

@@ -1,11 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
+from unittest.mock import Mock
 
 import pytest
 from botocore.stub import Stubber
 from get_approval_requirement import lambda_handler
 from layer.awsapi_cached_client import AWSCachedClient
+
+from .test_orc_utils import create_lambda_context
 
 
 def get_region():
@@ -233,7 +236,7 @@ def test_get_approval_req(mocker):
     ssmc_stub.activate()
     mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
 
-    response = lambda_handler(step_input(), {})
+    response = lambda_handler(step_input(), create_lambda_context())
 
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]
@@ -344,6 +347,399 @@ def test_non_security_hub_product_other(mocker):
     ssmc_stub.deactivate()
 
 
+def test_invalid_workflow_runbook_account(mocker):
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-TestWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "invalid_account_type"
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.activate()
+    mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
+
+    result = lambda_handler(step_input(), create_lambda_context())
+
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+    assert result["workflow_data"]["impact"] == "nondestructive"
+    assert result["workflow_data"]["approvalrequired"] == "false"
+
+    ssmc_stub.deactivate()
+
+
+def test_workflow_document_not_active(mocker):
+    """Test when workflow document is not active"""
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-InactiveWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.add_response(
+        "describe_document",
+        {
+            "Document": {
+                "Name": "ASR-InactiveWorkflow",
+                "Status": "Creating",  # Not Active
+                "DocumentType": "Automation",
+                "Owner": "111111111111",
+                "CreatedDate": "2021-05-13T09:01:20.399000-04:00",
+                "DocumentVersion": "1",
+                "Description": "Test document",
+                "Parameters": [],
+                "PlatformTypes": ["Windows", "Linux", "MacOS"],
+                "SchemaVersion": "0.3",
+                "LatestVersion": "1",
+                "DefaultVersion": "1",
+                "DocumentFormat": "JSON",
+                "Tags": [],
+            }
+        },
+        {"Name": "ASR-InactiveWorkflow"},
+    )
+
+    ssmc_stub.activate()
+    mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
+
+    result = lambda_handler(step_input(), create_lambda_context())
+
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+
+    ssmc_stub.deactivate()
+
+
+def test_workflow_document_wrong_type(mocker):
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-WrongTypeWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.add_response(
+        "describe_document",
+        {
+            "Document": {
+                "Name": "ASR-WrongTypeWorkflow",
+                "Status": "Active",
+                "DocumentType": "Command",  # Not Automation
+                "Owner": "111111111111",
+                "CreatedDate": "2021-05-13T09:01:20.399000-04:00",
+                "DocumentVersion": "1",
+                "Description": "Test document",
+                "Parameters": [],
+                "PlatformTypes": ["Windows", "Linux", "MacOS"],
+                "SchemaVersion": "0.3",
+                "LatestVersion": "1",
+                "DefaultVersion": "1",
+                "DocumentFormat": "JSON",
+                "Tags": [],
+            }
+        },
+        {"Name": "ASR-WrongTypeWorkflow"},
+    )
+
+    ssmc_stub.activate()
+    mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
+
+    result = lambda_handler(step_input(), create_lambda_context())
+
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+
+    ssmc_stub.deactivate()
+
+
+def test_workflow_document_not_found(mocker):
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-NonExistentWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.add_client_error("describe_document", "InvalidDocument")
+
+    ssmc_stub.activate()
+    mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
+
+    result = lambda_handler(step_input(), create_lambda_context())
+
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+
+    ssmc_stub.deactivate()
+
+
+def test_workflow_document_access_denied(mocker):
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-AccessDeniedWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.add_client_error("describe_document", "AccessDenied")
+
+    ssmc_stub.activate()
+    mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
+
+    result = lambda_handler(step_input(), create_lambda_context())
+
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+
+    ssmc_stub.deactivate()
+
+
+def test_workflow_document_general_exception(mocker):
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-ExceptionWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.activate()
+
+    def mock_get_ssm_client(account, role, region=""):
+        raise Exception("Network error")
+
+    mocker.patch(
+        "get_approval_requirement._get_ssm_client", side_effect=mock_get_ssm_client
+    )
+
+    result = lambda_handler(step_input(), create_lambda_context())
+
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+
+    ssmc_stub.deactivate()
+
+
+def test_non_security_hub_product_exception(mocker):
+    """Test exception handling for non-Security Hub products"""
+    test_input = step_input_config()
+
+    # Mock SSM client to raise exception
+    ssm_c = Mock()
+    ssm_c.get_parameter.side_effect = Exception("SSM Parameter error")
+
+    mocker.patch("boto3.client", return_value=ssm_c)
+
+    result = lambda_handler(test_input, create_lambda_context())
+
+    assert result["status"] == "ERROR"
+    assert "message" in result
+
+
 def test_get_approval_req_no_fanout(mocker):
     """
     Verifies that it does not return workflow_status at all
@@ -434,7 +830,7 @@ def test_get_approval_req_no_fanout(mocker):
     ssmc_stub.activate()
     mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
 
-    response = lambda_handler(step_input(), {})
+    response = lambda_handler(step_input(), create_lambda_context())
     print(response)
 
     assert response["workflow_data"] == expected_result["workflow_data"]
@@ -538,7 +934,7 @@ def test_workflow_in_admin(mocker):
     ssmc_stub.activate()
     mocker.patch("get_approval_requirement._get_ssm_client", return_value=ssm_c)
 
-    response = lambda_handler(step_input(), {})
+    response = lambda_handler(step_input(), create_lambda_context())
     print(response)
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]
@@ -587,7 +983,7 @@ def test_get_approval_config(mocker):
     ssmc_stub.activate()
     mocker.patch("boto3.client", return_value=ssm_c)
 
-    response = lambda_handler(step_input_config(), {})
+    response = lambda_handler(step_input_config(), create_lambda_context())
 
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]
@@ -635,7 +1031,7 @@ def test_get_approval_config_no_role(mocker):
     ssmc_stub.activate()
     mocker.patch("boto3.client", return_value=ssm_c)
 
-    response = lambda_handler(step_input_config(), {})
+    response = lambda_handler(step_input_config(), create_lambda_context())
 
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]
@@ -687,7 +1083,7 @@ def test_get_approval_health(mocker):
 
     ssmc_stub.activate()
     mocker.patch("boto3.client", return_value=ssm_c)
-    response = lambda_handler(step_input_health, {})
+    response = lambda_handler(step_input_health, create_lambda_context())
 
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]
@@ -742,7 +1138,7 @@ def test_get_approval_guardduty(mocker):
     ssmc_stub.activate()
     mocker.patch("boto3.client", return_value=ssm_c)
 
-    response = lambda_handler(step_input_guardduty, {})
+    response = lambda_handler(step_input_guardduty, create_lambda_context())
 
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]
@@ -794,7 +1190,7 @@ def test_get_approval_inspector(mocker):
 
     ssmc_stub.activate()
     mocker.patch("boto3.client", return_value=ssm_c)
-    response = lambda_handler(step_input_inspector, {})
+    response = lambda_handler(step_input_inspector, create_lambda_context())
 
     assert response["workflow_data"] == expected_result["workflow_data"]
     assert response["workflowdoc"] == expected_result["workflowdoc"]

@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING, Any, cast
 
 import boto3
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_cloudwatch import CloudWatchClient
@@ -20,7 +20,7 @@ else:
 
 # initialise loggers
 LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
+LOGGER = get_logger("cloudwatch_metrics", LOG_LEVEL)
 
 
 class CloudWatchMetrics:

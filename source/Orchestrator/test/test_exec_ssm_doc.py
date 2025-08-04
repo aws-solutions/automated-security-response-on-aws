@@ -1,14 +1,12 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Unit Test: exec_ssm_doc.py
-Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
-"""
 from typing import Any
 
 import boto3
 from botocore.stub import ANY, Stubber
 from exec_ssm_doc import lambda_handler
+
+from .test_orc_utils import create_lambda_context
 
 
 def test_exec_runbook(mocker):
@@ -123,9 +121,9 @@ def test_exec_runbook(mocker):
     ssmc_stub.activate()
     mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_c)
     mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_c)
-    mocker.patch("sechub_findings.ASRNotification.notify")
+    mocker.patch("layer.sechub_findings.ASRNotification.notify")
 
-    response = lambda_handler(step_input, {})
+    response = lambda_handler(step_input, create_lambda_context())
     assert response["executionid"] == expected_result["executionid"]
     assert response["remediation_status"] == expected_result["remediation_status"]
     assert response["status"] == expected_result["status"]

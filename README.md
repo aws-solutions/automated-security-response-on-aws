@@ -444,8 +444,7 @@ For example:
     ParameterKey=UseCloudWatchMetrics,ParameterValue=yes \
     ParameterKey=UseCloudWatchMetricsAlarms,ParameterValue=yes \
     ParameterKey=RemediationFailureAlarmThreshold,ParameterValue=5 \
-    ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no \
-    ParameterKey=TicketGenFunctionName,ParameterValue= 
+    ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no
     
   export NAMESPACE=$(date +%s | tail -c 9)
   export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member.template
@@ -464,7 +463,7 @@ For example:
     ParameterKey=CreateS3BucketForRedshiftAuditLogging,ParameterValue=no \
     ParameterKey=LogGroupName,ParameterValue=random-log-group-123456789012 \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
-    ParameterKey=SecHubAdminAccount,ParameterValue=123456789012
+    ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount}
     
   export MEMBER_ROLES_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member-roles.template
   aws cloudformation create-stack \
@@ -473,7 +472,7 @@ For example:
   --template-url $MEMBER_ROLES_TEMPLATE_URL \
   --parameters \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
-    ParameterKey=SecHubAdminAccount,ParameterValue=123456789012
+    ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount}
 ```
 
 ## Directory structure
@@ -487,6 +486,7 @@ For example:
   |-lib/                  [ Solution CDK ]
     |-cdk-helper/         [ CDK helper functions ]
     |-member/             [ Member stack helper functions ]
+    |-parameters/         [ Stack common parameters ]
     |-tags/               [ Resource tagging helper functions ]
   |-Orchestrator/         [ Orchestrator Step Function Lambda Functions ]
   |-playbooks/            [ Playbooks ]
@@ -499,6 +499,7 @@ For example:
       |-bin/              [ Playbook CDK App ]
       |-ssmdocs/          [ Control runbooks ]
     |-PCI321/             [ PCI-DSS v3.2.1 playbook ]
+    |-NIST80053/          [ NIST80053 playbook ]
     |-SC/                 [ Security Control playbook ]
   |-remediation_runbooks/ [ Shared remediation runbooks ]
     |-scripts/            [ Scripts used by remediation runbooks ]

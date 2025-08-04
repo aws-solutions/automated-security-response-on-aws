@@ -326,12 +326,13 @@ class ASRNotification(object):
             sns_notify_json["Ticket_URL"] = self.ticket_url
 
         if self.send_to_sns:
+            topic = "SO0111-ASR_Topic"
             sent_id = publish_to_sns(
-                "SO0111-ASR_Topic",
+                topic,
                 json.dumps(sns_notify_json, indent=2, default=str),
                 self.__region,
             )
-            print(f"Notification message ID {sent_id} sent.")
+            print(f"Notification message ID {sent_id} sent to {topic}")
         self.applogger.add_message(self.severity + ": " + self.message)
         if self.logdata:
             for line in self.logdata:

@@ -3,22 +3,21 @@
 import json
 import os
 import re
+from typing import Any, Dict
 
 from botocore.exceptions import ClientError
-from layer import tracer_utils, utils
+from layer import utils
 from layer.awsapi_cached_client import BotoSession
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
+from layer.tracer_utils import init_tracer
 
 AWS_PARTITION = os.getenv("AWS_PARTITION")
 AWS_REGION = os.getenv("AWS_REGION")
 SOLUTION_ID = os.getenv("SOLUTION_ID", "SO0111")
 SOLUTION_ID = re.sub(r"^DEV-", "", SOLUTION_ID)
 
-# initialise loggers
-LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
-
-tracer = tracer_utils.init_tracer()
+logger = get_logger("exec_ssm_doc")
+tracer = init_tracer()
 
 
 def _get_ssm_client(account, role, region=""):
@@ -26,7 +25,6 @@ def _get_ssm_client(account, role, region=""):
     Create a client for ssm
     """
     kwargs = {}
-
     if region:
         kwargs["region_name"] = region
 
@@ -40,14 +38,14 @@ def _get_iam_client(accountid, role):
     return BotoSession(accountid, role).client("iam")
 
 
-def lambda_role_exists(account, rolename):
+def lambda_role_exists(account: str, rolename: str) -> bool:
     iam = _get_iam_client(account, SOLUTION_ID + "-ASR-Orchestrator-Member")
     try:
         iam.get_role(RoleName=rolename)
         return True
     except ClientError as ex:
         exception_type = ex.response["Error"]["Code"]
-        if exception_type in "NoSuchEntity":
+        if exception_type == "NoSuchEntity":
             return False
         else:
             exit("An unhandled client error occurred: " + exception_type)
@@ -55,8 +53,8 @@ def lambda_role_exists(account, rolename):
         exit("An unhandled error occurred: " + str(e))
 
 
-@tracer.capture_lambda_handler
-def lambda_handler(event, _):
+@tracer.capture_lambda_handler  # type: ignore[misc]
+def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     # Expected:
     # {
     #   Finding: {
@@ -74,13 +72,13 @@ def lambda_handler(event, _):
     #   executionid: { '' | string }
     # }
     answer = utils.StepFunctionLambdaAnswer()
-    LOGGER.info(event)
+    logger.info("Processing SSM execution request", **event)
     if "Finding" not in event or "EventType" not in event:
         answer.update(
             {"status": "ERROR", "message": "Missing required data in request"}
         )
-        LOGGER.error(answer.message)
-        return answer.json()
+        logger.error(answer.message)
+        return answer.json()  # type: ignore[no-any-return]
 
     automation_doc = event["AutomationDocument"]
     alt_workflow_doc = event.get("Workflow", {}).get("WorkflowDocument", None)
@@ -112,8 +110,8 @@ def lambda_handler(event, _):
                 + json.dumps(automation_doc),
             }
         )
-        LOGGER.error(answer.message)
-        return answer.json()
+        logger.error(answer.message)
+        return answer.json()  # type: ignore[no-any-return]
 
     # Execution role will be, in order of precedence
     # 1) remote_workflow_role
@@ -174,6 +172,6 @@ def lambda_handler(event, _):
         }
     )
 
-    LOGGER.info(answer.message)
+    logger.info(answer.message)
 
-    return answer.json()
+    return answer.json()  # type: ignore[no-any-return]

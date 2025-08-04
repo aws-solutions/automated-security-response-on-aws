@@ -1,9 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Unit Test: check_ssm_doc_state.py
-Run from /deployment/build/Orchestrator after running build-s3-dist.sh
-"""
 import os
 
 import botocore.session
@@ -11,6 +7,8 @@ from botocore.config import Config
 from botocore.stub import Stubber
 from check_ssm_doc_state import lambda_handler
 from layer.awsapi_cached_client import AWSCachedClient
+
+from .test_orc_utils import create_lambda_context
 
 
 def get_region():
@@ -202,7 +200,7 @@ def test_sunny_day(mocker):
     ssmc_stub.activate()
     mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm_c)
 
-    assert lambda_handler(test_input, {}) == expected_good_response
+    assert lambda_handler(test_input, create_lambda_context()) == expected_good_response
     ssmc_stub.deactivate()
 
 
@@ -301,7 +299,7 @@ def test_doc_not_active(mocker):
     mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm_c)
     mocker.patch("check_ssm_doc_state.CloudWatchMetrics.send_metric", return_value=None)
 
-    assert lambda_handler(test_input, {}) == expected_good_response
+    assert lambda_handler(test_input, create_lambda_context()) == expected_good_response
     ssmc_stub.deactivate()
 
 
@@ -390,7 +388,7 @@ def test_client_error(mocker):
     ssmc_stub.activate()
     mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm_c)
 
-    assert lambda_handler(test_input, {}) == expected_good_response
+    assert lambda_handler(test_input, create_lambda_context()) == expected_good_response
 
     ssmc_stub.deactivate()
 
@@ -543,7 +541,7 @@ def test_control_remap(mocker):
     ssmc_stub.activate()
     mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm_c)
 
-    assert lambda_handler(test_input, {}) == expected_good_response
+    assert lambda_handler(test_input, create_lambda_context()) == expected_good_response
     ssmc_stub.deactivate()
 
 
@@ -632,6 +630,147 @@ def test_alt_workflow_with_role(mocker):
     mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm)
     mocker.patch("layer.sechub_findings.get_ssm_connection", return_value=ssm)
 
-    result = lambda_handler(test_input, {})
+    result = lambda_handler(test_input, create_lambda_context())
 
     assert result == expected_good_response
+
+
+def test_missing_finding():
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+    }
+
+    result = lambda_handler(test_input, create_lambda_context())
+    assert result["status"] == "ERROR"
+    assert result["message"] == "Missing required data in request"
+
+
+def test_missing_event_type():
+    test_input = {"Finding": {"Id": "test-finding-123", "AwsAccountId": "111111111111"}}
+
+    result = lambda_handler(test_input, create_lambda_context())
+    assert result["status"] == "ERROR"
+    assert result["message"] == "Missing required data in request"
+
+
+def test_non_security_hub_product():
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+        "Finding": {
+            "Id": "test-finding-123",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {"aws/securityhub/ProductName": "Custom Product"},
+            "Resources": [{"Type": "AwsS3Bucket", "Region": "us-west-2"}],
+        },
+        "Workflow": {
+            "WorkflowDocument": "CustomWorkflowDoc",
+            "WorkflowRole": "CustomRole",
+        },
+    }
+
+    result = lambda_handler(test_input, create_lambda_context())
+
+    assert result["status"] == "ACTIVE"
+    assert result["securitystandard"] == "N/A"
+    assert result["securitystandardversion"] == "N/A"
+    assert result["controlid"] == "N/A"
+    assert result["playbookenabled"] == "N/A"
+    assert result["automationdocid"] == "CustomWorkflowDoc"
+    assert result["remediationrole"] == "CustomRole"
+    assert result["resourceregion"] == "us-west-2"
+
+
+def test_non_security_hub_product_default_role():
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+        "Finding": {
+            "Id": "test-finding-123",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {"aws/securityhub/ProductName": "Custom Product"},
+            "Resources": [{"Type": "AwsS3Bucket", "Region": "us-west-2"}],
+        },
+        "Workflow": {"WorkflowDocument": "CustomWorkflowDoc", "WorkflowRole": ""},
+    }
+
+    result = lambda_handler(test_input, create_lambda_context())
+
+    assert result["status"] == "ACTIVE"
+    assert result["remediationrole"] == "SO0111-UseDefaultRole"
+
+
+def test_playbook_not_enabled(mocker):
+    """Test when playbook is not enabled"""
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+        "Finding": {
+            "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1/finding/635ceb5d-3dfd-4458-804e-48a42cd723e4",
+            "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+            "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {
+                "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+                "ControlId": "AutoScaling.1",
+                "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1",
+                "aws/securityhub/ProductName": "Security Hub",
+            },
+            "Resources": [
+                {
+                    "Type": "AwsAccount",
+                    "Id": "arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:785df3481e1-cd66-435d-96de-d6ed5416defd:autoScalingGroupName/sharr-test-autoscaling-1",
+                    "Partition": "aws",
+                    "Region": "us-east-1",
+                }
+            ],
+            "WorkflowState": "NEW",
+            "Workflow": {"Status": "NEW"},
+            "RecordState": "ACTIVE",
+        },
+    }
+
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+
+    ssmc_stub = Stubber(ssm_c)
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "disabled",  # Not enabled
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+
+    ssmc_stub.activate()
+    mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm_c)
+
+    result = lambda_handler(test_input, create_lambda_context())
+
+    assert result["status"] == "NOTENABLED"
+    assert "Security Standard is not enabled" in result["message"]
+
+    ssmc_stub.deactivate()

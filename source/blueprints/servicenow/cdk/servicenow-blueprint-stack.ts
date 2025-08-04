@@ -51,7 +51,10 @@ export class ServiceNowBlueprintStack extends BlueprintStack {
       ), // Modify this configuration to build a local version of the ticket generator lambda
       environment: {
         POWERTOOLS_LOG_LEVEL: 'INFO',
-        POWERTOOLS_SERVICE_NAME: props.solutionInfo.solutionTMN,
+        POWERTOOLS_SERVICE_NAME: 'servicenow_ticket_generator',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
         SOLUTION_ID: props.solutionInfo.solutionId,
         INSTANCE_URI: serviceNowInstanceURIParam.valueAsString,
         TABLE_NAME: serviceNowTableName.valueAsString,

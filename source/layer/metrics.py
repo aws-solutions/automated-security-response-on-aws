@@ -3,7 +3,7 @@
 import json
 import urllib.parse
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 from urllib.request import Request, urlopen
 
@@ -165,7 +165,7 @@ class Metrics(object):
                 usage_data = {
                     "Solution": "SO0111",
                     "UUID": self.solution_uuid,
-                    "TimeStamp": str(datetime.utcnow().isoformat()),
+                    "TimeStamp": str(datetime.now(UTC).isoformat()),
                     "Data": metrics_data,
                     "Version": self.solution_version,
                 }
