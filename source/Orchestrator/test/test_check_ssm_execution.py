@@ -1,9 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Unit Test: check_ssm_execution.py
-Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
-"""
 import os
 from typing import Any
 
@@ -12,6 +8,8 @@ import pytest
 from botocore.stub import ANY, Stubber
 from check_ssm_execution import AutomationExecution, lambda_handler
 from layer.awsapi_cached_client import AWSCachedClient
+
+from .test_orc_utils import create_lambda_context
 
 
 def get_region():
@@ -197,7 +195,7 @@ def test_failed_remediation(mocker):
     ssmc_stub.activate()
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
 
-    response = lambda_handler(test_event, {})
+    response = lambda_handler(test_event, create_lambda_context())
     assert response == expected_result
     ssmc_stub.deactivate()
 
@@ -239,7 +237,7 @@ def test_successful_remediation(mocker):
 
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
 
-    response = lambda_handler(test_event, {})
+    response = lambda_handler(test_event, create_lambda_context())
     assert response == expected_result
 
     ssmc_stub.deactivate()
@@ -355,7 +353,7 @@ def test_missing_account_id(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
 
     with pytest.raises(SystemExit) as response:
-        lambda_handler(test_event, {})
+        lambda_handler(test_event, create_lambda_context())
 
     assert (
         response.value.code
@@ -392,7 +390,7 @@ def test_missing_region(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
 
     with pytest.raises(SystemExit) as response:
-        lambda_handler(test_event, {})
+        lambda_handler(test_event, create_lambda_context())
 
     assert (
         response.value.code

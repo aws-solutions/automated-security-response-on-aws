@@ -1,9 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Unit Test: exec_ssm_doc.py
-Run from /deployment/temp/source/Orchestrator after running build-s3-dist.sh
-"""
 import os
 
 import boto3

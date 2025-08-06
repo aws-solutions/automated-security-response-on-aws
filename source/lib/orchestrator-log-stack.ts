@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { CfnLogGroup, LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Key } from 'aws-cdk-lib/aws-kms';
 
 export interface OrchLogStackProps extends cdk.StackProps {
@@ -30,11 +30,18 @@ export class OrchLogStack extends cdk.Stack {
     kmsKeyArn.overrideLogicalId(`KmsKeyArn`);
 
     const kmsKey = Key.fromKeyArn(this, 'KmsKey', kmsKeyArn.valueAsString);
-    new LogGroup(this, 'Orchestrator-Logs-Encrypted', {
+    const logGroup = new LogGroup(this, 'Orchestrator-Logs-Encrypted', {
       logGroupName: props.logGroupName,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       retention: RetentionDays.TEN_YEARS,
       encryptionKey: kmsKey,
     });
+
+    {
+      const childToMod = logGroup.node.defaultChild as CfnLogGroup;
+      childToMod.cfnOptions.condition = new cdk.CfnCondition(this, 'Encrypted Log Group', {
+        expression: cdk.Fn.conditionEquals(reuseOrchLogGroup.valueAsString, 'no'),
+      });
+    }
   }
 }

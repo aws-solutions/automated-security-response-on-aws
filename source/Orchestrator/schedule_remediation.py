@@ -3,31 +3,29 @@
 import json
 import os
 from datetime import datetime, timezone
+from typing import Any, Dict
 
 import boto3
 from botocore.config import Config
-from layer import tracer_utils
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
+from layer.tracer_utils import init_tracer
 
-# initialise loggers
-LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
-
-tracer = tracer_utils.init_tracer()
+logger = get_logger("schedule_remediation")
+tracer = init_tracer()
 
 boto_config = Config(retries={"mode": "standard", "max_attempts": 10})
 
 
-def connect_to_dynamodb():
+def connect_to_dynamodb() -> Any:
     return boto3.client("dynamodb", config=boto_config)
 
 
-def connect_to_sfn():
+def connect_to_sfn() -> Any:
     return boto3.client("stepfunctions", config=boto_config)
 
 
-@tracer.capture_lambda_handler
-def lambda_handler(event, _):
+@tracer.capture_lambda_handler  # type: ignore[misc]
+def lambda_handler(event: Dict[str, Any], _: Any) -> str:
     """
     Schedules a remediation for execution.
 
@@ -64,9 +62,11 @@ def lambda_handler(event, _):
             found_timestamp_string = result["Item"]["LastExecutedTimestamp"]["S"]
             found_timestamp = int(found_timestamp_string)
 
+            is_within_threshold = found_time_is_within_wait_threshold(found_timestamp)
+
             new_timestamp = (
                 found_timestamp + wait_threshold
-                if found_time_is_within_wait_threshold(found_timestamp)
+                if is_within_threshold
                 else current_timestamp
             )
             new_timestamp_ttl = new_timestamp + wait_threshold
@@ -86,11 +86,9 @@ def lambda_handler(event, _):
             )
         else:
             put_initial_in_dynamodb(table_name, table_key, current_timestamp)
+
             return send_success_to_step_function(
-                sfn_client,
-                task_token,
-                current_timestamp,
-                remediation_details,
+                sfn_client, task_token, current_timestamp, remediation_details
             )
     except Exception as e:
         sfn_client = connect_to_sfn()
@@ -99,6 +97,7 @@ def lambda_handler(event, _):
             error=e.__class__.__name__,
             cause=str(e),
         )
+        return f"Remediation scheduling failed: {str(e)}"
 
 
 def get_wait_threshold() -> int:
@@ -139,8 +138,11 @@ def put_initial_in_dynamodb(
 
 
 def send_success_to_step_function(
-    sfn_client, task_token, new_timestamp, remediation_details
-):
+    sfn_client: Any,
+    task_token: str,
+    new_timestamp: int,
+    remediation_details: Dict[str, Any],
+) -> str:
     # Formatting for expected State Machine time
     planned_timestamp = datetime.fromtimestamp(new_timestamp, timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"

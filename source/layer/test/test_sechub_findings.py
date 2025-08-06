@@ -1,19 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""
-Simple test to validate that the request format coming from the Cfn template
-will turn into a valid API call.
-"""
 import json
 
 import boto3
 import layer.sechub_findings as findings
 import pytest
 from botocore.stub import Stubber
-from layer.logger import Logger
 
 log_level = "info"
-logger = Logger(loglevel=log_level)
 test_data = "test/test_json_data/"
 
 my_session = boto3.session.Session()

@@ -1,14 +1,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Tags } from 'aws-cdk-lib';
-import { IConstruct } from 'constructs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 /**
- * @description applies tag to cloudformation resources
- * @param resource
- * @param key
- * @param value
+ * @description Remove tags from EventSourceMappings attached to a Lambda function
+ * @param lambdaFunction The Lambda function to clean EventSourceMapping tags from
  */
-export function applyTag(resource: IConstruct, key: string, value: string) {
-  Tags.of(resource).add(key, value);
+export function removeEventSourceMappingTags(lambdaFunction: lambda.Function): void {
+  const eventSourceMappings = lambdaFunction.node.children.filter(
+    (child) => child.node.defaultChild instanceof lambda.CfnEventSourceMapping,
+  );
+
+  if (eventSourceMappings.length > 0) {
+    const cfnEventSourceMapping = eventSourceMappings[0].node.defaultChild as lambda.CfnEventSourceMapping;
+    cfnEventSourceMapping.addPropertyOverride('Tags', undefined);
+  }
 }

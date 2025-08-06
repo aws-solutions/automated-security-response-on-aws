@@ -1,14 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
-import os
 import re
 from json.decoder import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from layer import tracer_utils, utils
+from layer import utils
 from layer.awsapi_cached_client import BotoSession
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
+from layer.tracer_utils import init_tracer
 
 if TYPE_CHECKING:
     from mypy_boto3_ssm.client import SSMClient
@@ -17,14 +17,11 @@ else:
 
 ORCH_ROLE_NAME = "SO0111-ASR-Orchestrator-Member"  # role to use for cross-account
 
-# initialise loggers
-LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
-
-tracer = tracer_utils.init_tracer()
+logger = get_logger("check_ssm_execution")
+tracer = init_tracer()
 
 
-def _get_ssm_client(account: str, role: str, region: str = "") -> SSMClient:
+def _get_ssm_client(account: str, role: str, region: str = "") -> Any:
     """
     Create a client for ssm
     """
@@ -33,7 +30,7 @@ def _get_ssm_client(account: str, role: str, region: str = "") -> SSMClient:
     if region:
         kwargs["region_name"] = region
 
-    ssm: SSMClient = BotoSession(account, f"{role}").client("ssm", **kwargs)
+    ssm = BotoSession(account, f"{role}").client("ssm", **kwargs)
     return ssm
 
 
@@ -78,7 +75,7 @@ class AutomationExecution(object):
 
     def get_execution_state(self):
         automation_exec_info = self._ssm_client.describe_automation_executions(
-            Filters=[{"Key": "ExecutionId", "Values": [self.exec_id]}]  # type: ignore[list-item]
+            Filters=[{"Key": "ExecutionId", "Values": [self.exec_id]}]
         )
 
         self.status = automation_exec_info["AutomationExecutionMetadataList"][0].get(
@@ -160,7 +157,7 @@ def get_remediation_message(response_data, remediation_status):
     return message
 
 
-def get_remediation_output(response_data: dict[str, str]) -> str:
+def get_remediation_output(response_data: Dict[str, str]) -> str:
     message_key = next((key for key in response_data if key.lower() == "message"), "")
     if message_key:
         response_data.pop(
@@ -186,8 +183,8 @@ def get_remediation_response(remediation_response_raw):
     return remediation_response
 
 
-@tracer.capture_lambda_handler
-def lambda_handler(event, _):
+@tracer.capture_lambda_handler  # type: ignore[misc]
+def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     answer = utils.StepFunctionLambdaAnswer()
     automation_doc = event["AutomationDocument"]
 
@@ -199,8 +196,8 @@ def lambda_handler(event, _):
                 + json.dumps(automation_doc),
             }
         )
-        LOGGER.error(answer.message)
-        return answer.json()
+        logger.error(answer.message)
+        return answer.json()  # type: ignore[no-any-return]
 
     SSM_EXEC_ID = event["SSMExecution"]["ExecId"]
     SSM_ACCOUNT = event["SSMExecution"].get("Account")
@@ -216,7 +213,7 @@ def lambda_handler(event, _):
             SSM_EXEC_ID, SSM_ACCOUNT, ORCH_ROLE_NAME, SSM_REGION
         )
     except Exception as e:
-        LOGGER.error(f"Unable to retrieve AutomationExecution data: {str(e)}")
+        logger.error(f"Unable to retrieve AutomationExecution data: {str(e)}")
         raise e
 
     # Terminal states - get log data from AutomationExecutionMetadataList
@@ -298,4 +295,4 @@ def lambda_handler(event, _):
             }
         )
 
-    return answer.json()
+    return answer.json()  # type: ignore[no-any-return]

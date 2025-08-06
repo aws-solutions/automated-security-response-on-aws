@@ -123,8 +123,11 @@ exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
             "INSTANCE_URI": {
               "Ref": "InstanceURI",
             },
+            "POWERTOOLS_LOGGER_LOG_EVENT": "false",
             "POWERTOOLS_LOG_LEVEL": "INFO",
-            "POWERTOOLS_SERVICE_NAME": "my-solution-tmn",
+            "POWERTOOLS_SERVICE_NAME": "servicenow_ticket_generator",
+            "POWERTOOLS_TRACER_CAPTURE_ERROR": "true",
+            "POWERTOOLS_TRACER_CAPTURE_RESPONSE": "true",
             "SECRET_ARN": {
               "Ref": "SecretArn",
             },

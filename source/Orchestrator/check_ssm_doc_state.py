@@ -1,24 +1,23 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-import os
+from typing import Any, Dict
 
 import boto3
 from botocore.exceptions import ClientError
-from layer import tracer_utils, utils
+from layer import utils
 from layer.awsapi_cached_client import BotoSession
 from layer.cloudwatch_metrics import CloudWatchMetrics
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
 from layer.sechub_findings import Finding
+from layer.tracer_utils import init_tracer
 
 ORCH_ROLE_NAME = "SO0111-ASR-Orchestrator-Member"  # role to use for cross-account
 
-# initialise loggers
-LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
+logger = get_logger("check_ssm_doc_state")
+tracer = init_tracer()
+
 session = boto3.session.Session()
 AWS_REGION = session.region_name
-
-tracer = tracer_utils.init_tracer()
 
 
 def _get_ssm_client(account, role, region=""):
@@ -26,14 +25,13 @@ def _get_ssm_client(account, role, region=""):
     Create a client for ssm
     """
     kwargs = {}
-
     if region:
         kwargs["region_name"] = region
 
     return BotoSession(account, f"{role}").client("ssm", **kwargs)
 
 
-def _add_doc_state_to_answer(doc, account, region, answer):
+def _add_doc_state_to_answer(doc: str, account: str, region: str, answer: Any) -> None:
     try:
         # Connect to APIs
         ssm = _get_ssm_client(account, ORCH_ROLE_NAME, region)
@@ -50,7 +48,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
                     "message": 'Document Type is not "Automation": ' + str(doctype),
                 }
             )
-            LOGGER.error(answer.message)
+            logger.error(answer.message)
 
         docstate = docinfo.get("Status", "unknown")
         if docstate != "Active":
@@ -60,7 +58,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
                     "message": 'Document Status is not "Active": ' + str(docstate),
                 }
             )
-            LOGGER.error(answer.message)
+            logger.error(answer.message)
 
         answer.update({"status": "ACTIVE"})
 
@@ -70,7 +68,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
             answer.update(
                 {"status": "NOTFOUND", "message": f"Document {doc} does not exist."}
             )
-            LOGGER.error(answer.message)
+            logger.error(answer.message)
         elif exception_type == "AccessDenied":
             answer.update(
                 {
@@ -78,7 +76,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
                     "message": f"Could not assume role for {doc} in {account} in {region}",
                 }
             )
-            LOGGER.error(answer.message)
+            logger.error(answer.message)
             try:
                 cloudwatch_metrics = CloudWatchMetrics()
                 cloudwatch_metric = {
@@ -88,7 +86,7 @@ def _add_doc_state_to_answer(doc, account, region, answer):
                 }
                 cloudwatch_metrics.send_metric(cloudwatch_metric)
             except Exception:
-                LOGGER.debug("Did not send Cloudwatch metric")
+                logger.debug("Did not send Cloudwatch metric")
         else:
             answer.update(
                 {
@@ -96,25 +94,25 @@ def _add_doc_state_to_answer(doc, account, region, answer):
                     "message": "An unhandled client error occurred: " + exception_type,
                 }
             )
-            LOGGER.error(answer.message)
+            logger.error(answer.message)
 
     except Exception as e:
         answer.update(
             {"status": "ERROR", "message": "An unhandled error occurred: " + str(e)}
         )
-        LOGGER.error(answer.message)
+        logger.error(answer.message)
 
 
-@tracer.capture_lambda_handler
-def lambda_handler(event, _):
-    answer = utils.StepFunctionLambdaAnswer()  # holds the response to the step function
-    LOGGER.info(event)
+@tracer.capture_lambda_handler  # type: ignore[misc]
+def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
+    answer = utils.StepFunctionLambdaAnswer()
+    logger.info("Processing SSM doc state check", **event)
     if "Finding" not in event or "EventType" not in event:
         answer.update(
             {"status": "ERROR", "message": "Missing required data in request"}
         )
-        LOGGER.error(answer.message)
-        return answer.json()
+        logger.error(answer.message)
+        return answer.json()  # type: ignore[no-any-return]
 
     product_name = (
         event["Finding"]
@@ -146,7 +144,7 @@ def lambda_handler(event, _):
             }
         )
         answer.update({"status": "ACTIVE"})
-        return answer.json()
+        return answer.json()  # type: ignore[no-any-return]
 
     finding = Finding(event["Finding"])
 
@@ -174,7 +172,7 @@ def lambda_handler(event, _):
                 "message": f'Security Standard is not enabled": "{finding.standard_name} version {finding.standard_version}"',
             }
         )
-        return answer.json()
+        return answer.json()  # type: ignore[no-any-return]
 
     # Is there alt workflow configuration?
     alt_workflow_doc = event.get("Workflow", {}).get("WorkflowDocument", None)
@@ -195,4 +193,4 @@ def lambda_handler(event, _):
             automation_docid, finding.account_id, finding.resource_region, answer
         )
 
-    return answer.json()
+    return answer.json()  # type: ignore[no-any-return]

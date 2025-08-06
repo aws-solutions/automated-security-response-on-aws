@@ -30,8 +30,6 @@ export interface SolutionProps extends StackProps {
 }
 
 export class MemberStack extends Stack {
-  private readonly primarySolutionSNSTopicARN: string;
-
   constructor(scope: App, id: string, props: SolutionProps) {
     super(scope, id, props);
     const stack = cdk.Stack.of(this);
@@ -59,8 +57,6 @@ export class MemberStack extends Stack {
     const memberLogGroup = new MemberLogGroup(this, 'MemberLogGroup', { solutionId: props.solutionId });
 
     new MemberBucketEncryption(this, 'MemberBucketEncryption', { solutionId: props.solutionId });
-
-    this.primarySolutionSNSTopicARN = `arn:${stack.partition}:sns:${stack.region}:${adminAccountParam.value}:${props.SNSTopicName}`;
 
     const nestedStackFactory = new SerializedNestedStackFactory(this, 'NestedStackFactory', {
       solutionDistBucket: props.solutionDistBucket,
@@ -200,9 +196,5 @@ export class MemberStack extends Stack {
         },
       },
     };
-  }
-
-  getPrimarySolutionSNSTopicARN(): string {
-    return this.primarySolutionSNSTopicARN;
   }
 }

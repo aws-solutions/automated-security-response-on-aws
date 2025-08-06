@@ -20,11 +20,11 @@ import boto3
 import cfnresponse
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
 
 # initialize logger
 LOG_LEVEL = os.getenv("log_level", "info")
-logger_obj = Logger(loglevel=LOG_LEVEL)
+logger_obj = get_logger("action_target_provider", LOG_LEVEL)
 REGION = os.getenv("AWS_REGION", "us-east-1")
 PARTITION = os.getenv("AWS_PARTITION", default="aws")  # Set by deployment template
 
@@ -78,7 +78,7 @@ class CustomAction(object):
                 )
                 return "FAILED"
             else:
-                logger_obj.error(error)
+                logger_obj.error(str(error))
                 return "FAILED"
         except Exception:
             return "FAILED"
@@ -121,10 +121,10 @@ class CustomAction(object):
                 )
                 return "SUCCESS"
             else:
-                logger_obj.error(error)
+                logger_obj.error(str(error))
                 return "FAILED"
         except Exception as e:
-            logger_obj.error(e)
+            logger_obj.error(str(e))
             return "FAILED"
 
 

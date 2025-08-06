@@ -31,6 +31,7 @@ import { ActionLog } from './action-log';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import AccountTargetParam from './parameters/account-target-param';
 import MetricResources from './cdk-helper/metric-resources';
+import { removeEventSourceMappingTags } from './tags/applyTag';
 
 export interface ASRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -46,7 +47,6 @@ export interface ASRStackProps extends cdk.StackProps {
 
 export class AdministratorStack extends cdk.Stack {
   private static readonly sendAnonymizedData: string = 'Yes';
-  private readonly primarySolutionSNSTopicARN: string;
 
   constructor(scope: App, id: string, props: ASRStackProps) {
     super(scope, id, props);
@@ -126,7 +126,6 @@ export class AdministratorStack extends cdk.Stack {
       topicName: props.SNSTopicName,
       masterKey: kmsKey,
     });
-    this.primarySolutionSNSTopicARN = `arn:${stack.partition}:sns:${stack.region}:${stack.account}:${props.SNSTopicName}`;
 
     new StringParameter(this, 'SHARR_SNS_Topic', {
       description:
@@ -253,6 +252,11 @@ export class AdministratorStack extends cdk.Stack {
         SOLUTION_ID: props.solutionId,
         SOLUTION_VERSION: props.solutionVersion,
         SOLUTION_TMN: props.solutionTMN,
+        POWERTOOLS_SERVICE_NAME: 'check_ssm_doc_state',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -304,6 +308,11 @@ export class AdministratorStack extends cdk.Stack {
         SOLUTION_VERSION: props.solutionVersion,
         WORKFLOW_RUNBOOK: '',
         SOLUTION_TMN: props.solutionTMN,
+        POWERTOOLS_SERVICE_NAME: 'get_approval_requirement',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -354,6 +363,11 @@ export class AdministratorStack extends cdk.Stack {
         SOLUTION_ID: props.solutionId,
         SOLUTION_VERSION: props.solutionVersion,
         SOLUTION_TMN: props.solutionTMN,
+        POWERTOOLS_SERVICE_NAME: 'exec_ssm_doc',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -404,6 +418,11 @@ export class AdministratorStack extends cdk.Stack {
         SOLUTION_ID: props.solutionId,
         SOLUTION_VERSION: props.solutionVersion,
         SOLUTION_TMN: props.solutionTMN,
+        POWERTOOLS_SERVICE_NAME: 'check_ssm_execution',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -553,6 +572,11 @@ export class AdministratorStack extends cdk.Stack {
         SOLUTION_VERSION: props.solutionVersion,
         SOLUTION_TMN: props.solutionTMN,
         ENHANCED_METRICS: enableEnhancedCloudWatchMetrics.valueAsString,
+        POWERTOOLS_SERVICE_NAME: 'send_notifications',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -671,6 +695,11 @@ export class AdministratorStack extends cdk.Stack {
         sendAnonymizedMetrics: mapping.findInMap('sendAnonymizedMetrics', 'data'),
         SOLUTION_ID: props.solutionId,
         SOLUTION_VERSION: props.solutionVersion,
+        POWERTOOLS_SERVICE_NAME: 'action_target_provider',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -877,6 +906,11 @@ export class AdministratorStack extends cdk.Stack {
       environment: {
         SchedulingTableName: schedulingTable.tableName,
         RemediationWaitTime: '3',
+        POWERTOOLS_SERVICE_NAME: 'schedule_remediation',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
       },
       memorySize: 128,
       timeout: cdk.Duration.seconds(10),
@@ -891,6 +925,8 @@ export class AdministratorStack extends cdk.Stack {
     addCfnGuardSuppression(schedulingLambdaTrigger, 'LAMBDA_INSIDE_VPC');
 
     schedulingLambdaTrigger.addEventSource(eventSource);
+
+    removeEventSourceMappingTags(schedulingLambdaTrigger);
 
     new ActionLog(this, 'ActionLog', {
       logGroupName: props.cloudTrailLogGroupName,
@@ -967,9 +1003,5 @@ export class AdministratorStack extends cdk.Stack {
         'This field will be empty if you did not provide a ticketing Lambda Function name.',
       value: orchestrator.ticketGenFunctionARN,
     });
-  }
-
-  getPrimarySolutionSNSTopicARN(): string {
-    return this.primarySolutionSNSTopicARN;
   }
 }

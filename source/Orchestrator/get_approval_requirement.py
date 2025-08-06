@@ -12,21 +12,21 @@ and stubbed out to support this: _is_remediation_destructive(), etc.
 import json
 import os
 import re
+from typing import Any, Dict
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from layer import tracer_utils, utils
+from layer import utils
 from layer.awsapi_cached_client import BotoSession
-from layer.logger import Logger
+from layer.powertools_logger import get_logger
 from layer.sechub_findings import Finding
 from layer.simple_validation import extract_safe_product_name, safe_ssm_path
+from layer.tracer_utils import init_tracer
 
-# initialise loggers
-LOG_LEVEL = os.getenv("log_level", "info")
-LOGGER = Logger(loglevel=LOG_LEVEL)
+logger = get_logger("get_approval_requirement")
+tracer = init_tracer()
 
-tracer = tracer_utils.init_tracer()
 # If env WORKFLOW_RUNBOOK is set and not blank then all remediations will be
 # executed through this runbook, if it is present and enabled in the member
 # account.
@@ -95,7 +95,7 @@ def _get_alternate_workflow(accountid):
         WORKFLOW_RUNBOOK_ACCOUNT = running_account
     else:
         # log an error - bad config
-        LOGGER.error(
+        logger.error(
             f'WORKFLOW_RUNBOOK_ACCOUNT config error: "{WORKFLOW_RUNBOOK_ACCOUNT}" is not valid. Must be "member" or "admin"'
         )
         return (None, None, None)
@@ -107,7 +107,7 @@ def _get_alternate_workflow(accountid):
         return (None, None, None)
 
 
-def _doc_is_active(doc, account):
+def _doc_is_active(doc: str, account: str) -> bool:
     try:
         ssm = _get_ssm_client(account, SOLUTION_ID + "-ASR-Orchestrator-Member")
         docinfo = ssm.describe_document(Name=doc)["Document"]
@@ -125,16 +125,16 @@ def _doc_is_active(doc, account):
         if exception_type in "InvalidDocument":
             return False
         else:
-            LOGGER.error("An unhandled client error occurred: " + exception_type)
+            logger.error("An unhandled client error occurred: " + exception_type)
             return False
 
     except Exception as e:
-        LOGGER.error("An unhandled error occurred: " + str(e))
+        logger.error("An unhandled error occurred: " + str(e))
         return False
 
 
-@tracer.capture_lambda_handler
-def lambda_handler(event, _):
+@tracer.capture_lambda_handler  # type: ignore[misc]
+def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     answer = utils.StepFunctionLambdaAnswer()
     answer.update(
         {
@@ -144,13 +144,13 @@ def lambda_handler(event, _):
             "workflow_data": {"impact": "nondestructive", "approvalrequired": "false"},
         }
     )
-    LOGGER.info(event)
+    logger.info("Processing approval requirement request", **event)
     if "Finding" not in event or "EventType" not in event:
         answer.update(
             {"status": "ERROR", "message": "Missing required data in request"}
         )
-        LOGGER.error(answer.message)
-        return answer.json()
+        logger.error(answer.message)
+        return answer.json()  # type: ignore[no-any-return]
 
     #
     # Check to see if this is a non-sechub finding that we are remediating
@@ -184,11 +184,11 @@ def lambda_handler(event, _):
                     },
                 }
             )
-            return answer.json()
+            return answer.json()  # type: ignore[no-any-return]
         except Exception as error:
             answer.update({"status": "ERROR", "message": error})
-            LOGGER.error(answer.message)
-            return answer.json()
+            logger.error(answer.message)
+            return answer.json()  # type: ignore[no-any-return]
 
     finding = Finding(event["Finding"])
 
@@ -214,7 +214,7 @@ def lambda_handler(event, _):
     # ----------------------------------------------------------------------------------
 
     # Is there an alternative workflow configured?
-    (alt_workflow, alt_account, alt_role) = _get_alternate_workflow(finding.account_id)
+    alt_workflow, alt_account, alt_role = _get_alternate_workflow(finding.account_id)
 
     # If so, update workflow_data
     # ---------------------------
@@ -235,4 +235,4 @@ def lambda_handler(event, _):
             }
         )
 
-    return answer.json()
+    return answer.json()  # type: ignore[no-any-return]
