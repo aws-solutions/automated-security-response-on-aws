@@ -62,7 +62,7 @@ const remediations: IControl[] = [
   { control: 'EC2.19', versionAdded: '2.1.0' },
   { control: 'EC2.23', versionAdded: '2.1.0' },
   { control: 'ELB.1', versionAdded: '2.3.0' },
-  { control: 'ECR.1', versionAdded: '2.1.0' },
+  { control: 'ECR.1', versionAdded: '2.3.2' },
   { control: 'IAM.3', versionAdded: '2.1.0' },
   { control: 'IAM.7', versionAdded: '2.1.0' },
   { control: 'IAM.8', versionAdded: '2.1.0' },
