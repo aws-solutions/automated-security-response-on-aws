@@ -57,13 +57,18 @@ def get_subnets(vpc_id: str) -> Optional[List[str]]:
                 }
             ]
         )
-        subnets = [
-            subnet["SubnetId"]
-            for page in page_iterator
-            for subnet in page["Subnets"]
-            if "SubnetId" in subnet
-        ]
-        return subnets
+
+        # Collect subnets with their availability zones
+        subnets_by_az = {}
+        for page in page_iterator:
+            for subnet in page["Subnets"]:
+                if "SubnetId" in subnet and "AvailabilityZone" in subnet:
+                    az = subnet["AvailabilityZone"]
+                    # Keep only one subnet per AZ (first one found)
+                    if az not in subnets_by_az:
+                        subnets_by_az[az] = subnet["SubnetId"]
+
+        return list(subnets_by_az.values())
     except Exception as e:
         raise RuntimeError(f"Failed to list subnets in VPC {vpc_id}: {str(e)}")
 

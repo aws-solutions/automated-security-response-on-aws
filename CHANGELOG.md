@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-11-13
+
+### Added
+
+- Optional Web User Interface to run remediations, view past remediations, and delegate access to the solution
+  - When the `ShouldDeployWebUI` parameter is *"yes"*, you must enter a value for `AdminUserEmail` which will be granted administrator access to the Web UI. You will receive temporary credential and a login link via email.
+  - Deploying the Web UI provisions additional resources such as a CloudFront distribution, Cognito User Pool, S3 bucket for hosting, and more.
+- Support for Security Control findings in Security Hub v2
+  - The solution continues to support Security Hub CSPM in addition to Security Hub v2
+- API Gateway REST API to support the new Web User Interface
+- Automated remediation filtering capabilities based on Account ID, Organizational Unit ID, and resource tags
+  - Controlled via SSM parameters under `ASR/Filters/`
+- Pre-Processor Lambda function to centralize processing of Security Hub finding events
+- DynamoDB tables to store Security Hub finding data, remediation history data, and automated remediation settings
+- Complete list of supported control IDs in `solutions-reference/automated-security-response-on-aws/latest/supported-controls.json`
+- EventBridge rule to run a weekly refresh of the Findings DynamoDB table
+- EventBridge rule to capture and handle Step Function failures in the Orchestrator
+
+### Changed
+
+- Security Hub events are now consumed by a single EventBridge rule and forwarded to the Pre-processor
+- Enabling / Disabling automated remediations is now controlled by the Remediation Configuration DynamoDB table, which can be modified post-deployment. See the [Implementation Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/getting-stated-with-asr.html) for details.
+  - You can find the DynamoDB table name in the Stack Outputs after deploying the Admin stack
+  - Automated remediations are still toggled per Control ID, and are disabled by default
+- Updated several dependencies to address security vulnerabilities
+- Migrated to Node's built-in randomUUID() instead of importing uuid
+- This solution sends operational metrics to AWS (the "Data") about the use of this solution. We use this Data to better understand how customers use this solution and related services and products. AWS’s collection of this Data is subject to the [AWS Privacy Notice](https://aws.amazon.com/privacy/).
+
+### Removed
+
+- EventBridge rules per Control ID
+- Filtering configuration in Admin stack parameters
+  - Filtering settings are now configurable in Systems Manager Parameter Store, e.g. `ASR/Filters/AccountFilters`
+
+### Fixed
+
+- S3.1 control ID in the CIS v3 playbook (2.1.4 -> 2.1.4.1)
+- Improved logic in EnableCloudTrailToCloudWatchLogging_waitforloggroup remediation script
+- Finding link in SNS notifications now links to the finding directly, instead of the control view in the Security Hub console
+- Fixed bugs in CloudTrail.5 and CloudWatch.1 remediations
+- Fixed resource ID parameter in CloudTrail.4 and CloudTrail.7 control runbooks
+- Improved error handling in the Orchestrator Step Function
+- Included CreateServiceLinkedRole permissions in GuardDuty.1 remediation role
+
 ## [2.3.2] - 2025-08-14
 
 ### Fixed

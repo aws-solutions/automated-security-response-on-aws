@@ -4,11 +4,19 @@
 description: |
   ### Document Name - ASR-EnableCloudTrailToCloudWatchLogging
   ## What does this document do?
-  Creates a CloudWatch logs group for CloudTrail data.
+  Enables CloudTrail logging to CloudWatch Logs by:
+  1. Creating or reusing an existing CloudWatch log group
+  2. Fixing S3 bucket policy with required SourceArn condition for security
+  3. Updating the CloudTrail to send logs to CloudWatch
+
+  This fixes the common "InsufficientS3BucketPolicyException" error by ensuring
+  the S3 bucket policy includes the AWS:SourceArn condition required by AWS.
 
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
+  * TrailName: (Required) The name of the CloudTrail to enable logging for.
+  * CloudWatchLogsRole: (Required) The ARN of the role that allows CloudTrail to log to CloudWatch.
+  * LogGroupName: (Required) The name of the CloudWatch Log Group for CloudTrail logs.
 
   ## Security Standards / Controls
   * AWS FSBP v1.0.0:   N/A
@@ -36,48 +44,77 @@ parameters:
     allowedPattern: '^[a-zA-Z0-9-_./]{1,512}$'
 outputs:
   - UpdateTrailToCWLogs.Output
+  - FixCloudTrailBucketPolicy.BucketPolicyResult
+  - ValidateBucketPolicy.ValidationResult
 
 mainSteps:
   -
-    name: CreateLogGroup
-    action: 'aws:executeAwsApi'
-    inputs:
-      Service: logs
-      Api: CreateLogGroup
-      logGroupName: '{{LogGroupName}}'
-    description: Create the log group
-    outputs:
-      - Name: Output
-        Selector: $
-        Type: StringMap
-  -
-    name: WaitForCreation
+    name: CreateOrGetLogGroup
     action: 'aws:executeScript'
     inputs:
       InputPayload:
         LogGroup: '{{LogGroupName}}'
       Runtime: python3.11
-      Handler: wait_for_loggroup
+      Handler: create_or_get_loggroup
       Script: |-
         %%SCRIPT=EnableCloudTrailToCloudWatchLogging_waitforloggroup.py%%
     outputs:
       - Name: CloudWatchLogsGroupArn
         Selector: $.Payload
         Type: String
+    description: Create log group if it doesn't exist, or get existing log group ARN
 
-    isEnd: false
+  -
+    name: FixCloudTrailBucketPolicy
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload:
+        trail_name: '{{TrailName}}'
+        partition: '{{global:AWS_PARTITION}}'
+        account: '{{global:ACCOUNT_ID}}'
+      Runtime: python3.11
+      Handler: fix_cloudtrail_bucket_policy_for_logging
+      Script: |-
+        %%SCRIPT=EnableCloudTrailToCloudWatchLogging_fixbucketpolicy.py%%
+    description: Fix S3 bucket policy to allow CloudTrail access with SourceArn condition
+    outputs:
+      - Name: BucketPolicyResult
+        Selector: $.Payload.output
+        Type: StringMap
+
+  -
+    name: ValidateBucketPolicy
+    action: 'aws:executeScript'
+    inputs:
+      InputPayload:
+        trail_name: '{{TrailName}}'
+        partition: '{{global:AWS_PARTITION}}'
+        account: '{{global:ACCOUNT_ID}}'
+      Runtime: python3.11
+      Handler: validate_cloudtrail_bucket_policy
+      Script: |-
+        %%SCRIPT=EnableCloudTrailToCloudWatchLogging_validatepolicy.py%%
+    description: Validate that S3 bucket policy is correctly configured for CloudTrail
+    outputs:
+      - Name: ValidationResult
+        Selector: $.Payload.output
+        Type: StringMap
 
   -
     name: UpdateTrailToCWLogs
-    action: 'aws:executeAwsApi'
+    action: 'aws:executeScript'
     inputs:
-      Service: cloudtrail
-      Api: UpdateTrail
-      Name: '{{TrailName}}'
-      CloudWatchLogsLogGroupArn: '{{WaitForCreation.CloudWatchLogsGroupArn}}'
-      CloudWatchLogsRoleArn: '{{CloudWatchLogsRole}}'
-    description: Enable logging to CloudWatch Logs
+      InputPayload:
+        trail_name: '{{TrailName}}'
+        log_group_arn: '{{CreateOrGetLogGroup.CloudWatchLogsGroupArn}}'
+        cloudwatch_role_arn: '{{CloudWatchLogsRole}}'
+        validation_result: '{{ValidateBucketPolicy.ValidationResult}}'
+      Runtime: python3.11
+      Handler: update_trail_with_error_handling
+      Script: |-
+        %%SCRIPT=EnableCloudTrailToCloudWatchLogging_updatetrail.py%%
+    description: Enable logging to CloudWatch Logs with enhanced error handling
     outputs:
       - Name: Output
-        Selector: $
+        Selector: $.Payload.output
         Type: StringMap

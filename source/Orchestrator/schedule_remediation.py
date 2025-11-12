@@ -64,11 +64,14 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> str:
 
             is_within_threshold = found_time_is_within_wait_threshold(found_timestamp)
 
-            new_timestamp = (
+            calculated_timestamp = (
                 found_timestamp + wait_threshold
                 if is_within_threshold
                 else current_timestamp
             )
+
+            # If calculated timestamp is in the past, use current time
+            new_timestamp = max(calculated_timestamp, current_timestamp)
             new_timestamp_ttl = new_timestamp + wait_threshold
 
             dynamodb_client.put_item(

@@ -9,8 +9,6 @@ export interface AdminPlaybookProps {
   stackDependencies?: CfnResource[];
   defaultState?: 'yes' | 'no';
   description?: string;
-  targetAccountIDs: CfnParameter;
-  targetAccountIDsStrategy: CfnParameter;
 }
 
 export class AdminPlaybook {
@@ -36,12 +34,7 @@ export class AdminPlaybook {
     });
     stackOption.overrideLogicalId(this.parameterName);
 
-    this.playbookStack = new NestedStack(scope, `PlaybookAdminStack${playbookName}`, {
-      parameters: {
-        ['TargetAccountIDs']: props.targetAccountIDs.valueAsString,
-        ['TargetAccountIDsStrategy']: props.targetAccountIDsStrategy.valueAsString,
-      },
-    });
+    this.playbookStack = new NestedStack(scope, `PlaybookAdminStack${playbookName}`);
     const cfnStack = this.playbookStack.nestedStackResource as CfnResource;
     cfnStack.addPropertyOverride(
       'TemplateURL',

@@ -199,7 +199,7 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         logger.error(answer.message)
         return answer.json()  # type: ignore[no-any-return]
 
-    SSM_EXEC_ID = event["SSMExecution"]["ExecId"]
+    SSM_EXEC_ID = event["SSMExecution"]["SSMExecutionId"]
     SSM_ACCOUNT = event["SSMExecution"].get("Account")
     SSM_REGION = event["SSMExecution"].get("Region")
 

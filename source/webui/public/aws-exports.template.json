@@ -1,0 +1,27 @@
+{
+    "API": {
+        "endpoints": [
+            {
+                "name": "",
+                "endpoint": ""
+            }
+        ]
+    },
+    "loggingLevel": "INFO",
+    "Auth": {
+        "region": "",
+        "userPoolId": "",
+        "userPoolWebClientId": "",
+        "mandatorySignIn": true,
+        "oauth": {
+            "domain": "",
+            "scope": [
+            ],
+            "redirectSignIn": "",
+            "redirectSignOut": "",
+            "responseType": "",
+            "clientId": ""
+        }
+    },
+    "ticketingEnabled": "false"
+}

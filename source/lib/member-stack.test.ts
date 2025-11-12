@@ -47,7 +47,16 @@ function getMemberStack(): Stack {
 }
 
 describe('member stack', function () {
-  const template = Template.fromStack(getMemberStack());
+  let template: Template;
+  beforeAll(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-01T00:00:00.000Z'));
+    template = Template.fromStack(getMemberStack());
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
 
   it('snapshot matches', function () {
     expect(template).toMatchSnapshot();

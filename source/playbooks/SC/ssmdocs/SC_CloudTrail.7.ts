@@ -31,7 +31,7 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
       remediationName: 'ConfigureS3BucketLogging',
       scope: RemediationScope.GLOBAL,
       resourceIdName,
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):s3:::([A-Za-z0-9.-]{3,63})$`,
+      resourceIdRegex: String.raw`^(?:arn:(?:aws|aws-cn|aws-us-gov):s3:::)?([A-Za-z0-9.-]{3,63})$`,
       updateDescription: new StringFormat('Created S3 bucket %s for logging access to %s', [
         getTargetBucketName(props.solutionId),
         StringVariable.of(`ParseInput.${resourceIdName}`),

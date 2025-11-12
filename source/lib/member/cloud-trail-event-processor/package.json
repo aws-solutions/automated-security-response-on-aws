@@ -12,11 +12,10 @@
     "test": "jest --coverage"
   },
   "devDependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.840.0",
-    "@aws-sdk/client-s3": "^3.842.0",
-    "@aws-sdk/client-sts": "^3.840.0",
-    "aws-sdk-client-mock": "^4.1.0",
-    "aws-sdk-client-mock-jest": "^4.1.0",
-    "jest": "^29.7.0"
+    "@aws-sdk/client-cloudwatch-logs": "3.840.0",
+    "@aws-sdk/client-s3": "3.842.0",
+    "@aws-sdk/client-sts": "3.840.0",
+    "aws-sdk-client-mock": "4.1.0",
+    "jest": "29.7.0"
   }
 }

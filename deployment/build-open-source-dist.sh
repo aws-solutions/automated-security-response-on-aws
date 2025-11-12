@@ -33,7 +33,13 @@ main() {
         -x "codescan-*.sh" \
         -x "Config" \
         -x ".nightswatch/*" \
-        -x "build-tools/*"
+        -x "buildspec.yml" \
+        -x "AWSSD-README.md" \
+        -x "AWSSD-DevNotes.md" \
+        -x "build-tools/*" \
+        -x "redpencil-suppressions.json" \
+        -x "source/data-models/cjs/*" \
+        -x "source/data-models/esm/*" \
     popd
 }
 

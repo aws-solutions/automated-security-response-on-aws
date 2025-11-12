@@ -1,6 +1,6 @@
 id: SO0111
 name: automated-security-response-on-aws
-version: v2.3.2
+version: v3.0.0
 cloudformation_templates:
   - template: automated-security-response-admin.template
     main_template: true
@@ -22,5 +22,6 @@ cloudformation_templates:
   - template: playbooks/NIST80053Stack.template
   - template: blueprints/JiraBlueprintStack.template
   - template: blueprints/ServiceNowBlueprintStack.template
+  - template: automated-security-response-webui-nested-stack.template
 build_environment:
   build_image: aws/codebuild/standard:7.0

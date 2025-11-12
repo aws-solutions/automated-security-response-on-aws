@@ -42,7 +42,7 @@ export class MemberStack extends Stack {
       type: 'String',
       default: 'no',
       allowedValues: ['yes', 'no'],
-      description: 'Create a CloudTrail to monitor ASR actions in this account on the ASR CloudWatch Dashboard?',
+      description: 'Create a CloudTrail to monitor ASR actions in this account on the ASR CloudWatch Dashboard. ',
     });
     const cloudTrailCondition = new cdk.CfnCondition(this, 'CloudTrailCondition', {
       expression: cdk.Fn.conditionEquals(enableCloudTrailParam, 'yes'),

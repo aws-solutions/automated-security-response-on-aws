@@ -3,260 +3,381 @@
 import json
 import os
 import urllib.parse
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
+
+from botocore.exceptions import ClientError
+
+MOCK_ACCOUNT_ID = "123456789012"
+MOCK_STACK_ID = "test-stack-id"
+# Set environment variable before importing metrics
+os.environ["AWS_ACCOUNT_ID"] = MOCK_ACCOUNT_ID
+os.environ["STACK_ID"] = MOCK_STACK_ID
 
 import boto3
 import pytest
-from botocore.stub import Stubber
 from layer.metrics import Metrics
-
-from . import file_utilities as utils
-
-test_data = "test/test_json_data/"
+from moto import mock_aws
 
 
 def get_region():
-    return os.getenv("AWS_DEFAULT_REGION")
+    return os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 
 
-mock_ssm_get_parameter_uuid = {
-    "Parameter": {
-        "Name": "/Solutions/SO0111/anonymous_metrics_uuid",
-        "Type": "String",
-        "Value": "11111111-1111-1111-1111-111111111111",
-        "Version": 1,
-        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/anonymous_metrics_uuid",
-        "DataType": "text",
-    }
-}
-mock_ssm_get_parameter_version = {
-    "Parameter": {
-        "Name": "/Solutions/SO0111/solution_version",
-        "Type": "String",
-        "Value": "v1.2.0TEST",
-        "Version": 1,
-        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}1:111111111111:parameter/Solutions/SO0111/solution_version",
-        "DataType": "text",
-    }
-}
+@mock_aws
+def test_metrics_construction_with_existing_parameters():
+    """Test metrics construction when both UUID and version parameters exist"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/metrics_uuid",
+        Value="11111111-1111-1111-1111-111111111111",
+        Type="String",
+    )
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
 
-mock_ssm_get_parameter_sendmetrics_yes = {
-    "Parameter": {
-        "Name": "/Solutions/SO0111/sendAnonymizedMetrics",
-        "Type": "String",
-        "Value": "Yes",
-        "Version": 1,
-        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendAnonymizedMetrics",
-        "DataType": "text",
-    }
-}
+    # ACT
+    metrics = Metrics()
 
-mock_ssm_get_parameter_sendmetrics_no = {
-    "Parameter": {
-        "Name": "/Solutions/SO0111/sendAnonymizedMetrics",
-        "Type": "String",
-        "Value": "No",
-        "Version": 1,
-        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendAnonymizedMetrics",
-        "DataType": "text",
-    }
-}
-
-mock_ssm_get_parameter_sendmetrics_badvalue = {
-    "Parameter": {
-        "Name": "/Solutions/SO0111/sendAnonymizedMetrics",
-        "Type": "String",
-        "Value": "slartibartfast",
-        "Version": 1,
-        "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendAnonymizedMetrics",
-        "DataType": "text",
-    }
-}
-
-
-# ------------------------------------------------------------------------------
-# This test verifies that the metrics object is constructed correctly
-# ------------------------------------------------------------------------------
-def test_metrics_construction(mocker):
-    ssmc = boto3.client("ssm", region_name=get_region())
-    ssmc_s = Stubber(ssmc)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_yes)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_uuid)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_version)
-    ssmc_s.activate()
-
-    mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
-
-    metrics = Metrics("unit-test")
-
+    # ASSERT
     assert metrics.solution_uuid == "11111111-1111-1111-1111-111111111111"
     assert metrics.solution_version == "v1.2.0TEST"
 
 
-# ------------------------------------------------------------------------------
-# This test verifies that event data is parsed correctly
-# ------------------------------------------------------------------------------
-def test_get_metrics_from_finding(mocker):
-    expected_response = {
-        "generator_id": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
-        "type": "1.3 Ensure credentials unused for 90 days or greater are disabled",
-        "productArn": "arn:aws:securityhub:"
-        + get_region()
-        + "::product/aws/securityhub",
-        "finding_triggered_by": "unit-test",
-        "region": mocker.ANY,
-        "custom_action_name": "MyCustomAction",
-    }
+@mock_aws
+def test_metrics_construction_creates_new_uuid():
+    """Test metrics construction creates new UUID when parameter doesn't exist"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
 
+    # ACT
+    metrics = Metrics()
+
+    # ASSERT
+    assert metrics.solution_uuid is not None
+    assert metrics.solution_version == "v1.2.0TEST"
+
+    # Verify new parameter was created
+    response = ssm.get_parameter(Name="/Solutions/SO0111/metrics_uuid")
+    assert response["Parameter"]["Value"] == metrics.solution_uuid
+
+
+@mock_aws
+def test_metrics_construction_migrates_old_uuid():
+    """Test metrics construction migrates UUID from old parameter"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    old_uuid = "22222222-2222-2222-2222-222222222222"
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/anonymous_metrics_uuid", Value=old_uuid, Type="String"
+    )
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
+
+    # ACT
+    metrics = Metrics()
+
+    # ASSERT
+    assert metrics.solution_uuid == old_uuid
+    assert metrics.solution_version == "v1.2.0TEST"
+
+    # Verify migration occurred
+    with pytest.raises(ssm.exceptions.ParameterNotFound):
+        ssm.get_parameter(Name="/Solutions/SO0111/anonymous_metrics_uuid")
+
+    response = ssm.get_parameter(Name="/Solutions/SO0111/metrics_uuid")
+    assert response["Parameter"]["Value"] == old_uuid
+
+
+@mock_aws
+def test_metrics_construction_version_not_found():
+    """Test metrics construction when version parameter doesn't exist"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/metrics_uuid",
+        Value="11111111-1111-1111-1111-111111111111",
+        Type="String",
+    )
+
+    # ACT
+    metrics = Metrics()
+
+    # ASSERT
+    assert metrics.solution_uuid == "11111111-1111-1111-1111-111111111111"
+    assert metrics.solution_version == "unknown"
+
+
+@mock_aws
+def test_metrics_construction_version_access_denied():
+    """Test metrics construction when version parameter access fails"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/metrics_uuid",
+        Value="11111111-1111-1111-1111-111111111111",
+        Type="String",
+    )
+
+    with patch("boto3.session.Session") as mock_session:
+        mock_session.return_value.region_name = get_region()
+
+        with patch("layer.awsapi_cached_client.AWSCachedClient") as mock_client:
+            mock_ssm = MagicMock()
+            mock_ssm.get_parameter.side_effect = [
+                {
+                    "Parameter": {"Value": "11111111-1111-1111-1111-111111111111"}
+                },  # UUID call
+                ClientError(
+                    {"Error": {"Code": "AccessDenied"}}, "GetParameter"
+                ),  # Version call
+            ]
+            mock_client.return_value.get_connection.return_value = mock_ssm
+
+            # ACT
+            metrics = Metrics()
+
+            # ASSERT
+            assert metrics.solution_uuid == "11111111-1111-1111-1111-111111111111"
+            assert metrics.solution_version == "unknown"
+
+
+@mock_aws
+def test_metrics_construction_ssm_connection_failure():
+    """Test metrics construction when SSM connection fails"""
+    # ARRANGE
+    with patch("layer.awsapi_cached_client.AWSCachedClient") as mock_client:
+        mock_client.side_effect = Exception("Connection failed")
+
+        # ACT
+        metrics = Metrics()
+
+        # ASSERT (an exception should not be raised)
+        assert metrics.ssm_client is None
+
+
+@mock_aws
+def test_metrics_construction_uuid_parameter_creation_failure():
+    """Test metrics construction when UUID parameter creation fails"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
+
+    with patch("boto3.session.Session") as mock_session:
+        mock_session.return_value.region_name = get_region()
+
+        with patch("layer.awsapi_cached_client.AWSCachedClient") as mock_client:
+            mock_ssm = MagicMock()
+            mock_ssm.get_parameter.side_effect = [
+                ClientError(
+                    {"Error": {"Code": "ParameterNotFound"}}, "GetParameter"
+                ),  # UUID call
+                ClientError(
+                    {"Error": {"Code": "ParameterNotFound"}}, "GetParameter"
+                ),  # Old UUID call
+                {"Parameter": {"Value": "v1.2.0TEST"}},  # Version call
+            ]
+            mock_ssm.put_parameter.side_effect = Exception("Access denied")
+            mock_client.return_value.get_connection.return_value = mock_ssm
+
+            # ACT
+            metrics = Metrics()
+
+            # ASSERT
+            assert metrics.solution_uuid == "unknown"
+            assert metrics.solution_version == "v1.2.0TEST"
+
+
+@mock_aws
+def test_metrics_construction_general_uuid_exception():
+    """Test metrics construction when UUID retrieval has general exception"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
+
+    with patch("boto3.session.Session") as mock_session:
+        mock_session.return_value.region_name = get_region()
+
+        with patch("layer.awsapi_cached_client.AWSCachedClient") as mock_client:
+            mock_ssm = MagicMock()
+            mock_ssm.get_parameter.side_effect = [
+                Exception("General error"),  # UUID call
+                {"Parameter": {"Value": "v1.2.0TEST"}},  # Version call
+            ]
+            mock_client.return_value.get_connection.return_value = mock_ssm
+
+            # ACT
+            metrics = Metrics()
+
+            # ASSERT
+            assert metrics.solution_uuid == "unknown"
+            assert metrics.solution_version == "v1.2.0TEST"
+
+
+@mock_aws
+def test_get_metrics_from_event_with_finding():
+    """Test extracting metrics from event with finding"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
+
+    metrics = Metrics()
     event = {
-        "Finding": utils.load_test_data(test_data + "CIS-1.3.json", get_region())
-        .get("detail")
-        .get("findings")[0],
-        "CustomActionName": "MyCustomAction",
-    }
-
-    ssmc = boto3.client("ssm", region_name=get_region())
-    ssmc_s = Stubber(ssmc)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_yes)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_uuid)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_version)
-    ssmc_s.activate()
-
-    mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
-
-    metrics = Metrics("unit-test")
-
-    assert metrics.get_metrics_from_event(event) == expected_response
-
-
-# ------------------------------------------------------------------------------
-# This test verifies that sendAnonymizedMetrics defaults to no when the value is
-# other than yes or no.
-# ------------------------------------------------------------------------------
-def test_validate_ambiguous_sendanonymousmetrics(mocker):
-    ssmc = boto3.client("ssm", region_name=get_region())
-    ssmc_s = Stubber(ssmc)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_badvalue)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_uuid)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_version)
-    ssmc_s.activate()
-
-    mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
-
-    metrics = Metrics("unit-test")
-
-    assert metrics.send_anonymous_metrics_enabled() is False
-
-
-# ------------------------------------------------------------------------------
-# This test verifies that send_metrics will post metrics when enabled via ssm
-# ------------------------------------------------------------------------------
-def test_send_metrics(mocker):
-    expected_response = {
-        "Solution": "SO0111",
-        "UUID": "11111111-1111-1111-1111-111111111111",
-        "TimeStamp": mocker.ANY,
-        "Data": {
-            "generator_id": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
-            "type": "1.3 Ensure credentials unused for 90 days or greater are disabled",
-            "productArn": mocker.ANY,
-            "finding_triggered_by": "unit-test",
-            "region": mocker.ANY,
-            "custom_action_name": "MyCustomAction",
+        "Finding": {
+            "GeneratorId": "test-generator",
+            "Title": "Test Finding",
+            "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
         },
-        "Version": "v1.2.0TEST",
+        "EventType": "unit-test",
+        "CustomActionName": "TestAction",
     }
 
-    event = {
-        "Finding": utils.load_test_data(test_data + "CIS-1.3.json", get_region())
-        .get("detail")
-        .get("findings")[0],
-        "CustomActionName": "MyCustomAction",
-    }
+    # ACT
+    result = metrics.get_metrics_from_event(event)
 
-    ssmc = boto3.client("ssm", region_name=get_region())
-    ssmc_s = Stubber(ssmc)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_yes)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_uuid)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_version)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_yes)
-    ssmc_s.activate()
-
-    mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
-
-    metrics = Metrics("unit-test")
-    metrics_data = metrics.get_metrics_from_event(event)
-    assert metrics_data == {
-        "generator_id": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
-        "type": "1.3 Ensure credentials unused for 90 days or greater are disabled",
-        "productArn": f"arn:aws:securityhub:{get_region()}::product/aws/securityhub",
+    # ASSERT
+    expected = {
+        "generator_id": "test-generator",
+        "type": "Test Finding",
+        "productArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
         "finding_triggered_by": "unit-test",
         "region": get_region(),
-        "custom_action_name": "MyCustomAction",
+        "custom_action_name": "TestAction",
     }
+    assert result == expected
 
-    send_metrics = mocker.patch(
-        "layer.metrics.Metrics.post_metrics_to_api", return_value=None
+
+@mock_aws
+def test_get_metrics_from_event_without_finding():
+    """Test extracting metrics from event without finding"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
     )
 
-    metrics.send_metrics(metrics_data)
+    metrics = Metrics()
+    event = {"EventType": "unit-test"}
 
-    send_metrics.assert_called_with(expected_response)
+    # ACT
+    result = metrics.get_metrics_from_event(event)
+
+    # ASSERT
+    assert result == {}
 
 
-# ------------------------------------------------------------------------------
-# This test verifies that send_metrics takes the value from the SSM parameter
-# WHEN METRICS ARE SENT. It does not assume that if the metrics object exists
-# then send metrics is enabled.
-# ------------------------------------------------------------------------------
-def test_do_not_send_metrics(mocker):
-    event = {
-        "Finding": utils.load_test_data(test_data + "CIS-1.3.json", get_region())
-        .get("detail")
-        .get("findings")[0],
-        "CustomActionName": "MyCustomAction",
-    }
-
-    ssmc = boto3.client("ssm", region_name=get_region())
-    ssmc_s = Stubber(ssmc)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_yes)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_uuid)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_version)
-    ssmc_s.add_response("get_parameter", mock_ssm_get_parameter_sendmetrics_no)
-    ssmc_s.activate()
-
-    mocker.patch("layer.metrics.Metrics.connect_to_ssm", return_value=ssmc)
-
-    metrics = Metrics("unit-test")
-    metrics_data = metrics.get_metrics_from_event(event)
-    assert metrics_data == {
-        "generator_id": "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3",
-        "type": "1.3 Ensure credentials unused for 90 days or greater are disabled",
-        "productArn": f"arn:aws:securityhub:{get_region()}::product/aws/securityhub",
-        "finding_triggered_by": "unit-test",
-        "region": get_region(),
-        "custom_action_name": "MyCustomAction",
-    }
-
-    send_metrics = mocker.patch(
-        "layer.metrics.Metrics.post_metrics_to_api", return_value=None
+@mock_aws
+def test_send_metrics_with_data():
+    """Test sending metrics with valid data"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/metrics_uuid",
+        Value="11111111-1111-1111-1111-111111111111",
+        Type="String",
+    )
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
     )
 
-    metrics.send_metrics(metrics_data)
+    metrics = Metrics()
+    metrics_data = {"test": "data"}
 
-    send_metrics.assert_not_called()
+    with patch.object(metrics, "post_metrics_to_api") as mock_post:
+        # ACT
+        metrics.send_metrics(metrics_data)
+
+        # ASSERT
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[0][0]
+        assert call_args["Solution"] == "SO0111"
+        assert call_args["UUID"] == "11111111-1111-1111-1111-111111111111"
+        assert call_args["AccountId"] == MOCK_ACCOUNT_ID
+        assert call_args["StackId"] == MOCK_STACK_ID
+        assert call_args["Data"] == metrics_data
+        assert call_args["Version"] == "v1.2.0TEST"
+        assert "TimeStamp" in call_args
+
+
+@mock_aws
+def test_send_metrics_with_none_data():
+    """Test sending metrics with None data"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
+
+    metrics = Metrics()
+
+    with patch.object(metrics, "post_metrics_to_api") as mock_post:
+        # ACT
+        metrics.send_metrics(None)
+
+        # ASSERT
+        mock_post.assert_not_called()
+
+
+@mock_aws
+def test_send_metrics_exception():
+    """Test send_metrics handles exceptions"""
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/version", Value="v1.2.0TEST", Type="String"
+    )
+
+    metrics = Metrics()
+    metrics_data = {"test": "data"}
+
+    with patch.object(
+        metrics, "post_metrics_to_api", side_effect=Exception("Test error")
+    ):
+        # ACT (should not raise exception)
+        metrics.send_metrics(metrics_data)
+
+
+def test_post_metrics_to_api_success():
+    """Test successful API call"""
+    # ARRANGE
+    metrics = Metrics()
+    request_data = {"test": "data"}
+
+    with patch("layer.metrics.urlopen") as mock_urlopen, patch(
+        "layer.metrics.Request"
+    ) as mock_request:
+
+        # ACT
+        metrics.post_metrics_to_api(request_data)
+
+        # ASSERT
+        expected_url = "https://metrics.awssolutionsbuilder.com/generic"
+        expected_data = bytes(
+            urllib.parse.quote(json.dumps(request_data)), encoding="utf8"
+        )
+        expected_headers = {"Content-Type": "application/json"}
+
+        mock_request.assert_called_once_with(
+            expected_url, method="POST", data=expected_data, headers=expected_headers
+        )
+        mock_urlopen.assert_called_once()
 
 
 def test_post_metrics_to_api_http_error():
-    """
-    Test post_metrics_to_api handling of HTTPError
-    """
+    """Test post_metrics_to_api handling of HTTPError"""
+    # ARRANGE
     metrics = Metrics()
     mock_data = {"Solution": "SO0111", "UUID": "test-uuid", "Data": {}}
 
@@ -264,75 +385,55 @@ def test_post_metrics_to_api_http_error():
         mock_urlopen.side_effect = HTTPError(
             url="test_url", code=404, msg="Not Found", hdrs={}, fp=None  # type: ignore
         )
+
+        # ACT & ASSERT
         with pytest.raises(HTTPError):
             metrics.post_metrics_to_api(mock_data)
 
 
-def test_post_metrics_to_api_successful_request(mocker):
-    """
-    Test that post_metrics_to_api successfully sends a POST request with the correct data and headers.
-    """
-    metrics = Metrics("unit-test")
-    request_data = {
-        "Solution": "SO0111",
-        "UUID": "11111111-1111-1111-1111-111111111111",
-        "Data": {"test": "data"},
-    }
-
-    mock_urlopen = mocker.patch("layer.metrics.urlopen")
-    mock_request = mocker.patch("layer.metrics.Request")
-
-    metrics.post_metrics_to_api(request_data)
-
-    expected_url = "https://metrics.awssolutionsbuilder.com/generic"
-    expected_data = bytes(urllib.parse.quote(json.dumps(request_data)), encoding="utf8")
-    expected_headers = {"Content-Type": "application/json"}
-
-    mock_request.assert_called_once_with(
-        expected_url, method="POST", data=expected_data, headers=expected_headers
-    )
-    mock_urlopen.assert_called_once()
-
-
 def test_post_metrics_to_api_url_error():
-    """
-    Test post_metrics_to_api handling of URLError
-    """
+    """Test post_metrics_to_api handling of URLError"""
+    # ARRANGE
     metrics = Metrics()
     mock_data = {"Solution": "SO0111", "UUID": "test-uuid", "Data": {}}
 
     with patch("layer.metrics.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = URLError("Test URL Error")
+
+        # ACT & ASSERT
         with pytest.raises(URLError):
             metrics.post_metrics_to_api(mock_data)
 
 
-def test_get_status_for_anonymized_metrics_success():
+def test_get_status_for_metrics_success():
     """Test successful status normalization"""
-    status, reason = Metrics.get_status_for_anonymized_metrics("SUCCESS")
+    # ACT & ASSERT
+    status, reason = Metrics.get_status_for_metrics("SUCCESS")
     assert status == "SUCCESS"
     assert reason == ""
 
     # Test case insensitivity
-    status, reason = Metrics.get_status_for_anonymized_metrics("success")
+    status, reason = Metrics.get_status_for_metrics("success")
     assert status == "SUCCESS"
     assert reason == ""
 
 
-def test_get_status_for_anonymized_metrics_queued():
+def test_get_status_for_metrics_queued():
     """Test queued status normalization"""
-    status, reason = Metrics.get_status_for_anonymized_metrics("QUEUED")
+    # ACT & ASSERT
+    status, reason = Metrics.get_status_for_metrics("QUEUED")
     assert status == "PENDING"
     assert reason == ""
 
     # Test case insensitivity
-    status, reason = Metrics.get_status_for_anonymized_metrics("queued")
+    status, reason = Metrics.get_status_for_metrics("queued")
     assert status == "PENDING"
     assert reason == ""
 
 
-def test_get_status_for_anonymized_metrics_failed_cases():
+def test_get_status_for_metrics_failed_cases():
     """Test various failure cases and their reason mappings"""
+    # ARRANGE
     test_cases = [
         ("FAILED", "REMEDIATION_FAILED"),
         ("LAMBDA_ERROR", "ORCHESTRATOR_FAILED"),
@@ -347,18 +448,20 @@ def test_get_status_for_anonymized_metrics_failed_cases():
     ]
 
     for input_status, expected_reason in test_cases:
-        status, reason = Metrics.get_status_for_anonymized_metrics(input_status)
+        # ACT & ASSERT
+        status, reason = Metrics.get_status_for_metrics(input_status)
         assert status == "FAILED"
         assert reason == expected_reason
 
         # Test case insensitivity
-        status, reason = Metrics.get_status_for_anonymized_metrics(input_status.lower())
+        status, reason = Metrics.get_status_for_metrics(input_status.lower())
         assert status == "FAILED"
         assert reason == expected_reason
 
 
-def test_get_status_for_anonymized_metrics_unknown_failure():
+def test_get_status_for_metrics_unknown_failure():
     """Test handling of unknown failure status"""
-    status, reason = Metrics.get_status_for_anonymized_metrics("UNKNOWN_STATUS")
+    # ACT & ASSERT
+    status, reason = Metrics.get_status_for_metrics("UNKNOWN_STATUS")
     assert status == "FAILED"
     assert reason == "UNKNOWN"

@@ -167,7 +167,7 @@ class FindingEvent:
         self.product_arn = self.finding_json.get("ProductArn", None)
         if (
             not re.match(
-                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d::product/aws/securityhub$",
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d::(?:product|productv2)/aws/securityhub$",
                 self.product_arn,
             )
             and self.valid_finding

@@ -15,7 +15,7 @@ export class EnableDefaultEncryptionS3Document extends ControlRunbookDocument {
       Input.ofTypeString('KmsKeyAlias', {
         description:
           '(Required) KMS Customer-Managed Key (CMK) alias or the default value which is created in the SSM parameter at solution deployment (default-s3-encryption) is used to identify that the s3 bucket encryption value should be set to AES-256.',
-        defaultValue: '{{ssm:/Solutions/SO0111/afsbp/1.0.0/S3.4/KmsKeyAlias}}',
+        defaultValue: `{{ssm:/Solutions/${props.solutionId}/afsbp/1.0.0/S3.4/KmsKeyAlias}}`,
         allowedPattern: String.raw`^$|^[a-zA-Z0-9/_-]{1,256}$`,
       }),
     ];

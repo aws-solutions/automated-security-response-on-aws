@@ -118,21 +118,20 @@ def partition_from_region(region_name):
 
 
 def get_account_alias(account_id: str) -> str:
-    default_account_alias = "Unknown"
     if not account_id:
-        return default_account_alias
+        return "Unknown"
+
+    default_account_alias = account_id
+
+    if os.getenv("DISABLE_ACCOUNT_ALIAS_LOOKUP", "false").lower() == "true":
+        LOGGER.debug("Account alias lookup disabled via environment variable")
+        return account_id
+
     try:
         aws = AWSCachedClient(AWS_REGION)
         organizations_client = aws.get_connection("organizations", AWS_REGION)
-        accounts = []
-
-        paginator = organizations_client.get_paginator("list_accounts")
-        for page in paginator.paginate():
-            accounts.extend(page["Accounts"])
-        return next(
-            (account["Name"] for account in accounts if account["Id"] == account_id),
-            default_account_alias,
-        )
+        response = organizations_client.describe_account(AccountId=account_id)
+        return str(response["Account"]["Name"])
     except Exception as e:
         LOGGER.error(f"encountered error retrieving account alias: {str(e)}")
         return default_account_alias

@@ -67,6 +67,11 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
         )
 
         # Add SSL/TLS enforcement policy
+        partition = "aws"
+        if "cn-" in event["AWS_REGION"]:
+            partition = "aws-cn"
+        elif "us-gov" in event["AWS_REGION"]:
+            partition = "aws-us-gov"
         ssl_policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -75,8 +80,8 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
                     "Action": "s3:*",
                     "Effect": "Deny",
                     "Resource": [
-                        f"arn:aws:s3:::{event['BucketName']}",
-                        f"arn:aws:s3:::{event['BucketName']}/*",
+                        f"arn:{partition}:s3:::{event['BucketName']}",
+                        f"arn:{partition}:s3:::{event['BucketName']}/*",
                     ],
                     "Condition": {"Bool": {"aws:SecureTransport": "false"}},
                     "Principal": "*",

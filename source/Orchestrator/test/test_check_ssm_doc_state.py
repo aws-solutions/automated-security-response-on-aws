@@ -393,6 +393,90 @@ def test_client_error(mocker):
     ssmc_stub.deactivate()
 
 
+def test_throttling_exception(mocker):
+    """Test that ThrottlingException is re-raised for Step Functions retry"""
+    test_input = {
+        "EventType": "Security Hub Findings - Custom Action",
+        "Finding": {
+            "Id": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1/finding/test-throttle",
+            "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+            "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {
+                "StandardsArn": "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0",
+                "StandardsSubscriptionArn": "arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0",
+                "ControlId": "AutoScaling.1",
+                "StandardsControlArn": "arn:aws:securityhub:us-east-1:111111111111:control/aws-foundational-security-best-practices/v/1.0.0/AutoScaling.1",
+                "aws/securityhub/ProductName": "Security Hub",
+            },
+            "Resources": [
+                {
+                    "Type": "AwsAccount",
+                    "Id": "arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:test",
+                    "Partition": "aws",
+                    "Region": "us-east-1",
+                }
+            ],
+            "WorkflowState": "NEW",
+            "Workflow": {"Status": "NEW"},
+            "RecordState": "ACTIVE",
+        },
+    }
+
+    # Use AWSCachedClient to ensure stub is used for all SSM calls
+    AWS = AWSCachedClient(get_region())
+    ssm_c = AWS.get_connection("ssm")
+    ssmc_stub = Stubber(ssm_c)
+
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "Type": "String",
+                "Value": "AFSBP",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:43.794000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname",
+                "DataType": "text",
+            }
+        },
+        {
+            "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0/shortname"
+        },
+    )
+    ssmc_stub.add_client_error("get_parameter", "ParameterNotFound")
+    ssmc_stub.add_response(
+        "get_parameter",
+        {
+            "Parameter": {
+                "Name": "/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "Type": "String",
+                "Value": "enabled",
+                "Version": 1,
+                "LastModifiedDate": "2021-05-11T08:21:44.632000-04:00",
+                "ARN": "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/aws-foundational-security-best-practices/1.0.0",
+                "DataType": "text",
+            }
+        },
+    )
+    ssmc_stub.add_client_error("describe_document", "ThrottlingException")
+
+    ssmc_stub.activate()
+    mocker.patch("check_ssm_doc_state._get_ssm_client", return_value=ssm_c)
+
+    # Verify that ThrottlingException is raised
+    import pytest
+    from botocore.exceptions import ClientError
+
+    with pytest.raises(ClientError) as exc_info:
+        lambda_handler(test_input, create_lambda_context())
+
+    assert exc_info.value.response["Error"]["Code"] == "ThrottlingException"
+
+    ssmc_stub.deactivate()
+
+
 def test_control_remap(mocker):
     test_input = {
         "EventType": "Security Hub Findings - Custom Action",

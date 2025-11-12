@@ -92,7 +92,7 @@ test_event: Any = {
     },
     "SSMExecution": {
         "Message": "AutoScaling.1remediation was successfully invoked via AWS Systems Manager in account 111111111111: 43374019-a309-4627-b8a2-c641e0140262",
-        "ExecId": "43374019-a309-4627-b8a2-c641e0140262",
+        "SSMExecutionId": "43374019-a309-4627-b8a2-c641e0140262",
         "ExecState": "SUCCESS",
         "Account": "111111111111",
         "Region": "us-east-1",
@@ -100,7 +100,7 @@ test_event: Any = {
     "Remediation": {
         "LogData": [],
         "RemediationState": "running",
-        "ExecId": "43374019-a309-4627-b8a2-c641e0140262",
+        "SSMExecutionId": "43374019-a309-4627-b8a2-c641e0140262",
         "Message": "Waiting for completion",
         "AffectedObject": "",
         "ExecState": "InProgress",
@@ -207,7 +207,9 @@ def test_successful_remediation(mocker):
     ssm_c = boto3.client("ssm")
     account = "111111111111"
     test_event["AutomationDocument"]["AccountId"] = account
-    test_event["SSMExecution"]["ExecId"] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
+    test_event["SSMExecution"][
+        "SSMExecutionId"
+    ] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
 
     expected_result = {
         "affected_object": "UNKNOWN",
@@ -250,7 +252,9 @@ def test_execid_parsing_nonsharr(mocker):
     ssm_c = boto3.client("ssm")
     account = "111111111111"
     test_event["AutomationDocument"]["AccountId"] = account
-    test_event["SSMExecution"]["ExecId"] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
+    test_event["SSMExecution"][
+        "SSMExecutionId"
+    ] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
 
     ssmc_stub = Stubber(ssm_c)
 
@@ -271,7 +275,10 @@ def test_execid_parsing_nonsharr(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
 
     automation_exec_info = AutomationExecution(
-        test_event["SSMExecution"]["ExecId"], account, "foo-bar-baz", "us-east-1"
+        test_event["SSMExecution"]["SSMExecutionId"],
+        account,
+        "foo-bar-baz",
+        "us-east-1",
     )
     assert automation_exec_info.status == "Success"
     assert (
@@ -290,7 +297,9 @@ def test_execid_parsing_sharr(mocker):
     ssm_c = boto3.client("ssm")
     account = "111111111111"
     test_event["AutomationDocument"]["AccountId"] = account
-    test_event["SSMExecution"]["ExecId"] = "795cf453-c41a-48df-aace-fd68fdace188"
+    test_event["SSMExecution"][
+        "SSMExecutionId"
+    ] = "795cf453-c41a-48df-aace-fd68fdace188"
 
     ssmc_stub = Stubber(ssm_c)
 
@@ -311,7 +320,10 @@ def test_execid_parsing_sharr(mocker):
     mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
 
     automation_exec_info = AutomationExecution(
-        test_event["SSMExecution"]["ExecId"], account, "foo-bar-baz", "us-east-1"
+        test_event["SSMExecution"]["SSMExecutionId"],
+        account,
+        "foo-bar-baz",
+        "us-east-1",
     )
     assert automation_exec_info.status == "Success"
     assert (
@@ -331,7 +343,9 @@ def test_missing_account_id(mocker):
     Verifies that system exit occurs when an account ID is missing from event
     """
     ssm_c = boto3.client("ssm")
-    test_event["SSMExecution"]["ExecId"] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
+    test_event["SSMExecution"][
+        "SSMExecutionId"
+    ] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
     test_event["SSMExecution"]["Account"] = None
 
     ssmc_stub = Stubber(ssm_c)
@@ -368,7 +382,9 @@ def test_missing_region(mocker):
     Verifies that system exit occurs when region is missing
     """
     ssm_c = boto3.client("ssm")
-    test_event["SSMExecution"]["ExecId"] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
+    test_event["SSMExecution"][
+        "SSMExecutionId"
+    ] = "5f12697a-70a5-4a64-83e6-b7d429ec2b17"
     test_event["SSMExecution"]["Region"] = None
 
     ssmc_stub = Stubber(ssm_c)

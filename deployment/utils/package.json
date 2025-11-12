@@ -1,0 +1,17 @@
+{
+  "name": "@amzn/asr-deployment-utils",
+  "version": "3.0.0",
+  "description": "Deployment scripts for Automated Security Response on AWS",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions",
+    "organization": true
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "npm ci && jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "29.7.0"
+  }
+}

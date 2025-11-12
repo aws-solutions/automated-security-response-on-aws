@@ -119,7 +119,7 @@ export class OrchestratorMemberRole extends Construct {
     const serviceprincipal = new ServicePrincipal('ssm.amazonaws.com');
     principals.addPrincipals(serviceprincipal);
 
-    const memberRole = new Role(this, 'MemberAccountRole', {
+    const memberRole = new Role(this, `MemberAccountRole`, {
       assumedBy: principals,
       inlinePolicies: {
         member_orchestrator: memberPolicy,

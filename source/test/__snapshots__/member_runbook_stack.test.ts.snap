@@ -601,13 +601,18 @@ def get_subnets(vpc_id: str) -> Optional[List[str]]:
                 }
             ]
         )
-        subnets = [
-            subnet["SubnetId"]
-            for page in page_iterator
-            for subnet in page["Subnets"]
-            if "SubnetId" in subnet
-        ]
-        return subnets
+
+        # Collect subnets with their availability zones
+        subnets_by_az = {}
+        for page in page_iterator:
+            for subnet in page["Subnets"]:
+                if "SubnetId" in subnet and "AvailabilityZone" in subnet:
+                    az = subnet["AvailabilityZone"]
+                    # Keep only one subnet per AZ (first one found)
+                    if az not in subnets_by_az:
+                        subnets_by_az[az] = subnet["SubnetId"]
+
+        return list(subnets_by_az.values())
     except Exception as e:
         raise RuntimeError(f"Failed to list subnets in VPC {vpc_id}: {str(e)}")
 
@@ -2621,6 +2626,11 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
         )
 
         # Add SSL/TLS enforcement policy
+        partition = "aws"
+        if "cn-" in event["AWS_REGION"]:
+            partition = "aws-cn"
+        elif "us-gov" in event["AWS_REGION"]:
+            partition = "aws-us-gov"
         ssl_policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -2629,8 +2639,8 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
                     "Action": "s3:*",
                     "Effect": "Deny",
                     "Resource": [
-                        f"arn:aws:s3:::{event['BucketName']}",
-                        f"arn:aws:s3:::{event['BucketName']}/*",
+                        f"arn:{partition}:s3:::{event['BucketName']}",
+                        f"arn:{partition}:s3:::{event['BucketName']}/*",
                     ],
                     "Condition": {"Bool": {"aws:SecureTransport": "false"}},
                     "Principal": "*",
@@ -3077,6 +3087,7 @@ def create_bucket_policy(event, _):
 # SPDX-License-Identifier: Apache-2.0
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 
 def connect_to_cloudtrail(boto_config):
@@ -3087,21 +3098,59 @@ def enable_cloudtrail(event, _):
     boto_config = Config(retries={"mode": "standard"})
     ct = connect_to_cloudtrail(boto_config)
 
+    trail_name = "multi-region-cloud-trail"
+
     try:
-        ct.create_trail(
-            Name="multi-region-cloud-trail",
-            S3BucketName=event["cloudtrail_bucket"],
-            IncludeGlobalServiceEvents=True,
-            EnableLogFileValidation=True,
-            IsMultiRegionTrail=True,
-            KmsKeyId=event["kms_key_arn"],
-        )
-        ct.start_logging(Name="multi-region-cloud-trail")
-        return {
-            "output": {"Message": "CloudTrail Trail multi-region-cloud-trail created"}
-        }
+        existing_trails = ct.describe_trails(trailNameList=[trail_name])
+
+        if existing_trails.get("trailList"):
+            # Trail exists, update it
+            print(f"Trail {trail_name} already exists, updating configuration")
+            ct.update_trail(
+                Name=trail_name,
+                S3BucketName=event["cloudtrail_bucket"],
+                IncludeGlobalServiceEvents=True,
+                EnableLogFileValidation=True,
+                IsMultiRegionTrail=True,
+                KmsKeyId=event["kms_key_arn"],
+            )
+            message = f"CloudTrail Trail {trail_name} updated"
+        else:
+            # Trail doesn't exist, create it
+            ct.create_trail(
+                Name=trail_name,
+                S3BucketName=event["cloudtrail_bucket"],
+                IncludeGlobalServiceEvents=True,
+                EnableLogFileValidation=True,
+                IsMultiRegionTrail=True,
+                KmsKeyId=event["kms_key_arn"],
+            )
+            message = f"CloudTrail Trail {trail_name} created"
+
+        ct.start_logging(Name=trail_name)
+        return {"output": {"Message": message}}
+
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "TrailAlreadyExistsException":
+            print(f"Trail {trail_name} already exists, updating configuration")
+            try:
+                ct.update_trail(
+                    Name=trail_name,
+                    S3BucketName=event["cloudtrail_bucket"],
+                    IncludeGlobalServiceEvents=True,
+                    EnableLogFileValidation=True,
+                    IsMultiRegionTrail=True,
+                    KmsKeyId=event["kms_key_arn"],
+                )
+                ct.start_logging(Name=trail_name)
+                return {"output": {"Message": f"CloudTrail Trail {trail_name} updated"}}
+            except Exception as update_error:
+                exit(f"Error updating CloudTrail trail: {str(update_error)}")
+        else:
+            exit(f"Error enabling CloudTrail: {str(e)}")
     except Exception as e:
-        exit("Error enabling AWS Config: " + str(e))",
+        exit(f"Error enabling CloudTrail: {str(e)}")",
               },
               "isEnd": false,
               "name": "EnableCloudTrail",
@@ -3343,12 +3392,28 @@ def does_role_exist(iam_client, role_name) -> bool:
           "assumeRole": "{{ AutomationAssumeRole }}",
           "description": "### Document Name - ASR-CreateLogMetricFilterAndAlarm
 ## What does this document do?
-Creates a metric filter for a given log group and also creates and alarm for the metric.
+Creates a CloudWatch metric filter and alarm for log monitoring by:
+1. Creating an encrypted SNS topic for alarm notifications
+2. Ensuring the specified log group exists (creates if missing)
+3. Creating a metric filter on the log group with the specified pattern
+4. Creating a CloudWatch alarm that triggers when the metric threshold is exceeded
+
+This runbook is commonly used for security monitoring (e.g., failed login attempts,
+unauthorized API calls, etc.) as required by various compliance standards.
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* CloudWatch Log Group Name: Name of the CloudWatch log group to use to create metric filter
-* Alarm Value: Threshhold value for the creating an alarm for the CloudWatch Alarm
+* LogGroupName: (Required) Name of the CloudWatch log group to monitor
+* FilterName: (Required) Name for the metric filter
+* FilterPattern: (Required) Log filter pattern to match events
+* MetricName: (Required) Name of the CloudWatch metric
+* MetricNamespace: (Required) Namespace for the metric
+* MetricValue: (Required) Value to record when pattern matches
+* AlarmName: (Required) Name for the CloudWatch alarm
+* AlarmDesc: (Required) Description for the alarm
+* AlarmThreshold: (Required) Threshold value that triggers the alarm
+* SNSTopicName: (Required) Name for the SNS topic for notifications
+* KMSKeyArn: (Required) KMS key ARN for encrypting the SNS topic
 
 ## Security Standards / Controls
 * CIS v1.2.0:     3.1-3.14
@@ -3485,6 +3550,27 @@ import os
 import boto3
 from botocore.config import Config
 
+
+class LogGroupCreationError(Exception):
+    pass
+
+
+class LogGroupVerificationError(Exception):
+    pass
+
+
+class MetricFilterCreationError(Exception):
+    pass
+
+
+class MetricAlarmCreationError(Exception):
+    pass
+
+
+class RemediationError(Exception):
+    pass
+
+
 boto_config = Config(retries={"max_attempts": 10, "mode": "standard"})
 
 log = logging.getLogger()
@@ -3500,6 +3586,74 @@ def get_service_client(service_name):
     """
     log.debug("Getting the service client for service: {}".format(service_name))
     return boto3.client(service_name, config=boto_config)
+
+
+def _get_error_code(exception):
+    return getattr(exception, "response", {}).get("Error", {}).get("Code", "")
+
+
+def _check_log_group_exists(logs_client, log_group_name):
+    response = logs_client.describe_log_groups(logGroupNamePrefix=log_group_name)
+    for group in response.get("logGroups", []):
+        if group["logGroupName"] == log_group_name:
+            return True
+    return False
+
+
+def _create_log_group_with_fallback(logs_client, log_group_name):
+    try:
+        logs_client.create_log_group(logGroupName=log_group_name)
+        log.info(f"Successfully created log group {log_group_name}")
+        return {"exists": True, "created": True}
+    except Exception as create_error:
+        error_code = _get_error_code(create_error)
+        if error_code == "ResourceAlreadyExistsException":
+            log.info(f"Log group {log_group_name} already exists")
+            return {"exists": True, "created": False}
+        else:
+            log.error(f"Failed to create log group: {str(create_error)}")
+            raise LogGroupCreationError(
+                f"Cannot create log group {log_group_name}: {str(create_error)}"
+            )
+
+
+def ensure_log_group_exists(logs_client, log_group_name):
+    """
+    Ensures a CloudWatch log group exists, creating it if necessary.
+
+    :param logs_client: CloudWatch Logs client
+    :param log_group_name: Name of the log group to ensure exists
+    :return: dict with 'exists' (bool) and 'created' (bool) keys indicating the result
+    :raises LogGroupCreationError: If log group creation fails
+    :raises LogGroupVerificationError: If log group existence cannot be verified
+    """
+    try:
+        log.info(f"Checking if log group {log_group_name} exists")
+        if _check_log_group_exists(logs_client, log_group_name):
+            log.info(f"Log group {log_group_name} already exists")
+            return {"exists": True, "created": False}
+
+        log.info(f"Log group {log_group_name} not found, creating it")
+        logs_client.create_log_group(logGroupName=log_group_name)
+        log.info(f"Successfully created log group {log_group_name}")
+        return {"exists": True, "created": True}
+
+    except Exception as e:
+        error_code = _get_error_code(e)
+
+        if error_code == "AccessDeniedException" and "DescribeLogGroups" in str(e):
+            log.info(
+                f"Cannot describe log groups due to permissions, attempting to create {log_group_name} directly"
+            )
+            return _create_log_group_with_fallback(logs_client, log_group_name)
+        elif error_code == "ResourceAlreadyExistsException":
+            log.info(f"Log group {log_group_name} was created by another process")
+            return {"exists": True, "created": False}
+        else:
+            log.error(f"Failed to ensure log group exists: {str(e)}")
+            raise LogGroupVerificationError(
+                f"Cannot create or verify log group {log_group_name}: {str(e)}"
+            )
 
 
 def put_metric_filter(
@@ -3520,18 +3674,23 @@ def put_metric_filter(
     :param metric_value: Value to be logged for the metric
     """
     logs_client = get_service_client("logs")
+    log.info(f"Creating metric filter '{filter_name}' for log group '{cw_log_group}'")
     log.debug(
-        "Putting the metric filter with values: {}".format(
-            [
-                cw_log_group,
-                filter_name,
-                filter_pattern,
-                metric_name,
-                metric_namespace,
-                metric_value,
-            ]
-        )
+        f"Filter details: pattern='{filter_pattern}', metric='{metric_name}', namespace='{metric_namespace}', value='{metric_value}'"
     )
+
+    # Ensure log group exists first
+    log_group_result = ensure_log_group_exists(logs_client, cw_log_group)
+    if not log_group_result["exists"]:
+        raise LogGroupVerificationError(
+            f"Cannot proceed without log group {cw_log_group}"
+        )
+
+    if log_group_result["created"]:
+        log.info(f"Log group {cw_log_group} was created for this operation")
+    else:
+        log.info(f"Using existing log group {cw_log_group}")
+
     try:
         logs_client.put_metric_filter(
             logGroupName=cw_log_group,
@@ -3546,9 +3705,14 @@ def put_metric_filter(
                 }
             ],
         )
+        log.info(
+            f"Successfully created metric filter '{filter_name}' on log group '{cw_log_group}'"
+        )
+
     except Exception as e:
-        exit("Exception occurred while putting metric filter: " + str(e))
-    log.debug("Successfully added the metric filter.")
+        error_msg = f"Failed to create metric filter '{filter_name}' on log group '{cw_log_group}': {str(e)}"
+        log.error(error_msg)
+        raise MetricFilterCreationError(error_msg)
 
 
 def put_metric_alarm(
@@ -3561,13 +3725,14 @@ def put_metric_alarm(
     :param alarm_threshold: Threshold value for the alarm
     :param metric_name: Name of the metric
     :param metric_namespace: Namespace where metric is logged
+    :param topic_arn: SNS topic ARN for alarm notifications
     """
     cw_client = get_service_client("cloudwatch")
-    log.debug(
-        "Putting the metric alarm with values {}".format(
-            [alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace]
-        )
+    log.info(
+        f"Creating CloudWatch alarm '{alarm_name}' for metric '{metric_name}' in namespace '{metric_namespace}'"
     )
+    log.debug(f"Alarm details: threshold={alarm_threshold}, topic={topic_arn}")
+
     try:
         cw_client.put_metric_alarm(
             AlarmName=alarm_name,
@@ -3586,15 +3751,34 @@ def put_metric_alarm(
             ComparisonOperator="GreaterThanOrEqualToThreshold",
             TreatMissingData="notBreaching",
         )
+        log.info(f"Successfully created CloudWatch alarm '{alarm_name}'")
+
     except Exception as e:
-        exit("Exception occurred while putting metric alarm: " + str(e))
-    log.debug("Successfully added metric alarm.")
+        error_msg = f"Failed to create CloudWatch alarm '{alarm_name}': {str(e)}"
+        log.error(error_msg)
+        raise MetricAlarmCreationError(error_msg)
 
 
 def verify(event, _):
-    log.info("Begin handler")
-    log.debug("====Print Event====")
-    log.debug(event)
+    log.info("Starting CreateLogMetricFilterAndAlarm remediation")
+    log.debug(f"Event parameters: {event}")
+
+    required_params = [
+        "FilterName",
+        "FilterPattern",
+        "MetricName",
+        "MetricNamespace",
+        "MetricValue",
+        "AlarmName",
+        "AlarmDesc",
+        "AlarmThreshold",
+        "LogGroupName",
+        "TopicArn",
+    ]
+
+    for param in required_params:
+        if param not in event:
+            raise ValueError(f"Missing required parameter: {param}")
 
     filter_name = event["FilterName"]
     filter_pattern = event["FilterPattern"]
@@ -3607,28 +3791,45 @@ def verify(event, _):
     cw_log_group = event["LogGroupName"]
     topic_arn = event["TopicArn"]
 
-    put_metric_filter(
-        cw_log_group,
-        filter_name,
-        filter_pattern,
-        metric_name,
-        metric_namespace,
-        metric_value,
-    )
-    put_metric_alarm(
-        alarm_name,
-        alarm_desc,
-        alarm_threshold,
-        metric_name,
-        metric_namespace,
-        topic_arn,
-    )
-    return {
-        "response": {
-            "message": f'Created filter {event["FilterName"]} for metric {event["MetricName"]}, and alarm {event["AlarmName"]}',
-            "status": "Success",
+    try:
+        log.info("Step 1: Creating metric filter")
+        put_metric_filter(
+            cw_log_group,
+            filter_name,
+            filter_pattern,
+            metric_name,
+            metric_namespace,
+            metric_value,
+        )
+
+        log.info("Step 2: Creating CloudWatch alarm")
+        put_metric_alarm(
+            alarm_name,
+            alarm_desc,
+            alarm_threshold,
+            metric_name,
+            metric_namespace,
+            topic_arn,
+        )
+
+        success_message = f"Successfully created metric filter '{filter_name}' and alarm '{alarm_name}' for log group '{cw_log_group}'"
+        log.info(success_message)
+
+        return {
+            "response": {
+                "message": success_message,
+                "status": "Success",
+                "filterName": filter_name,
+                "alarmName": alarm_name,
+                "logGroupName": cw_log_group,
+                "metricName": metric_name,
+            }
         }
-    }",
+
+    except Exception as e:
+        error_message = f"Failed to create metric filter and alarm: {str(e)}"
+        log.error(error_message)
+        raise RemediationError(error_message)",
               },
               "name": "CreateMetricFilerAndAlarm",
               "outputs": [
@@ -3639,6 +3840,10 @@ def verify(event, _):
                 },
               ],
             },
+          ],
+          "outputs": [
+            "CreateMetricFilerAndAlarm.Output",
+            "CreateTopic.TopicArn",
           ],
           "parameters": {
             "AlarmDesc": {
@@ -6627,11 +6832,19 @@ Verifies log file validation is enabled for your trail.
           "assumeRole": "{{ AutomationAssumeRole }}",
           "description": "### Document Name - ASR-EnableCloudTrailToCloudWatchLogging
 ## What does this document do?
-Creates a CloudWatch logs group for CloudTrail data.
+Enables CloudTrail logging to CloudWatch Logs by:
+1. Creating or reusing an existing CloudWatch log group
+2. Fixing S3 bucket policy with required SourceArn condition for security
+3. Updating the CloudTrail to send logs to CloudWatch
+
+This fixes the common "InsufficientS3BucketPolicyException" error by ensuring
+the S3 bucket policy includes the AWS:SourceArn condition required by AWS.
 
 ## Input Parameters
 * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-* KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
+* TrailName: (Required) The name of the CloudTrail to enable logging for.
+* CloudWatchLogsRole: (Required) The ARN of the role that allows CloudTrail to log to CloudWatch.
+* LogGroupName: (Required) The name of the CloudWatch Log Group for CloudTrail logs.
 
 ## Security Standards / Controls
 * AWS FSBP v1.0.0:   N/A
@@ -6640,26 +6853,10 @@ Creates a CloudWatch logs group for CloudTrail data.
 ",
           "mainSteps": [
             {
-              "action": "aws:executeAwsApi",
-              "description": "Create the log group",
-              "inputs": {
-                "Api": "CreateLogGroup",
-                "Service": "logs",
-                "logGroupName": "{{LogGroupName}}",
-              },
-              "name": "CreateLogGroup",
-              "outputs": [
-                {
-                  "Name": "Output",
-                  "Selector": "$",
-                  "Type": "StringMap",
-                },
-              ],
-            },
-            {
               "action": "aws:executeScript",
+              "description": "Create log group if it doesn't exist, or get existing log group ARN",
               "inputs": {
-                "Handler": "wait_for_loggroup",
+                "Handler": "create_or_get_loggroup",
                 "InputPayload": {
                   "LogGroup": "{{LogGroupName}}",
                 },
@@ -6670,6 +6867,15 @@ import time
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
+
+
+class LogGroupOperationError(Exception):
+    pass
+
+
+class LogGroupNotFoundError(LogGroupOperationError):
+    pass
 
 
 def connect_to_logs(boto_config):
@@ -6680,32 +6886,92 @@ def sleep_between_attempts():
     time.sleep(2)
 
 
-def wait_for_loggroup(event, _):
-    boto_config = Config(retries={"mode": "standard"})
-    cwl_client = connect_to_logs(boto_config)
+def _find_existing_log_group(cwl_client, log_group_name):
+    try:
+        describe_group = cwl_client.describe_log_groups(
+            logGroupNamePrefix=log_group_name
+        )
+        for group in describe_group["logGroups"]:
+            if group["logGroupName"] == log_group_name:
+                print(
+                    f"Log group '{log_group_name}' already exists with ARN: {group['arn']}"
+                )
+                return str(group["arn"])
+    except ClientError as err:
+        print(f"Error checking for existing log groups: {str(err)}")
+    return None
 
-    max_retries = 3
+
+def _create_log_group(cwl_client, log_group_name):
+    try:
+        print(f"Attempting to create log group '{log_group_name}'...")
+        cwl_client.create_log_group(logGroupName=log_group_name)
+        print(f"Successfully created log group '{log_group_name}'")
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "ResourceAlreadyExistsException":
+            print(
+                f"Log group '{log_group_name}' was created by another process, continuing..."
+            )
+        else:
+            print(f"Error creating log group: {error_code} - {str(e)}")
+            raise e
+    except Exception as e:
+        print(f"Unexpected error creating log group: {str(e)}")
+        raise LogGroupOperationError(
+            f"Failed to create log group {log_group_name}: {str(e)}"
+        ) from e
+
+
+def _wait_for_log_group_creation(cwl_client, log_group_name, max_retries=3):
     attempts = 0
     while attempts < max_retries:
         try:
             describe_group = cwl_client.describe_log_groups(
-                logGroupNamePrefix=event["LogGroup"]
+                logGroupNamePrefix=log_group_name
             )
-            print(len(describe_group["logGroups"]))
+            print(f"Found {len(describe_group['logGroups'])} log groups")
             for group in describe_group["logGroups"]:
-                if group["logGroupName"] == event["LogGroup"]:
+                if group["logGroupName"] == log_group_name:
                     return str(group["arn"])
-            # no match - wait and retry
+
+            # Log group not found yet, wait and retry
             sleep_between_attempts()
             attempts += 1
 
-        except Exception as err:
-            exit(f'Failed to create Log Group {event["LogGroup"]}: {str(err)}')
+        except ClientError as err:
+            print(f"Error describing log groups: {str(err)}")
+            if attempts >= max_retries - 1:
+                raise LogGroupNotFoundError(
+                    f"Failed to find Log Group {log_group_name}: {str(err)}"
+                )
+            sleep_between_attempts()
+            attempts += 1
 
-    exit(f'Failed to create Log Group {event["LogGroup"]}: Timed out')",
+    raise LogGroupNotFoundError(
+        f"Failed to find Log Group {log_group_name}: Timed out after {max_retries} attempts"
+    )
+
+
+def create_or_get_loggroup(event, _):
+    boto_config = Config(retries={"mode": "standard"})
+    cwl_client = connect_to_logs(boto_config)
+    log_group_name = event["LogGroup"]
+
+    existing_arn = _find_existing_log_group(cwl_client, log_group_name)
+    if existing_arn:
+        return existing_arn
+
+    _create_log_group(cwl_client, log_group_name)
+
+    return _wait_for_log_group_creation(cwl_client, log_group_name)
+
+
+# Keep the old function for backward compatibility
+def wait_for_loggroup(event, _):
+    return create_or_get_loggroup(event, _)",
               },
-              "isEnd": false,
-              "name": "WaitForCreation",
+              "name": "CreateOrGetLogGroup",
               "outputs": [
                 {
                   "Name": "CloudWatchLogsGroupArn",
@@ -6715,20 +6981,425 @@ def wait_for_loggroup(event, _):
               ],
             },
             {
-              "action": "aws:executeAwsApi",
-              "description": "Enable logging to CloudWatch Logs",
+              "action": "aws:executeScript",
+              "description": "Fix S3 bucket policy to allow CloudTrail access with SourceArn condition",
               "inputs": {
-                "Api": "UpdateTrail",
-                "CloudWatchLogsLogGroupArn": "{{WaitForCreation.CloudWatchLogsGroupArn}}",
-                "CloudWatchLogsRoleArn": "{{CloudWatchLogsRole}}",
-                "Name": "{{TrailName}}",
-                "Service": "cloudtrail",
+                "Handler": "fix_cloudtrail_bucket_policy_for_logging",
+                "InputPayload": {
+                  "account": "{{global:ACCOUNT_ID}}",
+                  "partition": "{{global:AWS_PARTITION}}",
+                  "trail_name": "{{TrailName}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import json
+import time
+from typing import Any, Dict
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+
+def create_cloudtrail_bucket_policy(bucket, trail_arn, partition, account):
+    return {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AWSCloudTrailAclCheck20150319",
+                "Effect": "Allow",
+                "Principal": {"Service": "cloudtrail.amazonaws.com"},
+                "Action": "s3:GetBucketAcl",
+                "Resource": f"arn:{partition}:s3:::{bucket}",
+                "Condition": {"StringEquals": {"AWS:SourceArn": trail_arn}},
+            },
+            {
+                "Sid": "AWSCloudTrailWrite20150319",
+                "Effect": "Allow",
+                "Principal": {"Service": "cloudtrail.amazonaws.com"},
+                "Action": "s3:PutObject",
+                "Resource": f"arn:{partition}:s3:::{bucket}/AWSLogs/{account}/*",
+                "Condition": {
+                    "StringEquals": {
+                        "s3:x-amz-acl": "bucket-owner-full-control",
+                        "AWS:SourceArn": trail_arn,
+                    }
+                },
+            },
+            {
+                "Sid": "AllowSSLRequestsOnly",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": [
+                    f"arn:{partition}:s3:::{bucket}",
+                    f"arn:{partition}:s3:::{bucket}/*",
+                ],
+                "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+            },
+        ],
+    }
+
+
+def merge_bucket_policies(
+    existing: Dict[str, Any], new: Dict[str, Any]
+) -> Dict[str, Any]:
+    if not existing or "Statement" not in existing:
+        return new
+
+    merged = existing.copy()
+    existing_sids = {stmt.get("Sid") for stmt in merged.get("Statement", [])}
+
+    for stmt in new.get("Statement", []):
+        if stmt.get("Sid") not in existing_sids:
+            merged["Statement"].append(stmt)
+        else:
+            for i, existing_stmt in enumerate(merged["Statement"]):
+                if existing_stmt.get("Sid") == stmt.get("Sid"):
+                    merged["Statement"][i] = stmt
+                    break
+    return merged
+
+
+def fix_cloudtrail_bucket_policy_for_logging(event, _):
+    boto_config = Config(retries={"mode": "standard", "max_attempts": 5})
+    s3 = boto3.client("s3", config=boto_config)
+    cloudtrail = boto3.client("cloudtrail", config=boto_config)
+
+    trail_name = event["trail_name"]
+    aws_partition = event["partition"]
+    aws_account = event["account"]
+
+    try:
+        trail_response = cloudtrail.get_trail(Name=trail_name)
+        trail = trail_response["Trail"]
+        bucket = trail["S3BucketName"]
+        trail_arn = trail["TrailARN"]
+
+        if not bucket or not trail_arn:
+            raise ValueError(f"Trail {trail_name} missing S3 bucket or ARN")
+
+        existing_policy = None
+        try:
+            policy_response = s3.get_bucket_policy(Bucket=bucket)
+            existing_policy = json.loads(policy_response["Policy"])
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "NoSuchBucketPolicy":
+                raise
+
+        cloudtrail_policy = create_cloudtrail_bucket_policy(
+            bucket, trail_arn, aws_partition, aws_account
+        )
+        final_policy = (
+            merge_bucket_policies(existing_policy, cloudtrail_policy)
+            if existing_policy
+            else cloudtrail_policy
+        )
+
+        for attempt in range(3):
+            try:
+                s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(final_policy))
+                break
+            except ClientError as e:
+                if attempt < 2 and e.response["Error"]["Code"] in [
+                    "ServiceUnavailable",
+                    "SlowDown",
+                ]:
+                    time.sleep(2**attempt)
+                    continue
+                raise
+
+        return {
+            "output": {
+                "Message": f"Fixed bucket policy for {bucket}",
+                "TrailArn": trail_arn,
+                "BucketName": bucket,
+                "PolicyMerged": existing_policy is not None,
+            }
+        }
+
+    except Exception as e:
+        return {
+            "output": {
+                "Message": f"Error fixing CloudTrail bucket policy: {str(e)}",
+                "Error": str(e),
+                "TrailName": trail_name,
+            }
+        }",
+              },
+              "name": "FixCloudTrailBucketPolicy",
+              "outputs": [
+                {
+                  "Name": "BucketPolicyResult",
+                  "Selector": "$.Payload.output",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "description": "Validate that S3 bucket policy is correctly configured for CloudTrail",
+              "inputs": {
+                "Handler": "validate_cloudtrail_bucket_policy",
+                "InputPayload": {
+                  "account": "{{global:ACCOUNT_ID}}",
+                  "partition": "{{global:AWS_PARTITION}}",
+                  "trail_name": "{{TrailName}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import json
+import time
+from typing import Any, Dict
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+
+def _validate_policy_statement(
+    stmt: Dict[str, Any], trail_arn: str, checks: Dict[str, bool]
+) -> None:
+    sid = stmt.get("Sid", "")
+
+    if (
+        "AWSCloudTrailAclCheck" in sid
+        and stmt.get("Effect") == "Allow"
+        and stmt.get("Principal", {}).get("Service") == "cloudtrail.amazonaws.com"
+        and "s3:GetBucketAcl" in stmt.get("Action", [])
+        and stmt.get("Condition", {}).get("StringEquals", {}).get("AWS:SourceArn")
+        == trail_arn
+    ):
+        checks["acl_check"] = True
+    elif (
+        "AWSCloudTrailWrite" in sid
+        and stmt.get("Effect") == "Allow"
+        and stmt.get("Principal", {}).get("Service") == "cloudtrail.amazonaws.com"
+        and "s3:PutObject" in stmt.get("Action", [])
+        and stmt.get("Condition", {}).get("StringEquals", {}).get("AWS:SourceArn")
+        == trail_arn
+    ):
+        checks["put_object"] = True
+    elif (
+        "AllowSSLRequestsOnly" in sid
+        and stmt.get("Effect") == "Deny"
+        and stmt.get("Condition", {}).get("Bool", {}).get("aws:SecureTransport")
+        == "false"
+    ):
+        checks["ssl_only"] = True
+
+
+def _get_missing_statements(checks: Dict[str, bool]) -> list:
+    missing = []
+    if not checks["acl_check"]:
+        missing.append("CloudTrail ACL check statement")
+    if not checks["put_object"]:
+        missing.append("CloudTrail PutObject statement")
+    if not checks["ssl_only"]:
+        missing.append("SSL-only enforcement statement")
+    return missing
+
+
+def validate_cloudtrail_policy_statements(
+    policy: Dict[str, Any], trail_arn: str
+) -> Dict[str, Any]:
+    result = {"valid": False, "missing_statements": [], "issues": []}
+
+    if not policy or "Statement" not in policy:
+        result["issues"].append("No policy statements found")
+        return result
+
+    checks = {"acl_check": False, "put_object": False, "ssl_only": False}
+
+    for stmt in policy["Statement"]:
+        _validate_policy_statement(stmt, trail_arn, checks)
+
+    result["missing_statements"] = _get_missing_statements(checks)
+    result["valid"] = all(checks.values())
+    return result
+
+
+def validate_cloudtrail_bucket_policy(event, _):
+    boto_config = Config(retries={"mode": "standard", "max_attempts": 3})
+    s3 = boto3.client("s3", config=boto_config)
+    cloudtrail = boto3.client("cloudtrail", config=boto_config)
+
+    trail_name = event["trail_name"]
+
+    try:
+        trail_response = cloudtrail.get_trail(Name=trail_name)
+        trail = trail_response["Trail"]
+        bucket = trail["S3BucketName"]
+        trail_arn = trail["TrailARN"]
+
+        if not bucket or not trail_arn:
+            raise ValueError(f"Trail {trail_name} missing S3 bucket or ARN")
+
+        current_policy = None
+        for attempt in range(3):
+            try:
+                policy_response = s3.get_bucket_policy(Bucket=bucket)
+                current_policy = json.loads(policy_response["Policy"])
+                break
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "NoSuchBucketPolicy":
+                    return {
+                        "output": {
+                            "Valid": False,
+                            "Message": f"No bucket policy found for {bucket}",
+                            "BucketName": bucket,
+                            "TrailArn": trail_arn,
+                        }
+                    }
+                elif attempt < 2:
+                    time.sleep(2)
+                    continue
+                else:
+                    raise
+
+        validation_result = validate_cloudtrail_policy_statements(
+            current_policy, trail_arn
+        )
+        message = (
+            "Bucket policy validation passed"
+            if validation_result["valid"]
+            else "Bucket policy validation failed"
+        )
+
+        if not validation_result["valid"]:
+            message += (
+                f". Missing: {', '.join(validation_result['missing_statements'])}"
+            )
+        if validation_result["issues"]:
+            message += f". Issues: {', '.join(validation_result['issues'])}"
+
+        return {
+            "output": {
+                "Valid": validation_result["valid"],
+                "Message": message,
+                "BucketName": bucket,
+                "TrailArn": trail_arn,
+                "MissingStatements": validation_result["missing_statements"],
+                "Issues": validation_result["issues"],
+            }
+        }
+
+    except Exception as e:
+        return {
+            "output": {
+                "Valid": False,
+                "Message": f"Error validating CloudTrail bucket policy: {str(e)}",
+                "Error": str(e),
+                "TrailName": trail_name,
+            }
+        }",
+              },
+              "name": "ValidateBucketPolicy",
+              "outputs": [
+                {
+                  "Name": "ValidationResult",
+                  "Selector": "$.Payload.output",
+                  "Type": "StringMap",
+                },
+              ],
+            },
+            {
+              "action": "aws:executeScript",
+              "description": "Enable logging to CloudWatch Logs with enhanced error handling",
+              "inputs": {
+                "Handler": "update_trail_with_error_handling",
+                "InputPayload": {
+                  "cloudwatch_role_arn": "{{CloudWatchLogsRole}}",
+                  "log_group_arn": "{{CreateOrGetLogGroup.CloudWatchLogsGroupArn}}",
+                  "trail_name": "{{TrailName}}",
+                  "validation_result": "{{ValidateBucketPolicy.ValidationResult}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+import time
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+
+def update_trail_with_error_handling(event, _):
+    boto_config = Config(retries={"mode": "standard", "max_attempts": 5})
+    cloudtrail = boto3.client("cloudtrail", config=boto_config)
+
+    trail_name = event["trail_name"]
+    log_group_arn = event["log_group_arn"]
+    cloudwatch_role_arn = event["cloudwatch_role_arn"]
+    validation_result = event.get("validation_result", {})
+
+    try:
+        last_error = None
+        for attempt in range(3):
+            try:
+                response = cloudtrail.update_trail(
+                    Name=trail_name,
+                    CloudWatchLogsLogGroupArn=log_group_arn,
+                    CloudWatchLogsRoleArn=cloudwatch_role_arn,
+                )
+
+                return {
+                    "output": {
+                        "Message": f"Successfully enabled CloudWatch logging for CloudTrail: {trail_name}",
+                        "TrailName": trail_name,
+                        "LogGroupArn": log_group_arn,
+                        "CloudWatchRoleArn": cloudwatch_role_arn,
+                        "TrailArn": response.get("TrailARN"),
+                        "Success": True,
+                        "ValidationWarning": not validation_result.get("Valid", True),
+                    }
+                }
+
+            except ClientError as e:
+                last_error = e
+                error_code = e.response["Error"]["Code"]
+
+                if error_code == "InsufficientS3BucketPolicyException" and attempt < 2:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                elif error_code in [
+                    "InvalidCloudWatchLogsLogGroupArnException",
+                    "InvalidCloudWatchLogsRoleArnException",
+                ]:
+                    break
+                elif attempt < 2 and error_code in ["ServiceUnavailable", "Throttling"]:
+                    time.sleep(2**attempt)
+                    continue
+                else:
+                    break
+
+        return {
+            "output": {
+                "Message": "Failed to update CloudTrail after 3 attempts",
+                "TrailName": trail_name,
+                "LastError": str(last_error) if last_error else "Unknown error",
+                "Success": False,
+                "ValidationResult": validation_result,
+            }
+        }
+
+    except Exception as e:
+        return {
+            "output": {
+                "Message": f"Unexpected error updating CloudTrail: {str(e)}",
+                "TrailName": trail_name,
+                "Error": str(e),
+                "Success": False,
+            }
+        }",
               },
               "name": "UpdateTrailToCWLogs",
               "outputs": [
                 {
                   "Name": "Output",
-                  "Selector": "$",
+                  "Selector": "$.Payload.output",
                   "Type": "StringMap",
                 },
               ],
@@ -6736,6 +7407,8 @@ def wait_for_loggroup(event, _):
           ],
           "outputs": [
             "UpdateTrailToCWLogs.Output",
+            "FixCloudTrailBucketPolicy.BucketPolicyResult",
+            "ValidateBucketPolicy.ValidationResult",
           ],
           "parameters": {
             "AutomationAssumeRole": {
@@ -12766,8 +13439,9 @@ def connect_to_s3():
 
 def lambda_handler(event, _):
     bucket_name = event["BucketName"]
-    target_transition_days = event["TargetTransitionDays"]
-    target_expiration_days = event["TargetExpirationDays"]
+    # Convert to int to handle cases where SSM passes these as floats
+    target_transition_days = int(event["TargetTransitionDays"])
+    target_expiration_days = int(event["TargetExpirationDays"])
     target_transition_storage_class = event["TargetTransitionStorageClass"]
     rule_id = "S3.13 Remediation Example"
     s3 = connect_to_s3()

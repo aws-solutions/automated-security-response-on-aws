@@ -51,6 +51,7 @@ def test_validation_success(mocker):
     cwl_stubber = Stubber(cwl_client)
 
     cwl_stubber.add_response("describe_log_groups", notyet_response)
+    cwl_stubber.add_response("create_log_group", {})
     cwl_stubber.add_response("describe_log_groups", notyet_response)
     cwl_stubber.add_response("describe_log_groups", good_response)
 
@@ -85,6 +86,8 @@ def test_validation_failed(mocker):
     cwl_stubber = Stubber(cwl_client)
 
     cwl_stubber.add_response("describe_log_groups", notyet_response)
+    cwl_stubber.add_response("create_log_group", {})
+    cwl_stubber.add_response("describe_log_groups", notyet_response)
     cwl_stubber.add_response("describe_log_groups", notyet_response)
     cwl_stubber.add_response("describe_log_groups", notyet_response)
 
@@ -94,11 +97,95 @@ def test_validation_failed(mocker):
         return_value=cwl_client,
     )
 
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
+    with pytest.raises(Exception) as pytest_wrapped_e:
         validation.wait_for_loggroup(event, {})
-    assert pytest_wrapped_e.type == SystemExit
-    assert (
-        pytest_wrapped_e.value.code
-        == "Failed to create Log Group my_loggroup: Timed out"
+    assert "Failed to find Log Group my_loggroup: Timed out" in str(
+        pytest_wrapped_e.value
     )
+    cwl_stubber.deactivate()
+
+
+def test_create_or_get_loggroup_success(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "LogGroup": "my_loggroup",
+        "region": my_region,
+    }
+
+    existing_response = {
+        "logGroups": [
+            {
+                "logGroupName": "my_loggroup",
+                "creationTime": 1576239692739,
+                "metricFilterCount": 0,
+                "arn": "arn:aws:logs:us-east-1:111111111111:log-group:my_loggroup:*",
+                "storedBytes": 109,
+            }
+        ]
+    }
+
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
+    cwl_client = botocore.session.get_session().create_client(
+        "logs", config=BOTO_CONFIG
+    )
+
+    cwl_stubber = Stubber(cwl_client)
+    cwl_stubber.add_response("describe_log_groups", existing_response)
+    cwl_stubber.activate()
+
+    mocker.patch(
+        "EnableCloudTrailToCloudWatchLogging_waitforloggroup.connect_to_logs",
+        return_value=cwl_client,
+    )
+
+    result = validation.create_or_get_loggroup(event, {})
+    assert result == "arn:aws:logs:us-east-1:111111111111:log-group:my_loggroup:*"
+
+    cwl_stubber.deactivate()
+
+
+def test_create_or_get_loggroup_with_creation(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "LogGroup": "my_loggroup",
+        "region": my_region,
+    }
+
+    empty_response: Dict[str, List[str]] = {"logGroups": []}
+    created_response = {
+        "logGroups": [
+            {
+                "logGroupName": "my_loggroup",
+                "creationTime": 1576239692739,
+                "metricFilterCount": 0,
+                "arn": "arn:aws:logs:us-east-1:111111111111:log-group:my_loggroup:*",
+                "storedBytes": 0,
+            }
+        ]
+    }
+
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
+    cwl_client = botocore.session.get_session().create_client(
+        "logs", config=BOTO_CONFIG
+    )
+
+    cwl_stubber = Stubber(cwl_client)
+    # First check - log group doesn't exist
+    cwl_stubber.add_response("describe_log_groups", empty_response)
+    # Create log group call
+    cwl_stubber.add_response("create_log_group", {})
+    # Second check - log group now exists
+    cwl_stubber.add_response("describe_log_groups", created_response)
+    cwl_stubber.activate()
+
+    mocker.patch(
+        "EnableCloudTrailToCloudWatchLogging_waitforloggroup.connect_to_logs",
+        return_value=cwl_client,
+    )
+
+    result = validation.create_or_get_loggroup(event, {})
+    assert result == "arn:aws:logs:us-east-1:111111111111:log-group:my_loggroup:*"
+
     cwl_stubber.deactivate()

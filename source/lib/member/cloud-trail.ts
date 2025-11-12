@@ -14,6 +14,7 @@ import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
+import { CrossAccount } from '../constants/parameters';
 
 export const EVENT_FILTER_FUNCTION_NAME = `ASR-EventProcessor`;
 const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
@@ -21,6 +22,7 @@ const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
 export class MemberCloudTrailStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
+    const stack = Stack.of(this);
 
     const resourceNamePrefix = SOLUTION_ID.replace(/^DEV-/, '');
 
@@ -28,9 +30,14 @@ export class MemberCloudTrailStack extends Stack {
     const cloudTrailLogGroupName = new CfnParameter(this, 'CloudTrailLogGroupName');
     const logWriterRoleArn = new CfnParameter(this, 'LogWriterRoleArn');
 
+    const bucketName = Fn.sub('so0111-asr-${namespace}-management-events-${account}', {
+      namespace: namespace.valueAsString,
+      account: this.account,
+    });
+
     // prettier-ignore
     const trailLoggingBucket = new Bucket(this, `ManagementEventsBucket`, {//NOSONAR No need to version because of lifecycleRules (1-day retention).
-      bucketName: Fn.join('-', ['so0111-asr', namespace.valueAsString, 'management-events', this.account]),
+      bucketName: bucketName,
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
@@ -44,9 +51,50 @@ export class MemberCloudTrailStack extends Stack {
       ],
       removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
+
+    trailLoggingBucket.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AWSCloudTrailAclCheck',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('cloudtrail.amazonaws.com')],
+        actions: ['s3:GetBucketAcl'],
+        resources: [trailLoggingBucket.bucketArn],
+        conditions: {
+          StringEquals: {
+            'AWS:SourceArn': `arn:${this.partition}:cloudtrail:${this.region}:${this.account}:trail/*`,
+          },
+        },
+      }),
+    );
+
+    trailLoggingBucket.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AWSCloudTrailWrite',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('cloudtrail.amazonaws.com')],
+        actions: ['s3:PutObject'],
+        resources: [trailLoggingBucket.arnForObjects('*')],
+        conditions: {
+          StringEquals: {
+            's3:x-amz-acl': 'bucket-owner-full-control',
+            'AWS:SourceArn': `arn:${this.partition}:cloudtrail:${this.region}:${this.account}:trail/*`,
+          },
+        },
+      }),
+    );
     addCfnGuardSuppression(trailLoggingBucket, 'S3_BUCKET_LOGGING_ENABLED');
 
+    const step1 = Fn.join('', Fn.split('-', namespace.valueAsString)); // Remove hyphens
+    const step2 = Fn.join('', Fn.split('.', step1)); // Remove periods
+    const sanitizedNamespace = Fn.join('', Fn.split('_', step2)); // Remove underscores
+
+    const validTrailName = Fn.sub('ASR${namespace}ManagementEvents${account}', {
+      namespace: sanitizedNamespace,
+      account: this.account,
+    });
+
     const trail = new Trail(this, 'ManagementEventsTrail', {
+      trailName: validTrailName,
       bucket: trailLoggingBucket,
       s3KeyPrefix: 'cloudtrail-logs',
       isMultiRegionTrail: true,
@@ -71,6 +119,9 @@ export class MemberCloudTrailStack extends Stack {
         CLOUD_TRAIL_INVOKED_BY: 'NAME',
         LOG_GROUP_NAME: cloudTrailLogGroupName.valueAsString,
         LOG_WRITER_ROLE_ARN: logWriterRoleArn.valueAsString,
+        LOG_WRITER_EXTERNAL_ID: CrossAccount.FIXED_EXTERNAL_ID,
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
     });
     eventProcessorFunction.addToRolePolicy(

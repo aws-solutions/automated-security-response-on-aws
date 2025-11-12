@@ -76,7 +76,45 @@ export class RemediationRunbookStack extends cdk.Stack {
     const iamCreateServiceLinkedRolePerms = new PolicyStatement();
     iamCreateServiceLinkedRolePerms.addActions('iam:CreateServiceLinkedRole');
     iamCreateServiceLinkedRolePerms.effect = Effect.ALLOW;
-    iamCreateServiceLinkedRolePerms.addResources(`arn:${this.partition}:iam::${this.account}:role/*`);
+    iamCreateServiceLinkedRolePerms.addResources(`arn:${this.partition}:iam::${this.account}:role/aws-service-role/*`);
+
+    const iamServiceLinkedRolePolicyPerms = new PolicyStatement();
+    iamServiceLinkedRolePolicyPerms.addActions('iam:AttachRolePolicy', 'iam:PutRolePolicy');
+    iamServiceLinkedRolePolicyPerms.effect = Effect.ALLOW;
+    iamServiceLinkedRolePolicyPerms.addResources(
+      `arn:${this.partition}:iam::${this.account}:role/aws-service-role/cloudtrail.amazonaws.com/*`,
+    );
+
+    // IAM actions that can be used for privilege escalation
+    const PRIVILEGE_ESCALATION_ACTIONS = [
+      'iam:AddUserToGroup',
+      'iam:AttachGroupPolicy',
+      'iam:AttachRolePolicy',
+      'iam:AttachUserPolicy',
+      'iam:CreatePolicyVersion',
+      'iam:CreateRole',
+      'iam:DeleteGroupPolicy',
+      'iam:DeleteRolePolicy',
+      'iam:DeleteUserPolicy',
+      'iam:DetachGroupPolicy',
+      'iam:DetachRolePolicy',
+      'iam:DetachUserPolicy',
+      'iam:PutGroupPolicy',
+      'iam:PutRolePolicy',
+      'iam:PutUserPolicy',
+      'iam:RemoveUserFromGroup',
+      'iam:SetDefaultPolicyVersion',
+      'iam:UpdateAssumeRolePolicy',
+      'iam:UpdateRole',
+    ];
+
+    const denyPrivilegeEscalation = new PolicyStatement();
+    denyPrivilegeEscalation.addActions(...PRIVILEGE_ESCALATION_ACTIONS);
+    denyPrivilegeEscalation.effect = Effect.DENY;
+    denyPrivilegeEscalation.addResources(
+      `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-*`,
+      `arn:${this.partition}:iam::${this.account}:user/*`,
+    );
 
     const orgListServiceAccessPerms = new PolicyStatement();
     orgListServiceAccessPerms.addActions('organizations:ListAWSServiceAccessForOrganization');
@@ -168,7 +206,12 @@ export class RemediationRunbookStack extends cdk.Stack {
       cloudtrailPerms.addResources(`arn:${this.partition}:cloudtrail:*:${this.account}:trail/*`);
       inlinePolicy.addStatements(cloudtrailPerms);
 
-      // Dependent permissions for cloudtrail:CreateTrail & cloudtrail:UpdateTrail
+      const cloudtrailDescribePerms = new PolicyStatement();
+      cloudtrailDescribePerms.addActions('cloudtrail:DescribeTrails');
+      cloudtrailDescribePerms.effect = Effect.ALLOW;
+      cloudtrailDescribePerms.addResources('*');
+      inlinePolicy.addStatements(cloudtrailDescribePerms);
+
       const iamPassRolePerms = new PolicyStatement();
       iamPassRolePerms.addActions('iam:PassRole');
       iamPassRolePerms.effect = Effect.ALLOW;
@@ -178,6 +221,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(iamPassRolePerms);
       inlinePolicy.addStatements(iamGetRolePerms);
       inlinePolicy.addStatements(iamCreateServiceLinkedRolePerms);
+      inlinePolicy.addStatements(denyPrivilegeEscalation);
       inlinePolicy.addStatements(orgListServiceAccessPerms);
 
       const s3Perms = new PolicyStatement();
@@ -193,6 +237,12 @@ export class RemediationRunbookStack extends cdk.Stack {
       s3Perms.effect = Effect.ALLOW;
       s3Perms.addResources(`arn:${this.partition}:s3:::so0111-*`);
       inlinePolicy.addStatements(s3Perms);
+
+      const kmsPerms = new PolicyStatement();
+      kmsPerms.addActions('kms:Decrypt', 'kms:GenerateDataKey', 'kms:DescribeKey', 'kms:CreateGrant');
+      kmsPerms.effect = Effect.ALLOW;
+      kmsPerms.addResources(`arn:${this.partition}:kms:*:${this.account}:key/*`);
+      inlinePolicy.addStatements(kmsPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -220,7 +270,8 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation.',
+              reason:
+                'Resource * is required for cloudtrail:DescribeTrails to check existing trails and for KMS operations on customer-managed keys.',
             },
             {
               id: 'W28',
@@ -242,8 +293,19 @@ export class RemediationRunbookStack extends cdk.Stack {
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:logs:*:${this.account}:log-group:*`);
       remediationPolicy.addResources(`arn:${this.partition}:cloudwatch:*:${this.account}:alarm:*`);
-
       inlinePolicy.addStatements(remediationPolicy);
+
+      const logGroupCreatePerms = new PolicyStatement();
+      logGroupCreatePerms.addActions('logs:CreateLogGroup');
+      logGroupCreatePerms.effect = Effect.ALLOW;
+      logGroupCreatePerms.addResources(`arn:${this.partition}:logs:*:${this.account}:log-group:*`);
+      inlinePolicy.addStatements(logGroupCreatePerms);
+
+      const logGroupDescribePerms = new PolicyStatement();
+      logGroupDescribePerms.addActions('logs:DescribeLogGroups');
+      logGroupDescribePerms.effect = Effect.ALLOW;
+      logGroupDescribePerms.addResources('*');
+      inlinePolicy.addStatements(logGroupDescribePerms);
 
       {
         const snsPerms = new PolicyStatement();
@@ -252,6 +314,18 @@ export class RemediationRunbookStack extends cdk.Stack {
         snsPerms.addResources(`arn:${this.partition}:sns:*:${this.account}:SO0111-ASR-LocalAlarmNotification`);
         inlinePolicy.addStatements(snsPerms);
       }
+
+      const kmsPerms = new PolicyStatement();
+      kmsPerms.addActions('kms:Decrypt', 'kms:GenerateDataKey', 'kms:DescribeKey', 'kms:CreateGrant');
+      kmsPerms.effect = Effect.ALLOW;
+      kmsPerms.addResources(`arn:${this.partition}:kms:*:${this.account}:key/*`);
+      inlinePolicy.addStatements(kmsPerms);
+
+      const ssmPerms = new PolicyStatement();
+      ssmPerms.addActions('ssm:PutParameter');
+      ssmPerms.effect = Effect.ALLOW;
+      ssmPerms.addResources(`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`);
+      inlinePolicy.addStatements(ssmPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -270,6 +344,19 @@ export class RemediationRunbookStack extends cdk.Stack {
         solutionId: props.solutionId,
         namespace: namespace,
       });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason:
+                'Resource * is required for logs:DescribeLogGroups to list all log groups and for KMS operations on customer-managed keys.',
+            },
+          ],
+        },
+      };
     }
     //-----------------------
     // EnableAutoScalingGroupELBHealthCheck
@@ -462,11 +549,18 @@ export class RemediationRunbookStack extends cdk.Stack {
       }
       {
         const ctperms = new PolicyStatement();
-        ctperms.addActions('cloudtrail:UpdateTrail');
+        ctperms.addActions('cloudtrail:UpdateTrail', 'cloudtrail:GetTrail');
 
         ctperms.effect = Effect.ALLOW;
         ctperms.addResources('arn:' + this.partition + ':cloudtrail:*:' + this.account + ':trail/*');
         inlinePolicy.addStatements(ctperms);
+      }
+      {
+        const s3perms = new PolicyStatement();
+        s3perms.addActions('s3:GetBucketPolicy', 's3:PutBucketPolicy');
+        s3perms.effect = Effect.ALLOW;
+        s3perms.addResources('arn:' + this.partition + ':s3:::*');
+        inlinePolicy.addStatements(s3perms);
       }
       {
         // Dependent permissions for cloudtrail:UpdateTrail
@@ -477,6 +571,8 @@ export class RemediationRunbookStack extends cdk.Stack {
 
         inlinePolicy.addStatements(iamGetRolePerms);
         inlinePolicy.addStatements(iamCreateServiceLinkedRolePerms);
+        inlinePolicy.addStatements(iamServiceLinkedRolePolicyPerms);
+        inlinePolicy.addStatements(denyPrivilegeEscalation);
         inlinePolicy.addStatements(orgListServiceAccessPerms);
       }
       {
@@ -545,6 +641,8 @@ export class RemediationRunbookStack extends cdk.Stack {
       // Dependent permissions for cloudtrail:UpdateTrail
       inlinePolicy.addStatements(iamGetRolePerms);
       inlinePolicy.addStatements(iamCreateServiceLinkedRolePerms);
+      inlinePolicy.addStatements(iamServiceLinkedRolePolicyPerms);
+      inlinePolicy.addStatements(denyPrivilegeEscalation);
       inlinePolicy.addStatements(orgListServiceAccessPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
@@ -1810,6 +1908,8 @@ export class RemediationRunbookStack extends cdk.Stack {
 
       inlinePolicy.addStatements(iamGetRolePerms);
       inlinePolicy.addStatements(iamCreateServiceLinkedRolePerms);
+      inlinePolicy.addStatements(iamServiceLinkedRolePolicyPerms);
+      inlinePolicy.addStatements(denyPrivilegeEscalation);
       inlinePolicy.addStatements(orgListServiceAccessPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
@@ -2845,21 +2945,34 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(passRoleIAMPolicy);
 
-      const generalIAMPolicy = new PolicyStatement();
-      generalIAMPolicy.addActions(
+      const iamReadPolicy = new PolicyStatement();
+      iamReadPolicy.addActions(
         'iam:GetRole',
         'iam:GetInstanceProfile',
         'iam:ListAttachedRolePolicies',
-        'iam:AttachRolePolicy',
         'iam:ListRolePolicies',
-        'iam:AddRoleToInstanceProfile',
       );
-      generalIAMPolicy.effect = Effect.ALLOW;
-      generalIAMPolicy.addResources(
+      iamReadPolicy.effect = Effect.ALLOW;
+      iamReadPolicy.addResources(
         `arn:${this.partition}:iam::${this.account}:role/*`,
         `arn:${this.partition}:iam::${this.account}:instance-profile/*`,
       );
-      inlinePolicy.addStatements(generalIAMPolicy);
+      inlinePolicy.addStatements(iamReadPolicy);
+
+      const attachRolePolicyRestricted = new PolicyStatement();
+      attachRolePolicyRestricted.addActions('iam:AttachRolePolicy');
+      attachRolePolicyRestricted.effect = Effect.ALLOW;
+      attachRolePolicyRestricted.addResources(`arn:${this.partition}:iam::${this.account}:role/*`);
+      attachRolePolicyRestricted.addCondition('StringEquals', {
+        'iam:PolicyARN': `arn:${this.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore`,
+      });
+      inlinePolicy.addStatements(attachRolePolicyRestricted);
+
+      const addRoleToProfilePolicy = new PolicyStatement();
+      addRoleToProfilePolicy.addActions('iam:AddRoleToInstanceProfile');
+      addRoleToProfilePolicy.effect = Effect.ALLOW;
+      addRoleToProfilePolicy.addResources(`arn:${this.partition}:iam::${this.account}:instance-profile/*`);
+      inlinePolicy.addStatements(addRoleToProfilePolicy);
 
       // Split EC2 permissions by resource scope
       const ec2DescribePermissions = new PolicyStatement();
@@ -2878,15 +2991,9 @@ export class RemediationRunbookStack extends cdk.Stack {
       ec2ModifyPermissions.addResources(`arn:${this.partition}:ec2:*:${this.account}:instance/*`);
       inlinePolicy.addStatements(ec2ModifyPermissions);
 
-      // Add protection against permission mutation
+      // Add protection against permission mutation on own role
       const denyPermissionMutation = new PolicyStatement();
-      denyPermissionMutation.addActions(
-        'iam:AttachRolePolicy',
-        'iam:PutRolePolicy',
-        'iam:CreatePolicy',
-        'iam:UpdateRole',
-        'iam:UpdateAssumeRolePolicy',
-      );
+      denyPermissionMutation.addActions(...PRIVILEGE_ESCALATION_ACTIONS);
       denyPermissionMutation.effect = Effect.DENY;
       denyPermissionMutation.addResources(
         `arn:${this.partition}:iam::${
@@ -2894,6 +3001,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         }:role/${remediationRoleNameBase}${remediationName}-${props.roleStack.getNamespace()}`,
       );
       inlinePolicy.addStatements(denyPermissionMutation);
+      inlinePolicy.addStatements(denyPrivilegeEscalation);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -3241,7 +3349,14 @@ export class RemediationRunbookStack extends cdk.Stack {
       const iamPermissionsPolicy = new PolicyStatement();
       iamPermissionsPolicy.addActions('iam:PassRole');
       iamPermissionsPolicy.effect = Effect.ALLOW;
-      iamPermissionsPolicy.addResources(`arn:${this.partition}:iam::${this.account}:role/ecsTaskExecutionRole`);
+      iamPermissionsPolicy.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/ecsTaskExecutionRole`,
+        `arn:${this.partition}:iam::${this.account}:role/*TaskExecutionRole*`,
+        `arn:${this.partition}:iam::${this.account}:role/*TaskRole*`,
+      );
+      iamPermissionsPolicy.addCondition('StringEquals', {
+        'iam:PassedToService': 'ecs-tasks.amazonaws.com',
+      });
       inlinePolicy.addStatements(iamPermissionsPolicy);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
@@ -3607,15 +3722,21 @@ export class RemediationRunbookStack extends cdk.Stack {
       guardDutyDetectorResourcePerms.addResources(`arn:${this.partition}:guardduty:*:${this.account}:detector/*`);
       inlinePolicy.addStatements(guardDutyDetectorResourcePerms);
 
-      // Add protection against permission mutation
-      const denyPermissionMutation = new PolicyStatement();
-      denyPermissionMutation.addActions(
-        'iam:AttachRolePolicy',
+      const guardDutyServiceLinkedRolePerms = new PolicyStatement();
+      guardDutyServiceLinkedRolePerms.addActions(
+        'iam:CreateServiceLinkedRole',
         'iam:PutRolePolicy',
-        'iam:CreatePolicy',
-        'iam:UpdateRole',
-        'iam:UpdateAssumeRolePolicy',
+        'iam:DeleteRolePolicy',
       );
+      guardDutyServiceLinkedRolePerms.effect = Effect.ALLOW;
+      guardDutyServiceLinkedRolePerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty`,
+      );
+      inlinePolicy.addStatements(guardDutyServiceLinkedRolePerms);
+
+      // Add protection against permission mutation on own role
+      const denyPermissionMutation = new PolicyStatement();
+      denyPermissionMutation.addActions(...PRIVILEGE_ESCALATION_ACTIONS);
       denyPermissionMutation.effect = Effect.DENY;
       denyPermissionMutation.addResources(
         `arn:${this.partition}:iam::${
@@ -4131,15 +4252,9 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(serviceRolePermissions);
 
-      // Add protection against permission mutation
+      // Add protection against permission mutation on own role
       const denyPermissionMutation = new PolicyStatement();
-      denyPermissionMutation.addActions(
-        'iam:AttachRolePolicy',
-        'iam:PutRolePolicy',
-        'iam:CreatePolicy',
-        'iam:UpdateRole',
-        'iam:UpdateAssumeRolePolicy',
-      );
+      denyPermissionMutation.addActions(...PRIVILEGE_ESCALATION_ACTIONS);
       denyPermissionMutation.effect = Effect.DENY;
       denyPermissionMutation.addResources(
         `arn:${this.partition}:iam::${
