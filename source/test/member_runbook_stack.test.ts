@@ -10,14 +10,13 @@ import { RemediationRunbookStack } from '../lib/remediation-runbook-stack';
 describe('MemberRolesStack tests', () => {
   function getRoleTestStack(): MemberRolesStack {
     const app = new App();
-    const stack = new MemberRolesStack(app, 'roles', {
+    return new MemberRolesStack(app, 'roles', {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
       description: 'test;',
       solutionId: 'SO0111',
       solutionVersion: 'v1.1.1',
       solutionDistBucket: 'sharrbukkit',
     });
-    return stack;
   }
   test('Global Roles Stack', () => {
     const stack = getRoleTestStack();
@@ -30,7 +29,7 @@ describe('MemberRolesStack tests', () => {
 
   function getSsmTestStack(): Stack {
     const app = new App();
-    const stack = new RemediationRunbookStack(app, 'stack', {
+    return new RemediationRunbookStack(app, 'stack', {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
       description: 'test;',
       solutionId: 'SO0111',
@@ -42,7 +41,6 @@ describe('MemberRolesStack tests', () => {
         Namespace: 'myNamespace',
       },
     });
-    return stack;
   }
 
   test('Regional Documents', () => {
@@ -75,7 +73,7 @@ describe('createControlRunbook', () => {
     });
 
     const content = ssmDoc.content as any;
-    expect(content.mainSteps[1].inputs.Script).not.toMatch(/%%SCRIPT=/);
+    expect(content.mainSteps[0].inputs.Script).not.toMatch(/%%SCRIPT=/);
     expect(content.parameters.AutomationAssumeRole.default).toEqual(`SO0111-MyIAMRole-${NAMESPACE}`);
   });
 });
@@ -98,7 +96,7 @@ describe('createRemediationRunbook', () => {
     });
 
     const content = ssmDoc.content as any;
-    expect(content.mainSteps[1].inputs.Script).not.toMatch(/%%SCRIPT=/);
+    expect(content.mainSteps[0].inputs.Script).not.toMatch(/%%SCRIPT=/);
     expect(content.parameters.AutomationAssumeRole.default).toEqual(`SO0111-MyIAMRole-${NAMESPACE}`);
   });
 });

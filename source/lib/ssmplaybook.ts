@@ -1,10 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import * as cdk from 'aws-cdk-lib';
-import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import * as events from 'aws-cdk-lib/aws-events';
-import { EventField, EventPattern, IRuleTarget, Rule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
+import { EventbridgeToSqs } from '@aws-solutions-constructs/aws-eventbridge-sqs';
+import { EventPattern, IRuleTarget, Rule } from 'aws-cdk-lib/aws-events';
 import {
   AccountPrincipal,
   ArnPrincipal,
@@ -19,121 +18,54 @@ import {
 import { MemberRolesStack } from './member-roles-stack';
 import { Construct } from 'constructs';
 import setCondition from './cdk-helper/set-condition';
-import { EventPatternHelper } from './cdk-helper/eventeattern-helper';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 
-/*
- * @author AWS Solutions Development
- * @description SSM-based remediation trigger
- * @type {trigger}
- */
 export interface ITriggerProps {
-  description?: string;
-  securityStandard: string; // ex. AFSBP
-  securityStandardVersion: string;
-  generatorId: string; // ex. "arn:aws-cn:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0"
-  controlId: string;
   targetArn: string;
-  targetAccountIDs: cdk.CfnParameter;
-  targetAccountIDsStrategy: cdk.CfnParameter;
+  solutionTMN: string;
+  solutionId: string;
 }
 
 export class Trigger extends Construct {
   constructor(scope: Construct, id: string, props: ITriggerProps) {
     super(scope, id);
-    const illegalChars = /\./g;
+    const stack = cdk.Stack.of(this);
 
-    const isAllInclude = new cdk.CfnCondition(this, 'IsAllInclude', {
-      expression: cdk.Fn.conditionAnd(
-        cdk.Fn.conditionEquals(props.targetAccountIDs, 'ALL'),
-        cdk.Fn.conditionEquals(props.targetAccountIDsStrategy, 'INCLUDE'),
-      ),
-    });
+    const preProcessorQueue = Queue.fromQueueArn(this, 'preProcessorQueue', props.targetArn) as Queue;
 
-    const isAllExclude = new cdk.CfnCondition(this, 'IsAllExclude', {
-      expression: cdk.Fn.conditionAnd(
-        cdk.Fn.conditionEquals(props.targetAccountIDs, 'ALL'),
-        cdk.Fn.conditionEquals(props.targetAccountIDsStrategy, 'EXCLUDE'),
-      ),
-    });
-
-    const isInclude = new cdk.CfnCondition(this, 'IsInclude', {
-      expression: cdk.Fn.conditionEquals(props.targetAccountIDsStrategy, 'INCLUDE'),
-    });
-
-    // Event to Step Function
-    // ----------------------
-    // Create CWE rule
-    // Create custom action
-
-    let description = `Remediate ${props.securityStandard} ${props.securityStandardVersion} ${props.controlId}`;
-    if (props.description) {
-      description = props.description;
-    }
-
-    const stateMachine = sfn.StateMachine.fromStateMachineArn(this, 'orchestrator', props.targetArn);
-
-    // Create an IAM role for Events to start the State Machine
-    const eventsRole = new Role(this, 'EventsRuleRole', {
-      assumedBy: new ServicePrincipal('events.amazonaws.com'),
-    });
-
-    // Grant the start execution permission to the Events service
-    stateMachine.grantStartExecution(eventsRole);
-
-    // Create an event rule to trigger the step function
-    const stateMachineTarget: events.IRuleTarget = {
-      bind: () => ({
-        id: '',
-        arn: props.targetArn,
-        role: eventsRole,
-        input: RuleTargetInput.fromObject({
-          'detail-type': EventField.fromPath('$.detail-type'),
-          detail: {
-            findings: EventField.fromPath('$.detail.findings'),
-            actionName: 'None',
-          },
-        }),
-      }),
+    const eventPattern: EventPattern = {
+      source: ['aws.securityhub'],
+      detailType: ['Security Hub Findings - Imported', 'Findings Imported V2'], // Security Hub & Security Hub CSPM
+      // The below pattern excludes unsupported finding types (e.g., GuardDuty or Macie findings)
+      detail: {
+        findings: {
+          $or: [
+            {
+              SchemaVersion: ['2018-10-08'], // Security Hub CSPM Control Finding (ASFF Schema)
+              ProductArn: [{ prefix: `arn:${stack.partition}:securityhub` }],
+            },
+            {
+              class_name: ['Compliance Finding'], // Security Hub Control Finding (OCSF Schema)
+              class_uid: [2003],
+              metadata: {
+                product: {
+                  uid: [{ prefix: `arn:${stack.partition}:securityhub` }],
+                },
+              },
+            },
+          ],
+        },
+      },
     };
-
-    const enableAutoRemediationParam = new cdk.CfnParameter(this, 'AutoEnable', {
-      description:
-        'This will fully enable automated remediation for ' +
-        props.securityStandard +
-        ' ' +
-        props.securityStandardVersion +
-        ' ' +
-        props.controlId,
-      type: 'String',
-      allowedValues: ['ENABLED', 'DISABLED'],
-      default: 'DISABLED',
+    new EventbridgeToSqs(this, 'EventBridgeToSQS', {
+      existingQueueObj: preProcessorQueue,
+      eventRuleProps: {
+        description: `This rule captures finding events from Security Hub & Security Hub CSPM and forwards them to ASR's Pre-processor SQS Queue for further execution`,
+        ruleName: `${props.solutionId}_${props.solutionTMN}_AutoTrigger`,
+        eventPattern: eventPattern,
+        enabled: true,
+      },
     });
-
-    enableAutoRemediationParam.overrideLogicalId(
-      `${props.securityStandard}${props.securityStandardVersion}${props.controlId}AutoTrigger`.replace(
-        illegalChars,
-        '',
-      ),
-    );
-
-    const patternHelper = new EventPatternHelper({
-      generatorId: props.generatorId,
-      isAllInclude,
-      isAllExclude,
-      isInclude,
-      targetAccountIDs: props.targetAccountIDs,
-    });
-
-    // Adding an automated even rule for the playbook
-    const eventRuleAuto = new events.Rule(this, 'AutoEventRule', {
-      description: description + ' automatic remediation trigger event rule.',
-      ruleName: `${props.securityStandard}_${props.securityStandardVersion}_${props.controlId}_AutoTrigger`,
-      targets: [stateMachineTarget],
-      eventPattern: patternHelper.createEventPattern(),
-    });
-
-    const cfnEventRuleAuto = eventRuleAuto.node.defaultChild as events.CfnRule;
-    cfnEventRuleAuto.addPropertyOverride('State', enableAutoRemediationParam.valueAsString);
   }
 }
 

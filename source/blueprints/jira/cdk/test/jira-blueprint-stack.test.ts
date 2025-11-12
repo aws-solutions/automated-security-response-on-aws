@@ -117,7 +117,7 @@ describe('JiraBlueprintStack', () => {
               },
             },
             {
-              Action: 'organizations:ListAccounts',
+              Action: 'organizations:DescribeAccount',
               Effect: 'Allow',
               Resource: '*',
             },

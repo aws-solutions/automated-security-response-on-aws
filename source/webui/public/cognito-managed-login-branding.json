@@ -1,0 +1,473 @@
+{
+    "ManagedLoginBranding": {
+        "ManagedLoginBrandingId": "cd531850-5375-4592-85bc-1baa4a312e35",
+        "UserPoolId": "us-east-1_L1xcUdqmw",
+        "UseCognitoProvidedValues": false,
+        "Settings": {
+            "components": {
+                "secondaryButton": {
+                    "lightMode": {
+                        "hover": {
+                            "backgroundColor": "f2f8fdff",
+                            "borderColor": "033160ff",
+                            "textColor": "033160ff"
+                        },
+                        "defaults": {
+                            "backgroundColor": "ffffffff",
+                            "borderColor": "0972d3ff",
+                            "textColor": "0972d3ff"
+                        },
+                        "active": {
+                            "backgroundColor": "d3e7f9ff",
+                            "borderColor": "033160ff",
+                            "textColor": "033160ff"
+                        }
+                    },
+                    "darkMode": {
+                        "hover": {
+                            "backgroundColor": "192534ff",
+                            "borderColor": "89bdeeff",
+                            "textColor": "89bdeeff"
+                        },
+                        "defaults": {
+                            "backgroundColor": "0f1b2aff",
+                            "borderColor": "539fe5ff",
+                            "textColor": "539fe5ff"
+                        },
+                        "active": {
+                            "backgroundColor": "354150ff",
+                            "borderColor": "89bdeeff",
+                            "textColor": "89bdeeff"
+                        }
+                    }
+                },
+                "form": {
+                    "lightMode": {
+                        "backgroundColor": "ffffffff",
+                        "borderColor": "c6c6cdff"
+                    },
+                    "borderRadius": 15.0,
+                    "backgroundImage": {
+                        "enabled": true
+                    },
+                    "logo": {
+                        "location": "START",
+                        "position": "TOP",
+                        "enabled": true,
+                        "formInclusion": "IN"
+                    },
+                    "darkMode": {
+                        "backgroundColor": "0f1b2aff",
+                        "borderColor": "424650ff"
+                    }
+                },
+                "alert": {
+                    "lightMode": {
+                        "error": {
+                            "backgroundColor": "fff7f7ff",
+                            "borderColor": "d91515ff"
+                        }
+                    },
+                    "borderRadius": 12.0,
+                    "darkMode": {
+                        "error": {
+                            "backgroundColor": "1a0000ff",
+                            "borderColor": "eb6f6fff"
+                        }
+                    }
+                },
+                "favicon": {
+                    "enabledTypes": [
+                        "ICO",
+                        "SVG"
+                    ]
+                },
+                "pageBackground": {
+                    "image": {
+                        "enabled": true
+                    },
+                    "lightMode": {
+                        "color": "ffffffff"
+                    },
+                    "darkMode": {
+                        "color": "0f1b2aff"
+                    }
+                },
+                "pageText": {
+                    "lightMode": {
+                        "bodyColor": "414d5cff",
+                        "headingColor": "000716ff",
+                        "descriptionColor": "414d5cff"
+                    },
+                    "darkMode": {
+                        "bodyColor": "b6bec9ff",
+                        "headingColor": "d1d5dbff",
+                        "descriptionColor": "b6bec9ff"
+                    }
+                },
+                "phoneNumberSelector": {
+                    "displayType": "TEXT"
+                },
+                "primaryButton": {
+                    "lightMode": {
+                        "hover": {
+                            "backgroundColor": "033160ff",
+                            "textColor": "ffffffff"
+                        },
+                        "defaults": {
+                            "backgroundColor": "0972d3ff",
+                            "textColor": "ffffffff"
+                        },
+                        "active": {
+                            "backgroundColor": "033160ff",
+                            "textColor": "ffffffff"
+                        },
+                        "disabled": {
+                            "backgroundColor": "ffffffff",
+                            "borderColor": "ffffffff"
+                        }
+                    },
+                    "darkMode": {
+                        "hover": {
+                            "backgroundColor": "89bdeeff",
+                            "textColor": "000716ff"
+                        },
+                        "defaults": {
+                            "backgroundColor": "539fe5ff",
+                            "textColor": "000716ff"
+                        },
+                        "active": {
+                            "backgroundColor": "539fe5ff",
+                            "textColor": "000716ff"
+                        },
+                        "disabled": {
+                            "backgroundColor": "ffffffff",
+                            "borderColor": "ffffffff"
+                        }
+                    }
+                },
+                "pageFooter": {
+                    "lightMode": {
+                        "borderColor": "d5dbdbff",
+                        "background": {
+                            "color": "fafafaff"
+                        }
+                    },
+                    "backgroundImage": {
+                        "enabled": false
+                    },
+                    "logo": {
+                        "location": "START",
+                        "enabled": false
+                    },
+                    "darkMode": {
+                        "borderColor": "424650ff",
+                        "background": {
+                            "color": "0f141aff"
+                        }
+                    }
+                },
+                "pageHeader": {
+                    "lightMode": {
+                        "borderColor": "d5dbdbff",
+                        "background": {
+                            "color": "fafafaff"
+                        }
+                    },
+                    "backgroundImage": {
+                        "enabled": false
+                    },
+                    "logo": {
+                        "location": "START",
+                        "enabled": false
+                    },
+                    "darkMode": {
+                        "borderColor": "424650ff",
+                        "background": {
+                            "color": "0f141aff"
+                        }
+                    }
+                },
+                "idpButton": {
+                    "standard": {
+                        "lightMode": {
+                            "hover": {
+                                "backgroundColor": "f2f8fdff",
+                                "borderColor": "033160ff",
+                                "textColor": "033160ff"
+                            },
+                            "defaults": {
+                                "backgroundColor": "ffffffff",
+                                "borderColor": "424650ff",
+                                "textColor": "424650ff"
+                            },
+                            "active": {
+                                "backgroundColor": "d3e7f9ff",
+                                "borderColor": "033160ff",
+                                "textColor": "033160ff"
+                            }
+                        },
+                        "darkMode": {
+                            "hover": {
+                                "backgroundColor": "192534ff",
+                                "borderColor": "89bdeeff",
+                                "textColor": "89bdeeff"
+                            },
+                            "defaults": {
+                                "backgroundColor": "0f1b2aff",
+                                "borderColor": "c6c6cdff",
+                                "textColor": "c6c6cdff"
+                            },
+                            "active": {
+                                "backgroundColor": "354150ff",
+                                "borderColor": "89bdeeff",
+                                "textColor": "89bdeeff"
+                            }
+                        }
+                    },
+                    "custom": {}
+                }
+            },
+            "componentClasses": {
+                "dropDown": {
+                    "lightMode": {
+                        "hover": {
+                            "itemBackgroundColor": "f4f4f4ff",
+                            "itemBorderColor": "7d8998ff",
+                            "itemTextColor": "000716ff"
+                        },
+                        "defaults": {
+                            "itemBackgroundColor": "ffffffff"
+                        },
+                        "match": {
+                            "itemBackgroundColor": "414d5cff",
+                            "itemTextColor": "0972d3ff"
+                        }
+                    },
+                    "borderRadius": 8.0,
+                    "darkMode": {
+                        "hover": {
+                            "itemBackgroundColor": "081120ff",
+                            "itemBorderColor": "5f6b7aff",
+                            "itemTextColor": "e9ebedff"
+                        },
+                        "defaults": {
+                            "itemBackgroundColor": "192534ff"
+                        },
+                        "match": {
+                            "itemBackgroundColor": "d1d5dbff",
+                            "itemTextColor": "89bdeeff"
+                        }
+                    }
+                },
+                "input": {
+                    "lightMode": {
+                        "defaults": {
+                            "backgroundColor": "ffffffff",
+                            "borderColor": "7d8998ff"
+                        },
+                        "placeholderColor": "5f6b7aff"
+                    },
+                    "borderRadius": 8.0,
+                    "darkMode": {
+                        "defaults": {
+                            "backgroundColor": "0f1b2aff",
+                            "borderColor": "5f6b7aff"
+                        },
+                        "placeholderColor": "8d99a8ff"
+                    }
+                },
+                "inputDescription": {
+                    "lightMode": {
+                        "textColor": "5f6b7aff"
+                    },
+                    "darkMode": {
+                        "textColor": "8d99a8ff"
+                    }
+                },
+                "buttons": {
+                    "borderRadius": 8.0
+                },
+                "optionControls": {
+                    "lightMode": {
+                        "defaults": {
+                            "backgroundColor": "ffffffff",
+                            "borderColor": "7d8998ff"
+                        },
+                        "selected": {
+                            "backgroundColor": "0972d3ff",
+                            "foregroundColor": "ffffffff"
+                        }
+                    },
+                    "darkMode": {
+                        "defaults": {
+                            "backgroundColor": "0f1b2aff",
+                            "borderColor": "7d8998ff"
+                        },
+                        "selected": {
+                            "backgroundColor": "539fe5ff",
+                            "foregroundColor": "000716ff"
+                        }
+                    }
+                },
+                "statusIndicator": {
+                    "lightMode": {
+                        "success": {
+                            "backgroundColor": "f2fcf3ff",
+                            "borderColor": "037f0cff",
+                            "indicatorColor": "037f0cff"
+                        },
+                        "pending": {
+                            "indicatorColor": "AAAAAAAA"
+                        },
+                        "warning": {
+                            "backgroundColor": "fffce9ff",
+                            "borderColor": "8d6605ff",
+                            "indicatorColor": "8d6605ff"
+                        },
+                        "error": {
+                            "backgroundColor": "fff7f7ff",
+                            "borderColor": "d91515ff",
+                            "indicatorColor": "d91515ff"
+                        }
+                    },
+                    "darkMode": {
+                        "success": {
+                            "backgroundColor": "001a02ff",
+                            "borderColor": "29ad32ff",
+                            "indicatorColor": "29ad32ff"
+                        },
+                        "pending": {
+                            "indicatorColor": "AAAAAAAA"
+                        },
+                        "warning": {
+                            "backgroundColor": "1d1906ff",
+                            "borderColor": "e0ca57ff",
+                            "indicatorColor": "e0ca57ff"
+                        },
+                        "error": {
+                            "backgroundColor": "1a0000ff",
+                            "borderColor": "eb6f6fff",
+                            "indicatorColor": "eb6f6fff"
+                        }
+                    }
+                },
+                "divider": {
+                    "lightMode": {
+                        "borderColor": "ebebf0ff"
+                    },
+                    "darkMode": {
+                        "borderColor": "232b37ff"
+                    }
+                },
+                "idpButtons": {
+                    "icons": {
+                        "enabled": true
+                    }
+                },
+                "focusState": {
+                    "lightMode": {
+                        "borderColor": "0972d3ff"
+                    },
+                    "darkMode": {
+                        "borderColor": "539fe5ff"
+                    }
+                },
+                "inputLabel": {
+                    "lightMode": {
+                        "textColor": "000716ff"
+                    },
+                    "darkMode": {
+                        "textColor": "d1d5dbff"
+                    }
+                },
+                "link": {
+                    "lightMode": {
+                        "hover": {
+                            "textColor": "033160ff"
+                        },
+                        "defaults": {
+                            "textColor": "0972d3ff"
+                        }
+                    },
+                    "darkMode": {
+                        "hover": {
+                            "textColor": "89bdeeff"
+                        },
+                        "defaults": {
+                            "textColor": "539fe5ff"
+                        }
+                    }
+                }
+            },
+            "categories": {
+                "form": {
+                    "sessionTimerDisplay": "NONE",
+                    "instructions": {
+                        "enabled": false
+                    },
+                    "languageSelector": {
+                        "enabled": false
+                    },
+                    "displayGraphics": true,
+                    "location": {
+                        "horizontal": "CENTER",
+                        "vertical": "CENTER"
+                    }
+                },
+                "auth": {
+                    "federation": {
+                        "interfaceStyle": "BUTTON_LIST",
+                        "order": []
+                    },
+                    "authMethodOrder": [
+                        [
+                            {
+                                "display": "BUTTON",
+                                "type": "FEDERATED"
+                            },
+                            {
+                                "display": "INPUT",
+                                "type": "USERNAME_PASSWORD"
+                            }
+                        ]
+                    ]
+                },
+                "global": {
+                    "colorSchemeMode": "LIGHT",
+                    "pageHeader": {
+                        "enabled": false
+                    },
+                    "pageFooter": {
+                        "enabled": false
+                    },
+                    "spacingDensity": "REGULAR"
+                },
+                "signUp": {
+                    "acceptanceElements": [
+                        {
+                            "enforcement": "NONE",
+                            "textKey": "en"
+                        }
+                    ]
+                }
+            }
+        },
+        "Assets": [
+            {
+                "Category": "FORM_LOGO",
+                "ColorMode": "DYNAMIC",
+                "Extension": "PNG",
+                "Bytes": "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"
+            },
+            {
+                "Category": "FORM_LOGO",
+                "ColorMode": "LIGHT",
+                "Extension": "PNG",
+                "Bytes": "iVBORw0KGgoAAAANSUhEUgAAAV4AAACyCAYAAAAK2qdXAAAZtklEQVR4nO2d7XXbPA+Gwfc8CzgjuCMkI7gjJCMkIzgjJCO4IzgjOCMkI6QjOCPg/SGopSHwS6Joub6vc3jaWBJFkRQEgiDomJkAAAC043/nLgAAAFwbELwAANAYCF4AAGgMBC8AADQGghcAABoDwQsAAI2B4AUAgMZA8AIAQGMgeAEAoDEQvAAA0BgIXgAAaAwELwAANAaCFwAAGgPBCwAAjYHgBQCAxkDwAgBAYyB4AQCgMRC8AADQGAheAABoDAQvAAA0BoIXAAAaA8ELAACNgeAFAIDGQPACAEBjIHgBAKAxELwAANAYCF4AAGgMBC8AADQGghcAABoDwQsAAI2B4AUAgMZA8AIwAefc1jnHXno5d5nA8oHgBaAuq3MXACyfyYLXObdyzn2pr/6Xcw4dEAAADGpovPdEtFa/reV3AAAAilqCt+T3s+OcO3ja+fbc5blW0A7gWpkkeJ1zayLaBA5v5PgSufX+v9QyXgNoB3CVTNV4tVb7mjh+dsT2DPvzmUE7gGtmquB99P7/SUPB+0jLAy/7MkA7gKtltOB1zm3odHj4xszfRPTm/baW85YEhrTLAO0ArpYpGq82I7ypf3v+acErDvR75U7Xu9RtnXO36Vyy7rOW/A7qPkf53dQgnXOPcvyorjs457JGJM65W8lDLxY4WTiQm59QrR3EpdGqm/45g/UTyXMjz6Tz22MiEEyGmYsTdcPEIxGxpI/IsWNBvifXEdFqRFmO6viaiLZEdPDOyUkfiftuC/I6ENE641k+vGv28tstEe0z7nEkoltVvmNO2SLluc/M46TerGedsR1eCvJ6zOxPufX9aPSD3Zh3Cum60riLug7nd7atOr5Tx+8z8lwbnTtHWA2uS5Q1N31F7lkqPAaCMZDvlzpf12OyzNSNML4Kr3sJlOejMB+/HKs524E6ATmmfNtI/a9G1J3+MEHwIiXTWFNDyMzQ8544vyXfNa9zzu1paD75RUR3zOz6RETPKo8VER0KXOxW9Hdy8k3yu/Hyv6Fhva9JtGv5+5WInlS5fhLRb3Vdaij+S+7/089L8ruT47oc2uxQtR2o+yj5ZpxPInpWZfthlO0lYv7x667nlbx6l3yfvHwxSQjKKZXUNNQwzaEqDTWBqNnAyLeKxmucP3poSLbWtomcb2llsaG91rb2qTogW/s2NdhEXSdHJYk89ZC/1FQzpR2CdZp7r9K2lWtujfaFxouUTGM0Xq29au22R2saS3QtK0VPqjwzc+j5iTsvjwf186bA0+MXM2vtVKPv/5uZn2MXSJ6f6uepk126vatMKgbw28Gq4xOY+ZVOtXxrBFbUtpLvJw1HHQAkGSN4tQDVL1yP7pCLW0xRguE+903hZ/+DCDl9Xs26SAnm2teZyHOemAXmCJTknNOxQV7lA5fC748r39wwtm0BGEuR4DU66Huo04s24L/ct7Vcq86E1lKDz24wp827tu10CjrPOeyfug9pzT1ErGxT2haAYko13tSkmmZOTa81Y19469zVguNYLB3dDmM1d7/+p7QtAMVkC14ZNpYKXq3pXbKdVwvKbI0oYKeF4B2HrjcdC9pM1E3++fjtN7ptARhDicZ7T6fDs7fUcEzMDb72sBIb3SWiX85STUuffzFuSN6qOUvI9Sv0ttTmmWp9sLSrn09V+zcAmv8KztUC8140iVLuCTPBRBcieJ1zO4qPVNY01CaXzjcpheBcBQHXSZbgTcTdLeXeObfC5MXyh7POuQMtL9aG5gZ9CVwauaaG2uaBS7T16uFn6ZD3ouyIYjrQQveNwqvX9Eq9uZjDZDO1bQEoYqzgvdMvXyxRt8Qylt8lMPqFD3gwLN2OqD+Or8z8YC0qYOZPWaRwDsFbw0WxhRscAH9ICl7xvfU797dMmpWgbbqX6NOrn7mk/Prc74wVaWdDPhRWzIIlMKUdQuiPyaX1TXBh5Gi8WjstXtHDwwDpVr6LHnrT8OXcFKzMsobsS2ZgFlmQHVUL3hqjJ51nSdsCUEyO4NVDzuj69QhRn97Ai91C88i6hwyxfS3Vjx4WRLRHfd7SBe85ht657fBGyge3QmDydxq6l13iPAS4EKKCV3xu/ZfuOxU4JIIWNpZPrx5+Rzu/mCt2heUYDCvFZcrPdxV4mfVw+yUW8Ea0pr36+W1CHbZiYAaJ7S4hfr57KpuUqt0OozVf+egXta2Ub0MQ0GAMsdBlNIzEHw03mEpGfnt13NpN4CQ0InUfguhOBhnlyA2gbe2kYO1OsCMV5JzsHSCOVp7eNTosZDQsoVyzUdcEA7ir63SQdR3M3nrOR3XOvZFPdljPie1gXbvXZVTt0YeHHISspHAQ9FDbhvofwkIiJVP4QNcRa8dstWKerrzja0NYpdJOv4QZ5bjNvI8ZQzjy0sVS6Q4U5xa8pW3xYQjDlOAd3Q40fgeKYB0VlEcLewhepKIUMzUMgpFwZ1+bwhtF3IG4m+mPxlb1eKfOre2JTs0YyUkg7rwyflDne2p5F/yibueGUOS1n3JtLn1ZU94g+n45E1pjrkle57VFTn6vzKx3okh6bkxpB2b+Nu6Zi3mNlOeO8oLk/KbOp/mBTsu+lElIsGAcM5+7DANkQuqehktR3yW9pV7qVogN8paGs+t9HN73DIG7WMRO/SjpJCQodc92djczr4xWOxD9bQvKLa/YjC0b7isRfVZQQsAVs0jBCwAA/zJjN7sEAAAwEgheAABoDAQvAAA0BoIXAAAaA8ELAACNgeAFAIDGQPACAEBjIHgBAKAxELwAANAYCF4AAGjMKMEr8Ve3zrmDc46NtJfjl7i32kXhnLt3zh2l3j8ucEslAK6OolgNErzmhcq3W3ll5pJoXiADCQ5zVD9/StQuAMBCyRa8okkdaOQ2MNztNgwqIjsgHPTvqGsAlk2WqUE0XUvoPhPRDx5u5/4gx/rQeYhROg9WuMloCEplHpq6VxkAYAT/ZZ63o1Oh2weBNmPiIlZpG5j52zn3QH/b55OInhKX+Tbgkj3SAACVSApeMTHoTf+elhKI/NqRj1zWh05swti2HIAzk2Nq0EJ3yk7D4LxA6AKwAMa4k13sNjYApgUAlsAYwTur1uScW0V8hA9ybFQZ5Nqdke9Rjun9tf41IHgBWAKpbYiJaEuZ255PTdT5COduq/1YkK/1DKH0Ylzvb/l9zHl+6j5QJ9dFzvW3Kd+pY4803E7+1juut2m/946t5dlLt6P/iNTdvrBN1+r6rO3nkZD+5ZTj1WDZc7dUtr15FNFgDzTcUj7Gzjm34sSusc65Aw3t1DFOyiCudL6G3U9QpVzk9ERWTEv3j228++7ILrt/vtZi/b83NNypOQc/f21aunfOrTl/clWPIjA/AK6epKmBu63J9cuydc7tKpZjR6cC75OInvnUN/gHyRbdHi+xJbLOuT0NBdcbdV4ZId9jfY/WrOSZPqjsg2Ex1n/6z3XcTaQOhG9BXlrwwtUQgBy1mDqhaA1Jj0S0naJyU/di+nkeEufroe8uM98i84SXjx4qMxGtx1wXOffLqFem7oMULTMNzQjB9situ4y6zDIXUCegYWZAQlIpa3KNO633p3FoRZ3Wyc65Fxkel+KvnvqmTvOMleWVugUcPSHtS6/KemXmc2uzufwmojtmflpImd/oVHtey3LlFLptlvAsAJydbK8G7oacPyhso9sS0Zd4HmR5B0j0Ml9YvzJzzvDYH66utLlBhIL+CERtwQvjWT52i0DaRAvNqLlB7PaWmQeAq6fInYyZfzPzT+q039BLtKFu4uuYEQtA22dzhY0WznriavDCZwp0EGYgeBNuffd02i5vjNWOABDRyHi8zPzOzA9EdEPdhJT1QvVmiFiMWP372BdTa7e18gWCCE1/tLOiuNarj0HbBUCYtAMFM38z8ysz/6BOC7ZseLdEdAgIXy0wvwKB1U8SDV2ktDar84W2W4csc4PY+v1RxzcjcBIAf6i29Y9owU9EdEdDk8GKuhl6Ta2VVBC8DRDh6Y8eNoEJVUyqARCh+p5rzNzvgKAn4W5n2gromxA/oiU5Wi/MDABEmHOzywcaapqplWk3rBY2ZKQbTJw1RQvREw8WMSn57fy+JA8NAJbAbIJXhKHWevWwVE961QrAg8m0mZBJNl/4ap9eaLsAJJh7e/eU25cWkLV2yNX5IipXXWLmBv//3wTBC8CAuQVvStDqIWgtwavzheCtiCymOVk9KOE89cIV+E8DYDC34NULGVKCt9bkmxVRa6wZA4LDxtd6+1VqMDMAkMFsgldWrWlhd/IiinuSjgEweedbI1+iYeyG3LwswVtLMz83U57jF53W8T2dCt7fjC2iADDJ3d69aGcGcRvTixx+BZaM6hgKL5XcznS+U3aY0OWO5iMz+zXDZtbCcvE7KWe/A0gqI/kg+R9SvUQYvrsAhEiFL6PT0H576jRHM/QgdQJpTzQIo/hFkV0b6HQHBv9eZkjEvgykdkuYkq+U3Xw2snfG2JMXHpI6oRPd7SFSTh0WcpMbXs64XzRMZ6BOrJQT+jIULpRj7Y2EdO0pfcIwpmpp+ki9xCK0cgXCQKhXzneQH3UTRsfCfHb63pFythS8t5nPkiU4jfszFW4PhIR0bSnH1PBO44eNr8x8x4moVNzFfLgbeZ/gNSPzHZRVyh+NE+zxThJLl06H4rFJOn2sZEJPlzdV15/UhfcMBTf6Rd0OHbllsCbQMKkGQATHzPkndzbSFXUaYMjO+UxExIm90CL3WEnet2R7OfwmEaQl95CYAvfUzb5rb4tv6mzCvzkSzMXLQ9uv3yVdXehDscfvvZ++mfnmXOUB4BIoErwAaJxzL3TqMfI89qMLwLUAwQsm4Zw70qk3w49r0/oBKGXuBRTgH0bc5nyh+w6hC0AaCF4wBWzdDsAIYGoAo5CJxi/vp2/qzAxYYg1AAmi8oBjxZDion3N3iAbg6oHGC5KIG2FsCXS/6wgAIANovGAqJYtLAAAEwQvyeKfhxNlv6nx24T4GQCEwNQAAQGOg8QIAQGP+O3cBAABgSSTiuhB1ZrdPSsR2iZEdCN05x4Xpyzm3VTvQAgAuCAmM/2W828mttORaLRfGbkYwCufcrVEGcw9G59zaObenzj/9hWyhS/Q3UNZe8tNBs5LkmhrG7Fe2pq5wB+fcIfSwAIBFc0/DzWJ7jTCK+HVr3+4iRUxkR7HQ99Dl/LYmg2X5+4dxfg7F24q1svFuiOgD2i8AF0dIEOUKKB0LO1sGiDDU569L8jDOHZgGRCk80FDBfKZuNabzE3Xuk89eXsULh8YK3nddGFWwGymYz4o61RyaLwAXgLyrISG3yXyX9Y7fq4I9FUP3ztqkVTRjfa61AeuOToXub+oE7qulHTPzmxx7EJlXHH96Fo1Xdn54JaI7Ov0a9PuSAQCWjxaQOs5yjgC1BF3u7tYhwZ6r8VrnnZQnoFU/ze2bPqupQbaZ0Y31WGijAQCcB38izHyXUxnwcDdqonzBGRLQt5kyZKDtGvFEBrvRMLP1sahKCxuvtd8ZbL0ALBiZj/E1zjdDiK4z5220uSEpOA0zgRaGOffV5+QIVF3WWZhd8AZmNnNdUbbGrCbLb9sSzdk5t5FrjkZ+Ozk2yv4s7na7QL6j3WekTHsj395VL3fIlnuvF+NeH865bPNQ7Xqu3Q+m0Ko9arXFRLQZ4U3925MjAC2Bl7pOH9fadrQPSR/Lse9q2ozGc7Yips4u62/ffSjZypiG25c/Js5/ofT247l5rajbjDF7W/ZAPh/6HOo6Z85W6ckt7hP1HUuHnLwD5V8V1HX0GWrV81z9YEqq3R5zt0WF512pfv0ROXbMzPNDPcNLQdsfDTmyL2yzj8zzmIhWc9Xtn/uO7HilglcLJ/MlkUbVDZSTthXzM59NNfqRyoQMy/U5AvIw4vmPRHSbyFeXP/ejkVM31ep5jn4w6QWZoT3mbItKz/wYq1fqvAD84/cZeeqPiikIvfP99t/Lb/47FxX4NHw/TUFPnVas6zb6UahSx5kNMVrwBh7M7JRGZX0Yjb42Gt7M0yj3FxlCn7phzVZeMvNLSkOtvU87nac8s1XGVGezhPlOP5uUVb+oR4prpKHyHyW/jTr/PnDNxsi7Wj3P0Q9GvxwztcecbVHpufXHZm2Uxz8e1T69ttflNzVL6j68/nnbQD+Lfdx0ewQ/DsbzMmWMyCbVcWZDTBG8WdfS8CsbvYeR76CiVOVHBVPGc+iOf0i95MYzMYW1fevc4ItFtlYY0yJ1+Y+hsnjXrI0yDbTKyvVcvR9UKke19pizLSo8t75P6Bm0YEsOz41rTGFIQ8F+K79rJS400tXnpbRjSzns26V6HTPPLHjJ/sqZnZeGw6+chjy5ZkwHKuiQ+mXJ0jZoqJV9ZeafbPDAy5hTvyXl11rfLlGGmvU8uR9UbO9q7TFXW1R6bv2uh4SbNh3k1E/u8H9g3/WO+cI7NDrVzzBWIz8pK1W0q8/i1SCBKV5ouC/XMxs+crKSxZ+lzN2/y59hXdWc5a/IYDZWl9Nw3fkm2w3vBO6cvPV5Y9aax2jiXkO0nH6w4PZo0RbaCyf03Nq7YcxiipDHj+/RoK95D5zno9s/WW8il34Y9+vZEtGXeNJMDvQzVvBuDFeXP4nEJqeueeBuNZtFcUUJMTe1gaP0OQSzvIz6eXSHGfgbZgocomFHqS14U9Ss5zn6wRguuT1GY3xwgs/N3eIof3XXbUa7a2E9+Ega/ru6D/h/hz6yuv2SH02i7l1l5p9E9NMoq5/3TtwlR7v2tVhA8UpENxyPW6krb+xyvT+dhu0VM1W+ViMYOJAn/i7RbKy18M3iYVSu5+r9YCQX2x4TCfnuhijS7qWvlCoh+vzoQgoRxP6H97Pgo9mX852ZH+hvzBmrH66I6EV8q4sVjbkF7zszP2c8uO6YOv5nSLPWcTD1fbSGvaIKX6sR6IbTGpl+/uyOwvaa8tYveq16nqsflHLp7VGMaJqlgjfXdBDLs0gJEU3bbw99fjIaWS4sMWeY+Qd1WrClOd9Sp2gUCd+q0cmI6Emdt3F5kYhqdcyTF0Qa6adxXv+16ldTzW2C0C+uFd/Up1TTSwn2WalYz7P0gxFcdHuM5J5Oy/mWUpik3fXQP/W+p5b++n+HtNWYnVffv0rcBdGCn6gL/DUY1VA3iZ5NVY2XmX/R8EFfGi3ptIYxvtE8ZOd5pC5WcPFXa8E0f9EXVM9mPzgzlyJ4T/7OHG3otkyZG7TG+sdOa9h3Q0LTtPMa13/L/arBzJ/MfGeU7TZTySSieUwNWutdU94QxOfG0qgT6SYyEfCbmZ9EKw/ZbPpg7S1swFM1snPnbzJDPVftB2dkaeU5wcXj7pZyn6FohYKjp+y7Pbpfha4fbWbI4IGG7ZqtUFQXvGLj0ja/l8QEQ7OhmWezuSNbO9u5+jtl6OfRDaafv3TIPdomORcj63kpQ/R/rj0S1Pa8SH1UQ5PNuUFtBtpm4fWTkY+7zj+7n8w1ufZKw84bs4Hoc2cf8suQ4Ym64bHuCLW1Xt0g+n6jBU7ggzZrEOcSCuu5eT8I8M+2RwAteO9KRhk0HOWOtfPm2Hct74iQxjt3XN3Rboyz7UBBQ603NtGWcreaDdHQH2a+v85PN9iU5x/kHZhZPyuZ9Xy2fqD459ujR+yjU+2iA0+FmB3fcEHs7bQnPsSJe/rHVzJ68u+ZnBysgBa02e08mztZ4USbbuimTufyYviVVs39JxAXVA+9BxpAwYRkS7vWJDLq+az9wOMq2kPQdZy12MAn4Mudajvd1i+k/G8Lr9duiy0mWFOmsiBz+/FmTbTJ4gr/67Ru7GdLNNzsrhb6OQargcQjwL/nijLMHSLU9XlLf9GD9byQfnBt7aHLO3Z4XurTmwqoXqLxjrl+EtIv9cc4u63n3nOtZKLNOq+JxiMz7CVfW6KufNEhqOSrO2Bo2bT1/MFJPtHA9urnNysWxlLIrOez9YOMcvxr7aF9d6fsN2YtBw62W2ApfU9ytVlgFZx/fbbGW+rJJM+lF+38KjIp8biIRSVhIVc0jMYUiipkBb/eUziU4tYr24c61of16+NGWPFhQ1H/cyJK+eXTsWJD8XhTUfdbxuPNjYgVDbtYu55r94Mpaa72mKstKjzfpADgRn6pXSJCO25klWPq9ZKHH4Jy3/elwLmPgT7xRYW7VuQWbuoOFFZs00EsThq/8wCTCrcYuGdOClW6fllCgjiUckNpttiBotrLXruea/eDqWmO9pirLQqfSwcbN9/JCu95UCBROBRjVjloGLe3+DkieeSmUdswja3Q4i8jFcQSJVtbLHqRqbMnlwrHYDBq62UxXoRQKnpBCvJlGrfnGlPmTg2ptq9dz7X7QY1Uuz3maovCZ9JCb/IHi+zRbfSjYtRFVgxm7356pFH0HPR3uW9pP5tU/05uvjjEZvZI3bDdshX9iX3K4XCTvbtMH+7OsuW8UWcTCuYh+XzR6Sz8T2Z+98q5oaGB/5m6ybRRM6xiwLeev3/20XnXplY9G/lW6Qc1uKT2AOV4cxCx1bbPRNP72mIF79IICd5zlQcAcLm0iMcLAADAA4IXAAAaA8ELAACNgeAFAIDGQPACAEBjIHgBAKAxELz56LXjSw9uDQBYKPDjBQCAxkDjBQCAxkDwAgBAYyB4AQCgMRC8AADQGAheAABoDAQvAAA0BoIXAAAaA8ELAACNgeAFAIDGQPACAEBjIHgBAKAxELwAANAYCF4AAGgMBC8AADQGghcAABoDwQsAAI2B4AUAgMZA8AIAQGMgeAEAoDEQvAAA0BgIXgAAaMz/AX5pcqkbHzkuAAAAAElFTkSuQmCC"
+            }
+        ],
+        "CreationDate": "2025-10-15T16:09:23.221000-04:00",
+        "LastModifiedDate": "2025-10-15T16:52:04.051000-04:00"
+    }
+}

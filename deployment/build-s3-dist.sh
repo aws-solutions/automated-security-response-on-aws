@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
+#
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+#
 [[ $DEBUG ]] && set -x
 set -eu -o pipefail
 
@@ -41,11 +43,11 @@ clean() {
 #  - version-code: version of the package
 main() {
     local root_dir=$(dirname "$(cd -P -- "$(dirname "$0")" && pwd -P)")
-    local template_dir="$root_dir"/deployment
-    local template_dist_dir="$template_dir"/global-s3-assets
-    local build_dist_dir="$template_dir/"regional-s3-assets
+    local deployment_dir="$root_dir"/deployment
+    local template_dist_dir="$deployment_dir"/global-s3-assets
+    local build_dist_dir="$deployment_dir/"regional-s3-assets
     local source_dir="$root_dir"/source
-    local temp_work_dir="${template_dir}"/temp
+    local temp_work_dir="${deployment_dir}"/temp
     local devtest=""
 
     local clean_dirs=("$template_dist_dir" "$build_dist_dir" "$temp_work_dir")
@@ -73,14 +75,14 @@ main() {
     clean "${clean_dirs[@]}"
 
     # Save in environmental variables to simplify builds (?)
-    echo "export DIST_OUTPUT_BUCKET=$bucket" > "$template_dir"/setenv.sh
-    echo "export DIST_VERSION=$version" >> "$template_dir"/setenv.sh
+    echo "export DIST_OUTPUT_BUCKET=$bucket" > "$deployment_dir"/setenv.sh
+    echo "export DIST_VERSION=$version" >> "$deployment_dir"/setenv.sh
 
-    if [[ ! -e "$template_dir"/solution_env.sh ]]; then
+    if [[ ! -e "$deployment_dir"/solution_env.sh ]]; then
         echo "solution_env.sh is missing from the solution root." && exit 1
     fi
 
-    source "$template_dir"/solution_env.sh
+    source "$deployment_dir"/solution_env.sh
 
     if [[ -z "$SOLUTION_ID" ]] || [[ -z "$SOLUTION_NAME" ]] || [[ -z "$SOLUTION_TRADEMARKEDNAME" ]]; then
         echo "Missing one of SOLUTION_ID, SOLUTION_NAME, or SOLUTION_TRADEMARKEDNAME from solution_env.sh" && exit 1
@@ -93,9 +95,19 @@ main() {
     export SOLUTION_NAME
     export SOLUTION_TRADEMARKEDNAME
 
+    # You must set BUILD_ENV=development if you wish to run the frontend locally
+        if [[ "${BUILD_ENV:-}" != "development" ]]; then
+            echo -e "\033[1;33m===============================================================================\033[0m"
+            echo -e "\033[1;33m⚠️  WARNING: BUILD_ENV is not set to 'development'. Localhost URLs will not be included in Cognito UserPoolClient configuration.\033[0m"
+            echo -e "\033[1;33mTo include localhost URLs for development, run: BUILD_ENV=development $0 $*\033[0m"
+            echo -e "\033[1;33m===============================================================================\033[0m"
+            echo ""
+            sleep 2
+        fi
+
     echo "export DIST_SOLUTION_NAME=$SOLUTION_TRADEMARKEDNAME" >> ./setenv.sh
 
-    source "$template_dir"/setenv.sh
+    source "$deployment_dir"/setenv.sh
 
     header "Building $SOLUTION_NAME ($SOLUTION_ID) version $version for bucket $bucket"
 
@@ -125,7 +137,7 @@ main() {
     mkdir -p "$temp_work_dir"/source/solution_deploy/lambdalayer/python/layer
     mkdir -p "$temp_work_dir"/source/solution_deploy/lambdalayer/python/lib/python3.11/site-packages
     cp "$source_dir"/layer/*.py "$temp_work_dir"/source/solution_deploy/lambdalayer/python/layer
-    pip install -r "$template_dir"/requirements.txt -t "$temp_work_dir"/source/solution_deploy/lambdalayer/python/lib/python3.11/site-packages
+    pip install -r "$deployment_dir"/requirements.txt -t "$temp_work_dir"/source/solution_deploy/lambdalayer/python/lib/python3.11/site-packages
     popd
 
     pushd "$temp_work_dir"/source/solution_deploy/lambdalayer
@@ -144,6 +156,12 @@ main() {
     zip -q ${build_dist_dir}/lambda/deployment_metrics_custom_resource.zip deployment_metrics_custom_resource.py cfnresponse.py
     popd
 
+    header "[Pack] Remediation Configuration Custom Action Lambda"
+
+    pushd "$source_dir"/solution_deploy/source
+    zip -q ${build_dist_dir}/lambda/remediation_config_provider.zip remediation_config_provider.py cfnresponse.py
+    popd
+
 
     header "[Pack] Wait Provider Lambda"
 
@@ -158,6 +176,17 @@ main() {
             zip -q "$build_dist_dir"/lambda/"$file".zip "$file"
         fi
     done
+    popd
+
+    header "[Build] Data-models"
+    pushd "$source_dir"/data-models
+    npm run clean && npm install && npm run build
+    popd
+
+    header "[Pack] Non-Orchestrator Lambdas"
+    pushd "$source_dir"/lambdas
+    npm run build:clean && npm run build:install && npm run build:ts
+    zip -r -q "$build_dist_dir"/lambda/asr_lambdas.zip . -x "__tests__/*" "*.ts" "**/*.ts" "**/jest.config.js"
     popd
 
     header "[Pack] Blueprint Lambdas"
@@ -179,6 +208,7 @@ main() {
     done
     popd
 
+    # Blueprint lambdas dependency layer
     pushd "$build_dist_dir"/lambda/blueprints
     mkdir -p "$build_dist_dir"/lambda/blueprints/python
     "$POETRY_COMMAND" export --without dev -f requirements.txt --output requirements.txt --without-hashes
@@ -186,6 +216,42 @@ main() {
     zip -qr python.zip python/*
     rm -r python
     popd
+
+
+    header "Run UI Builds"
+
+    cd "$source_dir/webui/" || exit 1
+    npm install
+    GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false npm run build
+
+    if [ $? -eq 0 ]
+    then
+    header "UI build succeeded"
+    else
+    header "UI build FAILED"
+    exit 1
+    fi
+    mkdir -p "$build_dist_dir"/webui/
+    cp -r ./dist/* "$build_dist_dir"/webui/
+
+
+    header "Generate webui manifest file (webui-manifest.json)"
+    # Build webui-manifest.json so that it can be deployed with the ui code afterwards
+    #
+    # Details: The deployWebui custom resource needs this list in order to copy
+    # files from $build_dist_dir/webui to the CloudFront S3 bucket.
+    # Since the manifest file is computed during build time, the custom resource
+    # can use that to figure out what files to copy instead of doing a list bucket operation,
+    # which would require ListBucket permission.
+    # Furthermore, the S3 bucket used to host AWS solutions disallows ListBucket
+    # access, so the only way to copy the webui files from that bucket from
+    # to CloudFront S3 bucket is to use a manifest file.
+
+    cd $deployment_dir/manifest-generator
+    [ -e node_modules ] && rm -rf node_modules
+    npm ci
+    node app.js --target "$build_dist_dir/webui" --output webui-manifest.json
+    mv webui-manifest.json $build_dist_dir/webui/webui-manifest.json
 
     header "[Create] Playbooks"
 
@@ -233,7 +299,7 @@ main() {
   done
   popd
 
-  [ -e "$template_dir"/*.template ] && cp "$template_dir"/*.template "$template_dist_dir"/
+  [ -e "$deployment_dir"/*.template ] && cp "$deployment_dir"/*.template "$template_dist_dir"/
 
   mv "$template_dist_dir"/SolutionDeployStack.template "$template_dist_dir"/automated-security-response-admin.template
   mv "$template_dist_dir"/MemberStack.template "$template_dist_dir"/automated-security-response-member.template
@@ -241,8 +307,11 @@ main() {
   mv "$template_dist_dir"/RunbookStack.template "$template_dist_dir"/automated-security-response-remediation-runbooks.template
   mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/automated-security-response-orchestrator-log.template
   mv "$template_dist_dir"/MemberRolesStack.template "$template_dist_dir"/automated-security-response-member-roles.template
-
+  mv "$template_dist_dir"/SolutionDeployStackWebUINestedStack*.template "$template_dist_dir"/automated-security-response-webui-nested-stack.template
   rm "$template_dist_dir"/*.nested.template
+
+  header "[Create] List of Supported Control Ids (supported-controls.json)"
+  node "$deployment_dir"/utils/generate-controls-list.js "$version"
 }
 
 main "$@"

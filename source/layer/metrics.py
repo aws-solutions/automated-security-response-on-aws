@@ -1,20 +1,25 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
+import os
 import urllib.parse
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 from urllib.request import Request, urlopen
 
 import boto3
 from botocore.exceptions import ClientError
 from layer import awsapi_cached_client
+from layer.powertools_logger import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_ssm.client import SSMClient
 else:
     SSMClient = object
+
+LOG_LEVEL = os.getenv("log_level", "info")
+logger = get_logger("metrics", LOG_LEVEL)
 
 # Mapping of error cases from the Orchestrator Step Function
 # to more descriptive strings for metric publishing
@@ -24,81 +29,33 @@ NORMALIZED_STATUS_REASON_MAPPING = {
     "RUNBOOK_NOT_ACTIVE": "RUNBOOK_NOT_ACTIVE",
     "PLAYBOOK_NOT_ENABLED": "PLAYBOOK_NOT_ENABLED",
     "TIMEDOUT": "REMEDIATION_TIMED_OUT",
+    "TIMED_OUT": "REMEDIATION_TIMED_OUT",
     "CANCELLED": "REMEDIATION_CANCELLED",
     "CANCELLING": "REMEDIATION_CANCELLED",
     "ASSUME_ROLE_FAILURE": "ACCOUNT_NOT_ONBOARDED",
     "NO_RUNBOOK": "NO_REMEDIATION_AVAILABLE",
     "NOT_NEW": "FINDING_WORKFLOW_STATE_NOT_NEW",
+    "ABORTED": "REMEDIATION_ABORTED",
 }
+AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID", "unknown")
+STACK_ID = os.getenv("STACK_ID", "unknown")
 
 
 class Metrics(object):
-    event_type = ""
-    send_metrics_option = "No"
-    solution_version: Any = ""
-    solution_uuid = None
-    session = None
-    region = None
+    old_uuid_parameter_name = (
+        "/Solutions/SO0111/anonymous_metrics_uuid"  # deprecated UUID parameter
+    )
     ssm_client: Optional[SSMClient] = None
-    metrics_parameter_name = "/Solutions/SO0111/anonymous_metrics_uuid"
+    new_uuid_parameter_name = "/Solutions/SO0111/metrics_uuid"
+    solution_version_parm = "/Solutions/SO0111/version"
 
-    def __init__(self, event_type=""):
+    def __init__(self):
         self.session = boto3.session.Session()
-        self.region = self.session.region_name
+        self.region: str = self.session.region_name
 
-        self.ssm_client = self.connect_to_ssm()
-
-        if not self.send_anonymous_metrics_enabled():
-            return
-
-        self.event_type = event_type
-
-        self.__get_solution_uuid()
-
-        try:
-            solution_version_parm = "/Solutions/SO0111/version"
-            solution_version_from_ssm = (
-                self.ssm_client.get_parameter(Name=solution_version_parm)  # type: ignore[union-attr]
-                .get("Parameter")
-                .get("Value")
-            )
-        except ClientError as ex:
-            exception_type = ex.response["Error"]["Code"]
-            if exception_type == "ParameterNotFound":
-                solution_version_from_ssm = "unknown"
-            else:
-                print(ex)
-        except Exception as e:
-            print(e)
-            raise
-
-        self.solution_version = solution_version_from_ssm
-
-    def send_anonymous_metrics_enabled(self):
-        is_enabled = False  # default value
-        try:
-            ssm_parm = "/Solutions/SO0111/sendAnonymizedMetrics"
-            send_anonymous_metrics_from_ssm = (
-                self.ssm_client.get_parameter(Name=ssm_parm)  # type: ignore[union-attr]
-                .get("Parameter")
-                .get("Value")
-                .lower()
-            )
-
-            if (
-                send_anonymous_metrics_from_ssm != "yes"
-                and send_anonymous_metrics_from_ssm != "no"
-            ):
-                print(
-                    f'Unexpected value for {ssm_parm}: {send_anonymous_metrics_from_ssm}. Defaulting to "no"'
-                )
-            elif send_anonymous_metrics_from_ssm == "yes":
-                is_enabled = True
-
-        except Exception as e:
-            print(e)
-
-        return is_enabled
+        self.ssm_client: SSMClient = self.connect_to_ssm()
+        self.solution_uuid: str = self.__get_solution_uuid()
+        self.solution_version: str = self.__get_solution_version()
 
     def connect_to_ssm(self):
         try:
@@ -110,36 +67,96 @@ class Metrics(object):
         except Exception as e:
             print(f"Could not connect to ssm: {str(e)}")
 
-    def __update_solution_uuid(self, new_uuid):
-        self.ssm_client.put_parameter(  # type: ignore[union-attr]
-            Name=self.metrics_parameter_name,
-            Description="Unique Id for anonymous metrics collection",
-            Value=new_uuid,
-            Type="String",
-        )
-
-    def __get_solution_uuid(self):
+    def __try_get_and_destroy_deprecated_uuid_parameter(self) -> Optional[str]:
+        """
+        The `old_uuid_parameter_name` SSM Parameter is deprecated. This method attempts to fetch the UUID from this parameter
+        if it exists, and then deletes the parameter. If the parameter does not exist, it returns None.
+        """
         try:
-            solution_uuid_from_ssm = (
-                self.ssm_client.get_parameter(Name=self.metrics_parameter_name)  # type: ignore[union-attr]
-                .get("Parameter")
-                .get("Value")
+            get_old_parameter_response = self.ssm_client.get_parameter(  # type: ignore[union-attr]
+                Name=self.old_uuid_parameter_name,
             )
-            self.solution_uuid = solution_uuid_from_ssm
-        except ClientError as ex:
-            exception_type = ex.response["Error"]["Code"]
-            if exception_type == "ParameterNotFound":
-                self.solution_uuid = str(uuid.uuid4())
-                self.__update_solution_uuid(self.solution_uuid)
-            else:
-                print(ex)
-                raise
+
+            existing_uuid = get_old_parameter_response["Parameter"]["Value"]
+            self.ssm_client.delete_parameter(  # type: ignore[union-attr]
+                Name=self.old_uuid_parameter_name,
+            )
+            return existing_uuid
         except Exception as e:
-            print(e)
-            raise
+            logger.debug(
+                f"could not fetch uuid from old SSM parameter {self.old_uuid_parameter_name}",
+                error=e,
+            )
+        return None
+
+    def __update_solution_uuid(self) -> str:
+        """
+        This function sets the SSM parameter `new_uuid_parameter_name` to a UUID value for metrics publishing, and returns the UUID value used.
+        It first attempts to fetch an existing UUID from the SSM parameter where the solution previously stored the UUID (`old_uuid_parameter_name`),
+        and uses that existing UUID if available. Otherwise, it uses a newly generated UUID value.
+        """
+        new_uuid = str(uuid.uuid4())
+        existing_uuid = None
+        try:
+            # try to fetch the old UUID parameter value if it exists, to avoid changing the existing
+            # UUID when migrating to the new parameter name
+            existing_uuid = self.__try_get_and_destroy_deprecated_uuid_parameter()
+        except Exception as e:
+            logger.debug(
+                f"could not fetch uuid from old SSM parameter {self.old_uuid_parameter_name}, "
+                f"setting parameter {self.new_uuid_parameter_name} with a new UUID value instead.",
+                error=e,
+            )
+        try:
+            self.ssm_client.put_parameter(  # type: ignore[union-attr]
+                Name=self.new_uuid_parameter_name,
+                Description="Unique Id for anonymous metrics collection",
+                Value=existing_uuid if existing_uuid else new_uuid,
+                Type="String",
+            )
+        except Exception as e:
+            logger.debug(
+                f"could not set uuid in SSM parameter {self.new_uuid_parameter_name} with value {new_uuid}",
+                error=e,
+            )
+            return "unknown"
+        return existing_uuid if existing_uuid else new_uuid
+
+    def __get_solution_version(self) -> str:
+        try:
+            return (
+                self.ssm_client.get_parameter(Name=self.solution_version_parm)  # type: ignore[union-attr]
+                .get("Parameter", {})
+                .get("Value", "unknown")
+            )
+        except Exception as e:
+            logger.debug(
+                f"Encountered error fetching solution version from ssm parameter {self.solution_version_parm}",
+                error=e,
+            )
+            return "unknown"
+
+    def __get_solution_uuid(self) -> str:
+        try:
+            return self.ssm_client.get_parameter(Name=self.new_uuid_parameter_name)[  # type: ignore[union-attr]
+                "Parameter"
+            ][
+                "Value"
+            ]
+        except ClientError as ex:
+            if ex.response["Error"]["Code"] == "ParameterNotFound":
+                return self.__update_solution_uuid()
+            return "unknown"
+        except Exception as e:
+            logger.debug(
+                f"could not fetch uuid from SSM parameter {self.new_uuid_parameter_name}",
+                error=e,
+            )
+            return "unknown"
 
     def get_metrics_from_event(self, event):
         finding = event.get("Finding", None)
+        event_type = event.get("EventType", "unknown")
         custom_action_name = event.get("CustomActionName", "")
 
         try:
@@ -148,7 +165,7 @@ class Metrics(object):
                     "generator_id": finding.get("GeneratorId"),
                     "type": finding.get("Title"),
                     "productArn": finding.get("ProductArn"),
-                    "finding_triggered_by": self.event_type,
+                    "finding_triggered_by": event_type,
                     "region": self.region,
                     "custom_action_name": custom_action_name,
                 }
@@ -161,10 +178,12 @@ class Metrics(object):
 
     def send_metrics(self, metrics_data):
         try:
-            if metrics_data is not None and self.send_anonymous_metrics_enabled():
+            if metrics_data is not None:
                 usage_data = {
                     "Solution": "SO0111",
                     "UUID": self.solution_uuid,
+                    "AccountId": AWS_ACCOUNT_ID,
+                    "StackId": STACK_ID,
                     "TimeStamp": str(datetime.now(UTC).isoformat()),
                     "Data": metrics_data,
                     "Version": self.solution_version,
@@ -190,7 +209,7 @@ class Metrics(object):
         urlopen(req)  # nosec
 
     @staticmethod
-    def get_status_for_anonymized_metrics(status_from_event: str) -> Tuple[str, str]:
+    def get_status_for_metrics(status_from_event: str) -> Tuple[str, str]:
         """
         Takes the status received from the event which invoked SendNotifications
         and returns an object containing the normalized status & reason for the status.

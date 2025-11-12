@@ -16,6 +16,13 @@ securityhub = None
 
 SOLUTION_BASE_PATH = "/Solutions/SO0111"
 
+ASFF_TO_OCSF_STATUS = {
+    "NEW": 1,
+    "NOTIFIED": 2,
+    "SUPPRESSED": 3,
+    "RESOLVED": 4,
+}
+
 
 def get_securityhub():
     global securityhub
@@ -142,17 +149,29 @@ class Finding(object):
             workflow_status = {"Workflow": {"Status": status}}
 
         try:
-            get_securityhub().batch_update_findings(
-                FindingIdentifiers=[
-                    {
-                        "Id": self.details.get("Id"),
-                        "ProductArn": self.details.get("ProductArn"),
-                    }
-                ],
-                Note={"Text": message, "UpdatedBy": inspect.stack()[0][3]},
-                **workflow_status,
-            )
-
+            if "productv2" in self.details.get("ProductArn"):
+                get_securityhub().batch_update_findings_v2(
+                    FindingIdentifiers=[
+                        {
+                            "FindingInfoUid": self.details.get("Id"),
+                            "MetadataProductUid": self.details.get("ProductArn"),
+                            "CloudAccountUid": self.account_id,
+                        }
+                    ],
+                    Comment=message,
+                    StatusId=ASFF_TO_OCSF_STATUS.get(status, 1),
+                )
+            else:
+                get_securityhub().batch_update_findings(
+                    FindingIdentifiers=[
+                        {
+                            "Id": self.details.get("Id"),
+                            "ProductArn": self.details.get("ProductArn"),
+                        }
+                    ],
+                    Note={"Text": message, "UpdatedBy": inspect.stack()[0][3]},
+                    **workflow_status,
+                )
         except Exception as e:
             print(e)
             raise
@@ -267,6 +286,7 @@ class ASRNotification(object):
     __security_standard = ""
     __controlid = None
     __region = ""
+    __stepfunctions_execution_id = ""
 
     severity = "INFO"
     message = ""
@@ -279,7 +299,7 @@ class ASRNotification(object):
     send_to_sns = False
     finding_info: Union[dict[str, Any], str] = {}
 
-    def __init__(self, security_standard, region, controlid=None):
+    def __init__(self, security_standard, region, execution_id, controlid=None):
         """
         Initialize the class
         applogger_name determines the log stream name in CW Logs
@@ -290,6 +310,7 @@ class ASRNotification(object):
         self.__region = region
         if controlid:
             self.__controlid = controlid
+        self.__stepfunctions_execution_id = execution_id
         self.applogger = self._get_log_handler()
 
     def _get_log_handler(self):
@@ -320,6 +341,7 @@ class ASRNotification(object):
             "Message": self.message,
             "Finding_Link": self.finding_link,
             "Finding": self.finding_info,
+            "StepFunctions_Execution_Id": self.__stepfunctions_execution_id,
         }
 
         if self.ticket_url:

@@ -10,6 +10,7 @@ import { BlueprintProps, BlueprintStack } from '../../cdk/blueprint-stack';
 export class ServiceNowBlueprintStack extends BlueprintStack {
   constructor(scope: App, id: string, props: BlueprintProps) {
     super(scope, id, props);
+    const stack = cdk.Stack.of(this);
 
     const solutionsBucket = super.getSolutionsBucket();
 
@@ -59,6 +60,9 @@ export class ServiceNowBlueprintStack extends BlueprintStack {
         INSTANCE_URI: serviceNowInstanceURIParam.valueAsString,
         TABLE_NAME: serviceNowTableName.valueAsString,
         SECRET_ARN: secretArnParam.valueAsString,
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
+        DISABLE_ACCOUNT_ALIAS_LOOKUP: 'false',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(15),

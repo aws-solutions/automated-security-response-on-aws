@@ -38,4 +38,4 @@ def test_get_account_alias():
 def test_get_account_alias_error():
     account_alias = get_account_alias(MOTO_ACCOUNT_ID)
 
-    assert account_alias == "Unknown"
+    assert account_alias == MOTO_ACCOUNT_ID

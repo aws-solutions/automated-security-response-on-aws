@@ -1,0 +1,27 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+body,
+html {
+    margin: 0;
+    height: 100%;
+}
+.amplify-button--primary {
+    background-color: #eb5f07;
+}
+
+.amplify-tabs-item[data-state="active"] {
+    color: black;
+    border-color: #eb5f07;
+}
+
+/* Keep a sticky top navigation bar at the top of the screen when scrolling down */
+#top-nav {
+    position: sticky;
+    left: 0;
+    top: 0;
+    right: 0;
+    z-index: 1000;
+}

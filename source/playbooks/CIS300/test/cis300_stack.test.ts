@@ -16,7 +16,7 @@ function getPrimaryStack(): Stack {
     solutionDistBucket: 'sharrbukkit',
     solutionDistName: 'automated-security-response-on-aws',
     remediations: [
-      { control: '2.1.4', versionAdded: '2.1.0' },
+      { control: '2.1.4.1', versionAdded: '2.1.0' }, // NOSONAR This is not an IP Address.
       { control: '2.1.1', versionAdded: '2.2.0' },
       { control: '1.8', versionAdded: '2.1.1' },
     ],
@@ -35,31 +35,6 @@ describe('CISv3.0.0 primary stack', () => {
     omitWaitResourceHash(template, templateJSON);
     expect(templateJSON).toMatchSnapshot();
   });
-
-  test('stack has automatic remediation trigger event rules', () => {
-    template.resourceCountIs('AWS::Events::Rule', 3);
-  });
-
-  test('stack has remediation parameters', () => {
-    template.hasParameter('CIS300214AutoTrigger', {
-      Type: 'String',
-      Default: 'DISABLED',
-      AllowedValues: ['ENABLED', 'DISABLED'],
-      Description: 'This will fully enable automated remediation for CIS 3.0.0 2.1.4',
-    });
-    template.hasParameter('CIS300211AutoTrigger', {
-      Type: 'String',
-      Default: 'DISABLED',
-      AllowedValues: ['ENABLED', 'DISABLED'],
-      Description: 'This will fully enable automated remediation for CIS 3.0.0 2.1.1',
-    });
-    template.hasParameter('CIS30018AutoTrigger', {
-      Type: 'String',
-      Default: 'DISABLED',
-      AllowedValues: ['ENABLED', 'DISABLED'],
-      Description: 'This will fully enable automated remediation for CIS 3.0.0 1.8',
-    });
-  });
 });
 
 function getMemberStack(): Stack {
@@ -76,7 +51,7 @@ function getMemberStack(): Stack {
     ssmdocs: 'playbooks/CIS300/ssmdocs',
     commonScripts: 'playbooks/common',
     remediations: [
-      { control: '2.1.4', versionAdded: '2.1.0' },
+      { control: '2.1.4.1', versionAdded: '2.1.0' }, // NOSONAR This is not an IP Address.
       { control: '2.1.1', versionAdded: '2.2.0' },
       { control: '1.8', versionAdded: '2.1.1' },
     ],

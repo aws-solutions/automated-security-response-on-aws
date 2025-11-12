@@ -13,8 +13,9 @@ def connect_to_s3():
 
 def lambda_handler(event, _):
     bucket_name = event["BucketName"]
-    target_transition_days = event["TargetTransitionDays"]
-    target_expiration_days = event["TargetExpirationDays"]
+    # Convert to int to handle cases where SSM passes these as floats
+    target_transition_days = int(event["TargetTransitionDays"])
+    target_expiration_days = int(event["TargetExpirationDays"])
     target_transition_storage_class = event["TargetTransitionStorageClass"]
     rule_id = "S3.13 Remediation Example"
     s3 = connect_to_s3()

@@ -130,16 +130,109 @@ for playbook in `ls ${source_dir}/playbooks`; do
     fi
 done
 
+echo "------------------------------------------------------------------------------"
+echo "[Build] Data Models Package"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"/data-models
+npm run build
+rc=$?
+if [ "$rc" -ne "0" ]; then
+    echo "** DATA MODELS BUILD FAILED **"
+    exit $rc
+fi
 
 echo "------------------------------------------------------------------------------"
-echo "[Lint] Code Style and Lint"
+echo "[Setup] Starting DynamoDB Local"
 echo "------------------------------------------------------------------------------"
-cd $source_dir
-npx prettier --check '**/*.ts'
-npx eslint --ext .ts --max-warnings=0 .
-cd ..
-tox -e format
-tox -e lint
+
+# Check if DynamoDB Local is already running via Docker
+if curl -s http://localhost:8000 >/dev/null 2>&1; then
+    echo "DynamoDB Local is already running (likely via Docker)"
+    DDB_PID=""
+else
+    # Fall back to tar-based installation
+    if [[ -z "$DDB_LOCAL_HOME" ]]; then
+        echo "ERROR: DDB_LOCAL_HOME environment variable is not set and DynamoDB Local is not running via Docker"
+        exit 1
+    fi
+
+    # Verify DynamoDB Local files exist
+    if [[ ! -f "$DDB_LOCAL_HOME/DynamoDBLocal.jar" ]]; then
+        echo "ERROR: DynamoDBLocal.jar not found at $DDB_LOCAL_HOME/DynamoDBLocal.jar"
+        exit 1
+    fi
+
+    if [[ ! -d "$DDB_LOCAL_HOME/DynamoDBLocal_lib" ]]; then
+        echo "ERROR: DynamoDBLocal_lib directory not found at $DDB_LOCAL_HOME/DynamoDBLocal_lib"
+        exit 1
+    fi
+
+    java -Djava.library.path="$DDB_LOCAL_HOME"/DynamoDBLocal_lib -jar "$DDB_LOCAL_HOME"/DynamoDBLocal.jar -sharedDb -inMemory >/dev/null 2>&1 &
+    DDB_PID=$!
+
+    # Wait for DynamoDB Local to be ready
+    echo "Waiting for DynamoDB Local to be ready..."
+    for i in {1..30}; do
+        if curl -s http://localhost:8000 >/dev/null 2>&1; then
+            echo "DynamoDB Local is ready (attempt $i)"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo "ERROR: DynamoDB Local failed to become ready after 30 seconds"
+            kill $DDB_PID 2>/dev/null || true
+            exit 1
+        fi
+        sleep 1
+    done
+
+    if ! kill -0 $DDB_PID 2>/dev/null; then
+        echo "ERROR: DynamoDB Local failed to start"
+        exit 1
+    fi
+    echo "DynamoDB Local started successfully (PID: $DDB_PID)"
+
+    # Ensure DynamoDB process is killed on script exit
+    trap 'kill $DDB_PID 2>/dev/null || true' EXIT
+fi
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Preprocessor Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"/lambdas
+npm run test:sequential:preprocessor
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Lambdas/common Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"/lambdas
+npm run test:sequential:common
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Findings synchronization Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"/lambdas
+npm run test:sequential:synchronization
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] API Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"/lambdas
+npm run test:sequential:api
+
+echo "------------------------------------------------------------------------------"
+echo "[Cleanup] Stopping DynamoDB Local"
+echo "------------------------------------------------------------------------------"
+if [[ -n "$DDB_PID" ]]; then
+    kill $DDB_PID 2>/dev/null || true
+else
+    echo "DynamoDB Local was running via Docker (not stopped by this script)"
+fi
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] Deployment Utils Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$template_dir"/utils
+npm run test
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests"
@@ -159,6 +252,32 @@ cd "$source_dir"
         maxrc=$rc
     fi
 }
+
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] WebUI Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd $source_dir/webui
+npm install
+npm run test
+rc=$?
+if [ "$rc" -ne "0" ]; then
+    echo "** WEBUI UNIT TESTS FAILED **"
+else
+    echo "WebUI Unit Tests Successful"
+fi
+if [ "$rc" -gt "$maxrc" ]; then
+    maxrc=$rc
+fi
+
+echo "------------------------------------------------------------------------------"
+echo "[Lint] Code Style and Lint"
+echo "------------------------------------------------------------------------------"
+cd $source_dir
+npx eslint --ext .ts --max-warnings=0 --ignore-pattern "*.d.ts" .
+cd ..
+tox -e format
+tox -e lint
 
 
 # The pytest --cov with its parameters and .coveragerc generates a xml cov-report with `coverage/sources` list

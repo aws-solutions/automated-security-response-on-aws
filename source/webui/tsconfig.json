@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Path mapping */
+    "baseUrl": ".",
+    "paths": {
+      "@data-models": ["../data-models/index.ts"]
+    },
+
+    /* Linting */
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "src",
+    "node_modules/vitest/globals.d.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
+}

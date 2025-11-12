@@ -87,6 +87,10 @@ def _add_doc_state_to_answer(doc: str, account: str, region: str, answer: Any) -
                 cloudwatch_metrics.send_metric(cloudwatch_metric)
             except Exception:
                 logger.debug("Did not send Cloudwatch metric")
+        elif exception_type == "ThrottlingException":
+            # Re-raise throttling exceptions so Step Functions can retry with backoff
+            logger.warning(f"SSM API throttled for document {doc}, will retry")
+            raise
         else:
             answer.update(
                 {

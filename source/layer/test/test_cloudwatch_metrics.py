@@ -20,7 +20,7 @@ mock_ssm_get_parameter_send_cloudwatch_metrics_yes = {
         "Value": "Yes",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendAnonymizedMetrics",
+        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendCloudwatchMetrics",
         "DataType": "text",
     }
 }
@@ -32,7 +32,7 @@ mock_ssm_get_parameter_send_cloudwatch_no = {
         "Value": "No",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendAnonymizedMetrics",
+        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendCloudwatchMetrics",
         "DataType": "text",
     }
 }
@@ -44,7 +44,7 @@ mock_ssm_get_parameter_send_cloudwatch_bad_value = {
         "Value": "slartibartfast",
         "Version": 1,
         "LastModifiedDate": "2021-02-25T12:58:50.591000-05:00",
-        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendAnonymizedMetrics",
+        "ARN": f"arn:aws:ssm:{get_region()}:111111111111:parameter/Solutions/SO0111/sendCloudwatchMetrics",
         "DataType": "text",
     }
 }
@@ -71,10 +71,10 @@ def test_cw_metrics_construction(mocker):
 
 
 # ------------------------------------------------------------------------------
-# This test verifies that sendAnonymizedMetrics defaults to no when the value is
+# This test verifies that sendCloudwatchMetrics defaults to no when the value is
 # other than yes or no.
 # ------------------------------------------------------------------------------
-def test_validate_ambiguous_sendanonymousmetrics(mocker):
+def test_validate_ambiguous_sendcloudwatchmetrics(mocker):
     ssmc = boto3.client("ssm", region_name=get_region())
     ssmc_s = Stubber(ssmc)
     ssmc_s.add_response(

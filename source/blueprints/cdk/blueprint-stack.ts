@@ -70,7 +70,7 @@ export class BlueprintStack extends Stack {
           resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*`],
         }),
         new PolicyStatement({
-          actions: ['organizations:ListAccounts'],
+          actions: ['organizations:DescribeAccount'],
           resources: ['*'],
         }),
       ],

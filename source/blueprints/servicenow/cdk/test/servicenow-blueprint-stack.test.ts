@@ -117,7 +117,7 @@ describe('ServiceNowBlueprintStack', () => {
               },
             },
             {
-              Action: 'organizations:ListAccounts',
+              Action: 'organizations:DescribeAccount',
               Effect: 'Allow',
               Resource: '*',
             },

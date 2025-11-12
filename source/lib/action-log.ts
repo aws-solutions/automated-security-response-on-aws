@@ -7,6 +7,7 @@ import { OrganizationPrincipal, PolicyStatement, Role } from 'aws-cdk-lib/aws-ia
 import { RemovalPolicy } from 'aws-cdk-lib';
 import { OrgIdLookupConstruct } from './org-id-lookup';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { CrossAccount } from './constants/parameters';
 
 interface ActionLogProps {
   logGroupName: string;
@@ -29,8 +30,12 @@ export class ActionLog extends Construct {
     // role for the EventProcessor lambda from the members to assume for cross-account write access to the LogGroup
     const crossAccountRole = new Role(this, 'CrossAccountLogWriterRole', {
       roleName: 'CrossAccountLogWriterRole',
-      description: 'Role for cross-account access to write to CloudWatch Logs',
-      assumedBy: new OrganizationPrincipal(orgIdLookup.organizationId),
+      description: 'Role for cross-account access to write to CloudWatch Logs with External ID security',
+      assumedBy: new OrganizationPrincipal(orgIdLookup.organizationId).withConditions({
+        StringEquals: {
+          'sts:ExternalId': CrossAccount.FIXED_EXTERNAL_ID,
+        },
+      }),
     });
     crossAccountRole.addToPolicy(
       new PolicyStatement({

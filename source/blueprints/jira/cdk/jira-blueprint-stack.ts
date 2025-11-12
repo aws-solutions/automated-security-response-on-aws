@@ -9,6 +9,7 @@ import { BlueprintProps, BlueprintStack } from '../../cdk/blueprint-stack';
 export class JiraBlueprintStack extends BlueprintStack {
   constructor(scope: App, id: string, props: BlueprintProps) {
     super(scope, id, props);
+    const stack = Stack.of(this);
 
     const solutionsBucket = super.getSolutionsBucket();
 
@@ -58,6 +59,9 @@ export class JiraBlueprintStack extends BlueprintStack {
         INSTANCE_URI: jiraInstanceURIParam.valueAsString,
         PROJECT_NAME: jiraProjectKeyParam.valueAsString,
         SECRET_ARN: secretArnParam.valueAsString,
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
+        DISABLE_ACCOUNT_ALIAS_LOOKUP: 'false',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(15),

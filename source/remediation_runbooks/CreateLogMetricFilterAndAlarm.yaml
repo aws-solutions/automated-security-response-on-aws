@@ -4,12 +4,28 @@
 description: |
   ### Document Name - ASR-CreateLogMetricFilterAndAlarm
   ## What does this document do?
-  Creates a metric filter for a given log group and also creates and alarm for the metric.
+  Creates a CloudWatch metric filter and alarm for log monitoring by:
+  1. Creating an encrypted SNS topic for alarm notifications
+  2. Ensuring the specified log group exists (creates if missing)
+  3. Creating a metric filter on the log group with the specified pattern
+  4. Creating a CloudWatch alarm that triggers when the metric threshold is exceeded
+
+  This runbook is commonly used for security monitoring (e.g., failed login attempts,
+  unauthorized API calls, etc.) as required by various compliance standards.
 
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * CloudWatch Log Group Name: Name of the CloudWatch log group to use to create metric filter
-  * Alarm Value: Threshhold value for the creating an alarm for the CloudWatch Alarm
+  * LogGroupName: (Required) Name of the CloudWatch log group to monitor
+  * FilterName: (Required) Name for the metric filter
+  * FilterPattern: (Required) Log filter pattern to match events
+  * MetricName: (Required) Name of the CloudWatch metric
+  * MetricNamespace: (Required) Namespace for the metric
+  * MetricValue: (Required) Value to record when pattern matches
+  * AlarmName: (Required) Name for the CloudWatch alarm
+  * AlarmDesc: (Required) Description for the alarm
+  * AlarmThreshold: (Required) Threshold value that triggers the alarm
+  * SNSTopicName: (Required) Name for the SNS topic for notifications
+  * KMSKeyArn: (Required) KMS key ARN for encrypting the SNS topic
 
   ## Security Standards / Controls
   * CIS v1.2.0:     3.1-3.14
@@ -61,6 +77,10 @@ parameters:
   SNSTopicName:
     type: String
     allowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$
+
+outputs:
+  - CreateMetricFilerAndAlarm.Output
+  - CreateTopic.TopicArn
 
 mainSteps:
   -

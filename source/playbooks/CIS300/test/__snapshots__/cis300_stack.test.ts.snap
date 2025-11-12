@@ -19,10 +19,10 @@ exports[`CISv3.0.0 member stack snapshot 1`] = `
         "Available",
       ],
     },
-    "ControlRunbooksEnable214Condition63988B9B": {
+    "ControlRunbooksEnable2141Condition9D7B4C45": {
       "Fn::Equals": [
         {
-          "Ref": "ControlRunbooksEnable2142FEB3684",
+          "Ref": "ControlRunbooksEnable2141E9ACFB05",
         },
         "Available",
       ],
@@ -48,13 +48,13 @@ exports[`CISv3.0.0 member stack snapshot 1`] = `
       "Description": "Enable/disable availability of remediation for cis-aws-foundations-benchmark version 3.0.0 Control 2.1.1 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
       "Type": "String",
     },
-    "ControlRunbooksEnable2142FEB3684": {
+    "ControlRunbooksEnable2141E9ACFB05": {
       "AllowedValues": [
         "Available",
         "NOT Available",
       ],
       "Default": "Available",
-      "Description": "Enable/disable availability of remediation for cis-aws-foundations-benchmark version 3.0.0 Control 2.1.4 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
+      "Description": "Enable/disable availability of remediation for cis-aws-foundations-benchmark version 3.0.0 Control 2.1.4.1 in Security Hub Console Custom Actions. If NOT Available the remediation cannot be triggered from the Security Hub console in the Security Hub Admin account.",
       "Type": "String",
     },
     "Namespace": {
@@ -283,7 +283,7 @@ class FindingEvent:
         self.product_arn = self.finding_json.get("ProductArn", None)
         if (
             not re.match(
-                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::(?:product|productv2)/aws/securityhub$",
                 self.product_arn,
             )
             and self.valid_finding
@@ -791,7 +791,7 @@ class FindingEvent:
         self.product_arn = self.finding_json.get("ProductArn", None)
         if (
             not re.match(
-                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::(?:product|productv2)/aws/securityhub$",
                 self.product_arn,
             )
             and self.valid_finding
@@ -991,8 +991,8 @@ def parse_event(event, _):
       },
       "Type": "AWS::SSM::Document",
     },
-    "ControlRunbooks214267DDF44": {
-      "Condition": "ControlRunbooksEnable214Condition63988B9B",
+    "ControlRunbooks21414567B442": {
+      "Condition": "ControlRunbooksEnable2141Condition9D7B4C45",
       "DependsOn": [
         "CreateWait0",
       ],
@@ -1022,7 +1022,7 @@ This document blocks public access to all buckets by default at the account leve
                 "InputPayload": {
                   "Finding": "{{ Finding }}",
                   "expected_control_id": [
-                    "2.1.4",
+                    "2.1.4.1",
                   ],
                   "parse_id_pattern": "",
                 },
@@ -1196,7 +1196,7 @@ class FindingEvent:
         self.product_arn = self.finding_json.get("ProductArn", None)
         if (
             not re.match(
-                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::product/aws/securityhub$",
+                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::(?:product|productv2)/aws/securityhub$",
                 self.product_arn,
             )
             and self.valid_finding
@@ -1338,7 +1338,7 @@ def parse_event(event, _):
                 ],
                 "Note": {
                   "Text": "Configured the account to block public S3 access.",
-                  "UpdatedBy": "ASR-CIS_3.0.0_2.1.4",
+                  "UpdatedBy": "ASR-CIS_3.0.0_2.1.4.1",
                 },
                 "Service": "securityhub",
                 "Workflow": {
@@ -1360,7 +1360,7 @@ def parse_event(event, _):
               "type": "String",
             },
             "Finding": {
-              "description": "The input from the Orchestrator Step function for the 2.1.4 finding",
+              "description": "The input from the Orchestrator Step function for the 2.1.4.1 finding",
               "type": "StringMap",
             },
             "RemediationRoleName": {
@@ -1383,7 +1383,7 @@ def parse_event(event, _):
         },
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
-        "Name": "ASR-CIS_3.0.0_2.1.4",
+        "Name": "ASR-CIS_3.0.0_2.1.4.1",
         "Tags": [
           {
             "Key": "CdkGenerated",
@@ -1445,11 +1445,11 @@ def parse_event(event, _):
             "",
           ],
         },
-        "ControlRunbooks214267DDF44Ready": {
+        "ControlRunbooks21414567B442Ready": {
           "Fn::If": [
-            "ControlRunbooksEnable214Condition63988B9B",
+            "ControlRunbooksEnable2141Condition9D7B4C45",
             {
-              "Ref": "ControlRunbooks214267DDF44",
+              "Ref": "ControlRunbooks21414567B442",
             },
             "",
           ],
@@ -1463,152 +1463,6 @@ def parse_event(event, _):
 
 exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
 {
-  "Conditions": {
-    "CIS18IsAllExclude39002AE6": {
-      "Fn::And": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDs",
-            },
-            "ALL",
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDsStrategy",
-            },
-            "EXCLUDE",
-          ],
-        },
-      ],
-    },
-    "CIS18IsAllInclude1E8D0038": {
-      "Fn::And": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDs",
-            },
-            "ALL",
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDsStrategy",
-            },
-            "INCLUDE",
-          ],
-        },
-      ],
-    },
-    "CIS18IsInclude082287DD": {
-      "Fn::Equals": [
-        {
-          "Ref": "TargetAccountIDsStrategy",
-        },
-        "INCLUDE",
-      ],
-    },
-    "CIS211IsAllExclude5A6B6416": {
-      "Fn::And": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDs",
-            },
-            "ALL",
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDsStrategy",
-            },
-            "EXCLUDE",
-          ],
-        },
-      ],
-    },
-    "CIS211IsAllIncludeBF0D50A1": {
-      "Fn::And": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDs",
-            },
-            "ALL",
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDsStrategy",
-            },
-            "INCLUDE",
-          ],
-        },
-      ],
-    },
-    "CIS211IsIncludeF2527826": {
-      "Fn::Equals": [
-        {
-          "Ref": "TargetAccountIDsStrategy",
-        },
-        "INCLUDE",
-      ],
-    },
-    "CIS214IsAllExclude2FCE4209": {
-      "Fn::And": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDs",
-            },
-            "ALL",
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDsStrategy",
-            },
-            "EXCLUDE",
-          ],
-        },
-      ],
-    },
-    "CIS214IsAllInclude2CC8F85E": {
-      "Fn::And": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDs",
-            },
-            "ALL",
-          ],
-        },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "TargetAccountIDsStrategy",
-            },
-            "INCLUDE",
-          ],
-        },
-      ],
-    },
-    "CIS214IsInclude41A56251": {
-      "Fn::Equals": [
-        {
-          "Ref": "TargetAccountIDsStrategy",
-        },
-        "INCLUDE",
-      ],
-    },
-  },
   "Description": "test",
   "Mappings": {
     "SourceCode": {
@@ -1618,489 +1472,7 @@ exports[`CISv3.0.0 primary stack stack snapshot 1`] = `
       },
     },
   },
-  "Parameters": {
-    "CIS30018AutoTrigger": {
-      "AllowedValues": [
-        "ENABLED",
-        "DISABLED",
-      ],
-      "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 3.0.0 1.8",
-      "Type": "String",
-    },
-    "CIS300211AutoTrigger": {
-      "AllowedValues": [
-        "ENABLED",
-        "DISABLED",
-      ],
-      "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 3.0.0 2.1.1",
-      "Type": "String",
-    },
-    "CIS300214AutoTrigger": {
-      "AllowedValues": [
-        "ENABLED",
-        "DISABLED",
-      ],
-      "Default": "DISABLED",
-      "Description": "This will fully enable automated remediation for CIS 3.0.0 2.1.4",
-      "Type": "String",
-    },
-    "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter": {
-      "Default": "/Solutions/SO0111/OrchestratorArn",
-      "Type": "AWS::SSM::Parameter::Value<String>",
-    },
-    "TargetAccountIDs": {
-      "AllowedPattern": "^(ALL|\\d{12}(,\\s*\\d{12})*)$",
-      "ConstraintDescription": "Must be "ALL" or a comma-separated list of 12-digit AWS account IDs (e.g., "123456789012,098765432109")",
-      "Default": "ALL",
-      "Description": "List of AWS Account IDs. Use "ALL" to target all accounts, or provide a comma-separated list of 12-digit AWS account IDs.",
-      "MaxLength": 3360,
-      "Type": "String",
-    },
-    "TargetAccountIDsStrategy": {
-      "AllowedValues": [
-        "INCLUDE",
-        "EXCLUDE",
-      ],
-      "Default": "INCLUDE",
-      "Description": "INCLUDE: Apply automated remediation only to the accounts listed. 
-      EXCLUDE: Apply automated remediation to all accounts except those listed. 
-
-      You must manually enable automatic remediations in the Admin account after deploying (create/update) the solution's CloudFormation stacks.",
-      "Type": "String",
-    },
-  },
   "Resources": {
-    "CIS18AutoEventRule30B4F305": {
-      "Properties": {
-        "Description": "Remediate CIS 3.0.0 1.8 automatic remediation trigger event rule.",
-        "EventPattern": {
-          "detail": {
-            "findings": {
-              "AwsAccountId": {
-                "Fn::If": [
-                  "CIS18IsAllInclude1E8D0038",
-                  {
-                    "Ref": "AWS::NoValue",
-                  },
-                  {
-                    "Fn::If": [
-                      "CIS18IsAllExclude39002AE6",
-                      [
-                        {
-                          "exists": false,
-                        },
-                      ],
-                      {
-                        "Fn::If": [
-                          "CIS18IsInclude082287DD",
-                          {
-                            "Fn::Split": [
-                              ",",
-                              {
-                                "Ref": "TargetAccountIDs",
-                              },
-                            ],
-                          },
-                          [
-                            {
-                              "anything-but": {
-                                "Fn::Split": [
-                                  ",",
-                                  {
-                                    "Ref": "TargetAccountIDs",
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-              "Compliance": {
-                "Status": [
-                  "FAILED",
-                  "WARNING",
-                ],
-              },
-              "GeneratorId": [
-                "cis-aws-foundations-benchmark/v/3.0.0/1.8",
-              ],
-              "RecordState": [
-                "ACTIVE",
-              ],
-              "Workflow": {
-                "Status": [
-                  "NEW",
-                ],
-              },
-            },
-          },
-          "detail-type": [
-            "Security Hub Findings - Imported",
-          ],
-          "source": [
-            "aws.securityhub",
-          ],
-        },
-        "Name": "CIS_3.0.0_1.8_AutoTrigger",
-        "State": {
-          "Ref": "CIS30018AutoTrigger",
-        },
-        "Targets": [
-          {
-            "Arn": {
-              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
-            },
-            "Id": "Target0",
-            "InputTransformer": {
-              "InputPathsMap": {
-                "detail-findings": "$.detail.findings",
-                "detail-type": "$.detail-type",
-              },
-              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
-            },
-            "RoleArn": {
-              "Fn::GetAtt": [
-                "CIS18EventsRuleRoleC1B4B61A",
-                "Arn",
-              ],
-            },
-          },
-        ],
-      },
-      "Type": "AWS::Events::Rule",
-    },
-    "CIS18EventsRuleRoleC1B4B61A": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "events.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CIS18EventsRuleRoleDefaultPolicy40AE3E6D": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "states:StartExecution",
-              "Effect": "Allow",
-              "Resource": {
-                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CIS18EventsRuleRoleDefaultPolicy40AE3E6D",
-        "Roles": [
-          {
-            "Ref": "CIS18EventsRuleRoleC1B4B61A",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CIS211AutoEventRuleAA6C5519": {
-      "Properties": {
-        "Description": "Remediate CIS 3.0.0 2.1.1 automatic remediation trigger event rule.",
-        "EventPattern": {
-          "detail": {
-            "findings": {
-              "AwsAccountId": {
-                "Fn::If": [
-                  "CIS211IsAllIncludeBF0D50A1",
-                  {
-                    "Ref": "AWS::NoValue",
-                  },
-                  {
-                    "Fn::If": [
-                      "CIS211IsAllExclude5A6B6416",
-                      [
-                        {
-                          "exists": false,
-                        },
-                      ],
-                      {
-                        "Fn::If": [
-                          "CIS211IsIncludeF2527826",
-                          {
-                            "Fn::Split": [
-                              ",",
-                              {
-                                "Ref": "TargetAccountIDs",
-                              },
-                            ],
-                          },
-                          [
-                            {
-                              "anything-but": {
-                                "Fn::Split": [
-                                  ",",
-                                  {
-                                    "Ref": "TargetAccountIDs",
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-              "Compliance": {
-                "Status": [
-                  "FAILED",
-                  "WARNING",
-                ],
-              },
-              "GeneratorId": [
-                "cis-aws-foundations-benchmark/v/3.0.0/2.1.1",
-              ],
-              "RecordState": [
-                "ACTIVE",
-              ],
-              "Workflow": {
-                "Status": [
-                  "NEW",
-                ],
-              },
-            },
-          },
-          "detail-type": [
-            "Security Hub Findings - Imported",
-          ],
-          "source": [
-            "aws.securityhub",
-          ],
-        },
-        "Name": "CIS_3.0.0_2.1.1_AutoTrigger",
-        "State": {
-          "Ref": "CIS300211AutoTrigger",
-        },
-        "Targets": [
-          {
-            "Arn": {
-              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
-            },
-            "Id": "Target0",
-            "InputTransformer": {
-              "InputPathsMap": {
-                "detail-findings": "$.detail.findings",
-                "detail-type": "$.detail-type",
-              },
-              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
-            },
-            "RoleArn": {
-              "Fn::GetAtt": [
-                "CIS211EventsRuleRoleF4B7BF51",
-                "Arn",
-              ],
-            },
-          },
-        ],
-      },
-      "Type": "AWS::Events::Rule",
-    },
-    "CIS211EventsRuleRoleDefaultPolicy2C0D2642": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "states:StartExecution",
-              "Effect": "Allow",
-              "Resource": {
-                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CIS211EventsRuleRoleDefaultPolicy2C0D2642",
-        "Roles": [
-          {
-            "Ref": "CIS211EventsRuleRoleF4B7BF51",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CIS211EventsRuleRoleF4B7BF51": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "events.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CIS214AutoEventRule64AC657F": {
-      "Properties": {
-        "Description": "Remediate CIS 3.0.0 2.1.4 automatic remediation trigger event rule.",
-        "EventPattern": {
-          "detail": {
-            "findings": {
-              "AwsAccountId": {
-                "Fn::If": [
-                  "CIS214IsAllInclude2CC8F85E",
-                  {
-                    "Ref": "AWS::NoValue",
-                  },
-                  {
-                    "Fn::If": [
-                      "CIS214IsAllExclude2FCE4209",
-                      [
-                        {
-                          "exists": false,
-                        },
-                      ],
-                      {
-                        "Fn::If": [
-                          "CIS214IsInclude41A56251",
-                          {
-                            "Fn::Split": [
-                              ",",
-                              {
-                                "Ref": "TargetAccountIDs",
-                              },
-                            ],
-                          },
-                          [
-                            {
-                              "anything-but": {
-                                "Fn::Split": [
-                                  ",",
-                                  {
-                                    "Ref": "TargetAccountIDs",
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-              "Compliance": {
-                "Status": [
-                  "FAILED",
-                  "WARNING",
-                ],
-              },
-              "GeneratorId": [
-                "cis-aws-foundations-benchmark/v/3.0.0/2.1.4",
-              ],
-              "RecordState": [
-                "ACTIVE",
-              ],
-              "Workflow": {
-                "Status": [
-                  "NEW",
-                ],
-              },
-            },
-          },
-          "detail-type": [
-            "Security Hub Findings - Imported",
-          ],
-          "source": [
-            "aws.securityhub",
-          ],
-        },
-        "Name": "CIS_3.0.0_2.1.4_AutoTrigger",
-        "State": {
-          "Ref": "CIS300214AutoTrigger",
-        },
-        "Targets": [
-          {
-            "Arn": {
-              "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
-            },
-            "Id": "Target0",
-            "InputTransformer": {
-              "InputPathsMap": {
-                "detail-findings": "$.detail.findings",
-                "detail-type": "$.detail-type",
-              },
-              "InputTemplate": "{"detail-type":<detail-type>,"detail":{"findings":<detail-findings>,"actionName":"None"}}",
-            },
-            "RoleArn": {
-              "Fn::GetAtt": [
-                "CIS214EventsRuleRole28D2A9C9",
-                "Arn",
-              ],
-            },
-          },
-        ],
-      },
-      "Type": "AWS::Events::Rule",
-    },
-    "CIS214EventsRuleRole28D2A9C9": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "events.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CIS214EventsRuleRoleDefaultPolicyEF080D3E": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "states:StartExecution",
-              "Effect": "Allow",
-              "Resource": {
-                "Ref": "SsmParameterValueSolutionsSO0111OrchestratorArnC96584B6F00A464EAD1953AFF4B05118Parameter",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CIS214EventsRuleRoleDefaultPolicyEF080D3E",
-        "Roles": [
-          {
-            "Ref": "CIS214EventsRuleRole28D2A9C9",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
     "CISShortNameB8C8810A": {
       "Properties": {
         "Description": "Provides a short (1-12) character abbreviation for the standard.",

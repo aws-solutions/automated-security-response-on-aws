@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Stack, CfnMapping, App, StackProps, CfnParameter, Aspects } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { Trigger } from '../../../lib/ssmplaybook';
 import { Construct } from 'constructs';
 import { ControlRunbooks } from './control_runbooks-construct';
 import AdminAccountParam from '../../../lib/parameters/admin-account-param';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { IControl } from '../../../lib/playbook-construct';
+import { IControl, remapRemediation } from '../../../lib/playbook-construct';
 import { WaitProvider } from '../../../lib/wait-provider';
 import SsmDocRateLimit from '../../../lib/ssm-doc-rate-limit';
 import NamespaceParam from '../../../lib/parameters/namespace-param';
-import AccountTargetParam from '../../../lib/parameters/account-target-param';
 
 export interface SecurityControlsPlaybookProps extends StackProps {
   solutionId: string;
@@ -30,10 +28,6 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
 
     const stack = Stack.of(this);
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
-    const orchestratorArn = StringParameter.valueForStringParameter(
-      this,
-      `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`,
-    );
 
     //=============================================================================================
     // Parameters
@@ -51,8 +45,6 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
       stringValue: 'enabled',
     });
 
-    const accountTargetParam = new AccountTargetParam(this, 'AccountTargetParams');
-
     new CfnMapping(this, 'SourceCode', {
       mapping: {
         General: {
@@ -63,28 +55,9 @@ export class SecurityControlsPlaybookPrimaryStack extends Stack {
       lazy: true,
     });
 
-    const processRemediation = function (controlSpec: IControl): void {
-      if (controlSpec.executes != undefined && controlSpec.control != controlSpec.executes) {
-        // This control is remapped to another
-        new StringParameter(stack, `Remap ${props.securityStandard} ${controlSpec.control}`, {
-          description: `Remap the ${props.securityStandard} ${controlSpec.control} finding to ${props.securityStandard} ${controlSpec.executes} remediation`,
-          parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandard}/${props.securityStandardVersion}/${controlSpec.control}/remap`,
-          stringValue: `${controlSpec.executes}`,
-        });
-      }
-      const generatorId = `security-control/${controlSpec.control}`;
-      new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {
-        securityStandard: props.securityStandard,
-        securityStandardVersion: props.securityStandardVersion,
-        controlId: controlSpec.control,
-        generatorId: generatorId,
-        targetArn: orchestratorArn,
-        targetAccountIDs: accountTargetParam.targetAccountIDs,
-        targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
-      });
-    };
-
-    props.remediations.forEach(processRemediation);
+    props.remediations.forEach((controlSpec) =>
+      remapRemediation(stack, props.securityStandard, props.securityStandardVersion, RESOURCE_PREFIX, controlSpec),
+    );
   }
 }
 
