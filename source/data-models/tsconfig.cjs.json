@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./cjs",
+    "skipLibCheck": true,
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}

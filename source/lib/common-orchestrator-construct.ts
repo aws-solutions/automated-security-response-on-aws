@@ -12,6 +12,8 @@ import {
   Aws,
 } from 'aws-cdk-lib';
 import { PolicyDocument, PolicyStatement, Role, Effect, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import { LambdaInvoke, SqsSendMessage } from 'aws-cdk-lib/aws-stepfunctions-tasks';
@@ -35,13 +37,16 @@ export interface ConstructProps {
   orchLogGroup: string;
   kmsKeyParm: StringParameter; // to force dependency
   sqsQueue: IQueue;
+  timeoutHours: number;
 }
 
 export class OrchestratorConstruct extends Construct {
   nestedStack: NestedStack;
   readonly ticketGenFunctionNameParamId: string;
   readonly ticketGenFunctionARN: string;
+  readonly ticketGenFunctionNameParamValue: string;
   readonly ticketingEnabled: CfnCondition;
+  readonly executionFailureRuleArn: string;
 
   constructor(scope: Construct, id: string, props: ConstructProps) {
     super(scope, id);
@@ -102,10 +107,13 @@ export class OrchestratorConstruct extends Construct {
     const orchestratorFailed = new sfn.Pass(this, 'Orchestrator Failed', {
       parameters: {
         Notification: {
-          'Message.$': "States.Format('Orchestrator failed: {}', $.Error)",
+          'Message.$': "States.Format('Orchestrator failed: {}', $.ErrorInfo.Error)",
           'State.$': "States.Format('LAMBDA_ERROR')",
-          'Details.$': "States.Format('Cause: {}', $.Cause)",
+          'Details.$': "States.Format('Cause: {}', $.ErrorInfo.Cause)",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
         },
+        'EventType.$': '$.EventType',
+        'Finding.$': '$.Finding',
         'Payload.$': '$',
       },
     });
@@ -114,6 +122,7 @@ export class OrchestratorConstruct extends Construct {
       comment: 'Get the status of the remediation automation document in the target account',
       lambdaFunction: getDocStateFunc,
       taskTimeout: Timeout.duration(Duration.minutes(1)),
+      retryOnServiceExceptions: true,
       resultSelector: {
         'DocState.$': '$.Payload.status',
         'Message.$': '$.Payload.message',
@@ -128,7 +137,15 @@ export class OrchestratorConstruct extends Construct {
       },
       resultPath: '$.AutomationDocument',
     });
-    getDocState.addCatch(orchestratorFailed);
+    getDocState.addRetry({
+      errors: ['Lambda.ServiceException', 'Lambda.TooManyRequestsException', 'States.TaskFailed', 'States.Timeout'],
+      interval: Duration.seconds(5),
+      maxAttempts: 3,
+      backoffRate: 2.0,
+    });
+    getDocState.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
+    });
 
     const getApprovalRequirement = new LambdaInvoke(this, 'Get Remediation Approval Requirement', {
       comment: 'Determine whether the selected remediation requires manual approval',
@@ -142,7 +159,9 @@ export class OrchestratorConstruct extends Construct {
       },
       resultPath: '$.Workflow',
     });
-    getApprovalRequirement.addCatch(orchestratorFailed);
+    getApprovalRequirement.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
+    });
 
     const remediationWait = new sfn.Wait(this, 'Remediation Wait', {
       comment: 'Waiting for remediation',
@@ -158,27 +177,44 @@ export class OrchestratorConstruct extends Construct {
         TaskToken: sfn.JsonPath.taskToken,
         AccountId: sfn.JsonPath.stringAt('$.AutomationDocument.AccountId'),
         ResourceRegion: sfn.JsonPath.stringAt('$.AutomationDocument.ResourceRegion'),
-        executionId: sfn.JsonPath.stringAt('$$.Execution.Id'),
+        StepFunctionsExecutionId: sfn.JsonPath.stringAt('$$.Execution.Id'),
       }),
     });
-    sendTaskToken.addCatch(orchestratorFailed);
+    sendTaskToken.addRetry({
+      errors: ['States.TaskFailed', 'States.Timeout'],
+      interval: Duration.seconds(5),
+      maxAttempts: 3,
+      backoffRate: 2.0,
+    });
+    sendTaskToken.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
+    });
 
     const remediateFinding = new LambdaInvoke(this, 'Execute Remediation', {
       comment: 'Execute the SSM Automation Document in the target account',
       lambdaFunction: execRemediationFunc,
       heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
       taskTimeout: Timeout.duration(Duration.minutes(5)),
+      retryOnServiceExceptions: true,
       resultSelector: {
         'ExecState.$': '$.Payload.status',
         'RemediationOutput.$': '$.Payload.remediation_output',
         'Message.$': '$.Payload.message',
-        'ExecId.$': '$.Payload.executionid',
+        'SSMExecutionId.$': '$.Payload.executionid',
         'Account.$': '$.Payload.executionaccount',
         'Region.$': '$.Payload.executionregion',
       },
       resultPath: '$.SSMExecution',
     });
-    remediateFinding.addCatch(orchestratorFailed);
+    remediateFinding.addRetry({
+      errors: ['Lambda.ServiceException', 'Lambda.TooManyRequestsException', 'States.TaskFailed', 'States.Timeout'],
+      interval: Duration.seconds(2),
+      maxAttempts: 2,
+      backoffRate: 2.0,
+    });
+    remediateFinding.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
+    });
 
     const execMonitor = new LambdaInvoke(this, 'execMonitor', {
       comment: 'Monitor the remediation execution until done',
@@ -187,7 +223,7 @@ export class OrchestratorConstruct extends Construct {
       taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultSelector: {
         'ExecState.$': '$.Payload.status',
-        'ExecId.$': '$.Payload.executionid',
+        'SSMExecutionId.$': '$.Payload.executionid',
         'RemediationState.$': '$.Payload.remediation_status',
         'Message.$': '$.Payload.message',
         'RemediationOutput.$': '$.Payload.remediation_output',
@@ -196,7 +232,9 @@ export class OrchestratorConstruct extends Construct {
       },
       resultPath: '$.Remediation',
     });
-    execMonitor.addCatch(orchestratorFailed);
+    execMonitor.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
+    });
 
     const notify = new LambdaInvoke(this, 'notify', {
       comment: 'Send notifications',
@@ -231,12 +269,19 @@ export class OrchestratorConstruct extends Construct {
       resultPath: '$.GenerateTicket',
     });
 
+    generateTicket.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
+    });
+
     const notifyQueued = new LambdaInvoke(this, 'Queued Notification', {
       comment: 'Send notification that a remediation has queued',
       lambdaFunction: notifyFunc,
       heartbeatTimeout: Timeout.duration(Duration.seconds(60)),
       taskTimeout: Timeout.duration(Duration.minutes(5)),
       resultPath: '$.notificationResult',
+    });
+    notifyQueued.addCatch(orchestratorFailed, {
+      resultPath: '$.ErrorInfo',
     });
 
     new sfn.Fail(this, 'Job Failed', {
@@ -266,6 +311,7 @@ export class OrchestratorConstruct extends Construct {
         Notification: {
           'Message.$': "States.Format('Finding Workflow State is not NEW ({}).', $.Finding.Workflow.Status)",
           'State.$': "States.Format('NOT_NEW')",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
         },
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
@@ -282,6 +328,7 @@ export class OrchestratorConstruct extends Construct {
           'Message.$':
             "States.Format('Automation Document ({}) is not active ({}) in the member account({}).', $.AutomationDocId, $.AutomationDocument.DocState, $.Finding.AwsAccountId)",
           'State.$': "States.Format('RUNBOOK_NOT_ACTIVE')",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
           updateSecHub: 'yes',
         },
         'EventType.$': '$.EventType',
@@ -301,6 +348,7 @@ export class OrchestratorConstruct extends Construct {
           'Message.$':
             "States.Format('ASR runbook for control {} in Security Standard {} v{} could not be found in account {} in region {}. Verify that the member stacks are deployed in this account & region, and that this control is supported by ASR.', $.AutomationDocument.ControlId, $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion, $.Finding.AwsAccountId, $.Finding.Region)",
           'State.$': "States.Format('NO_RUNBOOK')",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
           updateSecHub: 'yes',
         },
         'EventType.$': '$.EventType',
@@ -320,6 +368,7 @@ export class OrchestratorConstruct extends Construct {
           'Message.$':
             "States.Format('Unable to assume the Orchestrator Member Role (SO0111-ASR-Orchestrator-Member) in account {}. Please verify that the automated-security-response-member-roles stack is deployed in the account and the Orchestrator Member Role is valid.', $.Finding.AwsAccountId)",
           'State.$': "States.Format('ASSUME_ROLE_FAILURE')",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
         },
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
@@ -338,6 +387,7 @@ export class OrchestratorConstruct extends Construct {
           'Message.$':
             "States.Format('ASR playbook for ({}) v{} is not enabled.', $.AutomationDocument.SecurityStandard, $.AutomationDocument.SecurityStandardVersion)",
           'State.$': "States.Format('PLAYBOOK_NOT_ENABLED')",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
           updateSecHub: 'yes',
         },
         'EventType.$': '$.EventType',
@@ -356,16 +406,17 @@ export class OrchestratorConstruct extends Construct {
         Notification: {
           'Message.$': "States.Format('check_ssm_doc_state returned an error: {}', $.AutomationDocument.Message)",
           'State.$': "States.Format('LAMBDA_ERROR')",
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
         },
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
       },
     });
 
-    const isdone = new sfn.Choice(this, 'Remediation completed?');
+    const isDone = new sfn.Choice(this, 'Remediation completed?');
 
     const waitForRemediation = new sfn.Wait(this, 'Wait for Remediation', {
-      time: sfn.WaitTime.duration(Duration.seconds(15)),
+      time: sfn.WaitTime.duration(Duration.seconds(10)),
     });
 
     const remediationFailed = new sfn.Pass(this, 'Remediation Failed', {
@@ -381,7 +432,8 @@ export class OrchestratorConstruct extends Construct {
           'RemediationOutput.$': '$.Remediation.RemediationOutput',
           'State.$': '$.Remediation.ExecState',
           'Details.$': '$.Remediation.LogData',
-          'ExecId.$': '$.Remediation.ExecId',
+          'SSMExecutionId.$': '$.Remediation.SSMExecutionId',
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
           'AffectedObject.$': '$.Remediation.AffectedObject',
         },
       },
@@ -405,7 +457,8 @@ export class OrchestratorConstruct extends Construct {
           'RemediationOutput.$': '$.Remediation.RemediationOutput',
           'State.$': "States.Format('SUCCESS')",
           'Details.$': '$.Remediation.LogData',
-          'ExecId.$': '$.Remediation.ExecId',
+          'SSMExecutionId.$': '$.Remediation.SSMExecutionId',
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
           'AffectedObject.$': '$.Remediation.AffectedObject',
         },
       },
@@ -423,7 +476,8 @@ export class OrchestratorConstruct extends Construct {
           'Message.$':
             "States.Format('Remediation queued for {} control {} in account {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId)",
           'State.$': "States.Format('QUEUED')",
-          'ExecId.$': '$.SSMExecution.ExecId',
+          'SSMExecutionId.$': '$.SSMExecution.SSMExecutionId',
+          'StepFunctionsExecutionId.$': '$$.Execution.Id',
           'RemediationOutput.$': '$.SSMExecution.RemediationOutput',
         },
       },
@@ -437,10 +491,8 @@ export class OrchestratorConstruct extends Construct {
     checkWorkflowNew.when(
       sfn.Condition.or(
         sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Custom Action'),
-        sfn.Condition.and(
-          sfn.Condition.stringEquals('$.Finding.Workflow.Status', 'NEW'),
-          sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Imported'),
-        ),
+        sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - API Action'),
+        sfn.Condition.stringEquals('$.Finding.Workflow.Status', 'NEW'),
       ),
       getApprovalRequirement,
     );
@@ -483,15 +535,15 @@ export class OrchestratorConstruct extends Construct {
 
     notifyQueued.next(execMonitor);
 
-    execMonitor.next(isdone);
+    execMonitor.next(isDone);
 
-    isdone.when(sfn.Condition.stringEquals('$.Remediation.RemediationState', 'Failed'), remediationFailed);
-    isdone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Success'), remediationSucceeded);
-    isdone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'TimedOut'), remediationFailed);
-    isdone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Cancelling'), remediationFailed);
-    isdone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Cancelled'), remediationFailed);
-    isdone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Failed'), remediationFailed);
-    isdone.otherwise(waitForRemediation);
+    isDone.when(sfn.Condition.stringEquals('$.Remediation.RemediationState', 'Failed'), remediationFailed);
+    isDone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Success'), remediationSucceeded);
+    isDone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'TimedOut'), remediationFailed);
+    isDone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Cancelling'), remediationFailed);
+    isDone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Cancelled'), remediationFailed);
+    isDone.when(sfn.Condition.stringEquals('$.Remediation.ExecState', 'Failed'), remediationFailed);
+    isDone.otherwise(waitForRemediation);
 
     waitForRemediation.next(execMonitor);
 
@@ -592,7 +644,7 @@ export class OrchestratorConstruct extends Construct {
     const orchestratorStateMachine = new sfn.StateMachine(this, 'StateMachine', {
       definitionBody: sfn.DefinitionBody.fromChainable(extractFindings),
       stateMachineName: `${RESOURCE_PREFIX}-ASR-Orchestrator`,
-      timeout: Duration.minutes(90),
+      timeout: Duration.hours(props.timeoutHours),
       role: orchestratorRole,
       tracingEnabled: true,
     });
@@ -603,6 +655,29 @@ export class OrchestratorConstruct extends Construct {
       parameterName: '/Solutions/' + RESOURCE_PREFIX + '/OrchestratorArn',
       stringValue: orchestratorStateMachine.stateMachineArn,
     });
+
+    const executionFailureRule = new events.Rule(this, 'ExecutionFailureRule', {
+      description: 'Catch Step Functions execution failures and timeouts and send notifications',
+      enabled: true,
+      eventPattern: {
+        source: ['aws.states'],
+        detailType: ['Step Functions Execution Status Change'],
+        detail: {
+          status: ['TIMED_OUT', 'FAILED', 'ABORTED'],
+          stateMachineArn: [orchestratorStateMachine.stateMachineArn],
+        },
+      },
+    });
+
+    executionFailureRule.addTarget(
+      new targets.LambdaFunction(notifyFunc, {
+        event: events.RuleTargetInput.fromEventPath('$'),
+        retryAttempts: 2,
+        maxEventAge: Duration.hours(2),
+      }),
+    );
+
+    this.executionFailureRuleArn = executionFailureRule.ruleArn;
 
     // The arn for the CloudWatch logs group will be the same, regardless of encryption or not,
     // regardless of reuse or not. Set it here:
@@ -631,6 +706,7 @@ export class OrchestratorConstruct extends Construct {
 
     this.ticketGenFunctionNameParamId = ticketGenFunctionNameParam.paramId;
     this.ticketGenFunctionARN = ticketGenFunctionNameParam.functionARN;
+    this.ticketGenFunctionNameParamValue = ticketGenFunctionNameParam.value;
     this.ticketingEnabled = ticketingEnabled;
   }
 

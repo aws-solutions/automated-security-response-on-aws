@@ -117,12 +117,14 @@ def test_no_recent_remediation(mocker):
     current_timestamp = int(datetime.now(timezone.utc).timestamp())
 
     found_timestamp = current_timestamp - 10
+    wait_threshold = int(os.environ.get("RemediationWaitTime", "3"))
 
     dynamodb_client.put_item(
         TableName=table_name,
         Item={
             "AccountID-Region": {"S": table_key},
             "LastExecutedTimestamp": {"S": str(found_timestamp)},
+            "TTL": {"N": str(found_timestamp + wait_threshold)},
         },
     )
 
@@ -166,6 +168,7 @@ def test_recent_remediation(mocker):
     clients = {"dynamodb": dynamodb_client, "stepfunctions": sfn_client}
     current_timestamp = int(datetime.now(timezone.utc).timestamp())
     found_timestamp = current_timestamp + 100
+    wait_threshold = int(os.environ.get("RemediationWaitTime", "3"))
 
     create_table()
     dynamodb_client.put_item(
@@ -173,6 +176,7 @@ def test_recent_remediation(mocker):
         Item={
             "AccountID-Region": {"S": table_key},
             "LastExecutedTimestamp": {"S": str(found_timestamp)},
+            "TTL": {"N": str(found_timestamp + wait_threshold)},
         },
     )
 
@@ -243,6 +247,171 @@ def test_account_missing_last_executed(mocker):
         assert final_item["Item"]["LastExecutedTimestamp"]["S"] == str(
             current_timestamp
         )
+        assert (
+            response
+            == f"Remediation scheduled to execute at {current_timestamp_string}"
+        )
+
+    sfn_stub.deactivate()
+
+
+@mock_aws
+def test_past_timestamp_uses_current_time(mocker):
+    dynamodb_client = boto3.client("dynamodb", config=BOTO_CONFIG)
+    sfn_client = boto3.client("stepfunctions", config=BOTO_CONFIG)
+    sfn_stub = Stubber(sfn_client)
+    clients = {"dynamodb": dynamodb_client, "stepfunctions": sfn_client}
+    create_table()
+
+    current_timestamp = int(datetime.now(timezone.utc).timestamp())
+    found_timestamp = current_timestamp - 2
+    wait_threshold = int(os.environ.get("RemediationWaitTime", "3"))
+
+    dynamodb_client.put_item(
+        TableName=table_name,
+        Item={
+            "AccountID-Region": {"S": table_key},
+            "LastExecutedTimestamp": {"S": str(found_timestamp)},
+            "TTL": {"N": str(found_timestamp + wait_threshold)},
+        },
+    )
+
+    calculated_timestamp = found_timestamp + 3
+
+    expected_timestamp = max(calculated_timestamp, current_timestamp)
+
+    expected_timestamp_string = datetime.fromtimestamp(
+        expected_timestamp, timezone.utc
+    ).strftime(timestampFormat)
+
+    output = {"PlannedTimestamp": expected_timestamp_string}
+    output.update(remediation_details)
+
+    sfn_stub.add_response(
+        "send_task_success",
+        {},
+        {"taskToken": body["TaskToken"], "output": json.dumps(output)},
+    )
+
+    sfn_stub.activate()
+
+    with patch(client, side_effect=lambda service, **_: clients[service]):
+        response = lambda_handler(event, create_lambda_context())
+        final_item = dynamodb_client.get_item(
+            TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
+        )
+        assert final_item["Item"]["LastExecutedTimestamp"]["S"] == str(
+            expected_timestamp
+        )
+        assert (
+            response
+            == f"Remediation scheduled to execute at {expected_timestamp_string}"
+        )
+
+    sfn_stub.deactivate()
+
+
+@mock_aws
+def test_expired_ttl_treated_as_new(mocker):
+    """Test that items with expired TTL are treated as new items."""
+    dynamodb_client = boto3.client("dynamodb", config=BOTO_CONFIG)
+    sfn_client = boto3.client("stepfunctions", config=BOTO_CONFIG)
+    sfn_stub = Stubber(sfn_client)
+    clients = {"dynamodb": dynamodb_client, "stepfunctions": sfn_client}
+    create_table()
+
+    current_timestamp = int(datetime.now(timezone.utc).timestamp())
+    # Old timestamp with expired TTL
+    found_timestamp = current_timestamp - 100
+    expired_ttl = current_timestamp - 50  # TTL expired 50 seconds ago
+
+    dynamodb_client.put_item(
+        TableName=table_name,
+        Item={
+            "AccountID-Region": {"S": table_key},
+            "LastExecutedTimestamp": {"S": str(found_timestamp)},
+            "TTL": {"N": str(expired_ttl)},
+        },
+    )
+
+    current_timestamp_string = datetime.fromtimestamp(
+        current_timestamp, timezone.utc
+    ).strftime(timestampFormat)
+
+    output = {"PlannedTimestamp": current_timestamp_string}
+    output.update(remediation_details)
+
+    sfn_stub.add_response(
+        "send_task_success",
+        {},
+        {"taskToken": body["TaskToken"], "output": json.dumps(output)},
+    )
+
+    sfn_stub.activate()
+
+    with patch(client, side_effect=lambda service, **_: clients[service]):
+        response = lambda_handler(event, create_lambda_context())
+        final_item = dynamodb_client.get_item(
+            TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
+        )
+        # Should be treated as new item with current timestamp
+        assert final_item["Item"]["LastExecutedTimestamp"]["S"] == str(
+            current_timestamp
+        )
+        assert (
+            response
+            == f"Remediation scheduled to execute at {current_timestamp_string}"
+        )
+
+    sfn_stub.deactivate()
+
+
+@mock_aws
+def test_missing_ttl_treated_as_new(mocker):
+    """Test that items without TTL are treated as new items."""
+    dynamodb_client = boto3.client("dynamodb", config=BOTO_CONFIG)
+    sfn_client = boto3.client("stepfunctions", config=BOTO_CONFIG)
+    sfn_stub = Stubber(sfn_client)
+    clients = {"dynamodb": dynamodb_client, "stepfunctions": sfn_client}
+    create_table()
+
+    current_timestamp = int(datetime.now(timezone.utc).timestamp())
+    found_timestamp = current_timestamp - 100
+
+    # Item without TTL (legacy item or TTL not set)
+    dynamodb_client.put_item(
+        TableName=table_name,
+        Item={
+            "AccountID-Region": {"S": table_key},
+            "LastExecutedTimestamp": {"S": str(found_timestamp)},
+        },
+    )
+
+    current_timestamp_string = datetime.fromtimestamp(
+        current_timestamp, timezone.utc
+    ).strftime(timestampFormat)
+
+    output = {"PlannedTimestamp": current_timestamp_string}
+    output.update(remediation_details)
+
+    sfn_stub.add_response(
+        "send_task_success",
+        {},
+        {"taskToken": body["TaskToken"], "output": json.dumps(output)},
+    )
+
+    sfn_stub.activate()
+
+    with patch(client, side_effect=lambda service, **_: clients[service]):
+        response = lambda_handler(event, create_lambda_context())
+        final_item = dynamodb_client.get_item(
+            TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
+        )
+        # Should be treated as new item with current timestamp and TTL set
+        assert final_item["Item"]["LastExecutedTimestamp"]["S"] == str(
+            current_timestamp
+        )
+        assert "TTL" in final_item["Item"]
         assert (
             response
             == f"Remediation scheduled to execute at {current_timestamp_string}"

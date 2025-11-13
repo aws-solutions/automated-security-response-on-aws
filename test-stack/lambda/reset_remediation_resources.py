@@ -76,12 +76,10 @@ def disable_automatic_secret_rotation(secret_id: str) -> str:
     secrets_manager_client = connect_to_service("secretsmanager")
     try:
         secrets_manager_client.cancel_rotate_secret(SecretId=secret_id)
-        logger.info(f"Disabled automatic secret rotation for {secret_id}")
+        logger.debug("Disabled automatic secret rotation")
         return "Success"
     except Exception as e:
-        logger.error(
-            f"Encountered an error when disabling secret rotation for secret {secret_id}: {str(e)}"
-        )
+        logger.error(f"Encountered an error when disabling secret rotation {str(e)}")
         logger.debug(traceback.format_exc())
         return "Failed"
 

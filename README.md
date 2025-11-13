@@ -30,7 +30,7 @@ Findings feature.
 
 ## Architecture Diagram
 
-![](./docs/architecture_diagram.png)
+![](./docs/automated-security-response-on-aws-architecture-diagram.png)
 
 ## Customizing the Solution
 
@@ -44,9 +44,11 @@ or (2) adding a new playbook for a Security Standard not yet implemented in the 
 - a Linux client with the following software
   - AWS CLI v2
   - Python 3.11+ with pip
-  - AWS CDK 2.1020.1+
+  - AWS CDK 2.1025.0+
   - Node.js 22+ with npm
   - Poetry v2 with plugin to export
+  - Java Runtime Environment (JRE) version 17.x or newer
+  - [DynamoDB Local installed and setup](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html#DynamoDBLocal.DownloadingAndRunning.title)
 - source code downloaded from GitHub
 
 
@@ -195,7 +197,12 @@ Add the playbook-specific control ID to the list of remediations in `_<playbook_
 ```
 The `versionAdded` field should be the latest version of the solution. If adding the remediation breaches the template size limit, increase the `versionAdded`. You can adjust the number of remediations included in each playbook member stack in `solution_env.sh`.
 
-#### Step 4: Create the Remediation IAM Role & Integrate Remediation Runbook
+#### Step 4: Create the Markdown File
+In order for the solution to build, you must create a markdown file that describes the remediation runbook you've created. The name of the markdown file must match the control ID in the SC playbook; for example, `ElastiCache.2.md` is created in the path `source/playbooks/SC/ssmdocs/descriptions/ElastiCache.2.md`. This markdown file describes what the runbook does, the input and output parameters, and links to the Security Hub documentation.
+
+> ⚠️ **_IMPORTANT:_** You must create this file following the described naming convention in order to successfully build the solution.
+
+#### Step 5: Create the Remediation IAM Role & Integrate Remediation Runbook
 Each remediation has its own IAM role with custom permissions required to execute the remediation runbook. In addition, the `RunbookFactory.createRemediationRunbook` method needs to be invoked to add the remediation runbook you created in Step 1 to the solution's CloudFormation templates.
 
 In the `remediation-runook-stack.ts`, each remediation has its own code block in the `RemediationRunbookStack` class. The following code block shows the creation of a new IAM role and remediation runbook integration for the ElastiCache.2 remediation:
@@ -234,7 +241,7 @@ In the `remediation-runook-stack.ts`, each remediation has its own code block in
     }
 ```
 
-#### Step 5: Update Unit Tests
+#### Step 6: Update Unit Tests
 We recommend updating and running the unit tests after adding a new remediation. 
 
 First, you must add any new regular expressions (that are not already added) into the `source/test/regex_registry.ts` file.
@@ -340,6 +347,10 @@ export ASSET_BUCKET_NAME=$BASE_BUCKET_NAME-$REGION
 - In your AWS account, create two buckets with these names,
   e.g. `asr-staging-reference` and `asr-staging-us-east-1`. (The reference bucket will hold the CloudFormation templates, the regional bucket will hold all other assets like the lambda code bundle.)
 - Your buckets should be encrypted and disallow public access
+> ⚠️ **_IMPORTANT:_** If you created your `*-reference` bucket in a region other than us-east-1, 
+> you must set the `CUSTOM_REFERENCE_BUCKET_REGION` environment variable before running the build script E.g., 
+> `export CUSTOM_REFERENCE_BUCKET_REGION=us-gov-east-1`. Your reference bucket policy must also give the custom resource Lambda permission to read objects.
+
 
 ```bash
 aws s3 mb s3://$TEMPLATE_BUCKET_NAME/
@@ -368,14 +379,32 @@ export SOLUTION_VERSION=v1.0.0.mybuild
 
 #### Prerequisites
 
+*Poetry*
+
 In order to run the unit tests locally, you must first install and configure Poetry. Poetry is a tool used for managing dependencies and packaging within Python projects.
 We recommend using [pipx](https://pipx.pypa.io/stable/installation/) to install and manage Poetry. You can find other ways to install Poetry in the [Poetry installation guide](https://python-poetry.org/docs/#installation).
 **Note**: You must install Poetry version 2 to execute the `run-unit-tests.sh` script. Since version 2, the `export` command is no longer included by default in Poetry. To use it, you need to install the poetry-plugin-export plugin.
 
 Follow these steps to install and setup Poetry on your local machine:
-- Install version 2.1.2 of Poetry by running `pipx install poetry==2.1.2`
-- Set the `POETRY_HOME` environment variable to be the path to your local installation of Poetry. E.g., `POETRY_HOME=/Users/YOUR_USERNAME/.local/pipx/venvs/poetry`
-- Install Poetry export plugin by running `poetry self add poetry-plugin-export@1.9.0`
+1. Install version 2.1.2 of Poetry by running `pipx install poetry==2.1.2`
+2. Set the `POETRY_HOME` environment variable to be the path to your local installation of Poetry. E.g., `POETRY_HOME=/Users/YOUR_USERNAME/.local/pipx/venvs/poetry`
+3. Install Poetry export plugin by running `poetry self add poetry-plugin-export@1.9.0`
+
+*DynamoDB Local*
+
+The unit tests also rely on DynamoDB Local, which must be installed and setup prior to running the unit tests. DynamoDB Local is a tool used to develop and test applications without accessing the DynamoDB web service.
+You can learn more about DynamoDB Local by visiting the [official AWS documentation page](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html).
+
+Follow these steps to install and setup DynamoDB Local:
+1. Ensure you have installed Java Runtime Environment (JRE) version 17.x or newer.
+2. Download DynamoDB local using the links provided in [the documentation](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html).
+3. Set the `DDB_LOCAL_HOME` environment variable to be the path to your local installation of DynamoDB Local. E.g., `DDB_LOCAL_HOME=/Users/YOUR_USERNAME/dynamodb_local_latest`
+4. Configure local AWS Credentials. Downloadable DynamoDB requires any credentials to work, as shown in the following example:
+```
+AWS Access Key ID: "fakeMyKeyId" 
+AWS Secret Access Key: "fakeSecretAccessKey"
+Default Region Name: "fakeRegion"
+```
 
 ##### Run Unit Tests
 
@@ -405,11 +434,11 @@ By default, the templates created by build-s3-dist.sh expect the software to be 
 Upload the build artifacts from `global-s3-assets/` to the template bucket and the artifacts from `regional-s3-assets/` to the regional bucket:
 
 ```bash
-aws s3 ls s3://$TEMPLATE_BUCKET_NAME # test that bucket exists - should not give an error
-aws s3 ls s3://$ASSET_BUCKET_NAME # test that bucket exists - should not give an error
+aws s3 ls s3://$TEMPLATE_BUCKET_NAME --region $REGION # test that bucket exists - should not give an error
+aws s3 ls s3://$ASSET_BUCKET_NAME --region $REGION # test that bucket exists - should not give an error
 cd ./deployment
-aws s3 cp global-s3-assets/  s3://$TEMPLATE_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control
-aws s3 cp regional-s3-assets/  s3://$ASSET_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control
+aws s3 cp global-s3-assets/  s3://$TEMPLATE_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control --region $REGION
+aws s3 cp regional-s3-assets/  s3://$ASSET_BUCKET_NAME/$SOLUTION_NAME/$SOLUTION_VERSION/ --recursive --acl bucket-owner-full-control --region $REGION
 ```
 
 _✅ All assets are now staged on your S3 buckets. You or any user may use S3 links for deployments_
@@ -425,18 +454,17 @@ If you anticipate that you will need to deploy multiple times during your develo
 For example:
 
 ```bash
-  export ADMIN_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-admin.template
+  export ADMIN_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-admin.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
   --stack-name ASR-Admin-$(date +%s) \
   --template-url $ADMIN_TEMPLATE_URL \
+  --region $REGION \
   --parameters \
     ParameterKey=LoadSCAdminStack,ParameterValue=yes \
     ParameterKey=LoadAFSBPAdminStack,ParameterValue=no \
     ParameterKey=LoadCIS120AdminStack,ParameterValue=no \
     ParameterKey=LoadCIS140AdminStack,ParameterValue=no \
-    ParameterKey=TargetAccountIDsStrategy,ParameterValue=INCLUDE \
-    ParameterKey=TargetAccountIDs,ParameterValue=ALL \
     ParameterKey=LoadCIS300AdminStack,ParameterValue=no \
     ParameterKey=LoadNIST80053AdminStack,ParameterValue=no \
     ParameterKey=LoadPCI321AdminStack,ParameterValue=no \
@@ -444,14 +472,18 @@ For example:
     ParameterKey=UseCloudWatchMetrics,ParameterValue=yes \
     ParameterKey=UseCloudWatchMetricsAlarms,ParameterValue=yes \
     ParameterKey=RemediationFailureAlarmThreshold,ParameterValue=5 \
-    ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no
+    ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no \
+    ParameterKey=ShouldDeployWebUI,ParameterValue=yes \
+    ParameterKey=AdminUserEmail,ParameterValue={AdminUserEmail} \
+    ParameterKey=TicketGenFunctionName,ParameterValue=""
     
   export NAMESPACE=$(date +%s | tail -c 9)
-  export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member.template
+  export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
   --stack-name ASR-Member-$(date +%s) \
   --template-url $MEMBER_TEMPLATE_URL \
+  --region $REGION \
   --parameters \
     ParameterKey=LoadSCMemberStack,ParameterValue=yes \
     ParameterKey=LoadAFSBPMemberStack,ParameterValue=no \
@@ -463,13 +495,15 @@ For example:
     ParameterKey=CreateS3BucketForRedshiftAuditLogging,ParameterValue=no \
     ParameterKey=LogGroupName,ParameterValue=random-log-group-123456789012 \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
-    ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount}
+    ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount} \
+    ParameterKey=EnableCloudTrailForASRActionLog,ParameterValue=no
     
-  export MEMBER_ROLES_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member-roles.template
+  export MEMBER_ROLES_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member-roles.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
   --stack-name ASR-Member-Roles-$(date +%s) \
   --template-url $MEMBER_ROLES_TEMPLATE_URL \
+  --region $REGION \
   --parameters \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
     ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount}
@@ -509,11 +543,9 @@ For example:
   |-test/                 [ CDK and SSM document unit tests ]
 </pre>
 
-## Collection of operational metrics
+## Data Collection
 
-This solution collects anonymized operational metrics to help AWS improve the quality of features of the solution. For
-more information, including how to disable this capability, please see the [Implementation
-Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/collection-of-operational-metrics.html)
+This solution sends operational metrics to AWS (the “Data”) about the use of this solution. We use this Data to better understand how customers use this solution and related services and products. AWS’s collection of this Data is subject to the [AWS Privacy Notice](https://aws.amazon.com/privacy/).
 
 ## License
 

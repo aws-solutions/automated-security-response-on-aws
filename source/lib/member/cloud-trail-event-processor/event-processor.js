@@ -69,6 +69,7 @@ async function assumeRoleInAdminAccount(AssumeRoleCommand, stsClient) {
   const assumeRoleCommand = new AssumeRoleCommand({
     RoleArn: process.env.LOG_WRITER_ROLE_ARN,
     RoleSessionName: 'EventProcessorSession',
+    ExternalId: process.env.LOG_WRITER_EXTERNAL_ID,
   });
   const assumeRoleResponse = await stsClient.send(assumeRoleCommand);
 

@@ -40,34 +40,20 @@ outputs:
 
 mainSteps:
   -
-    name: CreateLogGroup
-    action: 'aws:executeAPI'
-    inputs:
-      Service: logs
-      Api: CreateLogGroup
-      LogGroupName: '{{LogGroupName}}'
-    description: Create the log group
-    outputs:
-      - Name: Output
-        Selector: $
-        Type: StringMap
-  -
-    name: WaitForCreation
+    name: CreateOrGetLogGroup
     action: 'aws:executeScript'
     inputs:
       InputPayload:
         LogGroup: '{{LogGroupName}}'
       Runtime: python3.11
-      Handler: wait_for_loggroup
+      Handler: create_or_get_loggroup
       Script: |-
         %%SCRIPT=EnableCloudTrailToCloudWatchLogging_waitforloggroup.py%%
     outputs:
       - Name: CloudWatchLogsGroupArn
         Selector: $.Payload
         Type: String
-
-    isEnd: false
-
+    description: Create log group if it doesn't exist, or get existing log group ARN
   -
     name: UpdateTrailToCWLogs
     action: 'aws:executeAPI'
@@ -75,7 +61,7 @@ mainSteps:
       Service: cloudtrail
       Api: UpdateTrail
       Name: '{{TrailName}}'
-      CloudWatchLogsGroupArn: '{{WaitForCreation.CloudWatchLogsGroupArn}}'
+      CloudWatchLogsGroupArn: '{{CreateOrGetLogGroup.CloudWatchLogsGroupArn}}'
       CloudWatchLogsRoleArn: '{{CloudWatchLogsRole}}'
     description: Enable logging to CloudWatch Logs
     outputs:

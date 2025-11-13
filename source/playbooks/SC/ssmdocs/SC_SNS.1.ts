@@ -14,7 +14,7 @@ export class EnableEncryptionForSNSTopicDocument extends ControlRunbookDocument 
     const docInputs = [
       Input.ofTypeString('KmsKeyArn', {
         allowedPattern: String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:^(alias\/)[a-zA-Z0-9:/_-]+$)|(?:key\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$`,
-        defaultValue: '{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}',
+        defaultValue: `{{ssm:/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN}}`,
       }),
     ];
 

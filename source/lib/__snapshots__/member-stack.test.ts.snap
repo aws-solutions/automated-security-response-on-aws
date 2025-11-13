@@ -181,7 +181,7 @@ exports[`member stack snapshot matches 1`] = `
         "no",
       ],
       "Default": "no",
-      "Description": "Create a CloudTrail to monitor ASR actions in this account on the ASR CloudWatch Dashboard?",
+      "Description": "Create a CloudTrail to monitor ASR actions in this account on the ASR CloudWatch Dashboard. ",
       "Type": "String",
     },
     "LoadAFSBPMemberStack": {
@@ -248,7 +248,8 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "String",
     },
     "LogGroupName": {
-      "Description": "Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail",
+      "Description": "Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail. Mandatory to use certain CloudWatch controls (e.g. PCI.CW.1).",
+      "MinLength": 1,
       "Type": "String",
     },
     "Namespace": {
@@ -378,6 +379,9 @@ exports[`member stack snapshot matches 1`] = `
         "Description": "ASR - Handles deployment related custom actions",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
             "AWS_PARTITION": {
               "Ref": "AWS::Partition",
             },
@@ -389,6 +393,9 @@ exports[`member stack snapshot matches 1`] = `
             "POWERTOOLS_TRACER_CAPTURE_RESPONSE": "true",
             "SOLUTION_ID": "SO9999",
             "SOLUTION_VERSION": "v9.9.9",
+            "STACK_ID": {
+              "Ref": "AWS::StackId",
+            },
           },
         },
         "Handler": "deployment_metrics_custom_resource.lambda_handler",
@@ -456,6 +463,7 @@ exports[`member stack snapshot matches 1`] = `
             "Ref": "SecHubAdminAccount",
           },
         },
+        "Timestamp": "1735689600000",
       },
       "Type": "Custom::DeploymentMetrics",
       "UpdateReplacePolicy": "Delete",
@@ -539,6 +547,7 @@ exports[`member stack snapshot matches 1`] = `
                     "ssm:GetParameter",
                     "ssm:GetParameters",
                     "ssm:PutParameter",
+                    "ssm:DeleteParameter",
                   ],
                   "Effect": "Allow",
                   "Resource": {
@@ -557,6 +566,11 @@ exports[`member stack snapshot matches 1`] = `
                       ],
                     ],
                   },
+                },
+                {
+                  "Action": "securityhub:DescribeSecurityHubV2",
+                  "Effect": "Allow",
+                  "Resource": "*",
                 },
               ],
               "Version": "2012-10-17",

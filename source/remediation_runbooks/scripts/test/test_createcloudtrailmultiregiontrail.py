@@ -35,7 +35,7 @@ def test_create_encrypted_bucket(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
@@ -112,7 +112,7 @@ def test_bucket_already_exists(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
@@ -144,7 +144,7 @@ def test_bucket_already_owned_by_you(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
@@ -247,7 +247,7 @@ def test_create_bucket_policy(mocker):
 def test_create_logging_bucket(mocker):
     event: Event = {
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
         "account": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -324,7 +324,7 @@ def test_enable_cloudtrail(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -332,6 +332,13 @@ def test_enable_cloudtrail(mocker):
         "cloudtrail", config=BOTO_CONFIG
     )
     ct_stubber = Stubber(ct_client)
+
+    # Add describe_trails response (trail doesn't exist)
+    ct_stubber.add_response(
+        "describe_trails",
+        {"trailList": []},
+        {"trailNameList": ["multi-region-cloud-trail"]},
+    )
 
     ct_stubber.add_response(
         "create_trail",
@@ -342,7 +349,7 @@ def test_enable_cloudtrail(mocker):
             "IncludeGlobalServiceEvents": True,
             "EnableLogFileValidation": True,
             "IsMultiRegionTrail": True,
-            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
         },
     )
 
@@ -353,9 +360,224 @@ def test_enable_cloudtrail(mocker):
         "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
         return_value=ct_client,
     )
-    enablecloudtrail.enable_cloudtrail(event, {})
+    result = enablecloudtrail.enable_cloudtrail(event, {})
+    assert result == {
+        "output": {"Message": "CloudTrail Trail multi-region-cloud-trail created"}
+    }
     ct_stubber.assert_no_pending_responses()
     ct_stubber.deactivate()
+
+
+def test_enable_cloudtrail_trail_exists(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "region": get_region(),
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "cloudtrail_bucket": "mahbukkit",
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    ct_client = botocore.session.get_session().create_client(
+        "cloudtrail", config=BOTO_CONFIG
+    )
+    ct_stubber = Stubber(ct_client)
+
+    ct_stubber.add_response(
+        "describe_trails",
+        {"trailList": [{"Name": "multi-region-cloud-trail"}]},
+        {"trailNameList": ["multi-region-cloud-trail"]},
+    )
+
+    ct_stubber.add_response(
+        "update_trail",
+        {},
+        {
+            "Name": "multi-region-cloud-trail",
+            "S3BucketName": "mahbukkit",
+            "IncludeGlobalServiceEvents": True,
+            "EnableLogFileValidation": True,
+            "IsMultiRegionTrail": True,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        },
+    )
+
+    ct_stubber.add_response("start_logging", {}, {"Name": "multi-region-cloud-trail"})
+
+    ct_stubber.activate()
+    mocker.patch(
+        "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
+        return_value=ct_client,
+    )
+    result = enablecloudtrail.enable_cloudtrail(event, {})
+    assert result == {
+        "output": {"Message": "CloudTrail Trail multi-region-cloud-trail updated"}
+    }
+    ct_stubber.assert_no_pending_responses()
+    ct_stubber.deactivate()
+
+
+def test_enable_cloudtrail_trail_already_exists_exception(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "region": get_region(),
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "cloudtrail_bucket": "mahbukkit",
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    ct_client = botocore.session.get_session().create_client(
+        "cloudtrail", config=BOTO_CONFIG
+    )
+    ct_stubber = Stubber(ct_client)
+
+    ct_stubber.add_response(
+        "describe_trails",
+        {"trailList": []},
+        {"trailNameList": ["multi-region-cloud-trail"]},
+    )
+
+    ct_stubber.add_client_error("create_trail", "TrailAlreadyExistsException")
+
+    ct_stubber.add_response(
+        "update_trail",
+        {},
+        {
+            "Name": "multi-region-cloud-trail",
+            "S3BucketName": "mahbukkit",
+            "IncludeGlobalServiceEvents": True,
+            "EnableLogFileValidation": True,
+            "IsMultiRegionTrail": True,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        },
+    )
+
+    ct_stubber.add_response("start_logging", {}, {"Name": "multi-region-cloud-trail"})
+
+    ct_stubber.activate()
+    mocker.patch(
+        "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
+        return_value=ct_client,
+    )
+    result = enablecloudtrail.enable_cloudtrail(event, {})
+    assert result == {
+        "output": {"Message": "CloudTrail Trail multi-region-cloud-trail updated"}
+    }
+    ct_stubber.assert_no_pending_responses()
+    ct_stubber.deactivate()
+
+
+def test_enable_cloudtrail_update_fails_after_trail_exists_exception(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "region": get_region(),
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "cloudtrail_bucket": "mahbukkit",
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    ct_client = botocore.session.get_session().create_client(
+        "cloudtrail", config=BOTO_CONFIG
+    )
+    ct_stubber = Stubber(ct_client)
+
+    ct_stubber.add_response(
+        "describe_trails",
+        {"trailList": []},
+        {"trailNameList": ["multi-region-cloud-trail"]},
+    )
+
+    ct_stubber.add_client_error("create_trail", "TrailAlreadyExistsException")
+
+    ct_stubber.add_client_error("update_trail", "InvalidParameterException")
+
+    ct_stubber.activate()
+    mocker.patch(
+        "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
+        return_value=ct_client,
+    )
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        enablecloudtrail.enable_cloudtrail(event, {})
+    assert pytest_wrapped_e.type == SystemExit
+    assert "Error updating CloudTrail trail" in str(pytest_wrapped_e.value.code)
+    ct_stubber.deactivate()
+
+
+def test_enable_cloudtrail_client_error(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "region": get_region(),
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "cloudtrail_bucket": "mahbukkit",
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    ct_client = botocore.session.get_session().create_client(
+        "cloudtrail", config=BOTO_CONFIG
+    )
+    ct_stubber = Stubber(ct_client)
+
+    ct_stubber.add_response(
+        "describe_trails",
+        {"trailList": []},
+        {"trailNameList": ["multi-region-cloud-trail"]},
+    )
+
+    ct_stubber.add_client_error("create_trail", "InsufficientS3BucketPolicyException")
+
+    ct_stubber.activate()
+    mocker.patch(
+        "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
+        return_value=ct_client,
+    )
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        enablecloudtrail.enable_cloudtrail(event, {})
+    assert pytest_wrapped_e.type == SystemExit
+    assert "Error enabling CloudTrail" in str(pytest_wrapped_e.value.code)
+    ct_stubber.deactivate()
+
+
+def test_enable_cloudtrail_general_exception(mocker):
+    event = {
+        "SolutionId": "SO0000",
+        "SolutionVersion": "1.2.3",
+        "region": get_region(),
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "cloudtrail_bucket": "mahbukkit",
+    }
+    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
+    ct_client = botocore.session.get_session().create_client(
+        "cloudtrail", config=BOTO_CONFIG
+    )
+    ct_stubber = Stubber(ct_client)
+
+    ct_stubber.add_response(
+        "describe_trails",
+        {"trailList": []},
+        {"trailNameList": ["multi-region-cloud-trail"]},
+    )
+
+    ct_stubber.activate()
+    mocker.patch(
+        "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
+        return_value=ct_client,
+    )
+
+    mocker.patch.object(
+        ct_client, "create_trail", side_effect=Exception("Unexpected error")
+    )
+
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        enablecloudtrail.enable_cloudtrail(event, {})
+    assert pytest_wrapped_e.type == SystemExit
+    assert "Error enabling CloudTrail" in str(pytest_wrapped_e.value.code)
+    ct_stubber.deactivate()
+
+
+def test_connect_to_cloudtrail():
+    boto_config = Config(retries={"mode": "standard"})
+    client = enablecloudtrail.connect_to_cloudtrail(boto_config)
+    assert client is not None
+    assert client._service_model.service_name == "cloudtrail"
 
 
 # =====================================================================================

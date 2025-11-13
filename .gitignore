@@ -7,18 +7,24 @@
 /build
 # test
 /deployment/test/coverage-reports/
+/deployment/utils/coverage
 requirements_dev.txt
 
 # Typescript
 /source/dist/
-*.d.ts
+/source/webui/dist/
+/source/data-models/cjs/
+/source/data-models/esm/
+*.d.ts*
 *.js
-
-# CloudTrail event processor is JavaScript
+*.cjs
+!source/webui/public/mockServiceWorker.js
+!deployment/manifest-generator/app.js
+!/**/jest.config.js
+!source/.eslintrc.js
 !**/cloud-trail-event-processor/*.js
-
-# config
-!.eslintrc.js
+!deployment/utils/generate-controls-list.js
+!deployment/utils/generate-controls-list.test.js
 
 # Node
 node_modules/
@@ -45,3 +51,6 @@ requirements.txt
 
 # system
 .DS_Store
+/.temp_redpencil/
+/bom.json
+aws-exports.json

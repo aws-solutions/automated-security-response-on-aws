@@ -1,16 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import * as cdk from 'aws-cdk-lib';
-import { App, CfnOutput, Fn } from 'aws-cdk-lib';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { Tracing } from 'aws-cdk-lib/aws-lambda';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { CfnParameter, StringParameter } from 'aws-cdk-lib/aws-ssm';
-import * as kms from 'aws-cdk-lib/aws-kms';
-import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
+import { App, CfnOutput, CfnRule, CustomResource, Duration, Fn } from 'aws-cdk-lib';
 import {
   AccountRootPrincipal,
   CfnPolicy,
@@ -21,17 +12,29 @@ import {
   Role,
   ServicePrincipal,
 } from 'aws-cdk-lib/aws-iam';
-import { OrchestratorConstruct } from './common-orchestrator-construct';
+import * as kms from 'aws-cdk-lib/aws-kms';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Tracing } from 'aws-cdk-lib/aws-lambda';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { CfnParameter, StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
-import { OneTrigger } from './ssmplaybook';
-import { CloudWatchMetrics } from './cloudwatch_metrics';
-import { AdminPlaybook } from './admin-playbook';
 import { scPlaybookProps, standardPlaybookProps } from '../playbooks/playbook-index';
 import { ActionLog } from './action-log';
+import { AdminPlaybook } from './admin-playbook';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
-import AccountTargetParam from './parameters/account-target-param';
 import MetricResources from './cdk-helper/metric-resources';
-import { removeEventSourceMappingTags } from './tags/applyTag';
+import { CloudWatchMetrics } from './cloudwatch_metrics';
+import { OrchestratorConstruct } from './common-orchestrator-construct';
+import { ASRParameters } from './constants/parameters';
+import { PreProcessorConstruct } from './pre-processor-construct';
+import { OneTrigger, Trigger } from './ssmplaybook';
+import { SynchronizationFindingsConstruct } from './synchronization-findings-construct';
+import { WebUINestedStack } from './webui-nested-stack';
+import { AttributeType, BillingMode, Table, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
 
 export interface ASRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -46,8 +49,6 @@ export interface ASRStackProps extends cdk.StackProps {
 }
 
 export class AdministratorStack extends cdk.Stack {
-  private static readonly sendAnonymizedData: string = 'Yes';
-
   constructor(scope: App, id: string, props: ASRStackProps) {
     super(scope, id, props);
     const stack = cdk.Stack.of(this);
@@ -56,14 +57,27 @@ export class AdministratorStack extends cdk.Stack {
     //=============================================================================================
     // Parameters
     //=============================================================================================
-    const accountTargetParam = new AccountTargetParam(this, 'AccountTargetParams');
-
     //-------------------------------------------------------------------------
     // Solutions Bucket - Source Code
     //
-    const solutionsBucket = s3.Bucket.fromBucketAttributes(this, 'SolutionsBucket', {
+    const sourceCodeBucket = s3.Bucket.fromBucketAttributes(this, 'SourceCodeBucket', {
       bucketName: props.solutionDistBucket + '-' + this.region,
     });
+
+    const solutionsReferenceBucket = props.solutionDistBucket + '-reference';
+    const solutionsReferenceBucketPartition = stack.partition;
+    const customReferenceBucketRegion = process.env.CUSTOM_REFERENCE_BUCKET_REGION ?? '';
+    const findingsTTL = process.env.FINDINGS_TTL_DAYS || '8';
+    const historyTTL = process.env.HISTORY_TTL_DAYS || '365';
+    const exportFilesTTL = process.env.EXPORTFILES_TTL_DAYS ? Number(process.env.EXPORTFILES_TTL_DAYS) : 30;
+    const presignedUrlTTL = process.env.PRESIGNED_URL_TTL_DAYS ? Number(process.env.PRESIGNED_URL_TTL_DAYS) : 1; // maximum allowed value is 1 day
+    const orchestratorTimeoutHours = process.env.ORCHESTRATOR_TIMEOUT_HOURS
+      ? Number(process.env.ORCHESTRATOR_TIMEOUT_HOURS)
+      : 23;
+
+    // Pre-processor function name
+    const preProcessorFunctionName = `${props.solutionId}-ASR-PreProcessor`;
+    const apiFunctionName = `${props.solutionId}-ASR-APIs`;
 
     //=========================================================================
     // MAPPINGS
@@ -84,9 +98,11 @@ export class AdministratorStack extends cdk.Stack {
     // Key Policy
     const kmsKeyPolicy: PolicyDocument = new PolicyDocument();
 
+    const kmsActions = ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'];
+
     const kmsServicePolicy = new PolicyStatement({
       principals: [new ServicePrincipal('sns.amazonaws.com'), new ServicePrincipal(`logs.${this.urlSuffix}`)],
-      actions: ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'],
+      actions: kmsActions,
       resources: ['*'],
       conditions: {
         ArnEquals: {
@@ -98,6 +114,26 @@ export class AdministratorStack extends cdk.Stack {
       },
     });
     kmsKeyPolicy.addStatements(kmsServicePolicy);
+
+    // key encrypts DynamoDB tables and Pre-processor queue
+    const kmsGeneralServicePolicy = new PolicyStatement({
+      principals: [
+        new ServicePrincipal('dynamodb.amazonaws.com'),
+        new ServicePrincipal('events.amazonaws.com'), // remediation Trigger requires access to encrypted pre-processor queue
+        new ServicePrincipal('sqs.amazonaws.com'),
+      ],
+      actions: kmsActions,
+      resources: ['*'],
+    });
+    kmsKeyPolicy.addStatements(kmsGeneralServicePolicy);
+
+    // Pre-processor lambda requires access to encrypted Findings table
+    const kmsPreProcessorPolicy = new PolicyStatement({
+      principals: [new ServicePrincipal('lambda.amazonaws.com')],
+      actions: kmsActions,
+      resources: [`arn:${this.partition}:lambda:${this.region}:${this.account}:function:${preProcessorFunctionName}`],
+    });
+    kmsKeyPolicy.addStatements(kmsPreProcessorPolicy);
 
     const kmsRootPolicy = new PolicyStatement({
       principals: [new AccountRootPrincipal()],
@@ -134,19 +170,165 @@ export class AdministratorStack extends cdk.Stack {
       stringValue: primarySolutionTopic.topicArn,
     });
 
-    const mapping = new cdk.CfnMapping(this, 'mappings');
-    mapping.setValue('sendAnonymizedMetrics', 'data', AdministratorStack.sendAnonymizedData);
-
-    new StringParameter(this, 'SHARR_SendAnonymousMetrics', {
-      description: 'Flag to enable or disable sending anonymous metrics.',
-      parameterName: '/Solutions/' + RESOURCE_NAME_PREFIX + '/sendAnonymizedMetrics',
-      stringValue: mapping.findInMap('sendAnonymizedMetrics', 'data'),
-    });
-
     new StringParameter(this, 'SHARR_version', {
       description: 'Solution version for metrics.',
       parameterName: '/Solutions/' + RESOURCE_NAME_PREFIX + '/version',
       stringValue: props.solutionVersion,
+    });
+
+    new StringParameter(this, 'ASR_AccountFilters', {
+      description:
+        'List of AWS Account IDs to filter remediations. Default value: none. Note: Filter only apply to automated runs, not manual executions.',
+      parameterName: ASRParameters.ACCOUNT_FILTERS,
+      stringValue: ASRParameters.DEFAULT_FILTER_VALUE,
+      allowedPattern: ASRParameters.ACCOUNT_FILTER_PATTERN.source,
+    });
+
+    new StringParameter(this, 'ASR_AccountFilterMode', {
+      description: "Set to 'Include', 'Exclude', or 'Disabled' to control AccountFilter.",
+      parameterName: ASRParameters.ACCOUNT_FILTER_MODE,
+      stringValue: ASRParameters.DEFAULT_FILTER_MODE,
+      allowedPattern: ASRParameters.DEFAULT_FILTER_MODE_PATTERN.source,
+    });
+
+    new StringParameter(this, 'ASR_OUFilters', {
+      description:
+        'List of organizational units to filter remediations. Default value: none. Note: Filter only apply to automated runs, not manual executions.',
+      parameterName: ASRParameters.OU_FILTERS,
+      stringValue: ASRParameters.DEFAULT_FILTER_VALUE,
+      allowedPattern: ASRParameters.OU_FILTER_PATTERN.source,
+    });
+
+    new StringParameter(this, 'ASR_OUFilterMode', {
+      description: "Set to 'Include', 'Exclude', or 'Disabled' to control OUFilters",
+      parameterName: ASRParameters.OU_FILTER_MODE,
+      stringValue: ASRParameters.DEFAULT_FILTER_MODE,
+      allowedPattern: ASRParameters.DEFAULT_FILTER_MODE_PATTERN.source,
+    });
+
+    new StringParameter(this, 'ASR_TagFilters', {
+      description:
+        'List of tag keys to filter remediations. Default value: none. Note: Filter only apply to automated runs, not manual executions.',
+      parameterName: ASRParameters.TAG_FILTERS,
+      stringValue: ASRParameters.DEFAULT_FILTER_VALUE,
+      allowedPattern: ASRParameters.TAG_FILTER_PATTERN.source,
+    });
+
+    new StringParameter(this, 'ASR_TagFilterMode', {
+      description: "Set to 'Include', 'Exclude', or 'Disabled' to control TagFilters",
+      parameterName: ASRParameters.TAG_FILTER_MODE,
+      stringValue: ASRParameters.DEFAULT_FILTER_MODE,
+      allowedPattern: ASRParameters.DEFAULT_FILTER_MODE_PATTERN.source,
+    });
+
+    //---------------------------------------------------------------------
+    // ASR Findings Table - Stores findings that ASR supports for remediation
+    //
+    const asrFindingsTable = new Table(this, 'ASRFindingsTable', {
+      partitionKey: { name: 'findingType', type: AttributeType.STRING },
+      sortKey: { name: 'findingId', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      encryption: TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: kmsKey,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
+      deletionProtection: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      timeToLiveAttribute: 'expireAt',
+    });
+
+    // Local Secondary Index
+    asrFindingsTable.addLocalSecondaryIndex({
+      indexName: 'securityHubUpdatedAtTime-findingId-LSI',
+      sortKey: { name: 'securityHubUpdatedAtTime#findingId', type: AttributeType.STRING },
+    });
+
+    // Global Secondary Index 1: accountId
+    asrFindingsTable.addGlobalSecondaryIndex({
+      indexName: 'accountId-securityHubUpdatedAtTime-GSI',
+      partitionKey: { name: 'accountId', type: AttributeType.STRING },
+      sortKey: { name: 'securityHubUpdatedAtTime#findingId', type: AttributeType.STRING },
+    });
+
+    // Global Secondary Index 2: resourceId
+    asrFindingsTable.addGlobalSecondaryIndex({
+      indexName: 'resourceId-securityHubUpdatedAtTime-GSI',
+      partitionKey: { name: 'resourceId', type: AttributeType.STRING },
+      sortKey: { name: 'securityHubUpdatedAtTime#findingId', type: AttributeType.STRING },
+    });
+
+    // Global Secondary Index 3: Severity
+    asrFindingsTable.addGlobalSecondaryIndex({
+      indexName: 'severity-securityHubUpdatedAtTime-GSI',
+      partitionKey: { name: 'severity', type: AttributeType.STRING },
+      sortKey: { name: 'securityHubUpdatedAtTime#findingId', type: AttributeType.STRING },
+    });
+
+    // Global Secondary Index 4: All findings sorted by securityHubUpdatedAtTime
+    asrFindingsTable.addGlobalSecondaryIndex({
+      indexName: 'allFindings-securityHubUpdatedAtTime-GSI',
+      partitionKey: { name: 'FINDING_CONSTANT', type: AttributeType.STRING },
+      sortKey: { name: 'securityHubUpdatedAtTime#findingId', type: AttributeType.STRING },
+    });
+
+    // Global Secondary Index 5: All findings sorted by severity (normalized) then time
+    asrFindingsTable.addGlobalSecondaryIndex({
+      indexName: 'allFindings-severityNormalized-GSI',
+      partitionKey: { name: 'FINDING_CONSTANT', type: AttributeType.STRING },
+      sortKey: { name: 'severityNormalized#securityHubUpdatedAtTime#findingId', type: AttributeType.STRING },
+    });
+
+    //---------------------------------------------------------------------
+    // ASR Remediation History Table - Stores remediation execution history
+    //
+    const remediationHistoryTable = new Table(this, 'ASRRemediationHistoryTable', {
+      partitionKey: { name: 'findingType', type: AttributeType.STRING },
+      sortKey: { name: 'findingId#executionId', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      encryption: TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: kmsKey,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
+      deletionProtection: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      timeToLiveAttribute: 'expireAt',
+    });
+
+    // GSI1: AccountID (Partition key), lastUpdatedTime#FindingId (Sort Key)
+    remediationHistoryTable.addGlobalSecondaryIndex({
+      indexName: 'accountId-lastUpdatedTime-GSI',
+      partitionKey: { name: 'accountId', type: AttributeType.STRING },
+      sortKey: { name: 'lastUpdatedTime#findingId', type: AttributeType.STRING },
+    });
+
+    // GSI2: UserId (Partition key), lastUpdatedTime#FindingId (Sort Key)
+    remediationHistoryTable.addGlobalSecondaryIndex({
+      indexName: 'userId-lastUpdatedTime-GSI',
+      partitionKey: { name: 'userId', type: AttributeType.STRING },
+      sortKey: { name: 'lastUpdatedTime#findingId', type: AttributeType.STRING },
+    });
+
+    // GSI3: ResourceID (Partition key), lastUpdatedTime#FindingId (Sort Key)
+    remediationHistoryTable.addGlobalSecondaryIndex({
+      indexName: 'resourceId-lastUpdatedTime-GSI',
+      partitionKey: { name: 'resourceId', type: AttributeType.STRING },
+      sortKey: { name: 'lastUpdatedTime#findingId', type: AttributeType.STRING },
+    });
+
+    // GSI4: "remediation" (Partition key – constant), lastUpdatedTime#FindingId (Sort Key)
+    remediationHistoryTable.addGlobalSecondaryIndex({
+      indexName: 'allRemediations-lastUpdatedTime-GSI',
+      partitionKey: { name: 'REMEDIATION_CONSTANT', type: AttributeType.STRING },
+      sortKey: { name: 'lastUpdatedTime#findingId', type: AttributeType.STRING },
+    });
+
+    // GSI5: FindingId (Partition key), lastUpdatedTime#FindingId (Sort Key) - For efficient CSV export
+    remediationHistoryTable.addGlobalSecondaryIndex({
+      indexName: 'findingId-lastUpdatedTime-GSI',
+      partitionKey: { name: 'findingId', type: AttributeType.STRING },
+      sortKey: { name: 'lastUpdatedTime#findingId', type: AttributeType.STRING },
     });
 
     const asrLambdaLayer = new lambda.LayerVersion(this, 'ASRLambdaLayer', {
@@ -154,7 +336,7 @@ export class AdministratorStack extends cdk.Stack {
       description: 'SO0111 ASR Common functions used by the solution',
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/layer.zip',
       ),
     });
@@ -175,7 +357,7 @@ export class AdministratorStack extends cdk.Stack {
           resources: [`arn:${this.partition}:logs:*:${this.account}:log-group:*`],
         }),
         new PolicyStatement({
-          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter'],
+          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter', 'ssm:DeleteParameter'],
           resources: [`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`],
         }),
         new PolicyStatement({
@@ -243,7 +425,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Checks the status of an SSM Automation Document in the target account',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/check_ssm_doc_state.py.zip',
       ),
       environment: {
@@ -257,6 +439,8 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -298,7 +482,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Determines if a manual approval is required for remediation',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/get_approval_requirement.py.zip',
       ),
       environment: {
@@ -313,6 +497,8 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -354,7 +540,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Executes an SSM Automation Document in a target account',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/exec_ssm_doc.py.zip',
       ),
       environment: {
@@ -368,6 +554,8 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -409,7 +597,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Checks the status of an SSM automation document execution',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/check_ssm_execution.py.zip',
       ),
       environment: {
@@ -423,6 +611,8 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -470,7 +660,7 @@ export class AdministratorStack extends cdk.Stack {
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: ['ssm:GetParameter', 'ssm:PutParameter'],
+          actions: ['ssm:GetParameter', 'ssm:PutParameter', 'ssm:DeleteParameter'],
           resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter/Solutions/SO0111/*`],
         }),
         new PolicyStatement({
@@ -486,8 +676,12 @@ export class AdministratorStack extends cdk.Stack {
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: ['organizations:ListAccounts'],
+          actions: ['organizations:DescribeAccount'],
           resources: ['*'],
+        }),
+        new PolicyStatement({
+          actions: ['dynamodb:UpdateItem', 'dynamodb:PutItem', 'dynamodb:GetItem'],
+          resources: [asrFindingsTable.tableArn, remediationHistoryTable.tableArn],
         }),
       ],
     });
@@ -552,6 +746,51 @@ export class AdministratorStack extends cdk.Stack {
       expression: Fn.conditionEquals(enableEnhancedCloudWatchMetrics.valueAsString, 'yes'),
     });
 
+    //-------------------------------------------------------------------------
+    // WebUI Deployment Parameter
+    //
+    const shouldDeployWebUI = new cdk.CfnParameter(this, 'ShouldDeployWebUI', {
+      type: 'String',
+      description:
+        'Deploy the Web UI components including API Gateway, Lambda functions, and CloudFront distribution. Select "yes" to enable the web-based dashboard for viewing findings and remediation status.',
+      default: 'yes',
+      allowedValues: ['yes', 'no'],
+    });
+
+    const webUIEnabled = new cdk.CfnCondition(this, 'webUIEnabled', {
+      expression: Fn.conditionEquals(shouldDeployWebUI.valueAsString, 'yes'),
+    });
+
+    const adminUserEmail = new cdk.CfnParameter(this, 'AdminUserEmail', {
+      type: 'String',
+      description:
+        'Email address for the initial admin user. This user will have full administrative access to the ASR Web UI. Required when Web UI is enabled.',
+      default: '',
+    });
+
+    //=============================================================================================
+    // Rule
+    //=============================================================================================
+    new CfnRule(this, 'AdminUserEmailValidation', {
+      ruleCondition: Fn.conditionEquals(shouldDeployWebUI.valueAsString, 'yes'),
+      assertions: [
+        {
+          assert: Fn.conditionNot(Fn.conditionEquals(adminUserEmail.valueAsString, '')),
+          assertDescription: 'AdminUserEmail is required when Web UI deployment is enabled',
+        },
+      ],
+    });
+
+    // Collect Deployment Metrics
+    const metricsResources = new MetricResources(this, 'MetricResources', {
+      solutionTMN: props.solutionTMN,
+      solutionVersion: props.solutionVersion,
+      solutionId: props.solutionId,
+      runtimePython: props.runtimePython,
+      solutionsBucket: sourceCodeBucket,
+      lambdaLayer: asrLambdaLayer,
+    });
+
     /**
      * @description sendNotifications - send notifications and log messages from Orchestrator step function
      * @type {lambda.Function}
@@ -562,7 +801,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Sends notifications and log messages',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/send_notifications.py.zip',
       ),
       environment: {
@@ -572,11 +811,18 @@ export class AdministratorStack extends cdk.Stack {
         SOLUTION_VERSION: props.solutionVersion,
         SOLUTION_TMN: props.solutionTMN,
         ENHANCED_METRICS: enableEnhancedCloudWatchMetrics.valueAsString,
+        FINDINGS_TABLE_NAME: asrFindingsTable.tableName,
+        HISTORY_TABLE_NAME: remediationHistoryTable.tableName,
+        HISTORY_TTL_DAYS: historyTTL,
         POWERTOOLS_SERVICE_NAME: 'send_notifications',
         POWERTOOLS_LOG_LEVEL: 'INFO',
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
+        SECURITY_HUB_V2_ENABLED: metricsResources.securityHubV2Enabled,
+        DISABLE_ACCOUNT_ALIAS_LOOKUP: 'false',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -635,7 +881,7 @@ export class AdministratorStack extends cdk.Stack {
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter'],
+          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter', 'ssm:DeleteParameter'],
           resources: [`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`],
         }),
       ],
@@ -686,13 +932,12 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'Custom resource to create or retrieve an action target in Security Hub',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/action_target_provider.zip',
       ),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
-        sendAnonymizedMetrics: mapping.findInMap('sendAnonymizedMetrics', 'data'),
         SOLUTION_ID: props.solutionId,
         SOLUTION_VERSION: props.solutionVersion,
         POWERTOOLS_SERVICE_NAME: 'action_target_provider',
@@ -700,6 +945,8 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -766,6 +1013,13 @@ export class AdministratorStack extends cdk.Stack {
       orchLogGroup: props.orchestratorLogGroup,
       kmsKeyParm: kmsKeyParm,
       sqsQueue: schedulingQueue,
+      timeoutHours: orchestratorTimeoutHours,
+    });
+
+    sendNotifications.addPermission('AllowExecutionFailureRuleInvoke', {
+      principal: new ServicePrincipal('events.amazonaws.com'),
+      action: 'lambda:InvokeFunction',
+      sourceArn: orchestrator.executionFailureRuleArn,
     });
 
     const orchStateMachine = orchestrator.node.findChild('StateMachine') as StateMachine;
@@ -777,6 +1031,114 @@ export class AdministratorStack extends cdk.Stack {
     const customActionEventsRuleRole = new Role(this, 'EventsRuleRole', {
       assumedBy: new ServicePrincipal('events.amazonaws.com'),
     });
+
+    //---------------------------------------------------------------------
+    // S3 Bucket for CSV Export Files
+    //
+    const accessLogsBucket = new s3.Bucket(this, 'CSVExportAccessLogs', {
+      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      encryption: BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      versioned: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+    addCfnGuardSuppression(accessLogsBucket, 'S3_BUCKET_LOGGING_ENABLED');
+
+    const csvExportBucket = new Bucket(this, 'CSVExportBucket', {
+      encryption: s3.BucketEncryption.KMS,
+      encryptionKey: kmsKey,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: true,
+      serverAccessLogsBucket: accessLogsBucket,
+      lifecycleRules: [
+        {
+          id: 'DeleteOldCSVExports',
+          enabled: true,
+          expiration: cdk.Duration.days(exportFilesTTL), // Auto-delete CSV files after 30 days
+        },
+      ],
+    });
+
+    const webUINestedStack = new WebUINestedStack(this, 'WebUINestedStack', {
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      solutionTMN: props.solutionTMN,
+      solutionsBucket: sourceCodeBucket,
+      resourceNamePrefix: RESOURCE_NAME_PREFIX,
+      findingsTable: asrFindingsTable.tableArn,
+      remediationHistoryTable: remediationHistoryTable.tableArn,
+      apiFunctionName: apiFunctionName,
+      stackName: cdk.Stack.of(this).stackName,
+      adminUserEmail: adminUserEmail.valueAsString,
+      orchestratorArn: orchStateMachine.stateMachineArn,
+      kmsKeyARN: kmsKey.keyArn,
+      csvExportBucket: csvExportBucket,
+      presignedUrlTTLDays: presignedUrlTTL,
+      ticketingGenFunction: orchestrator.ticketGenFunctionNameParamValue,
+      securityHubV2Enabled: metricsResources.securityHubV2Enabled,
+    });
+
+    const webUINestedStackResource = webUINestedStack.nestedStackResource as cdk.CfnResource;
+    webUINestedStackResource.cfnOptions.condition = webUIEnabled;
+
+    // Add property override for WebUI template URL
+    webUINestedStackResource.addPropertyOverride(
+      'TemplateURL',
+      'https://' +
+        Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
+        '-reference.s3.amazonaws.com/' +
+        Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
+        '/automated-security-response-webui-nested-stack.template',
+    );
+
+    //---------------------------------------------------------------------
+    // Remediation Configuration Table - Stores remediation settings per control
+    //
+    const remediationConfigTable = new Table(this, 'RemediationConfigTable', {
+      partitionKey: { name: 'controlId', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      encryption: TableEncryption.DEFAULT, // service-managed encryption
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
+      deletionProtection: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    addCfnGuardSuppression(remediationConfigTable, 'DYNAMODB_TABLE_ENCRYPTED_KMS'); // table is encrypted using service-managed encryption
+
+    //---------------------------------------------------------------------
+    // Synchronization Findings Construct
+    //
+    const synchronizationConstruct = new SynchronizationFindingsConstruct(this, 'SynchronizationFindingsConstruct', {
+      solutionId: props.solutionId,
+      solutionTMN: props.solutionTMN,
+      solutionVersion: props.solutionVersion,
+      resourceNamePrefix: RESOURCE_NAME_PREFIX,
+      sourceCodeBucket,
+      findingsTable: asrFindingsTable.tableArn,
+      kmsKey,
+      findingsTTL,
+      remediationConfigTable: remediationConfigTable.tableArn,
+    });
+
+    //---------------------------------------------------------------------
+    // Custom Resource to trigger initial synchronization when WebUI is deployed
+    //
+    const initialSyncTrigger = new CustomResource(this, 'InitialSynchronizationTrigger', {
+      serviceToken: synchronizationConstruct.customResourceProvider.functionArn,
+      properties: {
+        TriggerReason: 'WebUI deployment completed',
+      },
+    });
+
+    // Only create the custom resource when WebUI is enabled
+    const initialSyncTriggerResource = initialSyncTrigger.node.defaultChild as cdk.CfnResource;
+    initialSyncTriggerResource.cfnOptions.condition = webUIEnabled;
+
+    // Ensure the custom resource is created after the WebUI nested stack
+    initialSyncTrigger.node.addDependency(webUINestedStack);
 
     //---------------------------------------------------------------------
     // OneTrigger - Remediate with ASR custom action
@@ -823,8 +1185,6 @@ export class AdministratorStack extends cdk.Stack {
         stackDependencies: [stateMachineConstruct, orchestratorArn],
         defaultState: playbookProps.defaultParameterValue,
         description: playbookProps.description,
-        targetAccountIDs: accountTargetParam.targetAccountIDs,
-        targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
       });
       securityStandardPlaybookNames.push(playbook.parameterName);
     });
@@ -834,16 +1194,14 @@ export class AdministratorStack extends cdk.Stack {
       stackDependencies: [stateMachineConstruct, orchestratorArn],
       defaultState: scPlaybookProps.defaultParameterValue,
       description: scPlaybookProps.description,
-      targetAccountIDs: accountTargetParam.targetAccountIDs,
-      targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
     });
 
     //---------------------------------------------------------------------
     // Scheduling Table for SQS Remediation Throttling
     //
-    const schedulingTable = new dynamodb.Table(this, 'SchedulingTable', {
-      partitionKey: { name: 'AccountID-Region', type: dynamodb.AttributeType.STRING },
-      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+    const schedulingTable = new Table(this, 'SchedulingTable', {
+      partitionKey: { name: 'AccountID-Region', type: AttributeType.STRING },
+      encryption: TableEncryption.AWS_MANAGED,
       pointInTimeRecoverySpecification: {
         pointInTimeRecoveryEnabled: true,
       },
@@ -890,6 +1248,7 @@ export class AdministratorStack extends cdk.Stack {
     });
 
     schedulingLambdaRole.attachInlinePolicy(schedulingLamdbdaPolicy);
+
     /**
      * @description schedulingLambdaTrigger - Lambda trigger for SQS Queue
      * @type {lambda.Function}
@@ -900,7 +1259,7 @@ export class AdministratorStack extends cdk.Stack {
       runtime: props.runtimePython,
       description: 'SO0111 ASR function that schedules remediations in member accounts',
       code: lambda.Code.fromBucket(
-        solutionsBucket,
+        sourceCodeBucket,
         props.solutionTMN + '/' + props.solutionVersion + '/lambda/schedule_remediation.py.zip',
       ),
       environment: {
@@ -911,6 +1270,8 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 128,
       timeout: cdk.Duration.seconds(10),
@@ -926,11 +1287,118 @@ export class AdministratorStack extends cdk.Stack {
 
     schedulingLambdaTrigger.addEventSource(eventSource);
 
-    removeEventSourceMappingTags(schedulingLambdaTrigger);
-
     new ActionLog(this, 'ActionLog', {
       logGroupName: props.cloudTrailLogGroupName,
     });
+
+    //---------------------------------------------------------------------
+    // Pre-processor Components
+    //
+    const preProcessorConstruct = new PreProcessorConstruct(this, 'PreProcessorConstruct', {
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      resourceNamePrefix: RESOURCE_NAME_PREFIX,
+      solutionsBucket: sourceCodeBucket,
+      solutionTMN: props.solutionTMN,
+      findingsTable: asrFindingsTable.tableArn,
+      remediationHistoryTable: remediationHistoryTable.tableArn,
+      functionName: preProcessorFunctionName,
+      remediationConfigTable: remediationConfigTable.tableArn,
+      orchestratorArn: orchStateMachine.stateMachineArn,
+      findingsTTL,
+      historyTTL,
+      kmsKey,
+    });
+
+    //---------------------------------------------------------------------
+    // Trigger - Rule to capture all finding events for Pre-processor
+    //
+
+    new Trigger(this, 'FindingEventsTrigger', {
+      targetArn: preProcessorConstruct.queue.queueArn,
+      solutionTMN: props.solutionTMN,
+      solutionId: props.solutionId,
+    });
+
+    //-------------------------------------------------------------------------
+    // Custom Resource for Remediation Configuration Table Population
+    //
+    const remediationConfigPolicy = new Policy(this, 'RemediationConfigPolicy', {
+      policyName: RESOURCE_NAME_PREFIX + '-ASR_Remediation_Config',
+      statements: [
+        new PolicyStatement({
+          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
+          resources: ['*'],
+        }),
+        new PolicyStatement({
+          actions: [
+            'dynamodb:PutItem',
+            'dynamodb:UpdateItem',
+            'dynamodb:DeleteItem',
+            'dynamodb:Scan',
+            'dynamodb:BatchWriteItem',
+          ],
+          resources: [remediationConfigTable.tableArn],
+        }),
+        new PolicyStatement({
+          actions: ['s3:GetObject'],
+          resources: [
+            `arn:${this.partition}:s3:::${solutionsReferenceBucket}/${props.solutionTMN}/${props.solutionVersion}/*`,
+            `arn:${this.partition}:s3:::${solutionsReferenceBucket}-cn/${props.solutionTMN}/${props.solutionVersion}/*`,
+            `arn:${this.partition}:s3:::${solutionsReferenceBucket}-us-gov/${props.solutionTMN}/${props.solutionVersion}/*`,
+          ],
+        }),
+      ],
+    });
+
+    const remediationConfigRole = new Role(this, 'RemediationConfigRole', {
+      assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+      description: 'Lambda role for remediation configuration table population',
+    });
+
+    remediationConfigRole.attachInlinePolicy(remediationConfigPolicy);
+
+    const remediationConfigProvider = new lambda.Function(this, 'RemediationConfigProvider', {
+      functionName: RESOURCE_NAME_PREFIX + '-ASR-RemediationConfigProvider',
+      handler: 'remediation_config_provider.lambda_handler',
+      runtime: props.runtimePython,
+      description: 'Custom resource to populate remediation configuration table',
+      code: lambda.Code.fromBucket(
+        sourceCodeBucket,
+        props.solutionTMN + '/' + props.solutionVersion + '/lambda/remediation_config_provider.zip',
+      ),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'action_target_provider',
+        POWERTOOLS_LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'false',
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        SOLUTION_ID: props.solutionId,
+        SOLUTION_VERSION: props.solutionVersion,
+        SOLUTION_TMN: props.solutionTMN,
+        REFERENCE_BUCKET_NAME: solutionsReferenceBucket,
+        REFERENCE_BUCKET_PARTITION: solutionsReferenceBucketPartition,
+        CUSTOM_REFERENCE_BUCKET_REGION: customReferenceBucketRegion,
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
+      },
+      memorySize: 256,
+      tracing: Tracing.ACTIVE,
+      timeout: Duration.seconds(300),
+      layers: [asrLambdaLayer],
+      role: remediationConfigRole,
+    });
+    addCfnGuardSuppression(remediationConfigProvider, 'LAMBDA_INSIDE_VPC'); // custom resource lambda - does not need to be inside VPC
+    addCfnGuardSuppression(remediationConfigProvider, 'LAMBDA_CONCURRENCY_CHECK'); // Ccstom resource lambda - does not need concurrency set
+
+    const remediationConfigResource = new CustomResource(this, 'RemediationConfigResource', {
+      serviceToken: remediationConfigProvider.functionArn,
+      properties: {
+        TableName: remediationConfigTable.tableName,
+      },
+    });
+
+    remediationConfigResource.node.addDependency(remediationConfigTable);
 
     const cloudWatchMetrics = new CloudWatchMetrics(this, {
       solutionId: props.solutionId,
@@ -939,15 +1407,10 @@ export class AdministratorStack extends cdk.Stack {
       kmsKey: kmsKey,
       actionLogLogGroupName: props.cloudTrailLogGroupName,
       enhancedMetricsEnabled: enhancedMetricsEnabled,
-    });
-
-    new MetricResources(this, 'MetricResources', {
-      solutionTMN: props.solutionTMN,
-      solutionVersion: props.solutionVersion,
-      solutionId: props.solutionId,
-      runtimePython: props.runtimePython,
-      solutionsBucket: solutionsBucket,
-      lambdaLayer: asrLambdaLayer,
+      webUIEnabled: webUIEnabled,
+      userPoolId: webUINestedStack.userPoolId,
+      preProcessorDLQName: preProcessorConstruct.deadLetterQueue.queueName,
+      synchronizationLambdaName: synchronizationConstruct.synchronizationLambda.functionName,
     });
 
     const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
@@ -968,6 +1431,10 @@ export class AdministratorStack extends cdk.Stack {
             Parameters: ['ReuseOrchestratorLogGroup'],
           },
           {
+            Label: { default: 'Web UI Configuration' },
+            Parameters: [shouldDeployWebUI.logicalId, adminUserEmail.logicalId],
+          },
+          {
             Label: { default: 'CloudWatch Metrics' },
             Parameters: [...cloudWatchMetrics.getStandardParameterIds()],
           },
@@ -978,13 +1445,6 @@ export class AdministratorStack extends cdk.Stack {
           {
             Label: { default: '(Optional) Ticketing Service Integration' },
             Parameters: [orchestrator.ticketGenFunctionNameParamId],
-          },
-          {
-            Label: { default: '(Optional) Target accounts' },
-            Parameters: [
-              accountTargetParam.targetAccountIDs.logicalId,
-              accountTargetParam.targetAccountIDsStrategy.logicalId,
-            ],
           },
         ],
         ParameterLabels: {
@@ -1002,6 +1462,40 @@ export class AdministratorStack extends cdk.Stack {
         'This ARN is used by the solution to plug your ticketing function into the Orchestrator step function. ' +
         'This field will be empty if you did not provide a ticketing Lambda Function name.',
       value: orchestrator.ticketGenFunctionARN,
+    });
+
+    new CfnOutput(this, 'ASR Findings DynamoDB Table', {
+      description: 'Table used to store findings that ASR supports for remediation.',
+      value: asrFindingsTable.tableName,
+    });
+
+    new CfnOutput(this, 'Remediation Configuration DynamoDB Table', {
+      description: 'Table used to control the enablement of automatic remediations for a given control.',
+      value: remediationConfigTable.tableName,
+    });
+
+    new CfnOutput(this, 'User Account Mapping DynamoDB Table', {
+      description: 'Table used to store user account access permissions for Account Operator users.',
+      value: webUINestedStack.userAccountMappingTableARN,
+      condition: webUIEnabled,
+    });
+
+    new CfnOutput(this, 'WebUIURL', {
+      description: 'URL for the Web UI',
+      value: `https://${webUINestedStack.distributionDomainName}`,
+      condition: webUIEnabled,
+    });
+
+    new CfnOutput(this, 'APIEndpoint', {
+      description: 'API Gateway endpoint URL',
+      value: webUINestedStack.api.url,
+      condition: webUIEnabled,
+    });
+
+    new CfnOutput(this, 'UserPoolId', {
+      description: 'Cognito User Pool ID for the Web UI',
+      value: webUINestedStack.userPoolId,
+      condition: webUIEnabled,
     });
   }
 }

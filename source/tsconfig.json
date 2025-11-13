@@ -13,7 +13,7 @@
     "noImplicitThis": true,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noUnusedParameters": false,
     "strict": true,
     "allowUmdGlobalAccess": false,
@@ -29,10 +29,14 @@
     "forceConsistentCasingInFileNames": true,
     "lib": ["es2022"],
     "target": "es2022",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "exclude": [
     "cdk.out",
     "dist",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "webui",
+    "lib/member/cloud-trail-event-processor"
   ]
 }

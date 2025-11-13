@@ -97,6 +97,9 @@ const orchLogStack = new OrchLogStack(app, 'OrchestratorLogStack', {
 orchLogStack.templateOptions.templateFormatVersion = '2010-09-09';
 
 // add metadata tags to all resources
-cdk.Tags.of(app).add('Solutions:SolutionID', SOLUTION_ID);
-cdk.Tags.of(app).add('Solutions:SolutionName', SOLUTION_TMN);
-cdk.Tags.of(app).add('Solutions:SolutionVersion', SOLUTION_VERSION);
+// Note: excludeResourceTypes is evaluated at CDK synth time, not CloudFormation deploy time
+// CloudFormation conditions cannot control this behavior
+const excludedResourceTypes = ['AWS::Events::Rule', 'AWS::Lambda::EventSourceMapping'];
+cdk.Tags.of(app).add('Solutions:SolutionID', SOLUTION_ID, { excludeResourceTypes: excludedResourceTypes });
+cdk.Tags.of(app).add('Solutions:SolutionName', SOLUTION_TMN, { excludeResourceTypes: excludedResourceTypes });
+cdk.Tags.of(app).add('Solutions:SolutionVersion', SOLUTION_VERSION, { excludeResourceTypes: excludedResourceTypes });

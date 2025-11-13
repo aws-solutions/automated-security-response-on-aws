@@ -34,6 +34,10 @@ export interface CloudWatchMetricsProps {
   kmsKey: Key;
   actionLogLogGroupName: string;
   enhancedMetricsEnabled: CfnCondition;
+  webUIEnabled: CfnCondition;
+  userPoolId?: string;
+  preProcessorDLQName: string;
+  synchronizationLambdaName?: string;
 }
 
 export class CloudWatchMetrics {
@@ -230,6 +234,56 @@ export class CloudWatchMetrics {
     failedAssumeRoleAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
     addCfnGuardSuppression(failedAssumeRoleAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
 
+    const preProcessorDLQMetric = new Metric({
+      namespace: 'AWS/SQS',
+      metricName: 'NumberOfMessagesSent',
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+      dimensionsMap: { QueueName: props.preProcessorDLQName },
+      label: 'Automated Security Response on AWS: Pre-processor DLQ Messages',
+    });
+
+    const preProcessorDLQAlarm = preProcessorDLQMetric.createAlarm(scope, 'PreProcessorDLQAlarm', {
+      alarmName: 'ASR-PreProcessorDLQ',
+      evaluationPeriods: 1,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Automated Security Response on AWS: Messages have been sent to the Pre-processor Dead Letter Queue. This indicates that the Pre-processor Lambda function failed to process Security Hub findings after multiple retry attempts.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    setCondition(preProcessorDLQAlarm, this.isUsingCloudWatchMetricsAlarms);
+    preProcessorDLQAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(preProcessorDLQAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+
+    if (props.synchronizationLambdaName) {
+      const synchronizationErrorMetric = new Metric({
+        namespace: 'AWS/Lambda',
+        metricName: 'Errors',
+        statistic: 'Sum',
+        period: Duration.minutes(5),
+        dimensionsMap: { FunctionName: props.synchronizationLambdaName },
+        label: 'Synchronization Lambda Errors',
+      });
+
+      const synchronizationErrorAlarm = synchronizationErrorMetric.createAlarm(scope, 'SynchronizationErrorAlarm', {
+        alarmName: 'ASR-SynchronizationError',
+        evaluationPeriods: 1,
+        threshold: 1,
+        comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        alarmDescription:
+          "Automated Security Response on AWS: The synchronization Lambda function has failed. This indicates that the synchronization process for Security Hub findings may not be working correctly and findings displayed in the UI may contain outdated information. Please see the function's log group for more information.",
+        treatMissingData: TreatMissingData.NOT_BREACHING,
+        datapointsToAlarm: 1,
+        actionsEnabled: true,
+      });
+      setCondition(synchronizationErrorAlarm, this.isUsingCloudWatchMetricsAlarms);
+      synchronizationErrorAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+      addCfnGuardSuppression(synchronizationErrorAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+    }
+
     const controlIds = SC_REMEDIATIONS.map((remediation: IControl) => remediation.control);
     const failureRateMetricsByControlId: IMetric[] = this.createAlarmsByControlId(
       scope,
@@ -409,6 +463,11 @@ The actions shown are based on CloudTrail management events in the member accoun
         title: 'CloudTrail Management Actions by ASR',
       }),
     );
+
+    // Cognito Threat Protection Alarms
+    if (props.userPoolId) {
+      this.createCognitoThreatProtectionAlarms(scope, snsAlarmTopic, props.userPoolId, props.webUIEnabled);
+    }
   }
 
   private createAlarmsByControlId(
@@ -480,7 +539,83 @@ The actions shown are based on CloudTrail management events in the member accoun
     return this.getParameterIds(this.enhancedMetricParameters);
   }
 
-  public getCloudWatchMetricsParameterValue(): string {
-    return this.useCloudWatchMetrics.valueAsString;
+  private createCognitoThreatProtectionAlarms(
+    scope: Construct,
+    snsAlarmTopic: Topic,
+    userPoolId: string,
+    webUIEnabled: CfnCondition,
+  ) {
+    const cognitoAlarmsCondition = new CfnCondition(scope, 'cognitoAlarmsEnabled', {
+      expression: Fn.conditionAnd(this.isUsingCloudWatchMetricsAlarms, webUIEnabled),
+    });
+
+    const riskMetric = new Metric({
+      namespace: 'AWS/Cognito',
+      metricName: 'Risk',
+      statistic: 'Sum',
+      period: Duration.minutes(1),
+      dimensionsMap: { UserPool: userPoolId },
+    });
+
+    const riskAlarm = riskMetric.createAlarm(scope, 'CognitoRiskAlarm', {
+      alarmName: 'ASR-Cognito-Risk',
+      evaluationPeriods: 5,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Alarm for the Automated Security Response on AWS Cognito User Pool: Requests that Amazon Cognito marked as risky',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    setCondition(riskAlarm, cognitoAlarmsCondition);
+    riskAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(riskAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+
+    const overrideBlockMetric = new Metric({
+      namespace: 'AWS/Cognito',
+      metricName: 'OverrideBlock',
+      statistic: 'Sum',
+      period: Duration.minutes(1),
+      dimensionsMap: { UserPool: userPoolId },
+    });
+
+    const overrideBlockAlarm = overrideBlockMetric.createAlarm(scope, 'CognitoOverrideBlockAlarm', {
+      alarmName: 'ASR-Cognito-OverrideBlock',
+      evaluationPeriods: 5,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Alarm for the Automated Security Response on AWS Cognito User Pool: Requests that Amazon Cognito blocked because of the configuration provided by the developer',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 5,
+      actionsEnabled: true,
+    });
+    setCondition(overrideBlockAlarm, cognitoAlarmsCondition);
+    overrideBlockAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(overrideBlockAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+
+    const signInThrottlesMetric = new Metric({
+      namespace: 'AWS/Cognito',
+      metricName: 'SignInThrottles',
+      statistic: 'Sum',
+      period: Duration.minutes(1),
+      dimensionsMap: { UserPool: userPoolId },
+    });
+
+    const signInThrottlesAlarm = signInThrottlesMetric.createAlarm(scope, 'CognitoSignInThrottlesAlarm', {
+      alarmName: 'ASR-Cognito-SignInThrottles',
+      evaluationPeriods: 5,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Alarm for the Automated Security Response on AWS Cognito User Pool: Total number of throttled user authentication requests made to the Amazon Cognito user pool',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 5,
+      actionsEnabled: true,
+    });
+    setCondition(signInThrottlesAlarm, cognitoAlarmsCondition);
+    signInThrottlesAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(signInThrottlesAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
   }
 }

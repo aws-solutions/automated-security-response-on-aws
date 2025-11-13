@@ -1,0 +1,26 @@
+{
+  "name": "@asr/data-models",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Shared data models and schemas for Automated Security Response on AWS solution",
+  "main": "cjs/index.js",
+  "exports": {
+    ".": {
+      "import": "./esm/index.js",
+      "require": "./cjs/index.js",
+      "types": "./esm/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "npm run clean && npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "clean": "rm -rf cjs esm *.js *.d.ts *.js.map"
+  },
+  "dependencies": {
+    "zod": "3.25.76"
+  },  
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

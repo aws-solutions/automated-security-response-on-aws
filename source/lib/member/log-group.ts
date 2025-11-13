@@ -19,7 +19,8 @@ export class MemberLogGroup extends Construct {
     const templateParam = new CfnParameter(scope, 'LogGroupName', {
       type: 'String',
       description:
-        'Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail',
+        'Name of the log group to be used to create metric filters and cloudwatch alarms. You must use a Log Group that is the the logging destination of a multi-region CloudTrail. Mandatory to use certain CloudWatch controls (e.g. PCI.CW.1).',
+      minLength: 1,
     });
     this.paramId = templateParam.logicalId;
 

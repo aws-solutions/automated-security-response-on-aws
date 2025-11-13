@@ -239,6 +239,137 @@ def test_undefined_security_standard(mocker):
     stubbed_ssm_client.deactivate()
 
 
+# ------------------------------------------------------------------------------
+# Test update_text method
+# ------------------------------------------------------------------------------
+def test_update_text_asff_format(mocker):
+    """Test update_text with ASFF format (non-productv2)"""
+    test_data_in = open(test_data + "CIS-1.3.json")
+    event = json.loads(test_data_in.read())
+    test_data_in.close()
+
+    # Mock SecurityHub client
+    mock_securityhub = mocker.MagicMock()
+    mocker.patch("layer.sechub_findings.get_securityhub", return_value=mock_securityhub)
+
+    # Mock SSM client
+    ssmclient = boto3.client("ssm")
+    stubbed_ssm_client = Stubber(ssmclient)
+    stubbed_ssm_client.add_response("get_parameter", {"Parameter": {"Value": "CIS"}})
+    stubbed_ssm_client.add_client_error("get_parameter", "ParameterNotFound")
+    stubbed_ssm_client.add_response(
+        "get_parameter", {"Parameter": {"Value": "enabled"}}
+    )
+    stubbed_ssm_client.activate()
+    mocker.patch("layer.sechub_findings.get_ssm_connection", return_value=ssmclient)
+
+    finding = findings.Finding(event["detail"]["findings"][0])
+    finding.update_text("Test message", status="RESOLVED")
+
+    mock_securityhub.batch_update_findings.assert_called_once()
+    stubbed_ssm_client.deactivate()
+
+
+def test_update_text_productv2_format(mocker):
+    """Test update_text with productv2 format"""
+    test_data_in = open(test_data + "CIS-1.3.json")
+    event = json.loads(test_data_in.read())
+    test_data_in.close()
+
+    # Modify ProductArn to include productv2
+    event["detail"]["findings"][0][
+        "ProductArn"
+    ] = "arn:aws:securityhub:us-east-1::productv2/aws/securityhub"
+
+    # Mock SecurityHub client
+    mock_securityhub = mocker.MagicMock()
+    mocker.patch("layer.sechub_findings.get_securityhub", return_value=mock_securityhub)
+
+    # Mock SSM client
+    ssmclient = boto3.client("ssm")
+    stubbed_ssm_client = Stubber(ssmclient)
+    stubbed_ssm_client.add_response("get_parameter", {"Parameter": {"Value": "CIS"}})
+    stubbed_ssm_client.add_client_error("get_parameter", "ParameterNotFound")
+    stubbed_ssm_client.add_response(
+        "get_parameter", {"Parameter": {"Value": "enabled"}}
+    )
+    stubbed_ssm_client.activate()
+    mocker.patch("layer.sechub_findings.get_ssm_connection", return_value=ssmclient)
+
+    finding = findings.Finding(event["detail"]["findings"][0])
+    finding.update_text("Test message", status="NOTIFIED")
+
+    mock_securityhub.batch_update_findings_v2.assert_called_once()
+    stubbed_ssm_client.deactivate()
+
+
+def test_update_text_ocsf_format(mocker):
+    """Test update_text with OCSF format (productv2)"""
+    test_data_in = open(test_data + "CIS-1.3.json")
+    event = json.loads(test_data_in.read())
+    test_data_in.close()
+
+    # Modify ProductArn to include productv2
+    event["detail"]["findings"][0][
+        "ProductArn"
+    ] = "arn:aws:securityhub:us-east-1::productv2/aws/securityhub"
+
+    # Mock SecurityHub client with batch_update_findings_v2 method
+    mock_securityhub = mocker.MagicMock()
+    mock_securityhub.batch_update_findings_v2.return_value = {}
+
+    # Mock SSM client for Finding initialization
+    ssmclient = boto3.client("ssm")
+    stubbed_ssm_client = Stubber(ssmclient)
+    stubbed_ssm_client.add_response("get_parameter", {"Parameter": {"Value": "CIS"}})
+    stubbed_ssm_client.add_client_error("get_parameter", "ParameterNotFound")
+    stubbed_ssm_client.add_response(
+        "get_parameter", {"Parameter": {"Value": "enabled"}}
+    )
+    stubbed_ssm_client.activate()
+
+    mocker.patch("layer.sechub_findings.get_securityhub", return_value=mock_securityhub)
+    mocker.patch("layer.sechub_findings.get_ssm_connection", return_value=ssmclient)
+
+    finding = findings.Finding(event["detail"]["findings"][0])
+    finding.update_text("Test message", status="NOTIFIED")
+
+    # Verify the v2 method was called
+    mock_securityhub.batch_update_findings_v2.assert_called_once()
+    stubbed_ssm_client.deactivate()
+
+
+def test_update_text_exception_handling(mocker):
+    """Test update_text exception handling"""
+    test_data_in = open(test_data + "CIS-1.3.json")
+    event = json.loads(test_data_in.read())
+    test_data_in.close()
+
+    # Mock SecurityHub client to raise exception
+    mock_securityhub = mocker.MagicMock()
+    mock_securityhub.batch_update_findings.side_effect = Exception("Access denied")
+
+    # Mock SSM client for Finding initialization
+    ssmclient = boto3.client("ssm")
+    stubbed_ssm_client = Stubber(ssmclient)
+    stubbed_ssm_client.add_response("get_parameter", {"Parameter": {"Value": "CIS"}})
+    stubbed_ssm_client.add_client_error("get_parameter", "ParameterNotFound")
+    stubbed_ssm_client.add_response(
+        "get_parameter", {"Parameter": {"Value": "enabled"}}
+    )
+    stubbed_ssm_client.activate()
+
+    mocker.patch("layer.sechub_findings.get_securityhub", return_value=mock_securityhub)
+    mocker.patch("layer.sechub_findings.get_ssm_connection", return_value=ssmclient)
+
+    finding = findings.Finding(event["detail"]["findings"][0])
+
+    with pytest.raises(Exception):
+        finding.update_text("Test message", status="RESOLVED")
+
+    stubbed_ssm_client.deactivate()
+
+
 def test_security_control(mocker):
     test_data_in = open(test_data + "afsbp-ec2.7.json")
     event = json.loads(test_data_in.read())

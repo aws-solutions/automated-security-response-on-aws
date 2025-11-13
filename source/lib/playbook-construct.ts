@@ -8,7 +8,6 @@
 //
 import * as cdk from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { Trigger } from './ssmplaybook';
 import AdminAccountParam from './parameters/admin-account-param';
 import { RunbookFactory } from './runbook_factory';
 import { Construct } from 'constructs';
@@ -16,7 +15,6 @@ import { Aspects, CfnParameter, StackProps } from 'aws-cdk-lib';
 import { WaitProvider } from './wait-provider';
 import SsmDocRateLimit from './ssm-doc-rate-limit';
 import NamespaceParam from './parameters/namespace-param';
-import AccountTargetParam from './parameters/account-target-param';
 
 export interface IControl {
   control: string;
@@ -34,16 +32,29 @@ export interface PlaybookProps extends StackProps {
   securityStandardVersion: string;
 }
 
+export const remapRemediation = function (
+  stack: cdk.Stack,
+  securityStandard: string,
+  securityStandardVersion: string,
+  resourcePrefix: string,
+  controlSpec: IControl,
+): void {
+  if (controlSpec.executes != undefined && controlSpec.control != controlSpec.executes) {
+    // This control is remapped to another
+    new StringParameter(stack, `Remap ${securityStandard} ${controlSpec.control}`, {
+      description: `Remap the ${securityStandard} ${controlSpec.control} finding to ${securityStandard} ${controlSpec.executes} remediation`,
+      parameterName: `/Solutions/${resourcePrefix}/${securityStandard}/${securityStandardVersion}/${controlSpec.control}/remap`,
+      stringValue: `${controlSpec.executes}`,
+    });
+  }
+};
+
 export class PlaybookPrimaryStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PlaybookProps) {
     super(scope, id, props);
 
     const stack = cdk.Stack.of(this);
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
-    const orchestratorArn = StringParameter.valueForStringParameter(
-      this,
-      `/Solutions/${RESOURCE_PREFIX}/OrchestratorArn`,
-    );
 
     //=============================================================================================
     // Parameters
@@ -61,8 +72,6 @@ export class PlaybookPrimaryStack extends cdk.Stack {
       stringValue: 'enabled',
     });
 
-    const accountTargetParam = new AccountTargetParam(this, 'AccountTargetParams');
-
     new cdk.CfnMapping(this, 'SourceCode', {
       mapping: {
         General: {
@@ -72,34 +81,9 @@ export class PlaybookPrimaryStack extends cdk.Stack {
       },
     });
 
-    const processRemediation = function (controlSpec: IControl): void {
-      if (controlSpec.executes != undefined && controlSpec.control != controlSpec.executes) {
-        // This control is remapped to another
-        new StringParameter(stack, `Remap ${props.securityStandard} ${controlSpec.control}`, {
-          description: `Remap the ${props.securityStandard} ${controlSpec.control} finding to ${props.securityStandard} ${controlSpec.executes} remediation`,
-          parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandard}/${props.securityStandardVersion}/${controlSpec.control}/remap`,
-          stringValue: `${controlSpec.executes}`,
-        });
-      }
-      let generatorId: string;
-      if (props.securityStandard === 'CIS' && props.securityStandardVersion === '1.2.0') {
-        // CIS 1.2.0 uses an arn-like format: arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0/rule/1.3
-        generatorId = `arn:${stack.partition}:securityhub:::ruleset/${props.securityStandardLongName}/v/${props.securityStandardVersion}/rule/${controlSpec.control}`;
-      } else {
-        generatorId = `${props.securityStandardLongName}/v/${props.securityStandardVersion}/${controlSpec.control}`;
-      }
-      new Trigger(stack, `${props.securityStandard} ${controlSpec.control}`, {
-        securityStandard: props.securityStandard,
-        securityStandardVersion: props.securityStandardVersion,
-        controlId: controlSpec.control,
-        generatorId: generatorId,
-        targetArn: orchestratorArn,
-        targetAccountIDs: accountTargetParam.targetAccountIDs,
-        targetAccountIDsStrategy: accountTargetParam.targetAccountIDsStrategy,
-      });
-    };
-
-    props.remediations.forEach(processRemediation);
+    props.remediations.forEach((controlSpec) =>
+      remapRemediation(stack, props.securityStandard, props.securityStandardVersion, RESOURCE_PREFIX, controlSpec),
+    );
   }
 }
 

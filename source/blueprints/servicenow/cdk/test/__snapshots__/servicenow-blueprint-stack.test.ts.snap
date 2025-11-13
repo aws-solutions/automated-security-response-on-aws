@@ -120,6 +120,10 @@ exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
         "Description": "Creates a ticket in the provided ServiceNow table with remediation details.",
         "Environment": {
           "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "DISABLE_ACCOUNT_ALIAS_LOOKUP": "false",
             "INSTANCE_URI": {
               "Ref": "InstanceURI",
             },
@@ -132,6 +136,9 @@ exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
               "Ref": "SecretArn",
             },
             "SOLUTION_ID": "SO9999",
+            "STACK_ID": {
+              "Ref": "AWS::StackId",
+            },
             "TABLE_NAME": {
               "Ref": "ServiceNowTableName",
             },
@@ -241,7 +248,7 @@ exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
               },
             },
             {
-              "Action": "organizations:ListAccounts",
+              "Action": "organizations:DescribeAccount",
               "Effect": "Allow",
               "Resource": "*",
             },

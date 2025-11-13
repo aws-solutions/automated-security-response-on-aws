@@ -19,6 +19,8 @@ interface MetricResourcesProps {
 }
 
 export default class MetricResources extends Construct {
+  securityHubV2Enabled: string;
+
   constructor(scope: Construct, id: string, props: MetricResourcesProps) {
     super(scope, id);
     const stack = Stack.of(this);
@@ -35,8 +37,12 @@ export default class MetricResources extends Construct {
           resources: [`arn:${stack.partition}:logs:*:${stack.account}:log-group:*`],
         }),
         new PolicyStatement({
-          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter'],
+          actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter', 'ssm:DeleteParameter'],
           resources: [`arn:${stack.partition}:ssm:*:${stack.account}:parameter/Solutions/SO0111/*`],
+        }),
+        new PolicyStatement({
+          actions: ['securityhub:DescribeSecurityHubV2'],
+          resources: [`*`],
         }),
       ],
     });
@@ -67,6 +73,8 @@ export default class MetricResources extends Construct {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
+        AWS_ACCOUNT_ID: stack.account,
+        STACK_ID: stack.stackId,
       },
       memorySize: 256,
       timeout: Duration.seconds(5),
@@ -77,13 +85,16 @@ export default class MetricResources extends Construct {
     addCfnGuardSuppression(customResourceFunction, 'LAMBDA_INSIDE_VPC');
     addCfnGuardSuppression(customResourceFunction, 'LAMBDA_CONCURRENCY_CHECK');
 
-    new cdk.CustomResource(this, `ASR-DeploymentMetricsCustomResource`, {
+    const deploymentMetricsCustomResource = new cdk.CustomResource(this, `ASR-DeploymentMetricsCustomResource`, {
       properties: {
         StackParameters: MetricResources.getAllStackParameters(Stack.of(this)),
+        Timestamp: Date.now().toString(), // Forces the custom resource to run on stack updates
       },
       resourceType: 'Custom::DeploymentMetrics',
       serviceToken: customResourceFunction.functionArn,
     });
+
+    this.securityHubV2Enabled = deploymentMetricsCustomResource.getAtt('securityhub_v2_enabled').toString();
   }
 
   private static getAllStackParameters(stack: Stack): { [key: string]: any } {

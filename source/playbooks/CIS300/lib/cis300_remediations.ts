@@ -23,7 +23,7 @@ const remediations: IControl[] = [
   { control: '3.6', versionAdded: '2.2.0' },
   { control: '2.3.3', versionAdded: '2.2.0' },
   { control: '2.3.2', versionAdded: '2.2.0' },
-  { control: '2.1.4', versionAdded: '2.2.0' },
+  { control: '2.1.4.1', versionAdded: '2.2.0' }, // NOSONAR This is not an IP Address.
   { control: '2.1.1', versionAdded: '2.2.0' },
 ];
 export const CIS300_remediations = [...remediations].sort((controlA, controlB) =>

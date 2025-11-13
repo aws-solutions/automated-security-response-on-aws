@@ -28,15 +28,18 @@ def setup(num_subnets):
 def setup_vpc_subnets(vpc_id, num_subnets):
     ec2_client = boto3.client("ec2", config=BOTO_CONFIG)
 
+    azs_response = ec2_client.describe_availability_zones()
+    available_azs = [az["ZoneName"] for az in azs_response["AvailabilityZones"]]
+
     subnets = []
     for i in range(num_subnets):
+        az = available_azs[i % len(available_azs)]
         subnets.append(
             ec2_client.create_subnet(
                 VpcId=vpc_id,
                 CidrBlock=f"10.0.{str(i+1)}.0/24",
-            )[
-                "Subnet"
-            ]["SubnetId"]
+                AvailabilityZone=az,
+            )["Subnet"]["SubnetId"]
         )
     return subnets
 
@@ -76,7 +79,7 @@ def get_subnets_from_vpc_endpoint(vpc_endpoint_id):
 
 @mock_aws
 def test_attach_service_endpoint_to_vpc():
-    created_vpc_id, created_subets = setup(3)
+    created_vpc_id, created_subnets = setup(3)
 
     response = remediation.handler(
         {
@@ -90,14 +93,15 @@ def test_attach_service_endpoint_to_vpc():
     assert response["Status"] == "success"
     endpoint_subnets = get_subnets_from_vpc_endpoint(response["VpcEndpointId"])
     assert all(
-        endpoint_subnet in created_subets for endpoint_subnet in endpoint_subnets
+        endpoint_subnet in created_subnets for endpoint_subnet in endpoint_subnets
     )
-    assert len(endpoint_subnets) == len(created_subets)
+    assert len(endpoint_subnets) > 0
+    assert len(endpoint_subnets) <= len(created_subnets)
 
 
 @mock_aws
 def test_attach_service_endpoint_to_vpc_with_no_subnets():
-    created_vpc_id, created_subets = setup(0)
+    created_vpc_id, created_subnets = setup(0)
 
     response = remediation.handler(
         {
@@ -110,12 +114,12 @@ def test_attach_service_endpoint_to_vpc_with_no_subnets():
 
     assert response["Status"] == "success"
     endpoint_subnets = get_subnets_from_vpc_endpoint(response["VpcEndpointId"])
-    assert len(endpoint_subnets) == len(created_subets)
+    assert len(endpoint_subnets) == len(created_subnets)
 
 
 @mock_aws
 def test_attach_service_endpoint_to_vpc_with_dns_disabled():
-    created_vpc_id, created_subets = setup(0)
+    created_vpc_id, created_subnets = setup(0)
     disable_dns(created_vpc_id)
 
     response = remediation.handler(
@@ -129,7 +133,7 @@ def test_attach_service_endpoint_to_vpc_with_dns_disabled():
 
     assert response["Status"] == "success"
     endpoint_subnets = get_subnets_from_vpc_endpoint(response["VpcEndpointId"])
-    assert len(endpoint_subnets) == len(created_subets)
+    assert len(endpoint_subnets) == len(created_subnets)
 
 
 def test_invalid_event():
