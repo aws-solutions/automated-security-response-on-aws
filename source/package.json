@@ -45,7 +45,7 @@
        "eslint-plugin-import": "2.32.0",
        "eslint-plugin-prettier": "5.5.4",
         "jest": "29.7.0",
-        "js-yaml": "4.1.0",
+        "js-yaml": "4.1.1",
         "nock": "13.5.6",
         "pako": "2.1.0",
         "source-map-support": "0.5.21",
