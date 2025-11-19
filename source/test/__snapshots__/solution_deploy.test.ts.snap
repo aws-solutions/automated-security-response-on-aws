@@ -1014,7 +1014,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
     "ASRTagFilters087F3099": {
       "Properties": {
-        "AllowedPattern": "^(none|([a-zA-Z0-9\\s_.:/=+\\-@]{1,128})(,\\s*([a-zA-Z0-9\\s_.:/=+\\-@]{1,128}))*)$",
+        "AllowedPattern": "^(none|([a-zA-Z0-9_.:/=+\\-@]{1,128})(,\\s*([a-zA-Z0-9_.:/=+\\-@]{1,128}))*)$",
         "Description": "List of tag keys to filter remediations. Default value: none. Note: Filter only apply to automated runs, not manual executions.",
         "Name": "/ASR/Filters/TagFilters",
         "Type": "String",

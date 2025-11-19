@@ -1374,6 +1374,7 @@ zod under the MIT license.
 mkdirp under the MIT license.
 jsbn under the MIT license.
 read-package-json-fast under the ISC license.
+generator-function under the MIT license.
 
 ********************
 OPEN SOURCE LICENSES

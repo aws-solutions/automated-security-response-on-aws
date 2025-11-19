@@ -1,6 +1,6 @@
 {
   "name": "@amzn/cloud-trail-event-processor",
-  "version": "1.0.0",
+  "version": "3.0.1",
   "description": "Filters CloudsTrail events from the member stacks to create the ASR Action Log",
   "author": {
     "name": "Amazon Web Services",

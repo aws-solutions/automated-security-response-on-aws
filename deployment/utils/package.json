@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr-deployment-utils",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Deployment scripts for Automated Security Response on AWS",
   "author": {
     "name": "Amazon Web Services",

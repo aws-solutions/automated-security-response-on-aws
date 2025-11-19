@@ -391,13 +391,15 @@ export class PreProcessor implements LambdaInterface {
     try {
       payload = JSON.parse(record.body);
       unprocessedFinding = payload.detail.findings[0];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.info('Received malformed SQS record that is not eligible for a retry, hence skipping this record.', {
         messageId: record?.messageId,
         recordBody: record?.body,
         error: error,
       });
-      await sendMetrics(buildFailureMetric(unprocessedFinding));
+
+      const truncatedBody = record?.body?.substring(0, 500) ?? '';
+      await sendMetrics(buildFailureMetric(error, truncatedBody, unprocessedFinding));
       return;
     }
     try {
@@ -434,7 +436,7 @@ export class PreProcessor implements LambdaInterface {
         await PreProcessor.processExistingFinding(finding, autoRemediationEnabled, orchestratorInput);
       }
     } catch (error) {
-      await sendMetrics(buildFailureMetric(unprocessedFinding));
+      await sendMetrics(buildFailureMetric(error, undefined, unprocessedFinding));
 
       logger.error(`Error processing finding from SQS Record ${record.messageId}`, {
         findingId: unprocessedFinding?.Id ?? unprocessedFinding?.finding_info?.uid ?? 'unknown',
