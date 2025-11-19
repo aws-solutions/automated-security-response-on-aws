@@ -1,6 +1,6 @@
 {
   "name": "@asr/data-models",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "private": true,
   "description": "Shared data models and schemas for Automated Security Response on AWS solution",
   "main": "cjs/index.js",
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "zod": "3.25.76"
-  },  
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   }

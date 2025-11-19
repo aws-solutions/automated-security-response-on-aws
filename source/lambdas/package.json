@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr_lambdas",
-  "version": "1.0.0",
+  "version": "3.0.1",
   "description": "Non-Orchestrator Lambda functions in ASR, including the Pre-processor and backend API lambdas.",
   "author": {
     "name": "Amazon Web Services",
@@ -61,7 +61,6 @@
     "@middy/http-urlencode-body-parser": "6.4.5",
     "@middy/http-urlencode-path-parser": "6.4.5",
     "@types/aws-lambda": "8.10.152",
-    "npm": "^11.6.0",
     "pako": "2.1.0",
     "zod": "3.25.76"
   },

@@ -9,6 +9,7 @@
 /deployment/test/coverage-reports/
 /deployment/utils/coverage
 requirements_dev.txt
+!source/webui/public/mockServiceWorker.js
 
 # Typescript
 /source/dist/
@@ -18,7 +19,6 @@ requirements_dev.txt
 *.d.ts*
 *.js
 *.cjs
-!source/webui/public/mockServiceWorker.js
 !deployment/manifest-generator/app.js
 !/**/jest.config.js
 !source/.eslintrc.js

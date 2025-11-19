@@ -1,6 +1,7 @@
 {
   "name": "webui",
   "private": true,
+  "version": "3.0.1",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -46,6 +47,8 @@
     "vitest": "3.2.4"
   },
   "msw": {
-    "workerDirectory": "public"
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
