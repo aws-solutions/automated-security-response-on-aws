@@ -18,6 +18,8 @@ interface FailureMetric {
   control_id: string | undefined;
   product_arn: string | undefined;
   region: string | undefined;
+  error: string | undefined;
+  truncatedRecordBody: string | undefined;
 }
 
 interface UsageData {
@@ -41,18 +43,32 @@ const DEFAULT_FAILURE_METRIC: FailureMetric = {
   control_id: undefined,
   product_arn: undefined,
   region: undefined,
+  error: undefined,
+  truncatedRecordBody: undefined,
 };
 
-export function buildFailureMetric(finding?: Record<any, any>): FailureMetric {
-  if (!finding) return DEFAULT_FAILURE_METRIC;
+export function buildFailureMetric(
+  error: unknown,
+  truncatedRecord?: string,
+  finding?: Record<any, any>,
+): FailureMetric {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  if (!finding)
+    return {
+      ...DEFAULT_FAILURE_METRIC,
+      truncatedRecordBody: truncatedRecord,
+      error: errorMessage,
+    };
 
   const asffResult = ASFFSchema.safeParse(finding);
   if (asffResult.success) {
     return {
       ...DEFAULT_FAILURE_METRIC,
-      control_id: asffResult.data.ProductArn,
-      product_arn: asffResult.data.Compliance.SecurityControlId,
+      control_id: asffResult.data.Compliance.SecurityControlId,
+      product_arn: asffResult.data.ProductArn,
       region: asffResult.data.Region,
+      error: errorMessage,
+      truncatedRecordBody: truncatedRecord,
     };
   }
 
@@ -63,10 +79,16 @@ export function buildFailureMetric(finding?: Record<any, any>): FailureMetric {
       control_id: ocsfResult.data.compliance.control,
       product_arn: ocsfResult.data.metadata?.product?.uid,
       region: ocsfResult.data.cloud.region,
+      error: errorMessage,
+      truncatedRecordBody: truncatedRecord,
     };
   }
 
-  return DEFAULT_FAILURE_METRIC;
+  return {
+    ...DEFAULT_FAILURE_METRIC,
+    truncatedRecordBody: truncatedRecord,
+    error: errorMessage,
+  };
 }
 
 export function buildFilteringMetric(

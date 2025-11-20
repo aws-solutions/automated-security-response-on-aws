@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import nock from 'nock';
 import {
   buildFailureMetric,
   buildFilteringMetric,
@@ -49,14 +48,16 @@ describe('metricsUtils', () => {
         Resources: [{ Type: 'AWS::S3::Bucket', Id: 'test-bucket' }],
       };
 
-      const result = buildFailureMetric(asffFinding);
+      const result = buildFailureMetric(Error('error'), undefined, asffFinding);
 
       expect(result).toEqual({
         status: 'FAILED',
         status_reason: 'PRE_PROCESSOR_FAILED',
-        control_id: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
-        product_arn: 'S3.1',
+        product_arn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+        control_id: 'S3.1',
         region: 'us-east-1',
+        truncatedRecordBody: undefined,
+        error: 'error',
       });
     });
 
@@ -75,7 +76,7 @@ describe('metricsUtils', () => {
         resources: [],
       };
 
-      const result = buildFailureMetric(ocsfFinding);
+      const result = buildFailureMetric(Error('error'), 'truncated record', ocsfFinding);
 
       expect(result).toEqual({
         status: 'FAILED',
@@ -83,11 +84,13 @@ describe('metricsUtils', () => {
         control_id: 'EC2.1',
         product_arn: 'arn:aws:securityhub:us-west-2::product/aws/securityhub',
         region: 'us-west-2',
+        truncatedRecordBody: 'truncated record',
+        error: 'error',
       });
     });
 
     it('should handle undefined finding', () => {
-      const result = buildFailureMetric();
+      const result = buildFailureMetric(Error('error'));
 
       expect(result).toEqual({
         status: 'FAILED',
@@ -95,6 +98,8 @@ describe('metricsUtils', () => {
         control_id: undefined,
         product_arn: undefined,
         region: undefined,
+        truncated_record: undefined,
+        error: 'error',
       });
     });
   });

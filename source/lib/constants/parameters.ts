@@ -69,8 +69,7 @@ export class ASRParameters {
    * Values: List of tag keys to filter on. Default value: none, provide a comma-separated list of tag keys | https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_Tag.html
    */
   public static readonly TAG_FILTER_PATTERN =
-    /^(none|([a-zA-Z0-9\s_.:/=+\-@]{1,128})(,\s*([a-zA-Z0-9\s_.:/=+\-@]{1,128}))*)$/;
-
+    /^(none|([a-zA-Z0-9_.:/=+\-@]{1,128})(,\s*([a-zA-Z0-9_.:/=+\-@]{1,128}))*)$/;
   /**
    * Default filter mode - disabled
    */

@@ -40,6 +40,7 @@ main() {
         -x "redpencil-suppressions.json" \
         -x "source/data-models/cjs/*" \
         -x "source/data-models/esm/*" \
+        -x "*.d.ts*" \
     popd
 }
 
