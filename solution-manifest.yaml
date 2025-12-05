@@ -1,6 +1,6 @@
 id: SO0111
 name: automated-security-response-on-aws
-version: v3.0.1
+version: v3.0.2
 cloudformation_templates:
   - template: automated-security-response-admin.template
     main_template: true

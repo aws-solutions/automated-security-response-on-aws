@@ -83,6 +83,7 @@ const remediations: IControl[] = [
   { control: 'SQS.1', versionAdded: '2.1.0' },
   { control: 'SSM.4', versionAdded: '2.1.0' },
   { control: 'SSM.1', versionAdded: '2.2.0' },
+  { control: 'SSM.7', versionAdded: '3.0.2' },
   { control: 'Macie.1', versionAdded: '2.2.0' },
 ];
 export const AFSBP_REMEDIATIONS = [...remediations].sort((controlA, controlB) =>

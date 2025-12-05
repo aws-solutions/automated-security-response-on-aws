@@ -8,6 +8,7 @@ import { Code, Runtime, Tracing, CfnFunction } from 'aws-cdk-lib/aws-lambda';
 import { Rule, RuleTargetInput, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Duration, Stack } from 'aws-cdk-lib';
@@ -124,10 +125,7 @@ export class SynchronizationFindingsConstruct extends Construct {
       handler: 'synchronization/synchronizationHandler.handler',
       runtime: Runtime.NODEJS_22_X,
       description: 'Synchronization findings lambda',
-      code: Code.fromBucket(
-        props.sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/asr_lambdas.zip',
-      ),
+      code: getLambdaCode(props.sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       environment: {
         SOLUTION_TRADEMARKEDNAME: props.solutionTMN,
         POWERTOOLS_SERVICE_NAME: 'synchronization_findings',
@@ -233,10 +231,7 @@ export class SynchronizationFindingsConstruct extends Construct {
       handler: 'synchronization/customResourceHandler.handler',
       runtime: Runtime.NODEJS_22_X,
       description: 'Custom resource provider to trigger initial synchronization',
-      code: Code.fromBucket(
-        props.sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/asr_lambdas.zip',
-      ),
+      code: getLambdaCode(props.sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       environment: {
         SOLUTION_TRADEMARKEDNAME: props.solutionTMN,
         POWERTOOLS_SERVICE_NAME: 'synchronization_trigger',

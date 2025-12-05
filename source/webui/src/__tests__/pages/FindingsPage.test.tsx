@@ -13,7 +13,9 @@ import { renderAppContent } from '../test-utils.tsx';
 
 it('renders an empty table', async () => {
   // GIVEN the backend returns no findings
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: [], NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: [], NextToken: null })),
+  );
 
   // WHEN rendering the /findings route
   renderAppContent({
@@ -30,7 +32,9 @@ it('renders a table with findings', async () => {
   // GIVEN the backend returns 5 findings
   const findings = generateTestFindings(5, { suppressed: false, remediationStatus: 'NOT_STARTED' });
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
 
   // WHEN
   renderAppContent({
@@ -40,7 +44,7 @@ it('renders a table with findings', async () => {
   // THEN expect 5 findings plus a header row in the table
   const withinMain = within(screen.getByTestId('main-content'));
   const loadingIndicator = await withinMain.findByText('Loading findings');
-  await waitForElementToBeRemoved(loadingIndicator);
+  await waitForElementToBeRemoved(loadingIndicator, { timeout: 2000 });
 
   const heading = await withinMain.findByRole('heading', { name: `Findings to Remediate (5)` });
   expect(heading).toBeInTheDocument();
@@ -60,7 +64,9 @@ it('shows Actions dropdown with correct options when findings are selected', asy
     ...generateTestFindings(2, { suppressed: true, remediationStatus: 'NOT_STARTED' }),
   ];
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
 
   // WHEN rendering the /findings route
   renderAppContent({
@@ -68,7 +74,7 @@ it('shows Actions dropdown with correct options when findings are selected', asy
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // THEN the Actions dropdown should be disabled initially
   const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
@@ -97,14 +103,16 @@ it('enables Suppress action only for unsuppressed findings', async () => {
   // GIVEN the backend returns unsuppressed findings with selectable remediation status
   const findings = generateTestFindings(3, { suppressed: false, remediationStatus: 'NOT_STARTED' });
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
 
   renderAppContent({
     initialRoute: '/findings',
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // WHEN selecting an unsuppressed finding
   const table = await withinMain.findByRole('table');
@@ -119,30 +127,33 @@ it('enables Suppress action only for unsuppressed findings', async () => {
   const dropdown = await screen.findByRole('menu');
   const suppressOption = within(dropdown).getByText('Suppress');
   const unsuppressOption = within(dropdown).getByText('Unsuppress');
-  
+
   // Check if the options are clickable (enabled) or not (disabled)
   expect(suppressOption).toBeInTheDocument();
   expect(unsuppressOption).toBeInTheDocument();
-
 });
 
 it('enables Unsuppress action only for suppressed findings', async () => {
   // GIVEN the backend returns suppressed findings
   const findings = generateTestFindings(3, { suppressed: true, remediationStatus: 'NOT_STARTED' });
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
 
   renderAppContent({
     initialRoute: '/findings',
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  
+
   // WHEN toggling to show suppressed findings
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), {
+    timeout: 2000,
+  });
 
   // WHEN selecting a suppressed finding
   const table = await withinMain.findByRole('table');
@@ -157,7 +168,7 @@ it('enables Unsuppress action only for suppressed findings', async () => {
   const dropdown = await screen.findByRole('menu');
   const suppressOption = within(dropdown).getByText('Suppress');
   const unsuppressOption = within(dropdown).getByText('Unsuppress');
-  
+
   // Check if the options are present - the actual disabled state testing is complex with CloudScape
   // The important thing is that the dropdown shows the correct options and the logic works
   expect(suppressOption).toBeInTheDocument();
@@ -168,19 +179,21 @@ it('shows confirmation modal when Unsuppress action is selected', async () => {
   // GIVEN the backend returns suppressed findings
   const findings = generateTestFindings(2, { suppressed: true, remediationStatus: 'NOT_STARTED' });
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
 
   renderAppContent({
     initialRoute: '/findings',
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  
+
   // WHEN toggling to show suppressed findings
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // WHEN selecting findings and clicking Unsuppress
   const table = await withinMain.findByRole('table');
@@ -212,13 +225,13 @@ it('executes Unsuppress action when confirmed', async () => {
   server.use(
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async ({ request }) => {
-      const body = await request.json() as any;
+      const body = (await request.json()) as any;
       if (body.actionType === 'Unsuppress') {
         unsuppressActionCalled = true;
         expect(body.findingIds).toEqual([findings[0].findingId]);
       }
       return await ok({});
-    })
+    }),
   );
 
   renderAppContent({
@@ -226,12 +239,12 @@ it('executes Unsuppress action when confirmed', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  
+
   // WHEN toggling to show suppressed findings
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // WHEN selecting a finding and confirming unsuppress
   const table = await withinMain.findByRole('table');
@@ -263,19 +276,21 @@ it('cancels Unsuppress action when Cancel is clicked', async () => {
   // GIVEN the backend returns suppressed findings
   const findings = generateTestFindings(1, { suppressed: true, remediationStatus: 'NOT_STARTED' });
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })));
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
 
   renderAppContent({
     initialRoute: '/findings',
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  
+
   // WHEN toggling to show suppressed findings
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // WHEN selecting a finding and clicking Unsuppress, then Cancel
   const table = await withinMain.findByRole('table');
@@ -295,7 +310,7 @@ it('cancels Unsuppress action when Cancel is clicked', async () => {
 
   // THEN the modal should be dismissed
   expect(modal).not.toBeInTheDocument();
-  
+
   // AND the finding should still be selected
   expect(checkboxes[1]).toBeChecked();
 });
@@ -306,14 +321,19 @@ it('shows suppressed findings when toggle is enabled', async () => {
   const suppressedFindings = generateTestFindings(2, { suppressed: true });
   const allFindings = [...unsuppressedFindings, ...suppressedFindings];
 
-  server.use(http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: allFindings, NextToken: null })));
+  server.use(
+    http.post(
+      MOCK_SERVER_URL + ApiEndpoints.FINDINGS,
+      async () => await ok({ Findings: allFindings, NextToken: null }),
+    ),
+  );
 
   renderAppContent({
     initialRoute: '/findings',
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // THEN initially only unsuppressed findings should be visible
   let table = await withinMain.findByRole('table');
@@ -334,9 +354,9 @@ it('renders loading state initially', async () => {
   // GIVEN the backend is slow to respond
   server.use(
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       return await ok({ Findings: [], NextToken: null });
-    })
+    }),
   );
 
   // WHEN rendering the /findings route
@@ -355,9 +375,9 @@ it('handles search error gracefully', async () => {
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => {
       return new Response(JSON.stringify({ message: 'Internal server error' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
-    })
+    }),
   );
 
   // WHEN rendering the /findings route
@@ -378,7 +398,7 @@ it('handles sorting changes', async () => {
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async ({ request }) => {
       lastSearchRequest = await request.json();
       return await ok({ Findings: findings, NextToken: null });
-    })
+    }),
   );
 
   renderAppContent({
@@ -386,7 +406,7 @@ it('handles sorting changes', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // WHEN clicking on a sortable column header
   const table = await withinMain.findByRole('table');
@@ -403,9 +423,7 @@ it('shows confirmation modals for different actions', async () => {
   const findings = generateTestFindings(3, { suppressed: false, remediationStatus: 'NOT_STARTED' });
 
   server.use(
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () =>
-      await ok({ Findings: findings, NextToken: null })
-    )
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
   );
 
   renderAppContent({
@@ -413,7 +431,7 @@ it('shows confirmation modals for different actions', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   const table = await withinMain.findByRole('table');
   const checkboxes = await within(table).findAllByRole('checkbox');
@@ -464,11 +482,9 @@ it('executes Suppress action when confirmed', async () => {
   let suppressActionCalled = false;
 
   server.use(
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () =>
-      await ok({ Findings: findings, NextToken: null })
-    ),
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async ({ request }) => {
-      const body = await request.json() as any;
+      const body = (await request.json()) as any;
       if (body.actionType === 'Suppress') {
         suppressActionCalled = true;
         expect(body.findingIds).toBeDefined();
@@ -477,7 +493,7 @@ it('executes Suppress action when confirmed', async () => {
         expect(body.findingIds[0]).toBe(findings[0].findingId);
       }
       return await ok({});
-    })
+    }),
   );
 
   renderAppContent({
@@ -485,7 +501,7 @@ it('executes Suppress action when confirmed', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // Select finding and confirm suppress
   const table = await withinMain.findByRole('table');
@@ -514,17 +530,15 @@ it('executes RemediateAndGenerateTicket action when confirmed', async () => {
   let remediateTicketActionCalled = false;
 
   server.use(
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () =>
-      await ok({ Findings: findings, NextToken: null })
-    ),
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async ({ request }) => {
-      const body = await request.json() as any;
+      const body = (await request.json()) as any;
       if (body.actionType === 'RemediateAndGenerateTicket') {
         remediateTicketActionCalled = true;
         expect(body.findingIds).toEqual([findings[0].findingId]);
       }
       return await ok({});
-    })
+    }),
   );
 
   renderAppContent({
@@ -532,7 +546,7 @@ it('executes RemediateAndGenerateTicket action when confirmed', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // Select finding and confirm remediate with ticket
   const table = await withinMain.findByRole('table');
@@ -560,15 +574,13 @@ it('handles action execution errors', async () => {
   const findings = generateTestFindings(1, { suppressed: false, remediationStatus: 'NOT_STARTED' });
 
   server.use(
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () =>
-      await ok({ Findings: findings, NextToken: null })
-    ),
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async () => {
       return new Response(JSON.stringify({ message: 'Action failed' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
-    })
+    }),
   );
 
   renderAppContent({
@@ -576,7 +588,7 @@ it('handles action execution errors', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // Select finding and confirm suppress
   const table = await withinMain.findByRole('table');
@@ -606,7 +618,7 @@ it('refreshes findings when refresh button is clicked', async () => {
     http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => {
       requestCount++;
       return await ok({ Findings: findings, NextToken: null });
-    })
+    }),
   );
 
   renderAppContent({
@@ -614,7 +626,7 @@ it('refreshes findings when refresh button is clicked', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // WHEN clicking refresh button
   const refreshButton = await withinMain.findByLabelText('Refresh findings');
@@ -630,9 +642,7 @@ it('shows finding IDs in confirmation modal', async () => {
   const findings = generateTestFindings(7, { suppressed: false, remediationStatus: 'NOT_STARTED' }); // More than 5 to test truncation
 
   server.use(
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () =>
-      await ok({ Findings: findings, NextToken: null })
-    )
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
   );
 
   renderAppContent({
@@ -640,7 +650,7 @@ it('shows finding IDs in confirmation modal', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // Select all findings
   const table = await withinMain.findByRole('table');
@@ -669,10 +679,8 @@ it('handles View History button click in success message', async () => {
   const findings = generateTestFindings(1, { suppressed: false, remediationStatus: 'NOT_STARTED' });
 
   server.use(
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () =>
-      await ok({ Findings: findings, NextToken: null })
-    ),
-    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async () => await ok({}))
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async () => await ok({})),
   );
 
   renderAppContent({
@@ -680,7 +688,7 @@ it('handles View History button click in success message', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'));
+  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
 
   // Execute a successful remediate action
   const table = await withinMain.findByRole('table');

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.2] - 2025-12-09
+
+### Changed
+
+- Enable lambda code updates with stack update
+- Python updated packages boto3 (1.40.39→1.40.76), botocore (1.40.39→1.40.76), AWS type stubs, cryptography (45.0.6→46.0.3), pydantic (2.11.7→2.12.5), werkzeug (3.1.3→3.1.4)
+- Npm updated packages in deployment
+
+### Added
+
+- Batch invite users
+- Enable adapt concurrency
+- New runbook for SSM.7
+- Export CSV action to findings table
+
+### Fixed
+
+- New remediations are not updated in RemediationConfigurationDynamoDBTable
+
 ## [3.0.1] - 2025-11-20
 
 ### Changed

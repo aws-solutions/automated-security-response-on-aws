@@ -1,5 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+"""
+Remediates SSM.4 and SSM.7 by disabling public access to SSM documents
+"""
 from typing import TypedDict
 
 import boto3
@@ -11,56 +14,55 @@ class EventType(TypedDict):
     name: str
 
 
-boto_config = Config(retries={"mode": "standard", "max_attempts": 10})
+BOTO_CONFIG = Config(retries={"mode": "standard", "max_attempts": 10})
 
 
 def connect_to_ssm():
-    return boto3.client("ssm", config=boto_config)
+    return boto3.client("ssm", config=BOTO_CONFIG)
+
+
+def get_document_name(event):
+    """
+    Extract document name from event supporting multiple input formats
+
+    Supports:
+    - DocumentArn: arn:aws:ssm:region:account:document/name (SSM.4/SSM.7)
+    - DocumentName: name (direct name)
+    - document_arn: arn:aws:ssm:region:account:document/name (legacy)
+    """
+    for key in ["DocumentArn", "DocumentName", "document_arn"]:
+        if key in event:
+            value = event[key]
+            # Extract name from ARN if it contains '/'
+            return value.split("/")[-1] if "/" in value else value
+
+    raise ValueError(
+        "Event must contain 'DocumentArn', 'DocumentName', or 'document_arn'"
+    )
 
 
 def lambda_handler(event: EventType, _):
     """
-    remediates SSM.4 by disabling public access to SSM documents
-    On success returns True
-    On failure returns NoneType
+    Removes public access from an SSM document
+
+    Returns:
+        Dict with 'response': {'isPublic': 'False'} on success
     """
+    document_name = get_document_name(event)
+    ssm = connect_to_ssm()
 
-    try:
-        document_arn = event["document_arn"]
-        document_name = document_arn.split("/")[1]
-        document_perimissions = describe_document_permissions(document_name)
-        if "all" in document_perimissions.get("AccountIds"):
-            modify_document_permissions(document_name)
-        else:
-            exit(f"No change was made to {document_name}")
+    # Check current permissions
+    response = ssm.describe_document_permission(
+        Name=document_name, PermissionType="Share"
+    )
 
-        verify_document_permissions = describe_document_permissions(document_name)
+    # Only modify if publicly shared
+    if "all" not in response.get("AccountIds", []):
+        return {"response": {"isPublic": "False"}}
 
-        if "all" not in verify_document_permissions.get("AccountIds"):
-            return {"isPublic": "False"}
-        else:
-            raise RuntimeError
+    # Remove public access
+    ssm.modify_document_permission(
+        Name=document_name, AccountIdsToRemove=["all"], PermissionType="Share"
+    )
 
-    except Exception as e:
-        exit(f"Failed to retrieve the SSM Document permission: {str(e)}")
-
-
-def describe_document_permissions(document_name):
-    ssm_client = connect_to_ssm()
-    try:
-        document_permissions = ssm_client.describe_document_permission(
-            Name=document_name, PermissionType="Share"
-        )
-        return document_permissions
-    except Exception as e:
-        exit(f"Failed to describe SSM Document {document_name}: {str(e)}")
-
-
-def modify_document_permissions(document_name):
-    ssm_client = connect_to_ssm()
-    try:
-        ssm_client.modify_document_permission(
-            Name=document_name, AccountIdsToRemove=["all"], PermissionType="Share"
-        )
-    except Exception as e:
-        exit(f"Failed to modify SSM Document {document_name}: {str(e)}")
+    return {"response": {"isPublic": "False"}}

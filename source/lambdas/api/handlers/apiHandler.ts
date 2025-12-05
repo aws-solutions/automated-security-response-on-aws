@@ -5,7 +5,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { dynamicImport } from 'tsimportlib';
 import { BadRequestError, HttpError, NotFoundError, UnauthorizedError } from '../../common/utils/httpErrors';
-import { executeFindingAction, searchFindings } from './findings';
+import { executeFindingAction, exportFindings, searchFindings } from './findings';
 import { exportRemediations, searchRemediations } from './remediations';
 import { deleteUser, getUsers, inviteUser, putUser } from './users';
 
@@ -87,6 +87,11 @@ const routes = [
     method: 'POST',
     path: '/findings/action',
     handler: executeFindingAction,
+  },
+  {
+    method: 'POST',
+    path: '/findings/export',
+    handler: exportFindings,
   },
   {
     method: 'POST',

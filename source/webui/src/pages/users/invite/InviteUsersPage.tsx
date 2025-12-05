@@ -1,14 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useMemo, useContext, useEffect } from 'react';
+import { useState, useMemo, useContext } from 'react';
 import {
   Container,
   ContentLayout,
   Header,
   Form,
   FormField,
-  Input,
   Select,
   SelectProps,
   Textarea,
@@ -16,57 +15,85 @@ import {
   SpaceBetween,
 } from '@cloudscape-design/components';
 import { useDispatch } from 'react-redux';
-import { validateAccountIds, parseAccountIds, validateEmail } from '../../../utils/validation.ts';
+import { validateAccountIds, parseAccountIds, validateEmail, parseEmails } from '../../../utils/validation.ts';
 import { useInviteUserMutation } from '../../../store/usersApiSlice.ts';
 import { UserContext } from '../../../contexts/UserContext.tsx';
 import { getErrorMessage } from '../../../utils/error.ts';
 import { getHighestUserGroup } from '../../../utils/userPermissions.ts';
 import { addNotification } from '../../../store/notificationsSlice.ts';
-import { USER_TYPE_DELEGATED_ADMIN, USER_TYPE_ACCOUNT_OPERATOR, InviteUserRequest } from '@data-models';
+import { USER_TYPE_DELEGATED_ADMIN, USER_TYPE_ACCOUNT_OPERATOR } from '@data-models';
 
 const OPTION_DELEGATED_ADMIN = { label: 'Delegated Admin', value: USER_TYPE_DELEGATED_ADMIN };
 const OPTION_ACCOUNT_OPERATOR = { label: 'Account Operator', value: USER_TYPE_ACCOUNT_OPERATOR };
 
 export const InviteUsersPage = () => {
   const dispatch = useDispatch();
-  const { email: currentUserEmail, groups } = useContext(UserContext);
+  const { groups } = useContext(UserContext);
   const highestUserGroup = getHighestUserGroup(groups);
   const isDelegatedAdmin = highestUserGroup === 'DelegatedAdminGroup';
 
   const initialPermissionType = isDelegatedAdmin ? OPTION_ACCOUNT_OPERATOR : null;
 
-  const [email, setEmail] = useState('');
+  const [emails, setEmails] = useState('');
   const [permissionType, setPermissionType] = useState<SelectProps.Option | null>(initialPermissionType);
   const [ownedAccounts, setOwnedAccounts] = useState('');
-  const [inviteUser, { isLoading, error, reset }] = useInviteUserMutation();
+  const [inviteUser, { isLoading, reset }] = useInviteUserMutation();
 
   const permissionOptions = isDelegatedAdmin
     ? [OPTION_ACCOUNT_OPERATOR]
     : [OPTION_DELEGATED_ADMIN, OPTION_ACCOUNT_OPERATOR];
 
   const handleSubmit = async () => {
-    if (!email || !permissionType) {
+    if (!emails || !permissionType) {
       return;
     }
 
-    const inviteRequest: InviteUserRequest = {
-      email,
-      role: permissionType.value === 'delegated-admin' ? ('DelegatedAdmin' as const) : ('AccountOperator' as const),
-      ...(isAccountOperator && ownedAccounts ? { accountIds: parseAccountIds(ownedAccounts) } : {}),
-    };
+    const emailList = parseEmails(emails);
+    const accountIds = isAccountOperator && ownedAccounts ? parseAccountIds(ownedAccounts) : undefined;
 
-    const result = await inviteUser(inviteRequest);
+    const results = await Promise.allSettled(
+      emailList.map((email) =>
+        inviteUser({
+          email,
+          role: permissionType.value === 'delegated-admin' ? ('DelegatedAdmin' as const) : ('AccountOperator' as const),
+          ...(accountIds ? { accountIds } : {}),
+        }).unwrap(),
+      ),
+    );
 
-    if ('data' in result) {
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    const failures = results.filter((r) => r.status === 'rejected');
+    const failureCount = failures.length;
+
+    if (successCount > 0) {
       dispatch(
         addNotification({
           type: 'success',
-          content: `User invitation sent successfully to ${email}`,
+          content: `Successfully invited ${successCount} user${successCount > 1 ? 's' : ''}`,
           id: `invite-success-${Date.now()}`,
         }),
       );
+    }
 
-      setEmail('');
+    if (failureCount > 0) {
+      const errorMessages = failures
+        .map((f) => getErrorMessage(f.reason))
+        .filter((msg): msg is string => !!msg)
+        .join(', ');
+      const content = errorMessages
+        ? `Failed to invite ${failureCount} user${failureCount > 1 ? 's' : ''}: ${errorMessages}`
+        : `Failed to invite ${failureCount} user${failureCount > 1 ? 's' : ''}`;
+      dispatch(
+        addNotification({
+          type: 'error',
+          content,
+          id: `invite-error-${Date.now()}`,
+        }),
+      );
+    }
+
+    if (successCount === emailList.length) {
+      setEmails('');
       setPermissionType(initialPermissionType);
       setOwnedAccounts('');
       reset();
@@ -81,27 +108,22 @@ export const InviteUsersPage = () => {
     return validateAccountIds(ownedAccounts);
   }, [ownedAccounts, isAccountOperator]);
 
-  useEffect(() => {
-    if (error) {
-      dispatch(
-        addNotification({
-          type: 'error',
-          content: `Failed to invite user: ${getErrorMessage(error)}`,
-          id: `invite-error-${Date.now()}`,
-        }),
-      );
-    }
-  }, [error, dispatch]);
-
-  const emailValidationError = useMemo(() => validateEmail(email), [email]);
+  const emailValidationError = useMemo(() => {
+    if (!emails.trim()) return null;
+    const emailList = parseEmails(emails);
+    const invalidEmails = emailList.filter((email) => validateEmail(email));
+    return invalidEmails.length > 0
+      ? `Invalid email address${invalidEmails.length > 1 ? 'es' : ''}: ${invalidEmails.join(', ')}`
+      : null;
+  }, [emails]);
 
   const isFormValid = useMemo(() => {
-    const hasValidEmail = !!email.trim() && !emailValidationError;
+    const hasValidEmails = !!emails.trim() && !emailValidationError;
     const hasPermissionType = !!permissionType;
     const hasValidAccountIds = !isAccountOperator || !validationError;
 
-    return hasValidEmail && hasPermissionType && hasValidAccountIds;
-  }, [email, emailValidationError, permissionType, isAccountOperator, validationError]);
+    return hasValidEmails && hasPermissionType && hasValidAccountIds;
+  }, [emails, emailValidationError, permissionType, isAccountOperator, validationError]);
 
   return (
     <ContentLayout
@@ -124,16 +146,16 @@ export const InviteUsersPage = () => {
         >
           <SpaceBetween direction="vertical" size="l">
             <FormField
-              label="Email"
-              description="Let us know who the invitation should be sent to, and what kind of access they should have."
+              label="Email(s)"
+              description="Enter one or more email addresses separated by commas to invite multiple users."
               errorText={emailValidationError}
             >
-              <Input
-                value={email}
-                onChange={({ detail }) => setEmail(detail.value)}
-                placeholder="johndoe@example.com"
+              <Textarea
+                value={emails}
+                onChange={({ detail }) => setEmails(detail.value)}
+                placeholder="johndoe@example.com, janedoe@example.com"
                 invalid={!!emailValidationError}
-                type="email"
+                rows={3}
               />
             </FormField>
 

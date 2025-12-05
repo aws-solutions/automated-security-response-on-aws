@@ -3,7 +3,7 @@
 
 import { screen, within, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { render } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
@@ -52,19 +52,14 @@ describe('InviteUsersPage', () => {
     renderInviteUsersPage();
 
     // ASSERT
-    // Form structure
     expect(screen.getByRole('heading', { name: 'Invite Users' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Invitation Details' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email(s)')).toBeInTheDocument();
     expect(screen.getByLabelText('Permission Type')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument();
-
-    // Description text
     expect(screen.getByText(/Send an access invitation for additional users/)).toBeInTheDocument();
-    expect(screen.getByText(/Let us know who the invitation should be sent to/)).toBeInTheDocument();
+    expect(screen.getByText(/Enter one or more email addresses separated by commas/)).toBeInTheDocument();
     expect(screen.getByText(/What level of access should this user have/)).toBeInTheDocument();
-
-    // Initial state
     expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
   });
 
@@ -76,7 +71,7 @@ describe('InviteUsersPage', () => {
     const { container } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
     await user.type(emailInput, 'test@example.com');
@@ -129,12 +124,10 @@ describe('InviteUsersPage', () => {
       selectWrapper!.selectOptionByValue('account-operator');
     });
 
-    // Verify field appears
     await waitFor(() => {
       expect(screen.getByLabelText('Owned Accounts')).toBeInTheDocument();
     });
 
-    // Switch to delegated admin
     act(() => {
       selectWrapper!.openDropdown();
     });
@@ -210,7 +203,7 @@ describe('InviteUsersPage', () => {
     const { container } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
     await user.type(emailInput, 'test@example.com');
@@ -230,7 +223,7 @@ describe('InviteUsersPage', () => {
     });
   });
 
-  it('successfully invites delegated admin user', async () => {
+  it('successfully invites single user', async () => {
     // ARRANGE
     const user = userEvent.setup();
     server.use(http.post(`${MOCK_SERVER_URL}${ApiEndpoints.USERS}`, async () => await ok({})));
@@ -239,7 +232,7 @@ describe('InviteUsersPage', () => {
     const { container, store } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
     await user.type(emailInput, 'test@example.com');
@@ -254,6 +247,7 @@ describe('InviteUsersPage', () => {
     await user.click(submitButton);
 
     // ASSERT
+    // When ALL succeed - form clears
     await waitFor(() => {
       expect(emailInput).toHaveValue('');
     });
@@ -264,14 +258,26 @@ describe('InviteUsersPage', () => {
         expect.arrayContaining([
           expect.objectContaining({
             type: 'success',
-            content: 'User invitation sent successfully to test@example.com',
+            content: 'Successfully invited 1 user',
           }),
         ]),
       );
     });
+  });
 
-    // ACT - second successful invitation
-    await user.type(emailInput, 'test2@example.com');
+  it('successfully invites multiple users in batch', async () => {
+    // ARRANGE
+    const user = userEvent.setup();
+    server.use(http.post(`${MOCK_SERVER_URL}${ApiEndpoints.USERS}`, async () => await ok({})));
+
+    // ACT
+    const { container, store } = renderInviteUsersPage();
+    const wrapper = createWrapper(container);
+
+    const emailInput = screen.getByLabelText('Email(s)');
+    const selectWrapper = wrapper.findSelect();
+
+    await user.type(emailInput, 'user1@example.com, user2@example.com, user3@example.com');
     act(() => {
       selectWrapper!.openDropdown();
     });
@@ -279,9 +285,11 @@ describe('InviteUsersPage', () => {
       selectWrapper!.selectOptionByValue('delegated-admin');
     });
 
+    const submitButton = screen.getByRole('button', { name: 'Submit' });
     await user.click(submitButton);
 
-    // ASSERT - notification should be re-rendered
+    // ASSERT
+    // When ALL succeed - form clears
     await waitFor(() => {
       expect(emailInput).toHaveValue('');
     });
@@ -292,11 +300,82 @@ describe('InviteUsersPage', () => {
         expect.arrayContaining([
           expect.objectContaining({
             type: 'success',
-            content: 'User invitation sent successfully to test2@example.com',
+            content: 'Successfully invited 3 users',
           }),
         ]),
       );
     });
+  });
+
+  it('handles partial failures in batch invite and shows both success and error notifications', async () => {
+    // ARRANGE
+    const user = userEvent.setup();
+    const failingEmail = 'fail@example.com';
+    server.use(
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.USERS}`, async ({ request }) => {
+        const body = (await request.json()) as { email: string };
+        if (body.email === failingEmail) {
+          return HttpResponse.json({ message: 'User already exists' }, { status: 400 });
+        }
+        return await ok({});
+      }),
+    );
+
+    // ACT
+    const { container, store } = renderInviteUsersPage();
+    const wrapper = createWrapper(container);
+
+    const emailInput = screen.getByLabelText('Email(s)');
+    const selectWrapper = wrapper.findSelect();
+
+    await user.type(emailInput, `success1@example.com, ${failingEmail}, success2@example.com`);
+    act(() => {
+      selectWrapper!.openDropdown();
+    });
+    act(() => {
+      selectWrapper!.selectOptionByValue('delegated-admin');
+    });
+
+    const submitButton = screen.getByRole('button', { name: 'Submit' });
+    await user.click(submitButton);
+
+    // ASSERT
+    await waitFor(
+      () => {
+        const state = store.getState();
+        const notifications = state.notifications.notifications;
+        const successNotif = notifications.find((n) => n.type === 'success');
+        const errorNotif = notifications.find((n) => n.type === 'error');
+        expect(successNotif).toBeDefined();
+        expect(successNotif?.content).toBe('Successfully invited 2 users');
+        expect(errorNotif).toBeDefined();
+        expect(errorNotif?.content).toContain('Failed to invite 1 user');
+        expect(errorNotif?.content).toContain('User already exists');
+      },
+      { timeout: 3000 },
+    );
+
+    // When SOME fail - form retains values so user can retry failed emails
+    expect(emailInput).toHaveValue(`success1@example.com, ${failingEmail}, success2@example.com`);
+  });
+
+  it('validates multiple emails and shows invalid ones', async () => {
+    // ARRANGE
+    const user = userEvent.setup();
+
+    // ACT
+    const { container } = renderInviteUsersPage();
+    const wrapper = createWrapper(container);
+
+    const emailInput = screen.getByLabelText('Email(s)');
+    await user.type(emailInput, 'valid@example.com, invalid-email, another@example.com');
+
+    // ASSERT
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid email address: invalid-email/)).toBeInTheDocument();
+    });
+    expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
   });
 
   it('successfully invites account operator user with account IDs', async () => {
@@ -308,7 +387,7 @@ describe('InviteUsersPage', () => {
     const { container, store } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
     await user.type(emailInput, 'operator@example.com');
@@ -326,6 +405,7 @@ describe('InviteUsersPage', () => {
     await user.click(submitButton);
 
     // ASSERT
+    // When ALL succeed - form clears
     await waitFor(() => {
       expect(emailInput).toHaveValue('');
     });
@@ -336,7 +416,7 @@ describe('InviteUsersPage', () => {
         expect.arrayContaining([
           expect.objectContaining({
             type: 'success',
-            content: 'User invitation sent successfully to operator@example.com',
+            content: 'Successfully invited 1 user',
           }),
         ]),
       );
@@ -357,7 +437,7 @@ describe('InviteUsersPage', () => {
     const { container } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
     await user.type(emailInput, 'test@example.com');
@@ -376,19 +456,16 @@ describe('InviteUsersPage', () => {
       expect(submitButton).toHaveAttribute('aria-disabled', 'true');
     });
 
-    // Clean up
     resolveRequest!(await ok({}));
   });
 
-  it('displays error notification when invitation fails', async () => {
+  it('displays error notification when all invitations fail', async () => {
     // ARRANGE
     const user = userEvent.setup();
+    server.resetHandlers();
     server.use(
       http.post(`${MOCK_SERVER_URL}${ApiEndpoints.USERS}`, async () => {
-        return new Response(JSON.stringify({ message: 'User already exists' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return Response.json({ message: 'User already exists' }, { status: 400 });
       }),
     );
 
@@ -396,10 +473,10 @@ describe('InviteUsersPage', () => {
     const { container, store } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
-    await user.type(emailInput, 'existing@example.com');
+    await user.type(emailInput, 'existing@example.com, another@example.com');
     act(() => {
       selectWrapper!.openDropdown();
     });
@@ -413,48 +490,14 @@ describe('InviteUsersPage', () => {
     // ASSERT
     await waitFor(() => {
       const state = store.getState();
-      const errorNotification = state.notifications.notifications.find((n) => n.type === 'error');
-      expect(errorNotification).toBeDefined();
-      expect(errorNotification?.content).toContain('Failed to invite user');
-    });
-  });
-
-  it('handles API error with unknown error message', async () => {
-    // ARRANGE
-    const user = userEvent.setup();
-    server.use(
-      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.USERS}`, async () => {
-        return new Response(null, {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }),
-    );
-
-    // ACT
-    const { container, store } = renderInviteUsersPage();
-    const wrapper = createWrapper(container);
-
-    const emailInput = screen.getByLabelText('Email');
-    const selectWrapper = wrapper.findSelect();
-
-    await user.type(emailInput, 'test@example.com');
-    act(() => {
-      selectWrapper!.openDropdown();
-    });
-    act(() => {
-      selectWrapper!.selectOptionByValue('delegated-admin');
-    });
-
-    const submitButton = screen.getByRole('button', { name: 'Submit' });
-    await user.click(submitButton);
-
-    // ASSERT
-    await waitFor(() => {
-      const state = store.getState();
-      const errorNotification = state.notifications.notifications.find((n) => n.type === 'error');
-      expect(errorNotification).toBeDefined();
-      expect(errorNotification?.content).toContain('Failed to invite user');
+      const errorNotifications = state.notifications.notifications.filter((n) => n.type === 'error');
+      expect(errorNotifications.length).toBeGreaterThan(0);
+      const hasFailedInviteNotification = errorNotifications.some(
+        (notificationPayload) =>
+          // @ts-ignore - n.content.includes is valid on NotificationPayload
+          notificationPayload.content.includes('Failed to invite') && notificationPayload.content.includes('user'),
+      );
+      expect(hasFailedInviteNotification).toBe(true);
     });
   });
 
@@ -468,8 +511,6 @@ describe('InviteUsersPage', () => {
     renderInviteUsersPage();
 
     const submitButton = screen.getByRole('button', { name: 'Submit' });
-
-    // Try to submit with empty form
     await user.click(submitButton);
 
     // ASSERT
@@ -485,7 +526,7 @@ describe('InviteUsersPage', () => {
     const { container } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
 
     await user.type(emailInput, 'test@example.com');
@@ -502,42 +543,26 @@ describe('InviteUsersPage', () => {
     });
   });
 
-  it('shows failed to invite user notification on API failure', async () => {
+  it('updates notifications on sequential form submissions', async () => {
     // ARRANGE
     const user = userEvent.setup();
-    server.use(
-      http.post(
-        `${MOCK_SERVER_URL}${ApiEndpoints.USERS}`,
-        () => {
-          return Response.json({ message: 'first failure' }, { status: 400 });
-        },
-        { once: true },
-      ),
-      http.post(
-        `${MOCK_SERVER_URL}${ApiEndpoints.USERS}`,
-        () => {
-          return Response.json({ message: 'second failure' }, { status: 400 });
-        },
-        { once: true },
-      ),
-    );
+    server.use(http.post(`${MOCK_SERVER_URL}${ApiEndpoints.USERS}`, async () => await ok({})));
 
     // ACT
     const { container, store } = renderInviteUsersPage();
     const wrapper = createWrapper(container);
 
-    const emailInput = screen.getByLabelText('Email');
+    const emailInput = screen.getByLabelText('Email(s)');
     const selectWrapper = wrapper.findSelect();
+    const submitButton = screen.getByRole('button', { name: 'Submit' });
 
-    await user.type(emailInput, 'test@example.com');
+    await user.type(emailInput, 'user1@example.com');
     act(() => {
       selectWrapper!.openDropdown();
     });
     act(() => {
       selectWrapper!.selectOptionByValue('delegated-admin');
     });
-
-    const submitButton = screen.getByRole('button', { name: 'Submit' });
     await user.click(submitButton);
 
     // ASSERT
@@ -546,39 +571,35 @@ describe('InviteUsersPage', () => {
       expect(state.notifications.notifications).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            type: 'error',
-            content: 'Failed to invite user: first failure',
+            type: 'success',
+            content: 'Successfully invited 1 user',
           }),
         ]),
       );
     });
 
-    // ACT - second failed invitation
-    await user.clear(emailInput);
-    await user.type(emailInput, 'test2@example.com');
+    // ACT - second submission
+    await user.type(emailInput, 'user2@example.com, user3@example.com');
     act(() => {
       selectWrapper!.openDropdown();
     });
     act(() => {
       selectWrapper!.selectOptionByValue('delegated-admin');
     });
-
-    await waitFor(() => {
-      expect(submitButton).toBeEnabled();
-    });
-    
     await user.click(submitButton);
 
-    // ASSERT
+    // ASSERT - new notification added
     await waitFor(() => {
       const state = store.getState();
       const notifications = state.notifications.notifications;
-      expect(notifications).toHaveLength(2);
-      expect(notifications[1]).toEqual(
-        expect.objectContaining({
-          type: 'error',
-          content: 'Failed to invite user: second failure',
-        })
+      expect(notifications.length).toBeGreaterThanOrEqual(2);
+      expect(notifications).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'success',
+            content: 'Successfully invited 2 users',
+          }),
+        ]),
       );
     });
   });

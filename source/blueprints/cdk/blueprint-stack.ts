@@ -9,6 +9,7 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as cdk from 'aws-cdk-lib';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { addCfnGuardSuppression } from '../../lib/cdk-helper/add-cfn-guard-suppression';
+import { getLambdaCode } from '../../lib/cdk-helper/lambda-code-manifest';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -100,9 +101,11 @@ export class BlueprintStack extends Stack {
       compatibleRuntimes: [props.solutionInfo.runtimePython],
       description: `Layer created by ${props.solutionInfo.solutionTMN} to package dependencies necessary for Blueprint ticket generator functions.`,
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
-      code: lambda.Code.fromBucket(
+      code: getLambdaCode(
         solutionsBucket,
-        props.solutionInfo.solutionTMN + '/' + props.solutionInfo.solutionVersion + '/lambda/blueprints/python.zip',
+        props.solutionInfo.solutionTMN,
+        props.solutionInfo.solutionVersion,
+        'blueprints/python.zip',
       ),
     });
 

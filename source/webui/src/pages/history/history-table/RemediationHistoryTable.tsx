@@ -494,6 +494,12 @@ export default function RemediationHistoryTable() {
       const result = await exportRemediations(exportRequest).unwrap();
       if (result.downloadUrl) {
         window.open(result.downloadUrl, '_blank');
+
+        if (result.status === 'partial') {
+          setErrorMessage(
+            `Partial Export: Exported ${result.totalExported.toLocaleString()} records. ${result.message || ''}`
+          );
+        }
       }
     } catch (error) {
       console.error('Export failed:', error);

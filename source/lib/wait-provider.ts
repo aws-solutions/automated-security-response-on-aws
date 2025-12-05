@@ -7,6 +7,7 @@ import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 
 export interface WaitProviderProps {
   readonly serviceToken: string;
@@ -74,9 +75,11 @@ export class WaitProvider extends Construct {
       //NOSONAR This is not unknown code.
       role,
       runtime: props.runtimePython,
-      code: Code.fromBucket(
+      code: getLambdaCode(
         Bucket.fromBucketName(scope, 'Bucket', `${props.solutionDistBucket}-${Stack.of(scope).region}`),
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/wait_provider.zip',
+        props.solutionTMN,
+        props.solutionVersion,
+        'wait_provider.zip',
       ),
       handler: 'wait_provider.lambda_handler',
       environment: { LOG_LEVEL: 'INFO' },

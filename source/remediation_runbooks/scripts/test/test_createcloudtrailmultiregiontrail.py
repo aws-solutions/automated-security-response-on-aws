@@ -35,7 +35,7 @@ def test_create_encrypted_bucket(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
@@ -62,7 +62,7 @@ def test_create_encrypted_bucket(mocker):
                     {
                         "ApplyServerSideEncryptionByDefault": {
                             "SSEAlgorithm": "aws:kms",
-                            "KMSMasterKeyID": "1234abcd-12ab-34cd-56ef-1234567890ab",
+                            "KMSMasterKeyID": "EXAMPLE-1234-5678-9012-EXAMPLEKEY",
                         }
                     }
                 ]
@@ -112,7 +112,7 @@ def test_bucket_already_exists(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
@@ -144,7 +144,7 @@ def test_bucket_already_owned_by_you(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
@@ -247,7 +247,7 @@ def test_create_bucket_policy(mocker):
 def test_create_logging_bucket(mocker):
     event: Event = {
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -274,7 +274,7 @@ def test_create_logging_bucket(mocker):
                     {
                         "ApplyServerSideEncryptionByDefault": {
                             "SSEAlgorithm": "aws:kms",
-                            "KMSMasterKeyID": "1234abcd-12ab-34cd-56ef-1234567890ab",
+                            "KMSMasterKeyID": "EXAMPLE-1234-5678-9012-EXAMPLEKEY",
                         }
                     }
                 ]
@@ -324,7 +324,7 @@ def test_enable_cloudtrail(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -349,7 +349,7 @@ def test_enable_cloudtrail(mocker):
             "IncludeGlobalServiceEvents": True,
             "EnableLogFileValidation": True,
             "IsMultiRegionTrail": True,
-            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         },
     )
 
@@ -373,7 +373,7 @@ def test_enable_cloudtrail_trail_exists(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -397,7 +397,7 @@ def test_enable_cloudtrail_trail_exists(mocker):
             "IncludeGlobalServiceEvents": True,
             "EnableLogFileValidation": True,
             "IsMultiRegionTrail": True,
-            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         },
     )
 
@@ -421,7 +421,7 @@ def test_enable_cloudtrail_trail_already_exists_exception(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -447,7 +447,7 @@ def test_enable_cloudtrail_trail_already_exists_exception(mocker):
             "IncludeGlobalServiceEvents": True,
             "EnableLogFileValidation": True,
             "IsMultiRegionTrail": True,
-            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+            "KmsKeyId": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         },
     )
 
@@ -471,7 +471,7 @@ def test_enable_cloudtrail_update_fails_after_trail_exists_exception(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -507,7 +507,7 @@ def test_enable_cloudtrail_client_error(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -541,7 +541,7 @@ def test_enable_cloudtrail_general_exception(mocker):
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
         "region": get_region(),
-        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/not-a-real-key",
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
@@ -653,7 +653,7 @@ def test_encrypt_bucket_fails():
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         createloggingbucket.encrypt_bucket(
-            s3, "mahbukkit", "arn:aws:kms:us-east-1:111111111111:key/mahcryptionkey"
+            s3, "mahbukkit", "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-KEY-ID"
         )
     assert pytest_wrapped_e.type == SystemExit
     assert (
