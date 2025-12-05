@@ -9,6 +9,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
+import { getLambdaCode } from '../cdk-helper/lambda-code-manifest';
 
 export interface UICustomResourceConstructProps {
   readonly apiEndpoint: string;
@@ -71,10 +72,7 @@ export class WebUIDeploymentConstruct extends Construct {
 
     const uiCopyAssetsFn = new lambda.Function(this, 'DeployWebUI', {
       runtime: Runtime.NODEJS_22_X,
-      code: lambda.Code.fromBucket(
-        props.sourceCodeBucket,
-        `${props.solutionTMN}/${props.solutionVersion}/lambda/asr_lambdas.zip`,
-      ),
+      code: getLambdaCode(props.sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       handler: 'api/handlers/deployWebui.lambdaHandler',
       timeout: Duration.minutes(4),
       environment: {

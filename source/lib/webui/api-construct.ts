@@ -14,6 +14,7 @@ import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { getLambdaCode } from '../cdk-helper/lambda-code-manifest';
 
 export interface ApiConstructProps {
   solutionId: string;
@@ -47,10 +48,7 @@ export class ApiConstruct extends Construct {
       runtime: lambda.Runtime.NODEJS_22_X,
       functionName: props.functionName,
       handler: 'api/handlers/apiHandler.handler',
-      code: lambda.Code.fromBucket(
-        props.solutionsBucket,
-        `${props.solutionTMN}/${props.solutionVersion}/lambda/asr_lambdas.zip`,
-      ),
+      code: getLambdaCode(props.solutionsBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       description: 'ASR API Lambda function',
       environment: {
         SOLUTION_ID: props.solutionId,
@@ -68,9 +66,11 @@ export class ApiConstruct extends Construct {
         AWS_ACCOUNT_ID: stack.account,
         STACK_ID: stack.stackId,
         SECURITY_HUB_V2_ENABLED: props.securityHubV2Enabled,
+        EXPORT_MAX_TIME_MS: process.env.EXPORT_MAX_TIME_MS || '26000', // API Gateway has 29s hard limit; 26s for export + 3s buffer
+        EXPORT_MAX_RECORDS: process.env.EXPORT_MAX_RECORDS || '50000', // Memory safety limit
       },
       memorySize: 512,
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.seconds(29), // Match API Gateway timeout (29s hard limit)
       tracing: lambda.Tracing.ACTIVE,
     });
 

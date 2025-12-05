@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`member stack snapshot matches 1`] = `
 {
@@ -284,7 +284,7 @@ exports[`member stack snapshot matches 1`] = `
               ],
             ],
           },
-          "S3Key": "my-solution-tmn/v9.9.9/lambda/layer.zip",
+          "S3Key": my-solution-tmn/v9.9.9/lambda/layer.zip,
         },
         "Description": "SO0111 ASR Common functions used by the solution",
         "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -374,7 +374,7 @@ exports[`member stack snapshot matches 1`] = `
               ],
             ],
           },
-          "S3Key": "my-solution-tmn/v9.9.9/lambda/deployment_metrics_custom_resource.zip",
+          "S3Key": my-solution-tmn/v9.9.9/lambda/deployment_metrics_custom_resource.zip,
         },
         "Description": "ASR - Handles deployment related custom actions",
         "Environment": {
@@ -1972,7 +1972,7 @@ exports[`member stack snapshot matches 1`] = `
               ],
             ],
           },
-          "S3Key": "my-solution-tmn/v9.9.9/lambda/wait_provider.zip",
+          "S3Key": my-solution-tmn/v9.9.9/lambda/wait_provider.zip,
         },
         "Environment": {
           "Variables": {

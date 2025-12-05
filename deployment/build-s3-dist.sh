@@ -99,7 +99,8 @@ main() {
         if [[ "${BUILD_ENV:-}" != "development" ]]; then
             echo -e "\033[1;33m===============================================================================\033[0m"
             echo -e "\033[1;33m⚠️  WARNING: BUILD_ENV is not set to 'development'. Localhost URLs will not be included in Cognito UserPoolClient configuration.\033[0m"
-            echo -e "\033[1;33mTo include localhost URLs for development, run: BUILD_ENV=development $0 $*\033[0m"
+            echo -e "\033[1;33mTo include localhost URLs for development, run: export BUILD_ENV=development\033[0m"
+            echo -e "\033[1;33mThen run: $0 $*\033[0m"
             echo -e "\033[1;33m===============================================================================\033[0m"
             echo ""
             sleep 2
@@ -162,18 +163,24 @@ main() {
     zip -q ${build_dist_dir}/lambda/remediation_config_provider.zip remediation_config_provider.py cfnresponse.py
     popd
 
+    header "[Pack] Enable Adaptive Concurrency Custom Action Lambda"
+
+    pushd "$source_dir"/solution_deploy/source
+    zip -q ${build_dist_dir}/lambda/enable_adaptive_concurrency.zip enable_adaptive_concurrency.py cfnresponse.py
+    popd
 
     header "[Pack] Wait Provider Lambda"
 
     pushd "$source_dir"/solution_deploy/source
     zip -q ${build_dist_dir}/lambda/wait_provider.zip wait_provider.py cfnresponse.py
+    popd
 
     header "[Pack] Orchestrator Lambdas"
 
     pushd "$source_dir"/Orchestrator
     ls | while read file; do
         if [ ! -d $file ]; then
-            zip -q "$build_dist_dir"/lambda/"$file".zip "$file"
+            zip -q "$build_dist_dir"/lambda/"${file%.*}".zip "$file"
         fi
     done
     popd
@@ -201,7 +208,7 @@ main() {
         pushd $dir/ticket_generator
         ls | while read file; do
             if [ ! -d $file ]; then
-                zip -q "$build_dist_dir"/lambda/blueprints/"$file".zip "$file"
+                zip -q "$build_dist_dir"/lambda/blueprints/"${file%.*}".zip "$file"
             fi
         done
         popd
@@ -252,6 +259,49 @@ main() {
     npm ci
     node app.js --target "$build_dist_dir/webui" --output webui-manifest.json
     mv webui-manifest.json $build_dist_dir/webui/webui-manifest.json
+
+    # IMPORTANT: Pack all lambda assets before this line
+
+    header "[Generate] Lambda Content Hashes"
+
+    # Generate content hashes for all Lambda zip files recursively
+    temp_mappings="$temp_work_dir/lambda_mappings.txt"
+    > "$temp_mappings"
+
+    find "$build_dist_dir"/lambda -type f -name "*.zip" | while read -r zip_file; do
+        relative_path="${zip_file#$build_dist_dir/lambda/}"
+        dir_path=$(dirname "$relative_path")
+        filename=$(basename "$zip_file")
+        hash=$(sha256sum "$zip_file" | cut -d' ' -f1 | cut -c1-8)
+        hashed_filename="${filename%.zip}-${hash}.zip"
+        
+        if [ "$dir_path" = "." ]; then
+            mv "$zip_file" "$build_dist_dir"/lambda/"$hashed_filename"
+            echo "$filename|$hashed_filename" >> "$temp_mappings"
+            echo "Generated hash for $filename: $hash"
+        else
+            mv "$zip_file" "$build_dist_dir"/lambda/"$dir_path"/"$hashed_filename"
+            echo "$dir_path/$filename|$dir_path/$hashed_filename" >> "$temp_mappings"
+            echo "Generated hash for $dir_path/$filename: $hash"
+        fi
+    done
+
+    # Create hash manifest file for CDK to read
+    echo "{" > "$build_dist_dir"/lambda/lambda-hashes.json
+
+    # Add each hash mapping to the JSON file
+    first=true
+    while IFS='|' read -r original hashed; do
+        if [ "$first" = true ]; then
+            first=false
+        else
+            echo "," >> "$build_dist_dir"/lambda/lambda-hashes.json
+        fi
+        echo -n "  \"$original\": \"$hashed\"" >> "$build_dist_dir"/lambda/lambda-hashes.json
+    done < "$temp_mappings"
+
+    echo "" >> "$build_dist_dir"/lambda/lambda-hashes.json
+    echo "}" >> "$build_dist_dir"/lambda/lambda-hashes.json
 
     header "[Create] Playbooks"
 

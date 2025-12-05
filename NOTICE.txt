@@ -74,6 +74,7 @@ This software includes third party software subject to the following copyrights:
 @aws-sdk/credential-provider-env under the Apache-2.0 license.
 @aws-sdk/credential-provider-http under the Apache-2.0 license.
 @aws-sdk/credential-provider-ini under the Apache-2.0 license.
+@aws-sdk/credential-provider-login under the Apache-2.0 license.
 @aws-sdk/credential-provider-node under the Apache-2.0 license.
 @aws-sdk/credential-provider-process under the Apache-2.0 license.
 @aws-sdk/credential-provider-sso under the Apache-2.0 license.

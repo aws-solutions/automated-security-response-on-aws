@@ -23,6 +23,7 @@ import { EmptyTableState } from '../../../components/EmptyTableState.tsx';
 import { FindingApiResponse } from '@data-models';
 import {
   useExecuteActionMutation,
+  useExportFindingsMutation,
   useLazySearchFindingsQuery
 } from '../../../store/findingsApiSlice.ts';
 import { CompositeFilter, SearchRequest, StringFilter } from '../../../store/types.ts';
@@ -78,6 +79,7 @@ export default function FindingsTable() {
 
   const [searchFindings, { data: searchResult, isLoading, error: searchError }] = useLazySearchFindingsQuery();
   const [executeAction, { isLoading: isExecutingAction }] = useExecuteActionMutation();
+  const [exportFindings, { isLoading: isExportLoading, error: exportError }] = useExportFindingsMutation();
 
   const getComparisonOperator = (operator: string): 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS' | 'NOT_CONTAINS' => {
     switch (operator) {
@@ -678,6 +680,27 @@ export default function FindingsTable() {
     searchFindings(searchRequest);
   };
 
+  const handleExport = async () => {
+    try {
+      const exportRequest = buildSearchRequest(false);
+
+      const result = await exportFindings(exportRequest).unwrap();
+      if (result.downloadUrl) {
+        window.open(result.downloadUrl, '_blank');
+
+        if (result.status === 'partial') {
+          setErrorMessage(
+            `Partial Export: Exported ${result.totalExported.toLocaleString()} records. ${result.message || ''}`
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      const errorMsg = getErrorMessage(error) || 'Please try again.';
+      setErrorMessage(`Failed to export findings: ${errorMsg}`);
+    }
+  };
+
   return (
     <div>
       {successMessage && (
@@ -726,6 +749,15 @@ export default function FindingsTable() {
               onClick={handleRefresh}
               ariaLabel="Refresh findings"
             />
+            <Button
+              iconName="download"
+              loading={isExportLoading}
+              onClick={handleExport}
+              ariaLabel="Export to CSV"
+              variant="normal"
+            >
+              Export CSV
+            </Button>
             <ActionsDropdown
               selectedItems={selectedItems}
               onRemediate={handleRemediate}

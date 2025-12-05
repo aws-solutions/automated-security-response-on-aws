@@ -2929,6 +2929,40 @@ export class RemediationRunbookStack extends cdk.Stack {
     }
 
     //-----------------------
+    // EnableSSMDocumentBlockPublicSharing
+    //
+    {
+      const remediationName = 'EnableSSMDocumentBlockPublicSharing';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const remediationPolicy = new PolicyStatement();
+      remediationPolicy.addActions('ssm:GetServiceSetting', 'ssm:UpdateServiceSetting');
+      remediationPolicy.effect = Effect.ALLOW;
+      remediationPolicy.addResources(
+        `arn:${this.partition}:ssm:*:${this.account}:servicesetting/ssm/documents/console/public-sharing-permission`,
+      );
+      inlinePolicy.addStatements(remediationPolicy);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
+        ssmDocName: remediationName,
+        ssmDocPath: ssmdocs,
+        ssmDocFileName: `${remediationName}.yaml`,
+        scriptPath: `${ssmdocs}/scripts`,
+        solutionVersion: props.solutionVersion,
+        solutionDistBucket: props.solutionDistBucket,
+        solutionId: props.solutionId,
+        namespace: namespace,
+      });
+    }
+
+    //-----------------------
     // AttachSSMPermissionsToEC2
     //
     {

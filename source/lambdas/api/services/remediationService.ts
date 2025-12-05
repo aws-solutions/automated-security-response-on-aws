@@ -90,7 +90,12 @@ export class RemediationService extends BaseSearchService {
   async exportRemediationHistory(
     authenticatedUser: AuthenticatedUser,
     request: ExportRequest,
-  ): Promise<{ downloadUrl: string }> {
+  ): Promise<{
+    downloadUrl: string;
+    status: 'complete' | 'partial';
+    totalExported: number;
+    message?: string;
+  }> {
     this.logger.debug('Starting remediation history export', {
       request,
       username: authenticatedUser.username,
@@ -100,24 +105,31 @@ export class RemediationService extends BaseSearchService {
     try {
       const searchCriteria = await this.buildExportSearchCriteria(authenticatedUser, request);
 
-      const allRemediations = await this.fetchAllRemediationsForExport(searchCriteria);
+      const exportResult = await this.fetchAllRemediationsForExport(searchCriteria);
 
       this.logger.debug('Remediation data prepared for export', {
-        totalRemediations: allRemediations.length,
+        totalRemediations: exportResult.remediations.length,
+        status: exportResult.status,
         hasFilters: !!request.Filters,
       });
 
-      const csvContent = this.convertRemediationsToCSV(allRemediations);
+      const csvContent = this.convertRemediationsToCSV(exportResult.remediations);
 
       const downloadUrl = await this.uploadToS3AndGenerateUrl(csvContent);
 
       this.logger.debug('Remediation history export completed successfully', {
-        totalRemediations: allRemediations.length,
+        totalRemediations: exportResult.remediations.length,
+        status: exportResult.status,
         csvSizeBytes: csvContent.length,
         hasDownloadUrl: !!downloadUrl,
       });
 
-      return { downloadUrl };
+      return {
+        downloadUrl,
+        status: exportResult.status,
+        totalExported: exportResult.remediations.length,
+        message: exportResult.reason,
+      };
     } catch (error) {
       this.logger.error('Error exporting remediation history', {
         request,
@@ -143,16 +155,41 @@ export class RemediationService extends BaseSearchService {
     };
   }
 
-  private async fetchAllRemediationsForExport(searchCriteria: SearchCriteria): Promise<RemediationHistoryTableItem[]> {
+  private async fetchAllRemediationsForExport(searchCriteria: SearchCriteria): Promise<{
+    remediations: RemediationHistoryTableItem[];
+    status: 'complete' | 'partial';
+    reason?: string;
+  }> {
     const allRemediations: RemediationHistoryTableItem[] = [];
     let nextToken: string | undefined;
     let batchCount = 0;
 
-    this.logger.debug('Starting export data fetch with unlimited size', {
+    const startTime = Date.now();
+    const MAX_TIME = Number(process.env.EXPORT_MAX_TIME_MS) || 26000;
+    const MAX_RECORDS = Number(process.env.EXPORT_MAX_RECORDS) || 50000;
+
+    this.logger.debug('Starting export data fetch with safety limits', {
       totalFilters: searchCriteria.filters.length,
+      maxTime: MAX_TIME,
+      maxRecords: MAX_RECORDS,
     });
 
     do {
+      const elapsedTime = Date.now() - startTime;
+
+      if (elapsedTime > MAX_TIME) {
+        this.logger.warn('Export stopped due to time limit', {
+          batchCount,
+          totalRecords: allRemediations.length,
+          elapsedTime,
+        });
+        return {
+          remediations: allRemediations,
+          status: 'partial',
+          reason: 'Time limit reached. Apply filters to reduce dataset.',
+        };
+      }
+
       const result = await this.remediationHistoryRepository.searchRemediations({
         ...searchCriteria,
         nextToken,
@@ -167,23 +204,32 @@ export class RemediationService extends BaseSearchService {
         batchSize: result.items.length,
         totalSoFar: allRemediations.length,
         hasMore: !!nextToken,
+        elapsedTime: Date.now() - startTime,
       });
 
-      if (batchCount > 100) {
-        this.logger.warn('Export reached maximum batch limit', {
+      if (allRemediations.length >= MAX_RECORDS) {
+        this.logger.warn('Export stopped due to record limit', {
           batchCount,
           totalRecords: allRemediations.length,
         });
-        break;
+        return {
+          remediations: allRemediations,
+          status: 'partial',
+          reason: 'Maximum export size reached. Apply filters to reduce dataset.',
+        };
       }
     } while (nextToken);
 
     this.logger.info('Export data fetch completed', {
       totalBatches: batchCount,
       totalRecords: allRemediations.length,
+      status: 'complete',
     });
 
-    return allRemediations;
+    return {
+      remediations: allRemediations,
+      status: 'complete',
+    };
   }
 
   private convertRemediationsToCSV(remediations: RemediationHistoryTableItem[]): string {

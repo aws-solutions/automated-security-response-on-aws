@@ -12,6 +12,7 @@ import { Key } from 'aws-cdk-lib/aws-kms';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import { Effect, PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
+import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 
 export interface PreProcessorStackProps {
   readonly solutionId: string;
@@ -69,10 +70,7 @@ export class PreProcessorConstruct extends Construct {
       functionName: props.functionName,
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'pre-processor/preProcessor.handler',
-      code: lambda.Code.fromBucket(
-        props.solutionsBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/asr_lambdas.zip',
-      ),
+      code: getLambdaCode(props.solutionsBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       timeout: cdk.Duration.minutes(15),
       memorySize: 512,
       environment: {

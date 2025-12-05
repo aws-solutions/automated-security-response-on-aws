@@ -2,14 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { FindingApiResponse } from '@data-models';
-import { createEntityAdapter } from '@reduxjs/toolkit';
 import { ApiEndpoints, solutionApi } from './solutionApi.ts';
 import { SearchRequest } from './types.ts';
-
-export const findingsAdapter = createEntityAdapter<FindingApiResponse, string>({
-  selectId: (finding) => finding.findingId,
-  sortComparer: (a: FindingApiResponse, b: FindingApiResponse) => b.findingId.localeCompare(a.findingId),
-});
 
 export interface FindingsSearchResponse {
   Findings: FindingApiResponse[];
@@ -19,6 +13,20 @@ export interface FindingsSearchResponse {
 export interface FindingsActionRequest {
   actionType: 'Suppress' | 'Unsuppress' | 'Remediate' | 'RemediateAndGenerateTicket';
   findingIds: string[];
+}
+
+export interface ExportFindingsResponse {
+  downloadUrl: string;
+  status: 'complete' | 'partial';
+  totalExported: number;
+  message?: string;
+}
+
+interface RawExportFindingsResponse {
+  downloadUrl: string;
+  status: 'complete' | 'partial';
+  totalExported: number;
+  message?: string;
 }
 
 export const findingsApiSlice = solutionApi.injectEndpoints({
@@ -64,12 +72,21 @@ export const findingsApiSlice = solutionApi.injectEndpoints({
         body: actionRequest,
       }),
     }),
+
+    exportFindings: builder.mutation<ExportFindingsResponse, SearchRequest>({
+      query: (exportRequest) => ({
+        url: `${ApiEndpoints.FINDINGS}/export`,
+        method: 'POST',
+        body: exportRequest,
+      }),
+      transformResponse: (rawResult: RawExportFindingsResponse): ExportFindingsResponse => ({
+        downloadUrl: rawResult.downloadUrl,
+        status: rawResult.status,
+        totalExported: rawResult.totalExported,
+        message: rawResult.message,
+      }),
+    }),
   }),
 });
 
-export const {
-  useSearchFindingsQuery,
-  useLazySearchFindingsQuery,
-  useUpdateFindingMutation,
-  useExecuteActionMutation,
-} = findingsApiSlice;
+export const { useLazySearchFindingsQuery, useExecuteActionMutation, useExportFindingsMutation } = findingsApiSlice;

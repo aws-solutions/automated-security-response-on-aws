@@ -31,6 +31,7 @@ import { CloudWatchMetrics } from './cloudwatch_metrics';
 import { OrchestratorConstruct } from './common-orchestrator-construct';
 import { ASRParameters } from './constants/parameters';
 import { PreProcessorConstruct } from './pre-processor-construct';
+import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { OneTrigger, Trigger } from './ssmplaybook';
 import { SynchronizationFindingsConstruct } from './synchronization-findings-construct';
 import { WebUINestedStack } from './webui-nested-stack';
@@ -74,6 +75,7 @@ export class AdministratorStack extends cdk.Stack {
     const orchestratorTimeoutHours = process.env.ORCHESTRATOR_TIMEOUT_HOURS
       ? Number(process.env.ORCHESTRATOR_TIMEOUT_HOURS)
       : 23;
+    const enableAdaptiveConcurrency = process.env.ENABLE_ADAPTIVE_CONCURRENCY || true;
 
     // Pre-processor function name
     const preProcessorFunctionName = `${props.solutionId}-ASR-PreProcessor`;
@@ -335,10 +337,7 @@ export class AdministratorStack extends cdk.Stack {
       compatibleRuntimes: [props.runtimePython],
       description: 'SO0111 ASR Common functions used by the solution',
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/layer.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'layer.zip'),
     });
 
     /**
@@ -424,10 +423,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'check_ssm_doc_state.lambda_handler',
       runtime: props.runtimePython,
       description: 'Checks the status of an SSM Automation Document in the target account',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/check_ssm_doc_state.py.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'check_ssm_doc_state.zip'),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
@@ -481,10 +477,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'get_approval_requirement.lambda_handler',
       runtime: props.runtimePython,
       description: 'Determines if a manual approval is required for remediation',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/get_approval_requirement.py.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'get_approval_requirement.zip'),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
@@ -539,10 +532,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'exec_ssm_doc.lambda_handler',
       runtime: props.runtimePython,
       description: 'Executes an SSM Automation Document in a target account',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/exec_ssm_doc.py.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'exec_ssm_doc.zip'),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
@@ -596,10 +586,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'check_ssm_execution.lambda_handler',
       runtime: props.runtimePython,
       description: 'Checks the status of an SSM automation document execution',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/check_ssm_execution.py.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'check_ssm_execution.zip'),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
@@ -800,10 +787,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'send_notifications.lambda_handler',
       runtime: props.runtimePython,
       description: 'Sends notifications and log messages',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/send_notifications.py.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'send_notifications.zip'),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
@@ -931,10 +915,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'action_target_provider.lambda_handler',
       runtime: props.runtimePython,
       description: 'Custom resource to create or retrieve an action target in Security Hub',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/action_target_provider.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'action_target_provider.zip'),
       environment: {
         log_level: 'info',
         AWS_PARTITION: this.partition,
@@ -1026,6 +1007,62 @@ export class AdministratorStack extends cdk.Stack {
     const stateMachineConstruct = orchStateMachine.node.defaultChild as CfnStateMachine;
     const orchArnParm = orchestrator.node.findChild('SHARR_Orchestrator_Arn') as StringParameter;
     const orchestratorArn = orchArnParm.node.defaultChild as CfnParameter;
+
+    if (enableAdaptiveConcurrency) {
+      //---------------------------------------------------------------------
+      // Custom Resource to Enable SSM Adaptive Concurrency
+      //---------------------------------------------------------------------
+      const enableAdaptiveConcurrencyRole = new Role(this, 'EnableAdaptiveConcurrencyRole', {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        description: 'Lambda role to enable SSM Adaptive Concurrency',
+      });
+
+      enableAdaptiveConcurrencyRole.addToPolicy(
+        new PolicyStatement({
+          actions: ['ssm:UpdateServiceSetting', 'ssm:GetServiceSetting'],
+          resources: [
+            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:servicesetting/ssm/automation/enable-adaptive-concurrency`,
+          ],
+        }),
+      );
+
+      const enableAdaptiveConcurrencyFunctionName = RESOURCE_NAME_PREFIX + '-EnableSSMAdaptiveConcurrency';
+      const enableAdaptiveConcurrencyLogGroupName = `/aws/lambda/${enableAdaptiveConcurrencyFunctionName}`;
+      enableAdaptiveConcurrencyRole.addToPolicy(
+        new PolicyStatement({
+          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
+          resources: [
+            `arn:${stack.partition}:logs:${stack.region}:${stack.account}:log-group:${enableAdaptiveConcurrencyLogGroupName}`,
+            `arn:${stack.partition}:logs:${stack.region}:${stack.account}:log-group:${enableAdaptiveConcurrencyLogGroupName}:*`,
+          ],
+        }),
+      );
+
+      const enableAdaptiveConcurrencyLambda = new lambda.Function(this, 'EnableAdaptiveConcurrencyLambda', {
+        functionName: enableAdaptiveConcurrencyFunctionName,
+        handler: 'enable_adaptive_concurrency.lambda_handler',
+        runtime: props.runtimePython,
+        description: 'Custom resource to enable SSM Adaptive Concurrency',
+        code: getLambdaCode(
+          sourceCodeBucket,
+          props.solutionTMN,
+          props.solutionVersion,
+          'enable_adaptive_concurrency.zip',
+        ),
+        timeout: Duration.minutes(5),
+        role: enableAdaptiveConcurrencyRole,
+      });
+
+      addCfnGuardSuppression(enableAdaptiveConcurrencyLambda, 'LAMBDA_INSIDE_VPC');
+      addCfnGuardSuppression(enableAdaptiveConcurrencyLambda, 'LAMBDA_CONCURRENCY_CHECK');
+
+      new CustomResource(this, 'EnableAdaptiveConcurrencyResource', {
+        serviceToken: enableAdaptiveConcurrencyLambda.functionArn,
+        properties: {
+          SolutionVersion: props.solutionVersion,
+        },
+      });
+    }
 
     // Role used by custom action EventBridge rules
     const customActionEventsRuleRole = new Role(this, 'EventsRuleRole', {
@@ -1258,10 +1295,7 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'schedule_remediation.lambda_handler',
       runtime: props.runtimePython,
       description: 'SO0111 ASR function that schedules remediations in member accounts',
-      code: lambda.Code.fromBucket(
-        sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/schedule_remediation.py.zip',
-      ),
+      code: getLambdaCode(sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'schedule_remediation.zip'),
       environment: {
         SchedulingTableName: schedulingTable.tableName,
         RemediationWaitTime: '3',
@@ -1363,9 +1397,11 @@ export class AdministratorStack extends cdk.Stack {
       handler: 'remediation_config_provider.lambda_handler',
       runtime: props.runtimePython,
       description: 'Custom resource to populate remediation configuration table',
-      code: lambda.Code.fromBucket(
+      code: getLambdaCode(
         sourceCodeBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/remediation_config_provider.zip',
+        props.solutionTMN,
+        props.solutionVersion,
+        'remediation_config_provider.zip',
       ),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'action_target_provider',
@@ -1395,6 +1431,7 @@ export class AdministratorStack extends cdk.Stack {
       serviceToken: remediationConfigProvider.functionArn,
       properties: {
         TableName: remediationConfigTable.tableName,
+        SolutionVersion: props.solutionVersion, // Triggers update when version changes
       },
     });
 

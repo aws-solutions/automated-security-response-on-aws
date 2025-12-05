@@ -5,6 +5,7 @@ import { Stack, App, CfnParameter, CfnOutput } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 import { BlueprintProps, BlueprintStack } from '../../cdk/blueprint-stack';
+import { getLambdaCode } from '../../../lib/cdk-helper/lambda-code-manifest';
 
 export class JiraBlueprintStack extends BlueprintStack {
   constructor(scope: App, id: string, props: BlueprintProps) {
@@ -42,12 +43,11 @@ export class JiraBlueprintStack extends BlueprintStack {
       handler: 'jira_ticket_generator.lambda_handler',
       runtime: props.solutionInfo.runtimePython,
       description: 'Creates a ticket in the provided Jira project with remediation details.',
-      code: lambda.Code.fromBucket(
+      code: getLambdaCode(
         solutionsBucket,
-        props.solutionInfo.solutionTMN +
-          '/' +
-          props.solutionInfo.solutionVersion +
-          '/lambda/blueprints/jira_ticket_generator.py.zip',
+        props.solutionInfo.solutionTMN,
+        props.solutionInfo.solutionVersion,
+        'blueprints/jira_ticket_generator.zip',
       ), // Modify this configuration to build a local version of the ticket generator lambda
       environment: {
         POWERTOOLS_LOG_LEVEL: 'INFO',

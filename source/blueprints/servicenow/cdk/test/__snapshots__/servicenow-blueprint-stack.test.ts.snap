@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
 {
@@ -72,7 +72,7 @@ exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
               ],
             ],
           },
-          "S3Key": "my-solution-tmn/v9.9.9/lambda/blueprints/python.zip",
+          "S3Key": my-solution-tmn/v9.9.9/lambda/blueprints/python.zip,
         },
         "Description": "Layer created by my-solution-tmn to package dependencies necessary for Blueprint ticket generator functions.",
         "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -115,7 +115,7 @@ exports[`ServiceNowBlueprintStack Matches snapshot 1`] = `
               ],
             ],
           },
-          "S3Key": "my-solution-tmn/v9.9.9/lambda/blueprints/servicenow_ticket_generator.py.zip",
+          "S3Key": my-solution-tmn/v9.9.9/lambda/blueprints/servicenow_ticket_generator.zip,
         },
         "Description": "Creates a ticket in the provided ServiceNow table with remediation details.",
         "Environment": {
