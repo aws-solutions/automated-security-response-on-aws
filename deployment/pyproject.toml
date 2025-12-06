@@ -22,7 +22,7 @@ tox = "4.28.4"
 boto3-stubs-lite = { extras = ["cloudfront", "cloudformation", "cloudwatch", "ec2", "iam", "s3", "sns", "ssm", "sts"], version = "1.40.8" }
 moto = { extras = ["cloudfront", "dynamodb", "s3"], version = "5.1.10" }
 types-urllib3 = "1.26.25.14"
-urllib3 = "2.5.0"
+urllib3 = "2.6.0"
 aws-lambda-powertools = {extras = ["all"], version = "3.1.0"}
 aws_lambda_context = "1.1.0"
 openapi_spec_validator = "0.7.2"
