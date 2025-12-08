@@ -6,6 +6,7 @@ import { Tracing } from 'aws-cdk-lib/aws-lambda';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 import { BlueprintProps, BlueprintStack } from '../../cdk/blueprint-stack';
+import { getLambdaCode } from '../../../lib/cdk-helper/lambda-code-manifest';
 
 export class ServiceNowBlueprintStack extends BlueprintStack {
   constructor(scope: App, id: string, props: BlueprintProps) {
@@ -43,12 +44,11 @@ export class ServiceNowBlueprintStack extends BlueprintStack {
       handler: 'servicenow_ticket_generator.lambda_handler',
       runtime: props.solutionInfo.runtimePython,
       description: 'Creates a ticket in the provided ServiceNow table with remediation details.',
-      code: lambda.Code.fromBucket(
+      code: getLambdaCode(
         solutionsBucket,
-        props.solutionInfo.solutionTMN +
-          '/' +
-          props.solutionInfo.solutionVersion +
-          '/lambda/blueprints/servicenow_ticket_generator.py.zip',
+        props.solutionInfo.solutionTMN,
+        props.solutionInfo.solutionVersion,
+        'blueprints/servicenow_ticket_generator.zip',
       ), // Modify this configuration to build a local version of the ticket generator lambda
       environment: {
         POWERTOOLS_LOG_LEVEL: 'INFO',

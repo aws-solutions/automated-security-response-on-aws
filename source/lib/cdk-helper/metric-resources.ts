@@ -5,6 +5,7 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { addCfnGuardSuppression } from './add-cfn-guard-suppression';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
+import { getLambdaCode } from './lambda-code-manifest';
 import { PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { CfnParameter, Duration, Stack } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
@@ -56,9 +57,11 @@ export default class MetricResources extends Construct {
     addCfnGuardSuppression(customResourceLambdaRole, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
 
     const customResourceFunction = new lambda.Function(this, 'ASR-DeploymentCustomResource-Lambda', {
-      code: lambda.Code.fromBucket(
+      code: getLambdaCode(
         props.solutionsBucket,
-        props.solutionTMN + '/' + props.solutionVersion + '/lambda/deployment_metrics_custom_resource.zip',
+        props.solutionTMN,
+        props.solutionVersion,
+        'deployment_metrics_custom_resource.zip',
       ),
       handler: 'deployment_metrics_custom_resource.lambda_handler',
       runtime: props.runtimePython,

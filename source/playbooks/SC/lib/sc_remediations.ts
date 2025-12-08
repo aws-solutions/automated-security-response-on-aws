@@ -108,6 +108,7 @@ const remediations: IControl[] = [
   { control: 'SQS.1', versionAdded: '2.1.0' },
   { control: 'SSM.1', versionAdded: '2.2.0' },
   { control: 'SSM.4', versionAdded: '2.1.0' },
+  { control: 'SSM.7', versionAdded: '3.0.2' },
   { control: 'GuardDuty.1', versionAdded: '2.1.0' },
   { control: 'GuardDuty.2', versionAdded: '2.2.0' },
   { control: 'GuardDuty.4', executes: 'GuardDuty.2', versionAdded: '2.2.0' },

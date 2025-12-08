@@ -7,7 +7,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { dynamicImport } from 'tsimportlib';
-import { FindingsActionRequestSchema, FindingsRequestSchema } from '@asr/data-models';
+import { FindingsActionRequestSchema, FindingsRequestSchema, ExportRequestSchema } from '@asr/data-models';
 
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
 import { FindingsService } from '../services/findingsService';
@@ -83,6 +83,31 @@ async function executeFindingActionHandler(event: APIGatewayProxyEvent): Promise
   return createResponse(statusCode, responseBody, API_HEADERS.FINDINGS);
 }
 
+async function exportFindingsHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  logger.debug('Export findings handler started', {
+    httpMethod: event.httpMethod,
+    path: event.path,
+    hasBody: !!event.body,
+  });
+
+  const claims = event.requestContext?.authorizer?.claims as CognitoClaims;
+  const exportRequest = baseHandler.extractValidatedBody(event, ExportRequestSchema);
+  const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(exportRequest);
+  const authenticatedUser = await baseHandler.validateAccess(
+    claims,
+    baseHandler.createAccessRules(requestedAccountIds),
+  );
+
+  const result = await findingsService.exportFindings(authenticatedUser, exportRequest);
+
+  logger.debug('Export completed successfully', {
+    username: authenticatedUser.username,
+    hasDownloadUrl: !!result.downloadUrl,
+  });
+
+  return createResponse(200, result, API_HEADERS.FINDINGS);
+}
+
 export const searchFindings = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
   const { default: middy } = (await dynamicImport('@middy/core', module)) as typeof import('@middy/core');
   const { default: httpJsonBodyParser } = (await dynamicImport(
@@ -108,6 +133,20 @@ export const executeFindingAction = async (
   )) as typeof import('@middy/http-json-body-parser');
 
   const middlewareHandler = middy(executeFindingActionHandler)
+    .use(httpJsonBodyParser())
+    .use(injectLambdaContext(logger))
+    .use(captureLambdaHandler(tracer));
+  return middlewareHandler(event, context);
+};
+
+export const exportFindings = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+  const { default: middy } = (await dynamicImport('@middy/core', module)) as typeof import('@middy/core');
+  const { default: httpJsonBodyParser } = (await dynamicImport(
+    '@middy/http-json-body-parser',
+    module,
+  )) as typeof import('@middy/http-json-body-parser');
+
+  const middlewareHandler = middy(exportFindingsHandler)
     .use(httpJsonBodyParser())
     .use(injectLambdaContext(logger))
     .use(captureLambdaHandler(tracer));

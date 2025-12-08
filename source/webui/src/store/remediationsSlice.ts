@@ -19,6 +19,9 @@ export interface RemediationsSearchResponse {
 
 export interface ExportRemediationsResponse {
   downloadUrl: string;
+  status: 'complete' | 'partial';
+  totalExported: number;
+  message?: string;
 }
 
 interface RawRemediationsSearchResponse {
@@ -28,6 +31,9 @@ interface RawRemediationsSearchResponse {
 
 interface RawExportRemediationsResponse {
   downloadUrl: string;
+  status: 'complete' | 'partial';
+  totalExported: number;
+  message?: string;
 }
 
 export const remediationsApiSlice = solutionApi.injectEndpoints({
@@ -61,6 +67,9 @@ export const remediationsApiSlice = solutionApi.injectEndpoints({
       }),
       transformResponse: (rawResult: RawExportRemediationsResponse): ExportRemediationsResponse => ({
         downloadUrl: rawResult.downloadUrl,
+        status: rawResult.status,
+        totalExported: rawResult.totalExported,
+        message: rawResult.message,
       }),
     }),
   }),

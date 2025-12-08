@@ -70,6 +70,7 @@ export class ASRParameters {
    */
   public static readonly TAG_FILTER_PATTERN =
     /^(none|([a-zA-Z0-9_.:/=+\-@]{1,128})(,\s*([a-zA-Z0-9_.:/=+\-@]{1,128}))*)$/;
+
   /**
    * Default filter mode - disabled
    */

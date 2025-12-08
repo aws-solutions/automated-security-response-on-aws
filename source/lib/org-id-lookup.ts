@@ -40,7 +40,7 @@ export class OrgIdLookupConstruct extends Construct {
             responseStatus = 'SUCCESS';
           }
         } catch (error) {
-          if (error.name === "AWSOrganizationsNotInUseException") {
+          if (error.name === "AWSOrganizationsNotInUseException" || error.name === "AccessDeniedException") {
             responseData = { OrganizationId: 'org-id-unavailable' };
             physicalResourceId = 'org-id-not-found';
             responseStatus = 'SUCCESS';

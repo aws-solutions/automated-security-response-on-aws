@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import path from 'node:path';
 import { CfnUserPoolUICustomizationAttachment } from 'aws-cdk-lib/aws-cognito';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
+import { getLambdaCode } from '../cdk-helper/lambda-code-manifest';
 
 export interface CognitoConstructProps {
   resourceNamePrefix: string;
@@ -42,10 +43,7 @@ export class CognitoConstruct extends Construct {
     const preSignupTrigger = new lambda.Function(this, 'PreSignupTrigger', {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'api/handlers/preSignUp.preSignUpHandler',
-      code: lambda.Code.fromBucket(
-        props.solutionsBucket,
-        `${props.solutionTMN}/${props.solutionVersion}/lambda/asr_lambdas.zip`,
-      ),
+      code: getLambdaCode(props.solutionsBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       description: 'ASR Cognito pre-signup trigger function',
       environment: {
         POWERTOOLS_LOG_LEVEL: 'INFO',

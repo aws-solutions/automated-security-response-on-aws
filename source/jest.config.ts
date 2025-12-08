@@ -22,6 +22,7 @@ const config: Config = {
   transform: {
     '^.+\\.tsx?$': 'ts-jest',
   },
+  snapshotSerializers: ['<rootDir>/test/snapshot-serializer.ts'],
 };
 
 export default config;

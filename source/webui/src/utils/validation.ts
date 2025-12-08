@@ -28,3 +28,9 @@ export const validateEmail = (email: string): string | null => {
   const result = z.string().email().safeParse(trimmedEmail);
   return result.success ? null : 'Please enter a valid email address';
 };
+
+export const parseEmails = (emails: string): string[] =>
+  emails
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);

@@ -1,0 +1,52 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-EnableSSMDocumentBlockPublicSharing
+
+  ## What does this document do?
+  This document enables the block public sharing setting for AWS Systems Manager documents at the account level.
+  This prevents any SSM documents in the account from being shared publicly.
+
+  ## Input Parameters
+  * AccountId: (Required) AWS Account ID where the setting will be enabled.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * EnableBlockPublicSharing.Output
+
+  ## Security Control
+  * SSM.7 - SSM documents should have the block public sharing setting enabled
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AccountId:
+    type: String
+    description: (Required) The AWS Account ID.
+    allowedPattern: '^\d{12}$'
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+outputs:
+  - EnableBlockPublicSharing.Output
+mainSteps:
+  -
+    name: EnableBlockPublicSharing
+    action: 'aws:executeScript'
+    description: |
+      ## Remediation
+      Enables the block public sharing setting for SSM documents at the account level
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        account_id: '{{AccountId}}'
+      Runtime: python3.11
+      Handler: lambda_handler
+      Script: |-
+        %%SCRIPT=enable_ssm_block_public_sharing.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap

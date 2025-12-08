@@ -83,6 +83,7 @@ import * as sns_1 from '../ssmdocs/SC_SNS.1';
 import * as sns_2 from '../ssmdocs/SC_SNS.2';
 import * as ssm_1 from '../ssmdocs/SC_SSM.1';
 import * as ssm_4 from '../ssmdocs/SC_SSM.4';
+import * as ssm_7 from '../ssmdocs/SC_SSM.7';
 import * as macie_1 from '../ssmdocs/SC_Macie.1';
 import { IControl } from '../../../lib/playbook-construct';
 
@@ -177,6 +178,7 @@ const controlRunbooksRecord: Record<string, any> = {
   'SNS.2': sns_2.createControlRunbook,
   'SSM.1': ssm_1.createControlRunbook,
   'SSM.4': ssm_4.createControlRunbook,
+  'SSM.7': ssm_7.createControlRunbook,
   'Macie.1': macie_1.createControlRunbook,
 };
 

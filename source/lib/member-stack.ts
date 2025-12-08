@@ -18,6 +18,7 @@ import NamespaceParam from './parameters/namespace-param';
 import MetricResources from './cdk-helper/metric-resources';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -151,10 +152,7 @@ export class MemberStack extends Stack {
       compatibleRuntimes: [props.runtimePython],
       description: 'SO0111 ASR Common functions used by the solution',
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
-      code: lambda.Code.fromBucket(
-        solutionsBucket,
-        props.solutionTradeMarkName + '/' + props.solutionVersion + '/lambda/layer.zip',
-      ),
+      code: getLambdaCode(solutionsBucket, props.solutionTradeMarkName, props.solutionVersion, 'layer.zip'),
     });
 
     new MetricResources(this, 'MetricResources', {

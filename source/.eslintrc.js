@@ -10,7 +10,7 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',
-    project: '**/tsconfig.json',
+    project: ['./tsconfig.json', './webui/tsconfig.json', './lambdas/tsconfig.json', './playbooks/*/tsconfig.json'],
     sourceType: 'module',
   },
   plugins: ['@typescript-eslint', 'header', 'import'],

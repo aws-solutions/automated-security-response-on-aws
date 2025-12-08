@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`MemberRolesStack tests Global Roles Stack 1`] = `
 {
@@ -732,6 +732,9 @@ Removes public access to the SSM Document
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+"""
+Remediates SSM.4 and SSM.7 by disabling public access to SSM documents
+"""
 from typing import TypedDict
 
 import boto3
@@ -743,59 +746,58 @@ class EventType(TypedDict):
     name: str
 
 
-boto_config = Config(retries={"mode": "standard", "max_attempts": 10})
+BOTO_CONFIG = Config(retries={"mode": "standard", "max_attempts": 10})
 
 
 def connect_to_ssm():
-    return boto3.client("ssm", config=boto_config)
+    return boto3.client("ssm", config=BOTO_CONFIG)
+
+
+def get_document_name(event):
+    """
+    Extract document name from event supporting multiple input formats
+
+    Supports:
+    - DocumentArn: arn:aws:ssm:region:account:document/name (SSM.4/SSM.7)
+    - DocumentName: name (direct name)
+    - document_arn: arn:aws:ssm:region:account:document/name (legacy)
+    """
+    for key in ["DocumentArn", "DocumentName", "document_arn"]:
+        if key in event:
+            value = event[key]
+            # Extract name from ARN if it contains '/'
+            return value.split("/")[-1] if "/" in value else value
+
+    raise ValueError(
+        "Event must contain 'DocumentArn', 'DocumentName', or 'document_arn'"
+    )
 
 
 def lambda_handler(event: EventType, _):
     """
-    remediates SSM.4 by disabling public access to SSM documents
-    On success returns True
-    On failure returns NoneType
+    Removes public access from an SSM document
+
+    Returns:
+        Dict with 'response': {'isPublic': 'False'} on success
     """
+    document_name = get_document_name(event)
+    ssm = connect_to_ssm()
 
-    try:
-        document_arn = event["document_arn"]
-        document_name = document_arn.split("/")[1]
-        document_perimissions = describe_document_permissions(document_name)
-        if "all" in document_perimissions.get("AccountIds"):
-            modify_document_permissions(document_name)
-        else:
-            exit(f"No change was made to {document_name}")
+    # Check current permissions
+    response = ssm.describe_document_permission(
+        Name=document_name, PermissionType="Share"
+    )
 
-        verify_document_permissions = describe_document_permissions(document_name)
+    # Only modify if publicly shared
+    if "all" not in response.get("AccountIds", []):
+        return {"response": {"isPublic": "False"}}
 
-        if "all" not in verify_document_permissions.get("AccountIds"):
-            return {"isPublic": "False"}
-        else:
-            raise RuntimeError
+    # Remove public access
+    ssm.modify_document_permission(
+        Name=document_name, AccountIdsToRemove=["all"], PermissionType="Share"
+    )
 
-    except Exception as e:
-        exit(f"Failed to retrieve the SSM Document permission: {str(e)}")
-
-
-def describe_document_permissions(document_name):
-    ssm_client = connect_to_ssm()
-    try:
-        document_permissions = ssm_client.describe_document_permission(
-            Name=document_name, PermissionType="Share"
-        )
-        return document_permissions
-    except Exception as e:
-        exit(f"Failed to describe SSM Document {document_name}: {str(e)}")
-
-
-def modify_document_permissions(document_name):
-    ssm_client = connect_to_ssm()
-    try:
-        ssm_client.modify_document_permission(
-            Name=document_name, AccountIdsToRemove=["all"], PermissionType="Share"
-        )
-    except Exception as e:
-        exit(f"Failed to modify SSM Document {document_name}: {str(e)}")",
+    return {"response": {"isPublic": "False"}}",
               },
               "name": "BlockSSMDocumentPublicAccess",
               "outputs": [
@@ -1439,7 +1441,7 @@ def update_auto_scaling_groups(
     },
     "ASRConfigureDynamoDBAutoScaling": {
       "DependsOn": [
-        "CreateWait9",
+        "CreateWait10",
       ],
       "Properties": {
         "Content": {
@@ -4633,7 +4635,7 @@ def is_open_cidr(rule: dict) -> bool:
     },
     "ASREnableAPIGatewayCacheDataEncryption": {
       "DependsOn": [
-        "CreateWait13",
+        "CreateWait14",
       ],
       "Properties": {
         "Content": {
@@ -5599,7 +5601,7 @@ def process_results(event, _):
     },
     "ASREnableAthenaWorkGroupLogging": {
       "DependsOn": [
-        "CreateWait14",
+        "CreateWait15",
       ],
       "Properties": {
         "Content": {
@@ -8258,7 +8260,7 @@ def enable_replication_group_backups(
     },
     "ASREnableElastiCacheReplicationGroupFailover": {
       "DependsOn": [
-        "CreateWait10",
+        "CreateWait11",
       ],
       "Properties": {
         "Content": {
@@ -10074,6 +10076,153 @@ Checks whether the value of the "BucketName" parameter is used for the audit log
         "DocumentFormat": "YAML",
         "DocumentType": "Automation",
         "Name": "ASR-EnableRedshiftClusterAuditLogging",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "ASREnableSSMDocumentBlockPublicSharing": {
+      "DependsOn": [
+        "CreateWait9",
+      ],
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "### Document Name - ASR-EnableSSMDocumentBlockPublicSharing
+
+## What does this document do?
+This document enables the block public sharing setting for AWS Systems Manager documents at the account level.
+This prevents any SSM documents in the account from being shared publicly.
+
+## Input Parameters
+* AccountId: (Required) AWS Account ID where the setting will be enabled.
+* AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+## Output Parameters
+* EnableBlockPublicSharing.Output
+
+## Security Control
+* SSM.7 - SSM documents should have the block public sharing setting enabled
+",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "description": "## Remediation
+Enables the block public sharing setting for SSM documents at the account level
+",
+              "inputs": {
+                "Handler": "lambda_handler",
+                "InputPayload": {
+                  "account_id": "{{AccountId}}",
+                },
+                "Runtime": "python3.11",
+                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+from typing import TypedDict
+
+import boto3
+from botocore.config import Config
+
+
+class EventType(TypedDict):
+    account_id: str
+
+
+boto_config = Config(retries={"mode": "standard", "max_attempts": 10})
+
+
+def connect_to_ssm():
+    return boto3.client("ssm", config=boto_config)
+
+
+def lambda_handler(event: EventType, _):
+    try:
+        account_id = event["account_id"]
+        ssm_client = connect_to_ssm()
+
+        current_setting = get_service_setting(ssm_client)
+
+        if current_setting == "Disable":
+            return {
+                "response": {
+                    "message": f"Block public sharing is already enabled for account {account_id}",
+                    "status": "NO_CHANGE_REQUIRED",
+                    "setting_value": "Disable",
+                }
+            }
+
+        update_service_setting(ssm_client)
+
+        verify_setting = get_service_setting(ssm_client)
+
+        if verify_setting == "Disable":
+            return {
+                "response": {
+                    "message": f"Successfully enabled block public sharing for account {account_id}",
+                    "status": "SUCCESS",
+                    "setting_value": "Disable",
+                }
+            }
+        else:
+            raise RuntimeError(
+                f"Failed to verify setting change. Expected 'Disable', got '{verify_setting}'"
+            )
+
+    except Exception as e:
+        error_msg = f"Failed to enable block public sharing: {str(e)}"
+        print(error_msg)
+        raise RuntimeError(error_msg)
+
+
+def get_service_setting(ssm_client):
+    try:
+        response = ssm_client.get_service_setting(
+            SettingId="/ssm/documents/console/public-sharing-permission"
+        )
+        return response["ServiceSetting"]["SettingValue"]
+    except Exception as e:
+        raise RuntimeError(f"Failed to get service setting: {str(e)}")
+
+
+def update_service_setting(ssm_client):
+    try:
+        ssm_client.update_service_setting(
+            SettingId="/ssm/documents/console/public-sharing-permission",
+            SettingValue="Disable",
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to update service setting: {str(e)}")",
+              },
+              "name": "EnableBlockPublicSharing",
+              "outputs": [
+                {
+                  "Name": "Output",
+                  "Selector": "$.Payload.response",
+                  "Type": "StringMap",
+                },
+              ],
+              "timeoutSeconds": 600,
+            },
+          ],
+          "outputs": [
+            "EnableBlockPublicSharing.Output",
+          ],
+          "parameters": {
+            "AccountId": {
+              "allowedPattern": "^\\d{12}$",
+              "description": "(Required) The AWS Account ID.",
+              "type": "String",
+            },
+            "AutomationAssumeRole": {
+              "allowedPattern": "^arn:(?:aws|aws-us-gov|aws-cn):iam::\\d{12}:role/[\\w+=,.@-]+$",
+              "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentFormat": "YAML",
+        "DocumentType": "Automation",
+        "Name": "ASR-EnableSSMDocumentBlockPublicSharing",
         "UpdateMethod": "NewVersion",
       },
       "Type": "AWS::SSM::Document",
@@ -13392,7 +13541,7 @@ Sets the retention days for a Log Group.
     },
     "ASRSetS3LifecyclePolicy": {
       "DependsOn": [
-        "CreateWait11",
+        "CreateWait12",
       ],
       "Properties": {
         "Content": {
@@ -13856,7 +14005,7 @@ def get_required_tags_from_event(event):
     },
     "ASRTagGuardDutyResource": {
       "DependsOn": [
-        "CreateWait12",
+        "CreateWait13",
       ],
       "Properties": {
         "Content": {
@@ -14257,6 +14406,23 @@ def lambda_handler(event, _):
       "Type": "Custom::Wait",
       "UpdateReplacePolicy": "Delete",
     },
+    "CreateWait15": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateWait14",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 1,
+        "DeleteIntervalSeconds": 0,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 1,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
     "CreateWait2": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -14439,9 +14605,9 @@ def lambda_handler(event, _):
     "DeletWait10": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "ASRConfigureDynamoDBAutoScaling",
         "ASREnableDynamoDBDeletionProtection",
         "ASREnableElastiCacheBackups",
-        "ASREnableElastiCacheReplicationGroupFailover",
         "ASREnforceHTTPSForALB",
         "ASRLimitECSRootFilesystemAccess",
         "DeletWait9",
@@ -14462,10 +14628,10 @@ def lambda_handler(event, _):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "ASRDisableUnrestrictedAccessToHighRiskPorts",
+        "ASREnableElastiCacheReplicationGroupFailover",
         "ASREnableElastiCacheVersionUpgrades",
         "ASREnablePrivateRepositoryScanning",
         "ASRSetCloudFrontOriginDomain",
-        "ASRSetS3LifecyclePolicy",
         "DeletWait10",
       ],
       "Properties": {
@@ -14485,8 +14651,8 @@ def lambda_handler(event, _):
       "DependsOn": [
         "ASRDisableTGWAutoAcceptSharedAttachments",
         "ASREnableGuardDuty",
+        "ASRSetS3LifecyclePolicy",
         "ASRTagDynamoDBTableResource",
-        "ASRTagGuardDutyResource",
         "ASRUpdateSecretRotationPeriod",
         "DeletWait11",
       ],
@@ -14505,11 +14671,11 @@ def lambda_handler(event, _):
     "DeletWait13": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
-        "ASREnableAPIGatewayCacheDataEncryption",
         "ASREnableAutoSecretRotation",
         "ASRRemoveUnusedSecret",
         "ASRRevokeUnauthorizedInboundRules",
         "ASRSetLogGroupRetentionDays",
+        "ASRTagGuardDutyResource",
         "DeletWait12",
       ],
       "Properties": {
@@ -14529,10 +14695,28 @@ def lambda_handler(event, _):
       "DependsOn": [
         "ASRConfigureAutoScalingLaunchConfigNoPublicIP",
         "ASRConfigureAutoScalingLaunchConfigToRequireIMDSv2",
+        "ASREnableAPIGatewayCacheDataEncryption",
         "ASREnableAPIGatewayExecutionLogs",
-        "ASREnableAthenaWorkGroupLogging",
         "ASREnableMacie",
         "DeletWait13",
+      ],
+      "Properties": {
+        "CreateIntervalSeconds": 0,
+        "DeleteIntervalSeconds": 0.5,
+        "DocumentPropertiesHash": "Omitted to remove snapshot dependency on document hash",
+        "ServiceToken": {
+          "Ref": "WaitProviderServiceToken",
+        },
+        "UpdateIntervalSeconds": 0,
+      },
+      "Type": "Custom::Wait",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "DeletWait15": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ASREnableAthenaWorkGroupLogging",
+        "DeletWait14",
       ],
       "Properties": {
         "CreateIntervalSeconds": 0,
@@ -14706,8 +14890,8 @@ def lambda_handler(event, _):
         "ASRAttachServiceVPCEndpoint",
         "ASRAttachSSMPermissionsToEC2",
         "ASRBlockSSMDocumentPublicAccess",
-        "ASRConfigureDynamoDBAutoScaling",
         "ASREnableBucketEventNotifications",
+        "ASREnableSSMDocumentBlockPublicSharing",
         "DeletWait8",
       ],
       "Properties": {

@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`Test if the Stack has all the resources. 1`] = `
 {
@@ -813,7 +813,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
         ],
         "Content": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/layer.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/layer.zip,
         },
         "Description": "SO0111 ASR Common functions used by the solution",
         "LicenseInfo": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -1177,7 +1177,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
             responseStatus = 'SUCCESS';
           }
         } catch (error) {
-          if (error.name === "AWSOrganizationsNotInUseException") {
+          if (error.name === "AWSOrganizationsNotInUseException" || error.name === "AccessDeniedException") {
             responseData = { OrganizationId: 'org-id-unavailable' };
             physicalResourceId = 'org-id-not-found';
             responseStatus = 'SUCCESS';
@@ -4202,7 +4202,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/action_target_provider.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/action_target_provider.zip,
         },
         "Description": "Custom resource to create or retrieve an action target in Security Hub",
         "Environment": {
@@ -6003,6 +6003,139 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::CloudWatch::Alarm",
     },
+    "EnableAdaptiveConcurrencyLambdaF1D84279": {
+      "DependsOn": [
+        "EnableAdaptiveConcurrencyRoleDefaultPolicy2EB5ED2F",
+        "EnableAdaptiveConcurrencyRole7E36E08C",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": "solutions-eu-west-1",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/enable_adaptive_concurrency.zip,
+        },
+        "Description": "Custom resource to enable SSM Adaptive Concurrency",
+        "FunctionName": "SO0111-EnableSSMAdaptiveConcurrency",
+        "Handler": "enable_adaptive_concurrency.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "EnableAdaptiveConcurrencyRole7E36E08C",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.11",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "EnableAdaptiveConcurrencyResource": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "EnableAdaptiveConcurrencyLambdaF1D84279",
+            "Arn",
+          ],
+        },
+        "SolutionVersion": "v1.0.0",
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "EnableAdaptiveConcurrencyRole7E36E08C": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role to enable SSM Adaptive Concurrency",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "EnableAdaptiveConcurrencyRoleDefaultPolicy2EB5ED2F": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ssm:UpdateServiceSetting",
+                "ssm:GetServiceSetting",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ssm:eu-west-1:111111111111:servicesetting/ssm/automation/enable-adaptive-concurrency",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":logs:eu-west-1:111111111111:log-group:/aws/lambda/SO0111-EnableSSMAdaptiveConcurrency",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":logs:eu-west-1:111111111111:log-group:/aws/lambda/SO0111-EnableSSMAdaptiveConcurrency:*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "EnableAdaptiveConcurrencyRoleDefaultPolicy2EB5ED2F",
+        "Roles": [
+          {
+            "Ref": "EnableAdaptiveConcurrencyRole7E36E08C",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "EventsRuleRoleDefaultPolicyDEB4CE7D": {
       "Properties": {
         "PolicyDocument": {
@@ -7640,7 +7773,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/deployment_metrics_custom_resource.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/deployment_metrics_custom_resource.zip,
         },
         "Description": "ASR - Handles deployment related custom actions",
         "Environment": {
@@ -8168,7 +8301,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/asr_lambdas.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/asr_lambdas.zip,
         },
         "Environment": {
           "Variables": {
@@ -8267,8 +8400,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -8280,23 +8411,29 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "ASRFindingsTable3FD52B9C",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Ref": "AWS::NoValue",
-                },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ASRFindingsTable3FD52B9C",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
               ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ASRFindingsTable3FD52B9C",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -8308,23 +8445,29 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "RemediationConfigTable24F19C3B",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Ref": "AWS::NoValue",
-                },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigTable24F19C3B",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
               ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigTable24F19C3B",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -8336,17 +8479,25 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "ASRRemediationHistoryTable3CA12E73",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Ref": "AWS::NoValue",
-                },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ASRRemediationHistoryTable3CA12E73",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
               ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ASRRemediationHistoryTable3CA12E73",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": [
@@ -9862,7 +10013,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/remediation_config_provider.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/remediation_config_provider.zip,
         },
         "Description": "Custom resource to populate remediation configuration table",
         "Environment": {
@@ -9920,6 +10071,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
             "Arn",
           ],
         },
+        "SolutionVersion": "v1.0.0",
         "TableName": {
           "Ref": "RemediationConfigTable24F19C3B",
         },
@@ -10042,7 +10194,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
               {
                 "Ref": "AWS::Region",
               },
-              "","metrics":[[{"label":"AutoScaling.1 Failure Percentage","expression":"(m1AutoScaling1 / (m1AutoScaling1+m2AutoScaling1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.1","Outcome","FAILED",{"id":"m1AutoScaling1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.1","Outcome","SUCCESS",{"id":"m2AutoScaling1","visible":false,"period":86400}],[{"label":"CloudFormation.1 Failure Percentage","expression":"(m1CloudFormation1 / (m1CloudFormation1+m2CloudFormation1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudFormation.1","Outcome","FAILED",{"id":"m1CloudFormation1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudFormation.1","Outcome","SUCCESS",{"id":"m2CloudFormation1","visible":false,"period":86400}],[{"label":"CloudFront.1 Failure Percentage","expression":"(m1CloudFront1 / (m1CloudFront1+m2CloudFront1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.1","Outcome","FAILED",{"id":"m1CloudFront1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.1","Outcome","SUCCESS",{"id":"m2CloudFront1","visible":false,"period":86400}],[{"label":"CloudFront.12 Failure Percentage","expression":"(m1CloudFront12 / (m1CloudFront12+m2CloudFront12)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.12","Outcome","FAILED",{"id":"m1CloudFront12","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.12","Outcome","SUCCESS",{"id":"m2CloudFront12","visible":false,"period":86400}],[{"label":"CloudTrail.1 Failure Percentage","expression":"(m1CloudTrail1 / (m1CloudTrail1+m2CloudTrail1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.1","Outcome","FAILED",{"id":"m1CloudTrail1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.1","Outcome","SUCCESS",{"id":"m2CloudTrail1","visible":false,"period":86400}],[{"label":"CloudTrail.2 Failure Percentage","expression":"(m1CloudTrail2 / (m1CloudTrail2+m2CloudTrail2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.2","Outcome","FAILED",{"id":"m1CloudTrail2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.2","Outcome","SUCCESS",{"id":"m2CloudTrail2","visible":false,"period":86400}],[{"label":"CloudTrail.3 Failure Percentage","expression":"(m1CloudTrail3 / (m1CloudTrail3+m2CloudTrail3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.3","Outcome","FAILED",{"id":"m1CloudTrail3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.3","Outcome","SUCCESS",{"id":"m2CloudTrail3","visible":false,"period":86400}],[{"label":"CloudTrail.4 Failure Percentage","expression":"(m1CloudTrail4 / (m1CloudTrail4+m2CloudTrail4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.4","Outcome","FAILED",{"id":"m1CloudTrail4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.4","Outcome","SUCCESS",{"id":"m2CloudTrail4","visible":false,"period":86400}],[{"label":"CloudTrail.5 Failure Percentage","expression":"(m1CloudTrail5 / (m1CloudTrail5+m2CloudTrail5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.5","Outcome","FAILED",{"id":"m1CloudTrail5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.5","Outcome","SUCCESS",{"id":"m2CloudTrail5","visible":false,"period":86400}],[{"label":"CloudTrail.6 Failure Percentage","expression":"(m1CloudTrail6 / (m1CloudTrail6+m2CloudTrail6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.6","Outcome","FAILED",{"id":"m1CloudTrail6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.6","Outcome","SUCCESS",{"id":"m2CloudTrail6","visible":false,"period":86400}],[{"label":"CloudTrail.7 Failure Percentage","expression":"(m1CloudTrail7 / (m1CloudTrail7+m2CloudTrail7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.7","Outcome","FAILED",{"id":"m1CloudTrail7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.7","Outcome","SUCCESS",{"id":"m2CloudTrail7","visible":false,"period":86400}],[{"label":"CloudWatch.1 Failure Percentage","expression":"(m1CloudWatch1 / (m1CloudWatch1+m2CloudWatch1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.1","Outcome","FAILED",{"id":"m1CloudWatch1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.1","Outcome","SUCCESS",{"id":"m2CloudWatch1","visible":false,"period":86400}],[{"label":"CloudWatch.2 Failure Percentage","expression":"(m1CloudWatch2 / (m1CloudWatch2+m2CloudWatch2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.2","Outcome","FAILED",{"id":"m1CloudWatch2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.2","Outcome","SUCCESS",{"id":"m2CloudWatch2","visible":false,"period":86400}],[{"label":"CloudWatch.3 Failure Percentage","expression":"(m1CloudWatch3 / (m1CloudWatch3+m2CloudWatch3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.3","Outcome","FAILED",{"id":"m1CloudWatch3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.3","Outcome","SUCCESS",{"id":"m2CloudWatch3","visible":false,"period":86400}],[{"label":"CloudWatch.4 Failure Percentage","expression":"(m1CloudWatch4 / (m1CloudWatch4+m2CloudWatch4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.4","Outcome","FAILED",{"id":"m1CloudWatch4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.4","Outcome","SUCCESS",{"id":"m2CloudWatch4","visible":false,"period":86400}],[{"label":"CloudWatch.5 Failure Percentage","expression":"(m1CloudWatch5 / (m1CloudWatch5+m2CloudWatch5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.5","Outcome","FAILED",{"id":"m1CloudWatch5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.5","Outcome","SUCCESS",{"id":"m2CloudWatch5","visible":false,"period":86400}],[{"label":"CloudWatch.6 Failure Percentage","expression":"(m1CloudWatch6 / (m1CloudWatch6+m2CloudWatch6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.6","Outcome","FAILED",{"id":"m1CloudWatch6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.6","Outcome","SUCCESS",{"id":"m2CloudWatch6","visible":false,"period":86400}],[{"label":"CloudWatch.7 Failure Percentage","expression":"(m1CloudWatch7 / (m1CloudWatch7+m2CloudWatch7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.7","Outcome","FAILED",{"id":"m1CloudWatch7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.7","Outcome","SUCCESS",{"id":"m2CloudWatch7","visible":false,"period":86400}],[{"label":"CloudWatch.8 Failure Percentage","expression":"(m1CloudWatch8 / (m1CloudWatch8+m2CloudWatch8)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.8","Outcome","FAILED",{"id":"m1CloudWatch8","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.8","Outcome","SUCCESS",{"id":"m2CloudWatch8","visible":false,"period":86400}],[{"label":"CloudWatch.9 Failure Percentage","expression":"(m1CloudWatch9 / (m1CloudWatch9+m2CloudWatch9)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.9","Outcome","FAILED",{"id":"m1CloudWatch9","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.9","Outcome","SUCCESS",{"id":"m2CloudWatch9","visible":false,"period":86400}],[{"label":"CloudWatch.10 Failure Percentage","expression":"(m1CloudWatch10 / (m1CloudWatch10+m2CloudWatch10)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.10","Outcome","FAILED",{"id":"m1CloudWatch10","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.10","Outcome","SUCCESS",{"id":"m2CloudWatch10","visible":false,"period":86400}],[{"label":"CloudWatch.11 Failure Percentage","expression":"(m1CloudWatch11 / (m1CloudWatch11+m2CloudWatch11)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.11","Outcome","FAILED",{"id":"m1CloudWatch11","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.11","Outcome","SUCCESS",{"id":"m2CloudWatch11","visible":false,"period":86400}],[{"label":"CloudWatch.12 Failure Percentage","expression":"(m1CloudWatch12 / (m1CloudWatch12+m2CloudWatch12)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.12","Outcome","FAILED",{"id":"m1CloudWatch12","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.12","Outcome","SUCCESS",{"id":"m2CloudWatch12","visible":false,"period":86400}],[{"label":"CloudWatch.13 Failure Percentage","expression":"(m1CloudWatch13 / (m1CloudWatch13+m2CloudWatch13)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.13","Outcome","FAILED",{"id":"m1CloudWatch13","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.13","Outcome","SUCCESS",{"id":"m2CloudWatch13","visible":false,"period":86400}],[{"label":"CloudWatch.14 Failure Percentage","expression":"(m1CloudWatch14 / (m1CloudWatch14+m2CloudWatch14)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.14","Outcome","FAILED",{"id":"m1CloudWatch14","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.14","Outcome","SUCCESS",{"id":"m2CloudWatch14","visible":false,"period":86400}],[{"label":"CodeBuild.2 Failure Percentage","expression":"(m1CodeBuild2 / (m1CodeBuild2+m2CodeBuild2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.2","Outcome","FAILED",{"id":"m1CodeBuild2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.2","Outcome","SUCCESS",{"id":"m2CodeBuild2","visible":false,"period":86400}],[{"label":"CodeBuild.5 Failure Percentage","expression":"(m1CodeBuild5 / (m1CodeBuild5+m2CodeBuild5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.5","Outcome","FAILED",{"id":"m1CodeBuild5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.5","Outcome","SUCCESS",{"id":"m2CodeBuild5","visible":false,"period":86400}],[{"label":"Config.1 Failure Percentage","expression":"(m1Config1 / (m1Config1+m2Config1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Config.1","Outcome","FAILED",{"id":"m1Config1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Config.1","Outcome","SUCCESS",{"id":"m2Config1","visible":false,"period":86400}],[{"label":"EC2.1 Failure Percentage","expression":"(m1EC21 / (m1EC21+m2EC21)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.1","Outcome","FAILED",{"id":"m1EC21","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.1","Outcome","SUCCESS",{"id":"m2EC21","visible":false,"period":86400}],[{"label":"EC2.2 Failure Percentage","expression":"(m1EC22 / (m1EC22+m2EC22)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.2","Outcome","FAILED",{"id":"m1EC22","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.2","Outcome","SUCCESS",{"id":"m2EC22","visible":false,"period":86400}],[{"label":"EC2.4 Failure Percentage","expression":"(m1EC24 / (m1EC24+m2EC24)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.4","Outcome","FAILED",{"id":"m1EC24","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.4","Outcome","SUCCESS",{"id":"m2EC24","visible":false,"period":86400}],[{"label":"EC2.6 Failure Percentage","expression":"(m1EC26 / (m1EC26+m2EC26)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.6","Outcome","FAILED",{"id":"m1EC26","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.6","Outcome","SUCCESS",{"id":"m2EC26","visible":false,"period":86400}],[{"label":"EC2.7 Failure Percentage","expression":"(m1EC27 / (m1EC27+m2EC27)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.7","Outcome","FAILED",{"id":"m1EC27","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.7","Outcome","SUCCESS",{"id":"m2EC27","visible":false,"period":86400}],[{"label":"EC2.8 Failure Percentage","expression":"(m1EC28 / (m1EC28+m2EC28)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.8","Outcome","FAILED",{"id":"m1EC28","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.8","Outcome","SUCCESS",{"id":"m2EC28","visible":false,"period":86400}],[{"label":"EC2.13 Failure Percentage","expression":"(m1EC213 / (m1EC213+m2EC213)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.13","Outcome","FAILED",{"id":"m1EC213","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.13","Outcome","SUCCESS",{"id":"m2EC213","visible":false,"period":86400}],[{"label":"EC2.14 Failure Percentage","expression":"(m1EC214 / (m1EC214+m2EC214)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.14","Outcome","FAILED",{"id":"m1EC214","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.14","Outcome","SUCCESS",{"id":"m2EC214","visible":false,"period":86400}],[{"label":"EC2.15 Failure Percentage","expression":"(m1EC215 / (m1EC215+m2EC215)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.15","Outcome","FAILED",{"id":"m1EC215","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.15","Outcome","SUCCESS",{"id":"m2EC215","visible":false,"period":86400}],[{"label":"EC2.18 Failure Percentage","expression":"(m1EC218 / (m1EC218+m2EC218)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.18","Outcome","FAILED",{"id":"m1EC218","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.18","Outcome","SUCCESS",{"id":"m2EC218","visible":false,"period":86400}],[{"label":"EC2.19 Failure Percentage","expression":"(m1EC219 / (m1EC219+m2EC219)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.19","Outcome","FAILED",{"id":"m1EC219","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.19","Outcome","SUCCESS",{"id":"m2EC219","visible":false,"period":86400}],[{"label":"EC2.23 Failure Percentage","expression":"(m1EC223 / (m1EC223+m2EC223)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.23","Outcome","FAILED",{"id":"m1EC223","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.23","Outcome","SUCCESS",{"id":"m2EC223","visible":false,"period":86400}],[{"label":"IAM.3 Failure Percentage","expression":"(m1IAM3 / (m1IAM3+m2IAM3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.3","Outcome","FAILED",{"id":"m1IAM3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.3","Outcome","SUCCESS",{"id":"m2IAM3","visible":false,"period":86400}],[{"label":"IAM.7 Failure Percentage","expression":"(m1IAM7 / (m1IAM7+m2IAM7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.7","Outcome","FAILED",{"id":"m1IAM7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.7","Outcome","SUCCESS",{"id":"m2IAM7","visible":false,"period":86400}],[{"label":"IAM.8 Failure Percentage","expression":"(m1IAM8 / (m1IAM8+m2IAM8)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.8","Outcome","FAILED",{"id":"m1IAM8","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.8","Outcome","SUCCESS",{"id":"m2IAM8","visible":false,"period":86400}],[{"label":"IAM.11 Failure Percentage","expression":"(m1IAM11 / (m1IAM11+m2IAM11)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.11","Outcome","FAILED",{"id":"m1IAM11","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.11","Outcome","SUCCESS",{"id":"m2IAM11","visible":false,"period":86400}],[{"label":"IAM.12 Failure Percentage","expression":"(m1IAM12 / (m1IAM12+m2IAM12)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.12","Outcome","FAILED",{"id":"m1IAM12","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.12","Outcome","SUCCESS",{"id":"m2IAM12","visible":false,"period":86400}],[{"label":"IAM.13 Failure Percentage","expression":"(m1IAM13 / (m1IAM13+m2IAM13)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.13","Outcome","FAILED",{"id":"m1IAM13","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.13","Outcome","SUCCESS",{"id":"m2IAM13","visible":false,"period":86400}],[{"label":"IAM.14 Failure Percentage","expression":"(m1IAM14 / (m1IAM14+m2IAM14)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.14","Outcome","FAILED",{"id":"m1IAM14","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.14","Outcome","SUCCESS",{"id":"m2IAM14","visible":false,"period":86400}],[{"label":"IAM.15 Failure Percentage","expression":"(m1IAM15 / (m1IAM15+m2IAM15)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.15","Outcome","FAILED",{"id":"m1IAM15","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.15","Outcome","SUCCESS",{"id":"m2IAM15","visible":false,"period":86400}],[{"label":"IAM.16 Failure Percentage","expression":"(m1IAM16 / (m1IAM16+m2IAM16)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.16","Outcome","FAILED",{"id":"m1IAM16","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.16","Outcome","SUCCESS",{"id":"m2IAM16","visible":false,"period":86400}],[{"label":"IAM.17 Failure Percentage","expression":"(m1IAM17 / (m1IAM17+m2IAM17)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.17","Outcome","FAILED",{"id":"m1IAM17","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.17","Outcome","SUCCESS",{"id":"m2IAM17","visible":false,"period":86400}],[{"label":"IAM.18 Failure Percentage","expression":"(m1IAM18 / (m1IAM18+m2IAM18)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.18","Outcome","FAILED",{"id":"m1IAM18","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.18","Outcome","SUCCESS",{"id":"m2IAM18","visible":false,"period":86400}],[{"label":"IAM.22 Failure Percentage","expression":"(m1IAM22 / (m1IAM22+m2IAM22)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.22","Outcome","FAILED",{"id":"m1IAM22","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.22","Outcome","SUCCESS",{"id":"m2IAM22","visible":false,"period":86400}],[{"label":"KMS.4 Failure Percentage","expression":"(m1KMS4 / (m1KMS4+m2KMS4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","KMS.4","Outcome","FAILED",{"id":"m1KMS4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","KMS.4","Outcome","SUCCESS",{"id":"m2KMS4","visible":false,"period":86400}],[{"label":"Lambda.1 Failure Percentage","expression":"(m1Lambda1 / (m1Lambda1+m2Lambda1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Lambda.1","Outcome","FAILED",{"id":"m1Lambda1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Lambda.1","Outcome","SUCCESS",{"id":"m2Lambda1","visible":false,"period":86400}],[{"label":"RDS.1 Failure Percentage","expression":"(m1RDS1 / (m1RDS1+m2RDS1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.1","Outcome","FAILED",{"id":"m1RDS1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.1","Outcome","SUCCESS",{"id":"m2RDS1","visible":false,"period":86400}],[{"label":"RDS.2 Failure Percentage","expression":"(m1RDS2 / (m1RDS2+m2RDS2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.2","Outcome","FAILED",{"id":"m1RDS2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.2","Outcome","SUCCESS",{"id":"m2RDS2","visible":false,"period":86400}],[{"label":"RDS.4 Failure Percentage","expression":"(m1RDS4 / (m1RDS4+m2RDS4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.4","Outcome","FAILED",{"id":"m1RDS4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.4","Outcome","SUCCESS",{"id":"m2RDS4","visible":false,"period":86400}],[{"label":"RDS.5 Failure Percentage","expression":"(m1RDS5 / (m1RDS5+m2RDS5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.5","Outcome","FAILED",{"id":"m1RDS5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.5","Outcome","SUCCESS",{"id":"m2RDS5","visible":false,"period":86400}],[{"label":"RDS.6 Failure Percentage","expression":"(m1RDS6 / (m1RDS6+m2RDS6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.6","Outcome","FAILED",{"id":"m1RDS6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.6","Outcome","SUCCESS",{"id":"m2RDS6","visible":false,"period":86400}],[{"label":"RDS.7 Failure Percentage","expression":"(m1RDS7 / (m1RDS7+m2RDS7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.7","Outcome","FAILED",{"id":"m1RDS7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.7","Outcome","SUCCESS",{"id":"m2RDS7","visible":false,"period":86400}],[{"label":"RDS.8 Failure Percentage","expression":"(m1RDS8 / (m1RDS8+m2RDS8)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.8","Outcome","FAILED",{"id":"m1RDS8","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.8","Outcome","SUCCESS",{"id":"m2RDS8","visible":false,"period":86400}],[{"label":"RDS.13 Failure Percentage","expression":"(m1RDS13 / (m1RDS13+m2RDS13)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.13","Outcome","FAILED",{"id":"m1RDS13","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.13","Outcome","SUCCESS",{"id":"m2RDS13","visible":false,"period":86400}],[{"label":"RDS.16 Failure Percentage","expression":"(m1RDS16 / (m1RDS16+m2RDS16)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.16","Outcome","FAILED",{"id":"m1RDS16","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.16","Outcome","SUCCESS",{"id":"m2RDS16","visible":false,"period":86400}],[{"label":"Redshift.1 Failure Percentage","expression":"(m1Redshift1 / (m1Redshift1+m2Redshift1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.1","Outcome","FAILED",{"id":"m1Redshift1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.1","Outcome","SUCCESS",{"id":"m2Redshift1","visible":false,"period":86400}],[{"label":"Redshift.3 Failure Percentage","expression":"(m1Redshift3 / (m1Redshift3+m2Redshift3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.3","Outcome","FAILED",{"id":"m1Redshift3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.3","Outcome","SUCCESS",{"id":"m2Redshift3","visible":false,"period":86400}],[{"label":"Redshift.4 Failure Percentage","expression":"(m1Redshift4 / (m1Redshift4+m2Redshift4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.4","Outcome","FAILED",{"id":"m1Redshift4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.4","Outcome","SUCCESS",{"id":"m2Redshift4","visible":false,"period":86400}],[{"label":"Redshift.6 Failure Percentage","expression":"(m1Redshift6 / (m1Redshift6+m2Redshift6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.6","Outcome","FAILED",{"id":"m1Redshift6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.6","Outcome","SUCCESS",{"id":"m2Redshift6","visible":false,"period":86400}],[{"label":"S3.1 Failure Percentage","expression":"(m1S31 / (m1S31+m2S31)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.1","Outcome","FAILED",{"id":"m1S31","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.1","Outcome","SUCCESS",{"id":"m2S31","visible":false,"period":86400}],[{"label":"S3.2 Failure Percentage","expression":"(m1S32 / (m1S32+m2S32)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.2","Outcome","FAILED",{"id":"m1S32","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.2","Outcome","SUCCESS",{"id":"m2S32","visible":false,"period":86400}],[{"label":"S3.3 Failure Percentage","expression":"(m1S33 / (m1S33+m2S33)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.3","Outcome","FAILED",{"id":"m1S33","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.3","Outcome","SUCCESS",{"id":"m2S33","visible":false,"period":86400}],[{"label":"S3.4 Failure Percentage","expression":"(m1S34 / (m1S34+m2S34)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.4","Outcome","FAILED",{"id":"m1S34","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.4","Outcome","SUCCESS",{"id":"m2S34","visible":false,"period":86400}],[{"label":"S3.5 Failure Percentage","expression":"(m1S35 / (m1S35+m2S35)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.5","Outcome","FAILED",{"id":"m1S35","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.5","Outcome","SUCCESS",{"id":"m2S35","visible":false,"period":86400}],[{"label":"S3.6 Failure Percentage","expression":"(m1S36 / (m1S36+m2S36)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.6","Outcome","FAILED",{"id":"m1S36","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.6","Outcome","SUCCESS",{"id":"m2S36","visible":false,"period":86400}],[{"label":"S3.8 Failure Percentage","expression":"(m1S38 / (m1S38+m2S38)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.8","Outcome","FAILED",{"id":"m1S38","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.8","Outcome","SUCCESS",{"id":"m2S38","visible":false,"period":86400}],[{"label":"S3.9 Failure Percentage","expression":"(m1S39 / (m1S39+m2S39)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.9","Outcome","FAILED",{"id":"m1S39","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.9","Outcome","SUCCESS",{"id":"m2S39","visible":false,"period":86400}],[{"label":"S3.11 Failure Percentage","expression":"(m1S311 / (m1S311+m2S311)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.11","Outcome","FAILED",{"id":"m1S311","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.11","Outcome","SUCCESS",{"id":"m2S311","visible":false,"period":86400}],[{"label":"S3.13 Failure Percentage","expression":"(m1S313 / (m1S313+m2S313)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.13","Outcome","FAILED",{"id":"m1S313","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.13","Outcome","SUCCESS",{"id":"m2S313","visible":false,"period":86400}],[{"label":"SecretsManager.1 Failure Percentage","expression":"(m1SecretsManager1 / (m1SecretsManager1+m2SecretsManager1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.1","Outcome","FAILED",{"id":"m1SecretsManager1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.1","Outcome","SUCCESS",{"id":"m2SecretsManager1","visible":false,"period":86400}],[{"label":"SecretsManager.3 Failure Percentage","expression":"(m1SecretsManager3 / (m1SecretsManager3+m2SecretsManager3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.3","Outcome","FAILED",{"id":"m1SecretsManager3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.3","Outcome","SUCCESS",{"id":"m2SecretsManager3","visible":false,"period":86400}],[{"label":"SecretsManager.4 Failure Percentage","expression":"(m1SecretsManager4 / (m1SecretsManager4+m2SecretsManager4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.4","Outcome","FAILED",{"id":"m1SecretsManager4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.4","Outcome","SUCCESS",{"id":"m2SecretsManager4","visible":false,"period":86400}],[{"label":"SNS.1 Failure Percentage","expression":"(m1SNS1 / (m1SNS1+m2SNS1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SNS.1","Outcome","FAILED",{"id":"m1SNS1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SNS.1","Outcome","SUCCESS",{"id":"m2SNS1","visible":false,"period":86400}],[{"label":"SNS.2 Failure Percentage","expression":"(m1SNS2 / (m1SNS2+m2SNS2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SNS.2","Outcome","FAILED",{"id":"m1SNS2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SNS.2","Outcome","SUCCESS",{"id":"m2SNS2","visible":false,"period":86400}],[{"label":"SQS.1 Failure Percentage","expression":"(m1SQS1 / (m1SQS1+m2SQS1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SQS.1","Outcome","FAILED",{"id":"m1SQS1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SQS.1","Outcome","SUCCESS",{"id":"m2SQS1","visible":false,"period":86400}],[{"label":"SSM.4 Failure Percentage","expression":"(m1SSM4 / (m1SSM4+m2SSM4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SSM.4","Outcome","FAILED",{"id":"m1SSM4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SSM.4","Outcome","SUCCESS",{"id":"m2SSM4","visible":false,"period":86400}],[{"label":"GuardDuty.1 Failure Percentage","expression":"(m1GuardDuty1 / (m1GuardDuty1+m2GuardDuty1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.1","Outcome","FAILED",{"id":"m1GuardDuty1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.1","Outcome","SUCCESS",{"id":"m2GuardDuty1","visible":false,"period":86400}],[{"label":"Athena.4 Failure Percentage","expression":"(m1Athena4 / (m1Athena4+m2Athena4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Athena.4","Outcome","FAILED",{"id":"m1Athena4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Athena.4","Outcome","SUCCESS",{"id":"m2Athena4","visible":false,"period":86400}],[{"label":"APIGateway.1 Failure Percentage","expression":"(m1APIGateway1 / (m1APIGateway1+m2APIGateway1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.1","Outcome","FAILED",{"id":"m1APIGateway1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.1","Outcome","SUCCESS",{"id":"m2APIGateway1","visible":false,"period":86400}],[{"label":"APIGateway.5 Failure Percentage","expression":"(m1APIGateway5 / (m1APIGateway5+m2APIGateway5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.5","Outcome","FAILED",{"id":"m1APIGateway5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.5","Outcome","SUCCESS",{"id":"m2APIGateway5","visible":false,"period":86400}],[{"label":"AutoScaling.3 Failure Percentage","expression":"(m1AutoScaling3 / (m1AutoScaling3+m2AutoScaling3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.3","Outcome","FAILED",{"id":"m1AutoScaling3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.3","Outcome","SUCCESS",{"id":"m2AutoScaling3","visible":false,"period":86400}],[{"label":"Autoscaling.5 Failure Percentage","expression":"(m1Autoscaling5 / (m1Autoscaling5+m2Autoscaling5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Autoscaling.5","Outcome","FAILED",{"id":"m1Autoscaling5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Autoscaling.5","Outcome","SUCCESS",{"id":"m2Autoscaling5","visible":false,"period":86400}],[{"label":"CloudWatch.16 Failure Percentage","expression":"(m1CloudWatch16 / (m1CloudWatch16+m2CloudWatch16)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.16","Outcome","FAILED",{"id":"m1CloudWatch16","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.16","Outcome","SUCCESS",{"id":"m2CloudWatch16","visible":false,"period":86400}],[{"label":"EC2.10 Failure Percentage","expression":"(m1EC210 / (m1EC210+m2EC210)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.10","Outcome","FAILED",{"id":"m1EC210","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.10","Outcome","SUCCESS",{"id":"m2EC210","visible":false,"period":86400}],[{"label":"SSM.1 Failure Percentage","expression":"(m1SSM1 / (m1SSM1+m2SSM1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SSM.1","Outcome","FAILED",{"id":"m1SSM1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SSM.1","Outcome","SUCCESS",{"id":"m2SSM1","visible":false,"period":86400}],[{"label":"GuardDuty.2 Failure Percentage","expression":"(m1GuardDuty2 / (m1GuardDuty2+m2GuardDuty2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.2","Outcome","FAILED",{"id":"m1GuardDuty2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.2","Outcome","SUCCESS",{"id":"m2GuardDuty2","visible":false,"period":86400}],[{"label":"GuardDuty.4 Failure Percentage","expression":"(m1GuardDuty4 / (m1GuardDuty4+m2GuardDuty4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.4","Outcome","FAILED",{"id":"m1GuardDuty4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.4","Outcome","SUCCESS",{"id":"m2GuardDuty4","visible":false,"period":86400}],[{"label":"Macie.1 Failure Percentage","expression":"(m1Macie1 / (m1Macie1+m2Macie1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Macie.1","Outcome","FAILED",{"id":"m1Macie1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Macie.1","Outcome","SUCCESS",{"id":"m2Macie1","visible":false,"period":86400}],[{"label":"DynamoDB.1 Failure Percentage","expression":"(m1DynamoDB1 / (m1DynamoDB1+m2DynamoDB1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.1","Outcome","FAILED",{"id":"m1DynamoDB1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.1","Outcome","SUCCESS",{"id":"m2DynamoDB1","visible":false,"period":86400}],[{"label":"DynamoDB.5 Failure Percentage","expression":"(m1DynamoDB5 / (m1DynamoDB5+m2DynamoDB5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.5","Outcome","FAILED",{"id":"m1DynamoDB5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.5","Outcome","SUCCESS",{"id":"m2DynamoDB5","visible":false,"period":86400}],[{"label":"DynamoDB.6 Failure Percentage","expression":"(m1DynamoDB6 / (m1DynamoDB6+m2DynamoDB6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.6","Outcome","FAILED",{"id":"m1DynamoDB6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.6","Outcome","SUCCESS",{"id":"m2DynamoDB6","visible":false,"period":86400}],[{"label":"ElastiCache.1 Failure Percentage","expression":"(m1ElastiCache1 / (m1ElastiCache1+m2ElastiCache1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.1","Outcome","FAILED",{"id":"m1ElastiCache1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.1","Outcome","SUCCESS",{"id":"m2ElastiCache1","visible":false,"period":86400}],[{"label":"ElastiCache.2 Failure Percentage","expression":"(m1ElastiCache2 / (m1ElastiCache2+m2ElastiCache2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.2","Outcome","FAILED",{"id":"m1ElastiCache2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.2","Outcome","SUCCESS",{"id":"m2ElastiCache2","visible":false,"period":86400}],[{"label":"ElastiCache.3 Failure Percentage","expression":"(m1ElastiCache3 / (m1ElastiCache3+m2ElastiCache3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.3","Outcome","FAILED",{"id":"m1ElastiCache3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.3","Outcome","SUCCESS",{"id":"m2ElastiCache3","visible":false,"period":86400}],[{"label":"ECS.5 Failure Percentage","expression":"(m1ECS5 / (m1ECS5+m2ECS5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ECS.5","Outcome","FAILED",{"id":"m1ECS5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ECS.5","Outcome","SUCCESS",{"id":"m2ECS5","visible":false,"period":86400}],[{"label":"ELB.1 Failure Percentage","expression":"(m1ELB1 / (m1ELB1+m2ELB1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ELB.1","Outcome","FAILED",{"id":"m1ELB1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ELB.1","Outcome","SUCCESS",{"id":"m2ELB1","visible":false,"period":86400}],[{"label":"ECR.1 Failure Percentage","expression":"(m1ECR1 / (m1ECR1+m2ECR1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ECR.1","Outcome","FAILED",{"id":"m1ECR1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ECR.1","Outcome","SUCCESS",{"id":"m2ECR1","visible":false,"period":86400}]],"annotations":{"horizontal":[{"value":",
+              "","metrics":[[{"label":"AutoScaling.1 Failure Percentage","expression":"(m1AutoScaling1 / (m1AutoScaling1+m2AutoScaling1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.1","Outcome","FAILED",{"id":"m1AutoScaling1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.1","Outcome","SUCCESS",{"id":"m2AutoScaling1","visible":false,"period":86400}],[{"label":"CloudFormation.1 Failure Percentage","expression":"(m1CloudFormation1 / (m1CloudFormation1+m2CloudFormation1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudFormation.1","Outcome","FAILED",{"id":"m1CloudFormation1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudFormation.1","Outcome","SUCCESS",{"id":"m2CloudFormation1","visible":false,"period":86400}],[{"label":"CloudFront.1 Failure Percentage","expression":"(m1CloudFront1 / (m1CloudFront1+m2CloudFront1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.1","Outcome","FAILED",{"id":"m1CloudFront1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.1","Outcome","SUCCESS",{"id":"m2CloudFront1","visible":false,"period":86400}],[{"label":"CloudFront.12 Failure Percentage","expression":"(m1CloudFront12 / (m1CloudFront12+m2CloudFront12)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.12","Outcome","FAILED",{"id":"m1CloudFront12","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudFront.12","Outcome","SUCCESS",{"id":"m2CloudFront12","visible":false,"period":86400}],[{"label":"CloudTrail.1 Failure Percentage","expression":"(m1CloudTrail1 / (m1CloudTrail1+m2CloudTrail1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.1","Outcome","FAILED",{"id":"m1CloudTrail1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.1","Outcome","SUCCESS",{"id":"m2CloudTrail1","visible":false,"period":86400}],[{"label":"CloudTrail.2 Failure Percentage","expression":"(m1CloudTrail2 / (m1CloudTrail2+m2CloudTrail2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.2","Outcome","FAILED",{"id":"m1CloudTrail2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.2","Outcome","SUCCESS",{"id":"m2CloudTrail2","visible":false,"period":86400}],[{"label":"CloudTrail.3 Failure Percentage","expression":"(m1CloudTrail3 / (m1CloudTrail3+m2CloudTrail3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.3","Outcome","FAILED",{"id":"m1CloudTrail3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.3","Outcome","SUCCESS",{"id":"m2CloudTrail3","visible":false,"period":86400}],[{"label":"CloudTrail.4 Failure Percentage","expression":"(m1CloudTrail4 / (m1CloudTrail4+m2CloudTrail4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.4","Outcome","FAILED",{"id":"m1CloudTrail4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.4","Outcome","SUCCESS",{"id":"m2CloudTrail4","visible":false,"period":86400}],[{"label":"CloudTrail.5 Failure Percentage","expression":"(m1CloudTrail5 / (m1CloudTrail5+m2CloudTrail5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.5","Outcome","FAILED",{"id":"m1CloudTrail5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.5","Outcome","SUCCESS",{"id":"m2CloudTrail5","visible":false,"period":86400}],[{"label":"CloudTrail.6 Failure Percentage","expression":"(m1CloudTrail6 / (m1CloudTrail6+m2CloudTrail6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.6","Outcome","FAILED",{"id":"m1CloudTrail6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.6","Outcome","SUCCESS",{"id":"m2CloudTrail6","visible":false,"period":86400}],[{"label":"CloudTrail.7 Failure Percentage","expression":"(m1CloudTrail7 / (m1CloudTrail7+m2CloudTrail7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.7","Outcome","FAILED",{"id":"m1CloudTrail7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudTrail.7","Outcome","SUCCESS",{"id":"m2CloudTrail7","visible":false,"period":86400}],[{"label":"CloudWatch.1 Failure Percentage","expression":"(m1CloudWatch1 / (m1CloudWatch1+m2CloudWatch1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.1","Outcome","FAILED",{"id":"m1CloudWatch1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.1","Outcome","SUCCESS",{"id":"m2CloudWatch1","visible":false,"period":86400}],[{"label":"CloudWatch.2 Failure Percentage","expression":"(m1CloudWatch2 / (m1CloudWatch2+m2CloudWatch2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.2","Outcome","FAILED",{"id":"m1CloudWatch2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.2","Outcome","SUCCESS",{"id":"m2CloudWatch2","visible":false,"period":86400}],[{"label":"CloudWatch.3 Failure Percentage","expression":"(m1CloudWatch3 / (m1CloudWatch3+m2CloudWatch3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.3","Outcome","FAILED",{"id":"m1CloudWatch3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.3","Outcome","SUCCESS",{"id":"m2CloudWatch3","visible":false,"period":86400}],[{"label":"CloudWatch.4 Failure Percentage","expression":"(m1CloudWatch4 / (m1CloudWatch4+m2CloudWatch4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.4","Outcome","FAILED",{"id":"m1CloudWatch4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.4","Outcome","SUCCESS",{"id":"m2CloudWatch4","visible":false,"period":86400}],[{"label":"CloudWatch.5 Failure Percentage","expression":"(m1CloudWatch5 / (m1CloudWatch5+m2CloudWatch5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.5","Outcome","FAILED",{"id":"m1CloudWatch5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.5","Outcome","SUCCESS",{"id":"m2CloudWatch5","visible":false,"period":86400}],[{"label":"CloudWatch.6 Failure Percentage","expression":"(m1CloudWatch6 / (m1CloudWatch6+m2CloudWatch6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.6","Outcome","FAILED",{"id":"m1CloudWatch6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.6","Outcome","SUCCESS",{"id":"m2CloudWatch6","visible":false,"period":86400}],[{"label":"CloudWatch.7 Failure Percentage","expression":"(m1CloudWatch7 / (m1CloudWatch7+m2CloudWatch7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.7","Outcome","FAILED",{"id":"m1CloudWatch7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.7","Outcome","SUCCESS",{"id":"m2CloudWatch7","visible":false,"period":86400}],[{"label":"CloudWatch.8 Failure Percentage","expression":"(m1CloudWatch8 / (m1CloudWatch8+m2CloudWatch8)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.8","Outcome","FAILED",{"id":"m1CloudWatch8","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.8","Outcome","SUCCESS",{"id":"m2CloudWatch8","visible":false,"period":86400}],[{"label":"CloudWatch.9 Failure Percentage","expression":"(m1CloudWatch9 / (m1CloudWatch9+m2CloudWatch9)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.9","Outcome","FAILED",{"id":"m1CloudWatch9","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.9","Outcome","SUCCESS",{"id":"m2CloudWatch9","visible":false,"period":86400}],[{"label":"CloudWatch.10 Failure Percentage","expression":"(m1CloudWatch10 / (m1CloudWatch10+m2CloudWatch10)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.10","Outcome","FAILED",{"id":"m1CloudWatch10","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.10","Outcome","SUCCESS",{"id":"m2CloudWatch10","visible":false,"period":86400}],[{"label":"CloudWatch.11 Failure Percentage","expression":"(m1CloudWatch11 / (m1CloudWatch11+m2CloudWatch11)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.11","Outcome","FAILED",{"id":"m1CloudWatch11","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.11","Outcome","SUCCESS",{"id":"m2CloudWatch11","visible":false,"period":86400}],[{"label":"CloudWatch.12 Failure Percentage","expression":"(m1CloudWatch12 / (m1CloudWatch12+m2CloudWatch12)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.12","Outcome","FAILED",{"id":"m1CloudWatch12","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.12","Outcome","SUCCESS",{"id":"m2CloudWatch12","visible":false,"period":86400}],[{"label":"CloudWatch.13 Failure Percentage","expression":"(m1CloudWatch13 / (m1CloudWatch13+m2CloudWatch13)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.13","Outcome","FAILED",{"id":"m1CloudWatch13","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.13","Outcome","SUCCESS",{"id":"m2CloudWatch13","visible":false,"period":86400}],[{"label":"CloudWatch.14 Failure Percentage","expression":"(m1CloudWatch14 / (m1CloudWatch14+m2CloudWatch14)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.14","Outcome","FAILED",{"id":"m1CloudWatch14","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.14","Outcome","SUCCESS",{"id":"m2CloudWatch14","visible":false,"period":86400}],[{"label":"CodeBuild.2 Failure Percentage","expression":"(m1CodeBuild2 / (m1CodeBuild2+m2CodeBuild2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.2","Outcome","FAILED",{"id":"m1CodeBuild2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.2","Outcome","SUCCESS",{"id":"m2CodeBuild2","visible":false,"period":86400}],[{"label":"CodeBuild.5 Failure Percentage","expression":"(m1CodeBuild5 / (m1CodeBuild5+m2CodeBuild5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.5","Outcome","FAILED",{"id":"m1CodeBuild5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CodeBuild.5","Outcome","SUCCESS",{"id":"m2CodeBuild5","visible":false,"period":86400}],[{"label":"Config.1 Failure Percentage","expression":"(m1Config1 / (m1Config1+m2Config1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Config.1","Outcome","FAILED",{"id":"m1Config1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Config.1","Outcome","SUCCESS",{"id":"m2Config1","visible":false,"period":86400}],[{"label":"EC2.1 Failure Percentage","expression":"(m1EC21 / (m1EC21+m2EC21)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.1","Outcome","FAILED",{"id":"m1EC21","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.1","Outcome","SUCCESS",{"id":"m2EC21","visible":false,"period":86400}],[{"label":"EC2.2 Failure Percentage","expression":"(m1EC22 / (m1EC22+m2EC22)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.2","Outcome","FAILED",{"id":"m1EC22","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.2","Outcome","SUCCESS",{"id":"m2EC22","visible":false,"period":86400}],[{"label":"EC2.4 Failure Percentage","expression":"(m1EC24 / (m1EC24+m2EC24)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.4","Outcome","FAILED",{"id":"m1EC24","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.4","Outcome","SUCCESS",{"id":"m2EC24","visible":false,"period":86400}],[{"label":"EC2.6 Failure Percentage","expression":"(m1EC26 / (m1EC26+m2EC26)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.6","Outcome","FAILED",{"id":"m1EC26","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.6","Outcome","SUCCESS",{"id":"m2EC26","visible":false,"period":86400}],[{"label":"EC2.7 Failure Percentage","expression":"(m1EC27 / (m1EC27+m2EC27)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.7","Outcome","FAILED",{"id":"m1EC27","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.7","Outcome","SUCCESS",{"id":"m2EC27","visible":false,"period":86400}],[{"label":"EC2.8 Failure Percentage","expression":"(m1EC28 / (m1EC28+m2EC28)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.8","Outcome","FAILED",{"id":"m1EC28","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.8","Outcome","SUCCESS",{"id":"m2EC28","visible":false,"period":86400}],[{"label":"EC2.13 Failure Percentage","expression":"(m1EC213 / (m1EC213+m2EC213)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.13","Outcome","FAILED",{"id":"m1EC213","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.13","Outcome","SUCCESS",{"id":"m2EC213","visible":false,"period":86400}],[{"label":"EC2.14 Failure Percentage","expression":"(m1EC214 / (m1EC214+m2EC214)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.14","Outcome","FAILED",{"id":"m1EC214","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.14","Outcome","SUCCESS",{"id":"m2EC214","visible":false,"period":86400}],[{"label":"EC2.15 Failure Percentage","expression":"(m1EC215 / (m1EC215+m2EC215)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.15","Outcome","FAILED",{"id":"m1EC215","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.15","Outcome","SUCCESS",{"id":"m2EC215","visible":false,"period":86400}],[{"label":"EC2.18 Failure Percentage","expression":"(m1EC218 / (m1EC218+m2EC218)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.18","Outcome","FAILED",{"id":"m1EC218","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.18","Outcome","SUCCESS",{"id":"m2EC218","visible":false,"period":86400}],[{"label":"EC2.19 Failure Percentage","expression":"(m1EC219 / (m1EC219+m2EC219)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.19","Outcome","FAILED",{"id":"m1EC219","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.19","Outcome","SUCCESS",{"id":"m2EC219","visible":false,"period":86400}],[{"label":"EC2.23 Failure Percentage","expression":"(m1EC223 / (m1EC223+m2EC223)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.23","Outcome","FAILED",{"id":"m1EC223","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.23","Outcome","SUCCESS",{"id":"m2EC223","visible":false,"period":86400}],[{"label":"IAM.3 Failure Percentage","expression":"(m1IAM3 / (m1IAM3+m2IAM3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.3","Outcome","FAILED",{"id":"m1IAM3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.3","Outcome","SUCCESS",{"id":"m2IAM3","visible":false,"period":86400}],[{"label":"IAM.7 Failure Percentage","expression":"(m1IAM7 / (m1IAM7+m2IAM7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.7","Outcome","FAILED",{"id":"m1IAM7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.7","Outcome","SUCCESS",{"id":"m2IAM7","visible":false,"period":86400}],[{"label":"IAM.8 Failure Percentage","expression":"(m1IAM8 / (m1IAM8+m2IAM8)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.8","Outcome","FAILED",{"id":"m1IAM8","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.8","Outcome","SUCCESS",{"id":"m2IAM8","visible":false,"period":86400}],[{"label":"IAM.11 Failure Percentage","expression":"(m1IAM11 / (m1IAM11+m2IAM11)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.11","Outcome","FAILED",{"id":"m1IAM11","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.11","Outcome","SUCCESS",{"id":"m2IAM11","visible":false,"period":86400}],[{"label":"IAM.12 Failure Percentage","expression":"(m1IAM12 / (m1IAM12+m2IAM12)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.12","Outcome","FAILED",{"id":"m1IAM12","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.12","Outcome","SUCCESS",{"id":"m2IAM12","visible":false,"period":86400}],[{"label":"IAM.13 Failure Percentage","expression":"(m1IAM13 / (m1IAM13+m2IAM13)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.13","Outcome","FAILED",{"id":"m1IAM13","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.13","Outcome","SUCCESS",{"id":"m2IAM13","visible":false,"period":86400}],[{"label":"IAM.14 Failure Percentage","expression":"(m1IAM14 / (m1IAM14+m2IAM14)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.14","Outcome","FAILED",{"id":"m1IAM14","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.14","Outcome","SUCCESS",{"id":"m2IAM14","visible":false,"period":86400}],[{"label":"IAM.15 Failure Percentage","expression":"(m1IAM15 / (m1IAM15+m2IAM15)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.15","Outcome","FAILED",{"id":"m1IAM15","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.15","Outcome","SUCCESS",{"id":"m2IAM15","visible":false,"period":86400}],[{"label":"IAM.16 Failure Percentage","expression":"(m1IAM16 / (m1IAM16+m2IAM16)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.16","Outcome","FAILED",{"id":"m1IAM16","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.16","Outcome","SUCCESS",{"id":"m2IAM16","visible":false,"period":86400}],[{"label":"IAM.17 Failure Percentage","expression":"(m1IAM17 / (m1IAM17+m2IAM17)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.17","Outcome","FAILED",{"id":"m1IAM17","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.17","Outcome","SUCCESS",{"id":"m2IAM17","visible":false,"period":86400}],[{"label":"IAM.18 Failure Percentage","expression":"(m1IAM18 / (m1IAM18+m2IAM18)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.18","Outcome","FAILED",{"id":"m1IAM18","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.18","Outcome","SUCCESS",{"id":"m2IAM18","visible":false,"period":86400}],[{"label":"IAM.22 Failure Percentage","expression":"(m1IAM22 / (m1IAM22+m2IAM22)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","IAM.22","Outcome","FAILED",{"id":"m1IAM22","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","IAM.22","Outcome","SUCCESS",{"id":"m2IAM22","visible":false,"period":86400}],[{"label":"KMS.4 Failure Percentage","expression":"(m1KMS4 / (m1KMS4+m2KMS4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","KMS.4","Outcome","FAILED",{"id":"m1KMS4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","KMS.4","Outcome","SUCCESS",{"id":"m2KMS4","visible":false,"period":86400}],[{"label":"Lambda.1 Failure Percentage","expression":"(m1Lambda1 / (m1Lambda1+m2Lambda1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Lambda.1","Outcome","FAILED",{"id":"m1Lambda1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Lambda.1","Outcome","SUCCESS",{"id":"m2Lambda1","visible":false,"period":86400}],[{"label":"RDS.1 Failure Percentage","expression":"(m1RDS1 / (m1RDS1+m2RDS1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.1","Outcome","FAILED",{"id":"m1RDS1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.1","Outcome","SUCCESS",{"id":"m2RDS1","visible":false,"period":86400}],[{"label":"RDS.2 Failure Percentage","expression":"(m1RDS2 / (m1RDS2+m2RDS2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.2","Outcome","FAILED",{"id":"m1RDS2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.2","Outcome","SUCCESS",{"id":"m2RDS2","visible":false,"period":86400}],[{"label":"RDS.4 Failure Percentage","expression":"(m1RDS4 / (m1RDS4+m2RDS4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.4","Outcome","FAILED",{"id":"m1RDS4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.4","Outcome","SUCCESS",{"id":"m2RDS4","visible":false,"period":86400}],[{"label":"RDS.5 Failure Percentage","expression":"(m1RDS5 / (m1RDS5+m2RDS5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.5","Outcome","FAILED",{"id":"m1RDS5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.5","Outcome","SUCCESS",{"id":"m2RDS5","visible":false,"period":86400}],[{"label":"RDS.6 Failure Percentage","expression":"(m1RDS6 / (m1RDS6+m2RDS6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.6","Outcome","FAILED",{"id":"m1RDS6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.6","Outcome","SUCCESS",{"id":"m2RDS6","visible":false,"period":86400}],[{"label":"RDS.7 Failure Percentage","expression":"(m1RDS7 / (m1RDS7+m2RDS7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.7","Outcome","FAILED",{"id":"m1RDS7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.7","Outcome","SUCCESS",{"id":"m2RDS7","visible":false,"period":86400}],[{"label":"RDS.8 Failure Percentage","expression":"(m1RDS8 / (m1RDS8+m2RDS8)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.8","Outcome","FAILED",{"id":"m1RDS8","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.8","Outcome","SUCCESS",{"id":"m2RDS8","visible":false,"period":86400}],[{"label":"RDS.13 Failure Percentage","expression":"(m1RDS13 / (m1RDS13+m2RDS13)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.13","Outcome","FAILED",{"id":"m1RDS13","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.13","Outcome","SUCCESS",{"id":"m2RDS13","visible":false,"period":86400}],[{"label":"RDS.16 Failure Percentage","expression":"(m1RDS16 / (m1RDS16+m2RDS16)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","RDS.16","Outcome","FAILED",{"id":"m1RDS16","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","RDS.16","Outcome","SUCCESS",{"id":"m2RDS16","visible":false,"period":86400}],[{"label":"Redshift.1 Failure Percentage","expression":"(m1Redshift1 / (m1Redshift1+m2Redshift1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.1","Outcome","FAILED",{"id":"m1Redshift1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.1","Outcome","SUCCESS",{"id":"m2Redshift1","visible":false,"period":86400}],[{"label":"Redshift.3 Failure Percentage","expression":"(m1Redshift3 / (m1Redshift3+m2Redshift3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.3","Outcome","FAILED",{"id":"m1Redshift3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.3","Outcome","SUCCESS",{"id":"m2Redshift3","visible":false,"period":86400}],[{"label":"Redshift.4 Failure Percentage","expression":"(m1Redshift4 / (m1Redshift4+m2Redshift4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.4","Outcome","FAILED",{"id":"m1Redshift4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.4","Outcome","SUCCESS",{"id":"m2Redshift4","visible":false,"period":86400}],[{"label":"Redshift.6 Failure Percentage","expression":"(m1Redshift6 / (m1Redshift6+m2Redshift6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.6","Outcome","FAILED",{"id":"m1Redshift6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Redshift.6","Outcome","SUCCESS",{"id":"m2Redshift6","visible":false,"period":86400}],[{"label":"S3.1 Failure Percentage","expression":"(m1S31 / (m1S31+m2S31)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.1","Outcome","FAILED",{"id":"m1S31","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.1","Outcome","SUCCESS",{"id":"m2S31","visible":false,"period":86400}],[{"label":"S3.2 Failure Percentage","expression":"(m1S32 / (m1S32+m2S32)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.2","Outcome","FAILED",{"id":"m1S32","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.2","Outcome","SUCCESS",{"id":"m2S32","visible":false,"period":86400}],[{"label":"S3.3 Failure Percentage","expression":"(m1S33 / (m1S33+m2S33)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.3","Outcome","FAILED",{"id":"m1S33","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.3","Outcome","SUCCESS",{"id":"m2S33","visible":false,"period":86400}],[{"label":"S3.4 Failure Percentage","expression":"(m1S34 / (m1S34+m2S34)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.4","Outcome","FAILED",{"id":"m1S34","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.4","Outcome","SUCCESS",{"id":"m2S34","visible":false,"period":86400}],[{"label":"S3.5 Failure Percentage","expression":"(m1S35 / (m1S35+m2S35)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.5","Outcome","FAILED",{"id":"m1S35","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.5","Outcome","SUCCESS",{"id":"m2S35","visible":false,"period":86400}],[{"label":"S3.6 Failure Percentage","expression":"(m1S36 / (m1S36+m2S36)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.6","Outcome","FAILED",{"id":"m1S36","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.6","Outcome","SUCCESS",{"id":"m2S36","visible":false,"period":86400}],[{"label":"S3.8 Failure Percentage","expression":"(m1S38 / (m1S38+m2S38)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.8","Outcome","FAILED",{"id":"m1S38","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.8","Outcome","SUCCESS",{"id":"m2S38","visible":false,"period":86400}],[{"label":"S3.9 Failure Percentage","expression":"(m1S39 / (m1S39+m2S39)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.9","Outcome","FAILED",{"id":"m1S39","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.9","Outcome","SUCCESS",{"id":"m2S39","visible":false,"period":86400}],[{"label":"S3.11 Failure Percentage","expression":"(m1S311 / (m1S311+m2S311)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.11","Outcome","FAILED",{"id":"m1S311","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.11","Outcome","SUCCESS",{"id":"m2S311","visible":false,"period":86400}],[{"label":"S3.13 Failure Percentage","expression":"(m1S313 / (m1S313+m2S313)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","S3.13","Outcome","FAILED",{"id":"m1S313","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","S3.13","Outcome","SUCCESS",{"id":"m2S313","visible":false,"period":86400}],[{"label":"SecretsManager.1 Failure Percentage","expression":"(m1SecretsManager1 / (m1SecretsManager1+m2SecretsManager1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.1","Outcome","FAILED",{"id":"m1SecretsManager1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.1","Outcome","SUCCESS",{"id":"m2SecretsManager1","visible":false,"period":86400}],[{"label":"SecretsManager.3 Failure Percentage","expression":"(m1SecretsManager3 / (m1SecretsManager3+m2SecretsManager3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.3","Outcome","FAILED",{"id":"m1SecretsManager3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.3","Outcome","SUCCESS",{"id":"m2SecretsManager3","visible":false,"period":86400}],[{"label":"SecretsManager.4 Failure Percentage","expression":"(m1SecretsManager4 / (m1SecretsManager4+m2SecretsManager4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.4","Outcome","FAILED",{"id":"m1SecretsManager4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SecretsManager.4","Outcome","SUCCESS",{"id":"m2SecretsManager4","visible":false,"period":86400}],[{"label":"SNS.1 Failure Percentage","expression":"(m1SNS1 / (m1SNS1+m2SNS1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SNS.1","Outcome","FAILED",{"id":"m1SNS1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SNS.1","Outcome","SUCCESS",{"id":"m2SNS1","visible":false,"period":86400}],[{"label":"SNS.2 Failure Percentage","expression":"(m1SNS2 / (m1SNS2+m2SNS2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SNS.2","Outcome","FAILED",{"id":"m1SNS2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SNS.2","Outcome","SUCCESS",{"id":"m2SNS2","visible":false,"period":86400}],[{"label":"SQS.1 Failure Percentage","expression":"(m1SQS1 / (m1SQS1+m2SQS1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SQS.1","Outcome","FAILED",{"id":"m1SQS1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SQS.1","Outcome","SUCCESS",{"id":"m2SQS1","visible":false,"period":86400}],[{"label":"SSM.4 Failure Percentage","expression":"(m1SSM4 / (m1SSM4+m2SSM4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SSM.4","Outcome","FAILED",{"id":"m1SSM4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SSM.4","Outcome","SUCCESS",{"id":"m2SSM4","visible":false,"period":86400}],[{"label":"GuardDuty.1 Failure Percentage","expression":"(m1GuardDuty1 / (m1GuardDuty1+m2GuardDuty1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.1","Outcome","FAILED",{"id":"m1GuardDuty1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.1","Outcome","SUCCESS",{"id":"m2GuardDuty1","visible":false,"period":86400}],[{"label":"Athena.4 Failure Percentage","expression":"(m1Athena4 / (m1Athena4+m2Athena4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Athena.4","Outcome","FAILED",{"id":"m1Athena4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Athena.4","Outcome","SUCCESS",{"id":"m2Athena4","visible":false,"period":86400}],[{"label":"APIGateway.1 Failure Percentage","expression":"(m1APIGateway1 / (m1APIGateway1+m2APIGateway1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.1","Outcome","FAILED",{"id":"m1APIGateway1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.1","Outcome","SUCCESS",{"id":"m2APIGateway1","visible":false,"period":86400}],[{"label":"APIGateway.5 Failure Percentage","expression":"(m1APIGateway5 / (m1APIGateway5+m2APIGateway5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.5","Outcome","FAILED",{"id":"m1APIGateway5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","APIGateway.5","Outcome","SUCCESS",{"id":"m2APIGateway5","visible":false,"period":86400}],[{"label":"AutoScaling.3 Failure Percentage","expression":"(m1AutoScaling3 / (m1AutoScaling3+m2AutoScaling3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.3","Outcome","FAILED",{"id":"m1AutoScaling3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","AutoScaling.3","Outcome","SUCCESS",{"id":"m2AutoScaling3","visible":false,"period":86400}],[{"label":"Autoscaling.5 Failure Percentage","expression":"(m1Autoscaling5 / (m1Autoscaling5+m2Autoscaling5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Autoscaling.5","Outcome","FAILED",{"id":"m1Autoscaling5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Autoscaling.5","Outcome","SUCCESS",{"id":"m2Autoscaling5","visible":false,"period":86400}],[{"label":"CloudWatch.16 Failure Percentage","expression":"(m1CloudWatch16 / (m1CloudWatch16+m2CloudWatch16)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.16","Outcome","FAILED",{"id":"m1CloudWatch16","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","CloudWatch.16","Outcome","SUCCESS",{"id":"m2CloudWatch16","visible":false,"period":86400}],[{"label":"EC2.10 Failure Percentage","expression":"(m1EC210 / (m1EC210+m2EC210)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","EC2.10","Outcome","FAILED",{"id":"m1EC210","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","EC2.10","Outcome","SUCCESS",{"id":"m2EC210","visible":false,"period":86400}],[{"label":"SSM.1 Failure Percentage","expression":"(m1SSM1 / (m1SSM1+m2SSM1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SSM.1","Outcome","FAILED",{"id":"m1SSM1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SSM.1","Outcome","SUCCESS",{"id":"m2SSM1","visible":false,"period":86400}],[{"label":"GuardDuty.2 Failure Percentage","expression":"(m1GuardDuty2 / (m1GuardDuty2+m2GuardDuty2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.2","Outcome","FAILED",{"id":"m1GuardDuty2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.2","Outcome","SUCCESS",{"id":"m2GuardDuty2","visible":false,"period":86400}],[{"label":"GuardDuty.4 Failure Percentage","expression":"(m1GuardDuty4 / (m1GuardDuty4+m2GuardDuty4)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.4","Outcome","FAILED",{"id":"m1GuardDuty4","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","GuardDuty.4","Outcome","SUCCESS",{"id":"m2GuardDuty4","visible":false,"period":86400}],[{"label":"Macie.1 Failure Percentage","expression":"(m1Macie1 / (m1Macie1+m2Macie1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","Macie.1","Outcome","FAILED",{"id":"m1Macie1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","Macie.1","Outcome","SUCCESS",{"id":"m2Macie1","visible":false,"period":86400}],[{"label":"DynamoDB.1 Failure Percentage","expression":"(m1DynamoDB1 / (m1DynamoDB1+m2DynamoDB1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.1","Outcome","FAILED",{"id":"m1DynamoDB1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.1","Outcome","SUCCESS",{"id":"m2DynamoDB1","visible":false,"period":86400}],[{"label":"DynamoDB.5 Failure Percentage","expression":"(m1DynamoDB5 / (m1DynamoDB5+m2DynamoDB5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.5","Outcome","FAILED",{"id":"m1DynamoDB5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.5","Outcome","SUCCESS",{"id":"m2DynamoDB5","visible":false,"period":86400}],[{"label":"DynamoDB.6 Failure Percentage","expression":"(m1DynamoDB6 / (m1DynamoDB6+m2DynamoDB6)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.6","Outcome","FAILED",{"id":"m1DynamoDB6","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","DynamoDB.6","Outcome","SUCCESS",{"id":"m2DynamoDB6","visible":false,"period":86400}],[{"label":"ElastiCache.1 Failure Percentage","expression":"(m1ElastiCache1 / (m1ElastiCache1+m2ElastiCache1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.1","Outcome","FAILED",{"id":"m1ElastiCache1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.1","Outcome","SUCCESS",{"id":"m2ElastiCache1","visible":false,"period":86400}],[{"label":"ElastiCache.2 Failure Percentage","expression":"(m1ElastiCache2 / (m1ElastiCache2+m2ElastiCache2)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.2","Outcome","FAILED",{"id":"m1ElastiCache2","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.2","Outcome","SUCCESS",{"id":"m2ElastiCache2","visible":false,"period":86400}],[{"label":"ElastiCache.3 Failure Percentage","expression":"(m1ElastiCache3 / (m1ElastiCache3+m2ElastiCache3)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.3","Outcome","FAILED",{"id":"m1ElastiCache3","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ElastiCache.3","Outcome","SUCCESS",{"id":"m2ElastiCache3","visible":false,"period":86400}],[{"label":"ECS.5 Failure Percentage","expression":"(m1ECS5 / (m1ECS5+m2ECS5)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ECS.5","Outcome","FAILED",{"id":"m1ECS5","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ECS.5","Outcome","SUCCESS",{"id":"m2ECS5","visible":false,"period":86400}],[{"label":"ELB.1 Failure Percentage","expression":"(m1ELB1 / (m1ELB1+m2ELB1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ELB.1","Outcome","FAILED",{"id":"m1ELB1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ELB.1","Outcome","SUCCESS",{"id":"m2ELB1","visible":false,"period":86400}],[{"label":"ECR.1 Failure Percentage","expression":"(m1ECR1 / (m1ECR1+m2ECR1)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","ECR.1","Outcome","FAILED",{"id":"m1ECR1","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","ECR.1","Outcome","SUCCESS",{"id":"m2ECR1","visible":false,"period":86400}],[{"label":"SSM.7 Failure Percentage","expression":"(m1SSM7 / (m1SSM7+m2SSM7)) * 100","period":86400}],["ASR","RemediationOutcome","ControlId","SSM.7","Outcome","FAILED",{"id":"m1SSM7","visible":false,"period":86400}],["ASR","RemediationOutcome","ControlId","SSM.7","Outcome","SUCCESS",{"id":"m2SSM7","visible":false,"period":86400}]],"annotations":{"horizontal":[{"value":",
               {
                 "Ref": "RemediationFailureAlarmThreshold",
               },
@@ -11452,6 +11604,86 @@ exports[`Test if the Stack has all the resources. 1`] = `
       },
       "Type": "AWS::CloudWatch::Alarm",
     },
+    "SSM7remediationfailureBCF0D2A7": {
+      "Condition": "enhancedAlarmsEnabled",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "This alarm triggers when the percentage of remediation failures for SSM.7 reaches above the configured threshold. 
+        This indicates that there may be a problem remediating this control ID in your AWS environment. Check the most recent failed execution of this control's runbook in the target account to identify potential issues.",
+        "AlarmName": "ASR-SSM.7-remediation-failure",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Expression": "(m1SSM7 / (m1SSM7+m2SSM7)) * 100",
+            "Id": "expr_1",
+            "Label": "SSM.7 Failure Percentage",
+            "ReturnData": true,
+          },
+          {
+            "Id": "m1SSM7",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "ControlId",
+                    "Value": "SSM.7",
+                  },
+                  {
+                    "Name": "Outcome",
+                    "Value": "FAILED",
+                  },
+                ],
+                "MetricName": "RemediationOutcome",
+                "Namespace": "ASR",
+              },
+              "Period": 86400,
+              "Stat": "Average",
+            },
+            "ReturnData": false,
+          },
+          {
+            "Id": "m2SSM7",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "ControlId",
+                    "Value": "SSM.7",
+                  },
+                  {
+                    "Name": "Outcome",
+                    "Value": "SUCCESS",
+                  },
+                ],
+                "MetricName": "RemediationOutcome",
+                "Namespace": "ASR",
+              },
+              "Period": 86400,
+              "Stat": "Average",
+            },
+            "ReturnData": false,
+          },
+        ],
+        "Threshold": {
+          "Ref": "RemediationFailureAlarmThreshold",
+        },
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
     "SchedulingLambdaPolicyBDBE83CB": {
       "Properties": {
         "PolicyDocument": {
@@ -11571,8 +11803,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -11584,17 +11814,25 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "SchedulingTable1EC09B43",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Ref": "AWS::NoValue",
-                },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SchedulingTable1EC09B43",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
               ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SchedulingTable1EC09B43",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": [
@@ -12198,7 +12436,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/asr_lambdas.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/asr_lambdas.zip,
         },
         "Description": "Synchronization findings lambda",
         "Environment": {
@@ -12320,7 +12558,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/asr_lambdas.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/asr_lambdas.zip,
         },
         "Description": "Custom resource provider to trigger initial synchronization",
         "Environment": {
@@ -12628,8 +12866,6 @@ exports[`Test if the Stack has all the resources. 1`] = `
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -12641,23 +12877,29 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "ASRFindingsTable3FD52B9C",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Ref": "AWS::NoValue",
-                },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ASRFindingsTable3FD52B9C",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
               ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ASRFindingsTable3FD52B9C",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -12669,17 +12911,25 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "RemediationConfigTable24F19C3B",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Ref": "AWS::NoValue",
-                },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigTable24F19C3B",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
               ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigTable24F19C3B",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -12795,7 +13045,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/check_ssm_doc_state.py.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/check_ssm_doc_state.zip,
         },
         "Description": "Checks the status of an SSM Automation Document in the target account",
         "Environment": {
@@ -13036,7 +13286,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/exec_ssm_doc.py.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/exec_ssm_doc.zip,
         },
         "Description": "Executes an SSM Automation Document in a target account",
         "Environment": {
@@ -13107,7 +13357,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/get_approval_requirement.py.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/get_approval_requirement.zip,
         },
         "Description": "Determines if a manual approval is required for remediation",
         "Environment": {
@@ -13179,7 +13429,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/check_ssm_execution.py.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/check_ssm_execution.zip,
         },
         "Description": "Checks the status of an SSM automation document execution",
         "Environment": {
@@ -14093,7 +14343,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/schedule_remediation.py.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/schedule_remediation.zip,
         },
         "Description": "SO0111 ASR function that schedules remediations in member accounts",
         "Environment": {
@@ -14177,7 +14427,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Properties": {
         "Code": {
           "S3Bucket": "solutions-eu-west-1",
-          "S3Key": "automated-security-response-on-aws/v1.0.0/lambda/send_notifications.py.zip",
+          "S3Key": automated-security-response-on-aws/v1.0.0/lambda/send_notifications.zip,
         },
         "Description": "Sends notifications and log messages",
         "Environment": {

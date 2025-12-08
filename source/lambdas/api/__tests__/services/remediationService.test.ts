@@ -527,6 +527,9 @@ describe('RemediationService', () => {
       const result = await remediationService.exportRemediationHistory(mockAuthenticatedUser, exportRequest);
 
       expect(result.downloadUrl).toBe('https://test-bucket.s3.amazonaws.com/test-file.csv?presigned=true');
+      expect(result.status).toBe('complete');
+      expect(result.totalExported).toBe(1);
+      expect(result.message).toBeUndefined();
 
       const uploadCall = jest.mocked(remediationService['s3Client'].uploadCsvAndGeneratePresignedUrl).mock.calls[0];
       const csvContent = uploadCall[2];
@@ -556,6 +559,9 @@ describe('RemediationService', () => {
       const result = await remediationService.exportRemediationHistory(mockAuthenticatedUser, exportRequest);
 
       expect(result.downloadUrl).toBe('https://test-bucket.s3.amazonaws.com/test-file.csv?presigned=true');
+      expect(result.status).toBe('complete');
+      expect(result.totalExported).toBe(0);
+      expect(result.message).toBeUndefined();
 
       const uploadCall = jest.mocked(remediationService['s3Client'].uploadCsvAndGeneratePresignedUrl).mock.calls[0];
       const csvContent = uploadCall[2];
@@ -563,6 +569,58 @@ describe('RemediationService', () => {
       const expectedHeaders =
         'Finding ID,Account,Resource ID,Resource Type,Finding Type,Severity,Region,Status,Execution Timestamp,Executed By,Execution ID,Error';
       expect(csvContent).toBe(expectedHeaders);
+    });
+
+    it('should return partial status when hitting record limit', async () => {
+      const createRemediation = (i: number) => ({
+        findingId: `arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-${i}`,
+        'lastUpdatedTime#findingId': `2023-01-01T00:00:00Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-${i}`,
+        accountId: '123456789012',
+        resourceId: `arn:aws:lambda:us-east-1:123456789012:function:test-${i}`,
+        resourceType: 'AWS::Lambda::Function',
+        findingType: 'security-control/Lambda.3',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        remediationStatus: 'SUCCESS',
+        executionTimestamp: '2023-01-01T00:00:00Z',
+        executedBy: 'test-user@example.com',
+        executionId: `exec-${i}`,
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        REMEDIATION_CONSTANT: 'remediation',
+      });
+
+      // Spy on repository to return 100 items per call, simulating 500 batches to hit 50K record limit
+      let callCount = 0;
+      jest
+        .spyOn(remediationService['remediationHistoryRepository'], 'searchRemediations')
+        .mockImplementation(async () => {
+          callCount++;
+          // Return 100 items per batch, with nextToken until we hit 500 batches (50K records)
+          const items = Array.from({ length: 100 }, (_, i) => createRemediation(callCount * 100 + i));
+          return {
+            items: items as any,
+            nextToken: callCount < 500 ? `token-${callCount}` : undefined,
+          };
+        });
+
+      jest
+        .spyOn(remediationService['s3Client'], 'uploadCsvAndGeneratePresignedUrl')
+        .mockResolvedValue('https://test-bucket.s3.amazonaws.com/test-file.csv?presigned=true');
+
+      const exportRequest = {
+        SortCriteria: [
+          {
+            Field: 'lastUpdatedTime',
+            SortOrder: 'desc' as const,
+          },
+        ],
+      };
+
+      const result = await remediationService.exportRemediationHistory(mockAuthenticatedUser, exportRequest);
+
+      expect(result.status).toBe('partial');
+      expect(result.totalExported).toBe(50000);
+      expect(result.message).toBe('Maximum export size reached. Apply filters to reduce dataset.');
     });
   });
 });
