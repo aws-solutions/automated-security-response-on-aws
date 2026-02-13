@@ -1,6 +1,6 @@
 {
   "name": "manifest-generator",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "private": true,
   "description": "Create a manifest.json that lists all files to include in a WebUI deployment",
   "main": "app.js",

@@ -4,6 +4,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 aws-lambda-powertools = {extras = ["all"], version = "3.1.0"}
+cryptography = "^46.0.5"
 python = "^3.11"
 boto3 = "1.40.76"
 
@@ -19,6 +20,8 @@ pytest-env = "1.1.5"
 pytest-mock = "3.14.1"
 werkzeug = "3.1.5"
 tox = "4.28.4"
+virtualenv = "20.36.1"
+filelock = "3.20.3"
 boto3-stubs-lite = { extras = ["cloudfront", "cloudformation", "cloudwatch", "ec2", "iam", "s3", "sns", "ssm", "sts", "dynamodb"], version = "^1.40.0" }
 moto = { extras = ["cloudfront", "dynamodb", "s3"], version = "5.1.10" }
 types-urllib3 = "1.26.25.14"

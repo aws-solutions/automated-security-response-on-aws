@@ -5,17 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2026-02-16
+
+### Security
+
+- Upgraded vulnerable dependencies: cryptography, filelock, virtualenv, @aws-amplify, @aws-sdk (clients)
+
 ## [3.1.1] - 2026-01-13
 
 ### Fixed
 
-- Dependency conflicts causing Web UI to hang on "Redirecting to Login..."
- - Pinned `@aws-amplify/core` in source/webui/package.json
+- Dependency conflicts causing Web UI to hang on "Redirecting to Login...", pinned `@aws-amplify/core` in source/webui/package.json
 
 ### Security
 
 - Upgraded vulnerable dependencies: urllib3, werkzeug, react-router-dom, @smithy/config-resolver
-
 
 ## [3.1.0] - 2026-01-07
 

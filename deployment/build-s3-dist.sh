@@ -361,6 +361,32 @@ main() {
   mv "$template_dist_dir"/SolutionDeployStackWebUINestedStack*.template "$template_dist_dir"/automated-security-response-webui-nested-stack.template
   rm "$template_dist_dir"/*.nested.template
 
+  # Fix nested stack S3 URLs for non-commercial partitions.
+  # cdk synth hardcodes s3.amazonaws.com in TemplateURL strings.
+  # GovCloud and GCR need partition-aware S3 domains.
+  # It also hardcodes the bucket name as *-reference without the partition
+  # suffix, but the actual buckets are *-reference-us-gov / *-reference-cn.
+  #
+  # Note: macOS BSD sed requires `sed -i ''` while Linux GNU sed uses `sed -i`.
+  local sed_i_flag=(-i)
+  if [[ "$(uname)" == "Darwin" ]]; then
+    sed_i_flag=(-i '')
+  fi
+
+  if echo "${AWS_REGION:-}" | grep -q "^us-gov-"; then
+    echo "Fixing S3 URLs in templates for GovCloud (region: $AWS_REGION)"
+    for template in "$template_dist_dir"/*.template; do
+      sed "${sed_i_flag[@]}" "s|-reference\.s3\.amazonaws\.com|-reference-us-gov.s3.${AWS_REGION}.amazonaws.com|g" "$template"
+      sed "${sed_i_flag[@]}" "s|\.s3\.amazonaws\.com|.s3.${AWS_REGION}.amazonaws.com|g" "$template"
+    done
+  elif echo "${AWS_REGION:-}" | grep -q "^cn-"; then
+    echo "Fixing S3 URLs in templates for GCR (region: $AWS_REGION)"
+    for template in "$template_dist_dir"/*.template; do
+      sed "${sed_i_flag[@]}" "s|-reference\.s3\.amazonaws\.com|-reference-cn.s3.${AWS_REGION}.amazonaws.com.cn|g" "$template"
+      sed "${sed_i_flag[@]}" "s|\.s3\.amazonaws\.com|.s3.${AWS_REGION}.amazonaws.com.cn|g" "$template"
+    done
+  fi
+
   header "[Create] List of Supported Control Ids (supported-controls.json)"
   node "$deployment_dir"/utils/generate-controls-list.js "$version"
 }

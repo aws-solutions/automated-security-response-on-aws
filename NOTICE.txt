@@ -1396,6 +1396,8 @@ sympy under the BSD-3-Clause license.
 @rollup/rollup-win32-x64-gnu under the MIT license.
 @rollup/rollup-linux-ppc64-musl under the MIT license.
 @rollup/rollup-linux-loong64-gnu under the MIT license.
+@aws-sdk/crc64-nvme under the Apache-2.0 license.
+@aws-sdk/dynamodb-codec under the Apache-2.0 license.
 
 ********************
 OPEN SOURCE LICENSES

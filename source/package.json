@@ -1,6 +1,6 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Automated remediation for AWS Security Hub (SO0111)",
   "bin": {
     "solution_deploy": "bin/solution_deploy.js"
@@ -23,12 +23,12 @@
     "@aws-lambda-powertools/commons": "2.29.0",
     "@aws-lambda-powertools/logger": "2.29.0",
     "@aws-lambda-powertools/tracer": "2.29.0",
-    "@aws-sdk/client-dynamodb": "3.940.0",
-    "@aws-sdk/client-organizations": "3.940.0",
-    "@aws-sdk/client-s3": "3.940.0",
-    "@aws-sdk/client-sfn": "3.940.0",
-    "@aws-sdk/client-ssm": "3.940.0",
-    "@aws-sdk/lib-dynamodb": "3.940.0",
+    "@aws-sdk/client-dynamodb": "3.987.0",
+    "@aws-sdk/client-organizations": "3.987.0",
+    "@aws-sdk/client-s3": "3.987.0",
+    "@aws-sdk/client-sfn": "3.987.0",
+    "@aws-sdk/client-ssm": "3.987.0",
+    "@aws-sdk/lib-dynamodb": "3.987.0",
     "@cdklabs/cdk-ssm-documents": "0.0.50",
     "@types/aws-lambda": "8.10.159",
     "@types/jest": "30.0.0",
@@ -54,8 +54,11 @@
     "typescript": "5.9.3"
   },
   "dependencies": {
-    "@aws-solutions-constructs/aws-cloudfront-s3": "2.96.0",
+    "@aws-solutions-constructs/aws-cloudfront-s3": "^2.47.0",
     "@aws-solutions-constructs/aws-eventbridge-sqs": "2.96.0",
     "compare-versions": "6.1.1"
+  },
+  "overrides": {
+    "diff": "^5.2.2"
   }
 }
