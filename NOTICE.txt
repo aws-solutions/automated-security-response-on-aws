@@ -1398,6 +1398,9 @@ sympy under the BSD-3-Clause license.
 @rollup/rollup-linux-loong64-gnu under the MIT license.
 @aws-sdk/crc64-nvme under the Apache-2.0 license.
 @aws-sdk/dynamodb-codec under the Apache-2.0 license.
+@aws-cdk/cloud-assembly-api under the Apache-2.0 license.
+obug under the MIT license.
+@types/esrecurse under the MIT license.
 
 ********************
 OPEN SOURCE LICENSES
@@ -1420,3 +1423,4 @@ Zlib - http://www.zlib.net/zlib_license.html
 Artistic-2.0 - https://spdx.org/licenses/Artistic-2.0.html
 CC-BY-3.0 - https://spdx.org/licenses/CC-BY-3.0.html
 LGPL - https://spdx.org/licenses/LGPL-2.1-or-later.html
+LGPL-2.1-or-later - https://spdx.org/licenses/LGPL-2.1-or-later.html

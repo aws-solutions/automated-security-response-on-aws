@@ -4101,10 +4101,10 @@ export class RemediationRunbookStack extends cdk.Stack {
       remediationPolicy.addActions('apigateway:PATCH', 'apigateway:GET');
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(
-        `arn:${this.partition}:apigateway:*::/apis/*/stages`,
-        `arn:${this.partition}:apigateway:*::/apis/*/stages/*`,
-        `arn:${this.partition}:apigateway:*::/apis/*`,
-        `arn:${this.partition}:apigateway:*::/apis`,
+        `arn:${this.partition}:apigateway:*::/restapis/*/stages`,
+        `arn:${this.partition}:apigateway:*::/restapis/*/stages/*`,
+        `arn:${this.partition}:apigateway:*::/restapis/*`,
+        `arn:${this.partition}:apigateway:*::/restapis`,
       );
       inlinePolicy.addStatements(remediationPolicy);
 
