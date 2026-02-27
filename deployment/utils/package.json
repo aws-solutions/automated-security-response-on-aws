@@ -15,6 +15,7 @@
     "jest": "30.2.0"
   },
   "overrides": {
-    "minimatch@3.x": "3.1.4"
+    "minimatch@3.x": "3.1.4",
+    "minimatch@9.x": "9.0.7"
   }
 }

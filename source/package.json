@@ -23,12 +23,12 @@
     "@aws-lambda-powertools/commons": "2.29.0",
     "@aws-lambda-powertools/logger": "2.29.0",
     "@aws-lambda-powertools/tracer": "2.29.0",
-    "@aws-sdk/client-dynamodb": "3.995.0",
-    "@aws-sdk/client-organizations": "3.995.0",
-    "@aws-sdk/client-s3": "3.995.0",
-    "@aws-sdk/client-sfn": "3.995.0",
-    "@aws-sdk/client-ssm": "3.995.0",
-    "@aws-sdk/lib-dynamodb": "3.995.0",
+    "@aws-sdk/client-dynamodb": "3.999.0",
+    "@aws-sdk/client-organizations": "3.999.0",
+    "@aws-sdk/client-s3": "3.999.0",
+    "@aws-sdk/client-sfn": "3.999.0",
+    "@aws-sdk/client-ssm": "3.999.0",
+    "@aws-sdk/lib-dynamodb": "3.999.0",
     "@cdklabs/cdk-ssm-documents": "0.0.50",
     "@types/aws-lambda": "8.10.159",
     "@types/jest": "30.0.0",
@@ -60,6 +60,7 @@
   "overrides": {
     "diff": "^5.2.2",
     "type-fest": "^4.30.0",
-    "minimatch@3.x": "3.1.4"
+    "minimatch@3.x": "3.1.4",
+    "fast-xml-parser": "5.3.8"
   }
 }
