@@ -36,7 +36,7 @@
     "@types/node": "24.10.1",
     "@typescript-eslint/eslint-plugin": "8.40.0",
     "aws-cdk": "2.1033.0",
-    "aws-cdk-lib": "2.231.0",
+    "aws-cdk-lib": "2.240.0",
     "aws-sdk-client-mock": "4.1.0",
     "constructs": "10.4.3",
     "eslint": "8.57.1",
