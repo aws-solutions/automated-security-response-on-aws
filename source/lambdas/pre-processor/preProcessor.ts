@@ -118,7 +118,10 @@ export class PreProcessor implements LambdaInterface {
     hasPreviouslyFailedRemediation?: boolean,
   ): boolean {
     const baseRequirements =
-      autoRemediationEnabled && finding.Compliance.Status === 'FAILED' && finding.RecordState !== 'ARCHIVED';
+      autoRemediationEnabled &&
+      finding.Compliance.Status === 'FAILED' &&
+      finding.RecordState !== 'ARCHIVED' &&
+      finding.Workflow?.Status !== 'SUPPRESSED';
 
     return baseRequirements && (!hasBeenTriggered || !!hasPreviouslyFailedRemediation);
   }
