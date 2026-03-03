@@ -2177,4 +2177,224 @@ describe('PreProcessor Lambda', () => {
       expect(input.findings).toBeUndefined();
     });
   });
+
+  describe('SUPPRESSED Status Handling', () => {
+    it('should not trigger remediation for new SUPPRESSED findings', async () => {
+      const finding = createMockFinding({
+        Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/new-suppressed-finding',
+        Workflow: { Status: 'SUPPRESSED' },
+      });
+      await setupControlConfig('S3.1', true);
+
+      const record = createSQSRecord(finding, { 'detail-type': 'Security Hub Findings - Imported' });
+      await PreProcessor.recordHandler(record);
+
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+        }),
+      );
+
+      // ARRANGE / ACT / ASSERT
+      // Verify database item was created for the new finding
+      expect(result.Item).toBeDefined();
+      expect(result.Item?.findingId).toBe(finding.Id);
+      expect(result.Item?.findingType).toBe('aws-foundational-security-best-practices/v/1.0.0/S3.1');
+      expect(result.Item?.accountId).toBe(finding.AwsAccountId);
+      expect(result.Item?.resourceId).toBe(finding.Resources[0].Id);
+
+      // Verify finding was created with NOT_STARTED status (no remediation triggered)
+      expect(result.Item?.remediationStatus).toBe('NOT_STARTED');
+      expect(result.Item?.error).toBeUndefined();
+      expect(result.Item?.executionId).toBeUndefined(); // No execution ID when remediation not triggered
+
+      // Verify orchestrator was NOT invoked
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('should not trigger remediation for existing SUPPRESSED findings', async () => {
+      const finding = createMockFinding({
+        Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/existing-suppressed-finding',
+        Workflow: { Status: 'SUPPRESSED' },
+      });
+      await setupControlConfig('S3.1', true);
+
+      // ARRANGE: Create existing finding with NOT_STARTED status
+      const findingRepo = new FindingRepository('test', findingsTableName, docClient);
+      await findingRepo.put({
+        findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        findingId: finding.Id,
+        findingDescription: 'Old description',
+        accountId: finding.AwsAccountId,
+        resourceId: finding.Resources[0].Id,
+        resourceType: finding.Resources[0].Type,
+        resourceTypeNormalized: normalizeResourceType(finding.Resources[0].Type),
+        severity: 'MEDIUM',
+        severityNormalized: 2,
+        region: finding.Region!,
+        remediationStatus: 'NOT_STARTED',
+        securityHubUpdatedAtTime: '2023-01-01T00:00:00.000Z',
+        lastUpdatedTime: '2023-01-01T00:00:00.000Z',
+        'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00.000Z#' + finding.Id,
+        'severityNormalized#securityHubUpdatedAtTime#findingId': '2#2023-01-01T00:00:00.000Z#' + finding.Id,
+        findingJSON: new Uint8Array(),
+        findingIdControl: finding.Id + '#aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        FINDING_CONSTANT: 'finding',
+        suppressed: false,
+        creationTime: finding.CreatedAt,
+        expireAt: calculateTtlTimestamp('2023-01-01T00:00:00.000Z'),
+      });
+
+      // ACT: Process SUPPRESSED finding
+      const record = createSQSRecord(finding, { 'detail-type': 'Security Hub Findings - Imported' });
+      await PreProcessor.recordHandler(record);
+
+      // ASSERT: Verify status was preserved (not changed)
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+        }),
+      );
+
+      expect(result.Item?.remediationStatus).toBe('NOT_STARTED'); // Status preserved
+      expect(result.Item?.error).toBeUndefined();
+
+      // Verify orchestrator was NOT invoked
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('should not trigger remediation for existing SUPPRESSED findings with previous FAILED status', async () => {
+      const finding = createMockFinding({
+        Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/suppressed-previously-failed',
+        Workflow: { Status: 'SUPPRESSED' },
+      });
+      await setupControlConfig('S3.1', true);
+
+      // ARRANGE: Create existing finding with FAILED status (from previous remediation attempt)
+      const findingRepo = new FindingRepository('test', findingsTableName, docClient);
+      await findingRepo.put({
+        findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        findingId: finding.Id,
+        findingDescription: 'Old description',
+        accountId: finding.AwsAccountId,
+        resourceId: finding.Resources[0].Id,
+        resourceType: finding.Resources[0].Type,
+        resourceTypeNormalized: normalizeResourceType(finding.Resources[0].Type),
+        severity: 'MEDIUM',
+        severityNormalized: 2,
+        region: finding.Region!,
+        remediationStatus: 'FAILED',
+        error: 'Previous remediation failed',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:old-execution',
+        securityHubUpdatedAtTime: '2023-01-01T00:00:00.000Z',
+        lastUpdatedTime: '2023-01-01T00:00:00.000Z',
+        'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00.000Z#' + finding.Id,
+        'severityNormalized#securityHubUpdatedAtTime#findingId': '2#2023-01-01T00:00:00.000Z#' + finding.Id,
+        findingJSON: new Uint8Array(),
+        findingIdControl: finding.Id + '#aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        FINDING_CONSTANT: 'finding',
+        suppressed: false,
+        creationTime: finding.CreatedAt,
+        expireAt: calculateTtlTimestamp('2023-01-01T00:00:00.000Z'),
+      });
+
+      // ACT: Process SUPPRESSED finding
+      const record = createSQSRecord(finding, { 'detail-type': 'Security Hub Findings - Imported' });
+      await PreProcessor.recordHandler(record);
+
+      // ASSERT: Verify previous FAILED status was preserved
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+        }),
+      );
+
+      expect(result.Item?.remediationStatus).toBe('FAILED'); // Previous status preserved
+      expect(result.Item?.error).toBe('Previous remediation failed'); // Previous error preserved
+      expect(result.Item?.executionId).toBe(
+        'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:old-execution',
+      ); // Previous execution ID preserved
+
+      // Verify orchestrator was NOT invoked (no new remediation attempt)
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('should not trigger remediation for SUPPRESSED findings with Custom Action', async () => {
+      const finding = createMockFinding({
+        Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/suppressed-custom-action',
+        Workflow: { Status: 'SUPPRESSED' },
+      });
+      await setupControlConfig('S3.1', true);
+
+      // ACT: Process SUPPRESSED finding with Custom Action
+      const record = createSQSRecord(finding, { 'detail-type': 'Security Hub Findings - Custom Action' });
+      await PreProcessor.recordHandler(record);
+
+      // ASSERT: Verify remediation was NOT triggered even for Custom Action
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+        }),
+      );
+
+      expect(result.Item?.remediationStatus).toBe('NOT_STARTED');
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('should update finding data but not trigger remediation for SUPPRESSED findings', async () => {
+      const finding = createMockFinding({
+        Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/suppressed-data-update',
+        Workflow: { Status: 'SUPPRESSED' },
+        Title: 'Updated title',
+        Description: 'Updated description',
+      });
+      await setupControlConfig('S3.1', true);
+
+      // ARRANGE: Create existing finding with old data
+      const findingRepo = new FindingRepository('test', findingsTableName, docClient);
+      await findingRepo.put({
+        findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        findingId: finding.Id,
+        findingDescription: 'Old description',
+        accountId: finding.AwsAccountId,
+        resourceId: finding.Resources[0].Id,
+        resourceType: finding.Resources[0].Type,
+        resourceTypeNormalized: normalizeResourceType(finding.Resources[0].Type),
+        severity: 'MEDIUM',
+        severityNormalized: 2,
+        region: finding.Region!,
+        remediationStatus: 'NOT_STARTED',
+        securityHubUpdatedAtTime: '2023-01-01T00:00:00.000Z',
+        lastUpdatedTime: '2023-01-01T00:00:00.000Z',
+        'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00.000Z#' + finding.Id,
+        'severityNormalized#securityHubUpdatedAtTime#findingId': '2#2023-01-01T00:00:00.000Z#' + finding.Id,
+        findingJSON: new Uint8Array(),
+        findingIdControl: finding.Id + '#aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        FINDING_CONSTANT: 'finding',
+        suppressed: false,
+        creationTime: finding.CreatedAt,
+        expireAt: calculateTtlTimestamp('2023-01-01T00:00:00.000Z'),
+      });
+
+      // ACT: Process SUPPRESSED finding with updated data
+      const record = createSQSRecord(finding, { 'detail-type': 'Security Hub Findings - Imported' });
+      await PreProcessor.recordHandler(record);
+
+      // ASSERT: Verify finding data was updated but remediation was not triggered
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+        }),
+      );
+
+      expect(result.Item?.findingDescription).toBe('Updated title'); // Data updated
+      expect(result.Item?.remediationStatus).toBe('NOT_STARTED'); // Status preserved
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0); // No orchestrator invocation
+    });
+  });
 });
