@@ -64,12 +64,12 @@ if [ $status != 0 ] | [ $region_check != 1 ]; then
     exit 1
 fi
 
-aws s3api head-bucket --bucket ${bucket}-reference --expected-bucket-owner ${account}
-status=$?
-if [ $status != 0 ]; then
-    echo "Bucket ${bucket}-reference does not exist or is owned by another account. If the error code above is 404, the bucket doesn't exist. If 403, the bucket is owned by another account and you should use extreme caution before attempting to upload to it. Correct the issue and retry the upload only after you are certain that the bucket exists and is owned by your account."
-    exit 1
-fi
+# aws s3api head-bucket --bucket ${bucket}-reference --expected-bucket-owner ${account}
+# status=$?
+# if [ $status != 0 ]; then
+#     echo "Bucket ${bucket}-reference does not exist or is owned by another account. If the error code above is 404, the bucket doesn't exist. If 403, the bucket is owned by another account and you should use extreme caution before attempting to upload to it. Correct the issue and retry the upload only after you are certain that the bucket exists and is owned by your account."
+#     exit 1
+# fi
 
 aws s3api head-bucket --bucket ${bucket}-${region} --expected-bucket-owner ${account}
 status=$?
@@ -97,13 +97,13 @@ echo "**************************************************************************
 echo "=========================================================================="
 echo "Deploying $solution_name version $version to bucket $bucket-$region"
 echo "=========================================================================="
-echo "Templates: ${bucket}-reference/$solution_name/$version/"
+echo "Templates: ${bucket}-${region}/$solution_name/$version/"
 echo "Lambda code: ${bucket}-${region}/$solution_name/$version/"
 echo "---"
 
 # read -p "Press [Enter] key to start upload to $region"
 
-aws s3 sync ./global-s3-assets s3://${bucket}-reference/$solution_name/$version/
+aws s3 sync ./global-s3-assets s3://${bucket}-${region}/$solution_name/$version/
 aws s3 sync ./regional-s3-assets s3://$bucket-${region}/$solution_name/$version/
 
-echo "Completed uploading distribution. You may now install from the templates in ${bucket-reference}-reference/${solution_name}/${version}/"
+echo "Completed uploading distribution. You may now install from the templates in ${bucket-reference}-${region}/${solution_name}/${version}/"
