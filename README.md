@@ -197,7 +197,7 @@ See the [Automated Security Response on AWS Implementation
 Guide](https://docs.aws.amazon.com/solutions/latest/automated-security-response-on-aws/solution-overview.html) for
 deployment instructions, using the link to the SolutionDeployStack.template from your bucket, rather than the one for
 AWS Solutions. Ex.
-https://mybucket-reference.s3.amazonaws.com/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
+https://mybucket-region/aws-security-hub-automated-response-and-remediation/v1.3.0.mybuild/aws-sharr-deploy.template
 
 ## Directory structure
 

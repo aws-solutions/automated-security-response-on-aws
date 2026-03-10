@@ -10,7 +10,7 @@ import * as kms from 'aws-cdk-lib/aws-kms';
 import * as fs from 'fs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as logs from "aws-cdk-lib/aws-logs";
+import * as logs from 'aws-cdk-lib/aws-logs';
 import {
   Role,
   CfnRole,
@@ -24,6 +24,7 @@ import {
 import { OrchestratorConstruct } from './common-orchestrator-construct';
 import { CfnStateMachine, StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
 import { OneTrigger } from './ssmplaybook';
+import { Aws } from 'aws-cdk-lib';
 export interface SHARRStackProps extends cdk.StackProps {
   solutionId: string;
   solutionVersion: string;
@@ -131,23 +132,21 @@ export class SolutionDeployStack extends cdk.Stack {
         {
           name: 'public',
           subnetType: ec2.SubnetType.PUBLIC,
-          cidrMask: 24
+          cidrMask: 24,
         },
         {
           name: 'private',
           subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-          cidrMask: 24
-        }
+          cidrMask: 24,
+        },
       ],
     });
 
-    const securityGroup = new ec2.SecurityGroup(this, 'orchestratorLambdaSG', 
-      {
-        vpc: vpc,
-        allowAllOutbound: true,
-        description: "Security group for orchestrator lambdas to allow outbound traffic." 
-      }
-    )
+    const securityGroup = new ec2.SecurityGroup(this, 'orchestratorLambdaSG', {
+      vpc: vpc,
+      allowAllOutbound: true,
+      description: 'Security group for orchestrator lambdas to allow outbound traffic.',
+    });
 
     const logGroup = new logs.LogGroup(this, 'orchestratorLambdaVPCLogGroup', {
       retention: logs.RetentionDays.ONE_YEAR,
@@ -234,15 +233,15 @@ export class SolutionDeployStack extends cdk.Stack {
         }),
         new PolicyStatement({
           actions: [
-            "logs:CreateLogGroup",
-            "logs:CreateLogStream",
-            "logs:PutLogEvents",
-            "ec2:CreateNetworkInterface",
-            "ec2:DescribeNetworkInterfaces",
-            "ec2:DescribeSubnets",
-            "ec2:DeleteNetworkInterface",
-            "ec2:AssignPrivateIpAddresses",
-            "ec2:UnassignPrivateIpAddresses"
+            'logs:CreateLogGroup',
+            'logs:CreateLogStream',
+            'logs:PutLogEvents',
+            'ec2:CreateNetworkInterface',
+            'ec2:DescribeNetworkInterfaces',
+            'ec2:DescribeSubnets',
+            'ec2:DeleteNetworkInterface',
+            'ec2:AssignPrivateIpAddresses',
+            'ec2:UnassignPrivateIpAddresses',
           ],
           resources: [vpc.vpcArn],
         }),
@@ -512,15 +511,15 @@ export class SolutionDeployStack extends cdk.Stack {
         }),
         new PolicyStatement({
           actions: [
-            "ec2:CreateNetworkInterface",
-            "ec2:DescribeNetworkInterfaces",
-            "ec2:DescribeSubnets",
-            "ec2:DeleteNetworkInterface",
-            "ec2:AssignPrivateIpAddresses",
-            "ec2:UnassignPrivateIpAddresses"
+            'ec2:CreateNetworkInterface',
+            'ec2:DescribeNetworkInterfaces',
+            'ec2:DescribeSubnets',
+            'ec2:DeleteNetworkInterface',
+            'ec2:AssignPrivateIpAddresses',
+            'ec2:UnassignPrivateIpAddresses',
           ],
           resources: ['*'],
-        })
+        }),
       ],
     });
 
@@ -637,21 +636,17 @@ export class SolutionDeployStack extends cdk.Stack {
           resources: ['*'],
         }),
         new PolicyStatement({
-          actions: [
-            'logs:CreateLogGroup', 
-            'logs:CreateLogStream', 
-            'logs:PutLogEvents'
-          ],
+          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
           resources: ['*'],
         }),
         new PolicyStatement({
           actions: [
-            "ec2:CreateNetworkInterface",
-            "ec2:DescribeNetworkInterfaces",
-            "ec2:DescribeSubnets",
-            "ec2:DeleteNetworkInterface",
-            "ec2:AssignPrivateIpAddresses",
-            "ec2:UnassignPrivateIpAddresses"
+            'ec2:CreateNetworkInterface',
+            'ec2:DescribeNetworkInterfaces',
+            'ec2:DescribeSubnets',
+            'ec2:DeleteNetworkInterface',
+            'ec2:AssignPrivateIpAddresses',
+            'ec2:UnassignPrivateIpAddresses',
           ],
           resources: ['*'],
         }),
@@ -786,7 +781,16 @@ export class SolutionDeployStack extends cdk.Stack {
     // Loop through all of the Playbooks and create an option to load each
     //
     const PB_DIR = `${__dirname}/../playbooks`;
-    const ignore = ['.DS_Store', 'common', 'python_lib', 'python_tests', '.pytest_cache', 'NEWPLAYBOOK', '.coverage', 'playbook-index.ts'];
+    const ignore = [
+      '.DS_Store',
+      'common',
+      'python_lib',
+      'python_tests',
+      '.pytest_cache',
+      'NEWPLAYBOOK',
+      '.coverage',
+      'playbook-index.ts',
+    ];
     const illegalChars = /[\\._]/g;
 
     const standardLogicalNames: string[] = [];
@@ -814,7 +818,9 @@ export class SolutionDeployStack extends cdk.Stack {
           'TemplateURL',
           'https://' +
             cdk.Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
-            '-reference.s3.amazonaws.com/' +
+            '-' +
+            Aws.REGION +
+            '.s3.amazonaws.com/' +
             cdk.Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
             '/playbooks/' +
             template_file

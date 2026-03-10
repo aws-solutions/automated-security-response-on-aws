@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Stack, Duration, RemovalPolicy, CfnParameter, CfnResource, Fn, NestedStack } from 'aws-cdk-lib';
+import { Stack, Duration, RemovalPolicy, CfnParameter, CfnResource, Fn, NestedStack, Aws } from 'aws-cdk-lib';
 import { PolicyDocument, PolicyStatement, Role, Effect, ServicePrincipal, CfnRole } from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
@@ -529,7 +529,9 @@ export class OrchestratorConstruct extends Construct {
       'TemplateURL',
       'https://' +
         Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
-        '-reference.s3.amazonaws.com/' +
+        '-' +
+        Aws.REGION +
+        '.s3.amazonaws.com/' +
         Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
         '/aws-sharr-orchestrator-log.template'
     );
