@@ -328,7 +328,11 @@ describe('member stack', function () {
             {
               ['Fn::FindInMap']: [mappingName, mappingKeyName, bucketKeyName],
             },
-            `-reference.s3.amazonaws.com/`,
+            `-`,
+            {
+              Ref: 'AWS::Region',
+            },
+            '.s3.amazonaws.com/',
             {
               ['Fn::FindInMap']: [mappingName, mappingKeyName, keyPrefixKeyName],
             },

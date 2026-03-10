@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CfnCondition, CfnMapping, CfnStack, CfnWaitConditionHandle, Fn, NestedStack } from 'aws-cdk-lib';
+import { Aws, CfnCondition, CfnMapping, CfnStack, CfnWaitConditionHandle, Fn, NestedStack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import setCondition from './set-condition';
 
@@ -48,7 +48,9 @@ export class SerializedNestedStackFactory extends Construct {
     const templateUrl =
       'https://' +
       this.mapping.findInMap(this.mappingKey, this.bucketKey) +
-      '-reference.s3.amazonaws.com/' +
+      '-' +
+      Aws.REGION +
+      '.s3.amazonaws.com/' +
       this.mapping.findInMap(this.mappingKey, this.keyPrefixKey) +
       '/' +
       props.templateRelativePath;
