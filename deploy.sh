@@ -31,6 +31,9 @@ chmod +x ./upload-s3-dist.sh
 ./upload-s3-dist.sh ap-southeast-4
 ./upload-s3-dist.sh ap-northeast-1
 ./upload-s3-dist.sh ap-south-1
+./upload-s3-dist.sh ap-east-1
+./upload-s3-dist.sh ap-south-1
+./upload-s3-dist.sh ap-south-2
 ./upload-s3-dist.sh us-east-1
 ./upload-s3-dist.sh us-east-2
 ./upload-s3-dist.sh us-west-1
