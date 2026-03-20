@@ -29,7 +29,7 @@
     "@aws-sdk/client-sfn": "3.999.0",
     "@aws-sdk/client-ssm": "3.999.0",
     "@aws-sdk/lib-dynamodb": "3.999.0",
-    "@cdklabs/cdk-ssm-documents": "0.0.50",
+    "@cdklabs/cdk-ssm-documents": "0.0.52",
     "@types/aws-lambda": "8.10.159",
     "@types/jest": "30.0.0",
     "@types/js-yaml": "4.0.9",
