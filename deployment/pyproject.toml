@@ -4,7 +4,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 aws-lambda-powertools = {extras = ["all"], version = "3.1.0"}
-cryptography = "^46.0.5"
+cryptography = "^46.0.6"
 python = "^3.11"
 boto3 = "1.40.76"
 
