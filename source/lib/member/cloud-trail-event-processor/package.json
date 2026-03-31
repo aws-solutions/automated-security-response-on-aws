@@ -12,14 +12,14 @@
     "test": "jest --coverage"
   },
   "devDependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "3.999.0",
-    "@aws-sdk/client-s3": "3.999.0",
-    "@aws-sdk/client-sts": "3.999.0",
+    "@aws-sdk/client-cloudwatch-logs": "3.1014.0",
+    "@aws-sdk/client-s3": "3.1014.0",
+    "@aws-sdk/client-sts": "3.1014.0",
     "aws-sdk-client-mock": "4.1.0",
     "jest": "30.2.0"
   },
   "overrides": {
     "minimatch@3.x": "3.1.4",
-    "fast-xml-parser": "5.3.8"
+    "fast-xml-parser": "5.5.9"
   }
 }
