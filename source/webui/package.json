@@ -1,7 +1,7 @@
 {
   "name": "webui",
   "private": true,
-  "version": "3.1.3",
+  "version": "3.1.4",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@aws-amplify/core": "6.13.1",
-    "@aws-amplify/ui-react": "6.15.0",
+    "@aws-amplify/ui-react": "6.15.2",
     "@cloudscape-design/components": "3.0.1048",
     "@reduxjs/toolkit": "2.8.2",
     "@types/node": "24.2.0",
@@ -54,6 +54,6 @@
   },
   "overrides": {
     "@smithy/config-resolver": "4.4.0",
-    "fast-xml-parser": "5.3.8"
+    "fast-xml-parser": "5.5.9"
   }
 }
