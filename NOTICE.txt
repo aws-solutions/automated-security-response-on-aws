@@ -758,6 +758,7 @@ fast-glob under the MIT license.
 fast-json-stable-stringify under the MIT license.
 fast-levenshtein under the MIT license.
 fast-uri under the BSD 3-Clause license
+fast-xml-builder under the MIT license.
 fast-xml-parser under the MIT license.
 fastest-levenshtein under the MIT license.
 fastjsonschema under the 0BSD license.
@@ -1079,6 +1080,7 @@ parse-json under the MIT license.
 parse-statements under the MIT license.
 parse5 under the MIT license.
 path-exists under the MIT license.
+path-expression-matcher under the MIT license.
 path-is-absolute under the MIT license.
 path-key under the MIT license.
 path-parse under the MIT license.
@@ -1134,6 +1136,7 @@ pytest-mock under the MIT license.
 python-dateutil under the Apache-2.0 license.
 python-dotenv under the BSD 3-Clause license
 python-shell under the MIT license.
+pytokens under the MIT license.
 pywin32 under the PSF-2.0 license.
 pyyaml under the MIT license.
 qrcode under the MIT license.

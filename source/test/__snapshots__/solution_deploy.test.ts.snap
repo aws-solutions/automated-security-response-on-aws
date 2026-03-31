@@ -8413,12 +8413,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ASRFindingsTable3FD52B9C",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ASRFindingsTable3FD52B9C",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -8426,12 +8428,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ASRFindingsTable3FD52B9C",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ASRFindingsTable3FD52B9C",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -8447,12 +8451,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "RemediationConfigTable24F19C3B",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigTable24F19C3B",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -8460,12 +8466,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "RemediationConfigTable24F19C3B",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigTable24F19C3B",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -8481,12 +8489,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ASRRemediationHistoryTable3CA12E73",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ASRRemediationHistoryTable3CA12E73",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -8494,12 +8504,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ASRRemediationHistoryTable3CA12E73",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ASRRemediationHistoryTable3CA12E73",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -11828,12 +11840,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "SchedulingTable1EC09B43",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SchedulingTable1EC09B43",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -11841,12 +11855,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "SchedulingTable1EC09B43",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SchedulingTable1EC09B43",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -12892,12 +12908,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ASRFindingsTable3FD52B9C",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ASRFindingsTable3FD52B9C",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -12905,12 +12923,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ASRFindingsTable3FD52B9C",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ASRFindingsTable3FD52B9C",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -12926,12 +12946,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:DescribeTable",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "RemediationConfigTable24F19C3B",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigTable24F19C3B",
+                    "Arn",
+                  ],
+                },
+              ],
             },
             {
               "Action": [
@@ -12939,12 +12961,14 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "dynamodb:GetShardIterator",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "RemediationConfigTable24F19C3B",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigTable24F19C3B",
+                    "Arn",
+                  ],
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",

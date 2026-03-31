@@ -1,0 +1,14 @@
+node_modules/
+.venv/
+Config
+source/remediation_runbooks/scripts/test/
+
+# AWS Acccount IDs expected in .nightswatch/
+.nightswatch/deployment/
+.nightswatch/functional/
+.nightswatch/scripts/utils/sqs.py
+.nightswatch/README.md
+
+# Falsely flags AWS account Ids
+source/test/regex_registry.ts
+SECURITY.md
