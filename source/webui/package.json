@@ -1,7 +1,7 @@
 {
   "name": "webui",
   "private": true,
-  "version": "3.1.4",
+  "version": "3.1.5",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -17,14 +17,14 @@
     "test": "vitest --run ./src/__tests__/ --coverage"
   },
   "dependencies": {
-    "@aws-amplify/core": "6.13.1",
-    "@aws-amplify/ui-react": "6.15.2",
+    "@aws-amplify/core": "6.16.2",
+    "@aws-amplify/ui-react": "6.15.3",
     "@cloudscape-design/components": "3.0.1048",
     "@reduxjs/toolkit": "2.8.2",
     "@types/node": "24.2.0",
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
-    "aws-amplify": "6.16.2",
+    "aws-amplify": "6.16.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-redux": "9.2.0",
@@ -44,7 +44,7 @@
     "msw": "2.10.5",
     "prettier": "3.6.2",
     "typescript": "5.9.2",
-    "vite": "7.1.11",
+    "vite": "7.3.2",
     "vitest": "4.0.18"
   },
   "msw": {
