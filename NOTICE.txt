@@ -1028,6 +1028,7 @@ nise under the BSD 3-Clause license
 nock under the MIT license.
 node-addon-api under the MIT license.
 node-domexception under the MIT license.
+node-exports-info under the MIT license.
 node-fetch under the MIT license.
 node-gyp under the MIT license.
 node-int64 under the MIT license.
@@ -1053,6 +1054,7 @@ object-assign under the MIT license.
 object-inspect under the MIT license.
 object-keys under the MIT license.
 object.assign under the MIT license.
+object.entries under the MIT license.
 object.fromentries under the MIT license.
 object.groupby under the MIT license.
 object.values under the MIT license.

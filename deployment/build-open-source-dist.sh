@@ -41,6 +41,10 @@ main() {
         -x "source/data-models/cjs/*" \
         -x "source/data-models/esm/*" \
         -x "*.d.ts*" \
+        -x ".env" \
+        -x ".viperlightignore" \
+        -x ".git-info" \
+        -x "source/test/buildspec.test.ts" \
     popd
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "description": "Automated remediation for AWS Security Hub (SO0111)",
   "bin": {
     "solution_deploy": "bin/solution_deploy.js"
@@ -29,14 +29,14 @@
     "@aws-sdk/client-sfn": "3.1014.0",
     "@aws-sdk/client-ssm": "3.1014.0",
     "@aws-sdk/lib-dynamodb": "3.1014.0",
-    "@cdklabs/cdk-ssm-documents": "0.0.52",
+    "@cdklabs/cdk-ssm-documents": "0.0.56",
     "@types/aws-lambda": "8.10.159",
     "@types/jest": "30.0.0",
     "@types/js-yaml": "4.0.9",
     "@types/node": "24.10.1",
     "@typescript-eslint/eslint-plugin": "8.40.0",
     "aws-cdk": "2.1107.0",
-    "aws-cdk-lib": "2.245.0",
+    "aws-cdk-lib": "2.249.0",
     "aws-sdk-client-mock": "4.1.0",
     "eslint": "8.57.1",
     "eslint-config-prettier": "8.10.2",
