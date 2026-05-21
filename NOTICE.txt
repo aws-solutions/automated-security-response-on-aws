@@ -278,6 +278,7 @@ This software includes third party software subject to the following copyrights:
 @middy/util under the MIT license.
 @mswjs/interceptors under the MIT license.
 @napi-rs/wasm-runtime under the MIT license.
+@nodable/entities under the MIT license.
 @nodelib/fs.scandir under the MIT license.
 @nodelib/fs.stat under the MIT license.
 @nodelib/fs.walk under the MIT license.
@@ -1363,6 +1364,7 @@ write-file-atomic under the ISC license
 ws under the MIT license.
 xstate under the MIT license.
 xml-name-validator under the Apache-2.0 license.
+xml-naming under the MIT license.
 xml2js under the MIT license.
 xmlbuilder under the MIT license.
 xmlchars under the MIT license.

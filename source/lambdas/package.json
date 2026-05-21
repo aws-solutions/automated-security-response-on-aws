@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr_lambdas",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "description": "Non-Orchestrator Lambda functions in ASR, including the Pre-processor and backend API lambdas.",
   "author": {
     "name": "Amazon Web Services",
@@ -70,7 +70,7 @@
     "minimatch@3.x": "3.1.4",
     "minimatch@9.x": "9.0.7",
     "minimatch@10.x": "10.2.3",
-    "fast-xml-parser": "5.5.9"
+    "fast-xml-parser": "5.7.3"
   },
   "jestSonar": {
     "reportPath": "coverage"
