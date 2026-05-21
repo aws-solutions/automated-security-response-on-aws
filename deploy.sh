@@ -13,8 +13,7 @@ if [ "$ENV" = "prod" ]; then
 elif [ "$ENV" = "uat" ] || [ "$ENV" = "" ]; then
     BUCKET_NAME="5pillars-uat-playbooks"
 else
-    echo "Error: Invalid environment argument. Use empty string, 'uat', or 'prod'"
-    exit 1
+    BUCKET_NAME="5pillars-playbooks"
 fi
 
 echo "Deploying to environment: ${ENV:-uat (default)}"
