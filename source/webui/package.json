@@ -1,7 +1,7 @@
 {
   "name": "webui",
   "private": true,
-  "version": "3.1.5",
+  "version": "3.1.6",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -54,6 +54,6 @@
   },
   "overrides": {
     "@smithy/config-resolver": "4.4.0",
-    "fast-xml-parser": "5.5.9"
+    "fast-xml-parser": "5.7.3"
   }
 }
