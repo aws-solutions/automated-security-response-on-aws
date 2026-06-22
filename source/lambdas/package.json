@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr_lambdas",
-  "version": "3.1.6",
+  "version": "3.1.7",
   "description": "Non-Orchestrator Lambda functions in ASR, including the Pre-processor and backend API lambdas.",
   "author": {
     "name": "Amazon Web Services",
@@ -22,6 +22,7 @@
     "test:sequential:synchronization": "npm run build:clean:ts && export POWERTOOLS_DEV=true && node --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Synchronization Unit Tests' --runInBand --coverage --coverageDirectory=synchronization/coverage --silent"
   },
   "devDependencies": {
+    "@aws-sdk/client-resource-groups-tagging-api": "3.1014.0",
     "@types/aws-lambda": "8.10.159",
     "@types/node": "22.18.6",
     "@types/pako": "2.0.4",
@@ -45,7 +46,6 @@
     "@aws-sdk/client-dynamodb": "3.1014.0",
     "@aws-sdk/client-lambda": "3.1014.0",
     "@aws-sdk/client-organizations": "3.1014.0",
-    "@aws-sdk/client-resource-groups-tagging-api": "3.1014.0",
     "@aws-sdk/client-s3": "3.1014.0",
     "@aws-sdk/client-securityhub": "3.1014.0",
     "@aws-sdk/client-sfn": "3.1014.0",
@@ -54,11 +54,9 @@
     "@aws-sdk/s3-request-presigner": "3.1014.0",
     "@middy/core": "6.4.5",
     "@middy/http-cors": "6.4.5",
-    "@middy/http-error-handler": "6.4.5",
     "@middy/http-header-normalizer": "6.4.5",
     "@middy/http-json-body-parser": "6.4.5",
     "@middy/http-router": "6.4.5",
-    "@middy/http-urlencode-body-parser": "6.4.5",
     "@middy/http-urlencode-path-parser": "6.4.5",
     "@types/aws-lambda": "8.10.159",
     "pako": "2.1.0",
@@ -70,7 +68,8 @@
     "minimatch@3.x": "3.1.4",
     "minimatch@9.x": "9.0.7",
     "minimatch@10.x": "10.2.3",
-    "fast-xml-parser": "5.7.3"
+    "fast-xml-parser": "5.7.3",
+    "js-yaml": "4.2.0"
   },
   "jestSonar": {
     "reportPath": "coverage"

@@ -108,6 +108,7 @@ This software includes third party software subject to the following copyrights:
 @aws-sdk/util-user-agent-browser under the Apache-2.0 license.
 @aws-sdk/util-user-agent-node under the Apache-2.0 license.
 @aws-sdk/xml-builder under the Apache-2.0 license.
+@aws-sdk/checksums under the Apache-2.0 license.
 @aws-solutions-constructs/aws-cloudfront-s3 under the Apache-2.0 license.
 @aws-solutions-constructs/aws-eventbridge-sqs under the Apache-2.0 license.
 @aws-solutions-constructs/core under the Apache-2.0 license.
@@ -503,6 +504,8 @@ This software includes third party software subject to the following copyrights:
 @unrs/resolver-binding-linux-arm-musleabihf under the MIT license.
 @unrs/resolver-binding-linux-arm64-gnu under the MIT license.
 @unrs/resolver-binding-linux-arm64-musl under the MIT license.
+@unrs/resolver-binding-linux-loong64-gnu under the MIT license.
+@unrs/resolver-binding-linux-loong64-musl under the MIT license.
 @unrs/resolver-binding-linux-ppc64-gnu under the MIT license.
 @unrs/resolver-binding-linux-riscv64-gnu under the MIT license.
 @unrs/resolver-binding-linux-riscv64-musl under the MIT license.
@@ -513,6 +516,7 @@ This software includes third party software subject to the following copyrights:
 @unrs/resolver-binding-win32-arm64-msvc under the MIT license.
 @unrs/resolver-binding-win32-ia32-msvc under the MIT license.
 @unrs/resolver-binding-win32-x64-msvc under the MIT license.
+@unrs/resolver-binding-openharmony-arm64 under the MIT license.
 @vitejs/plugin-react-swc under the MIT license.
 @vitest/coverage-v8 under the MIT license.
 @vitest/expect under the MIT license.
@@ -537,6 +541,7 @@ ansi-regex under the MIT license.
 ansi-styles under the MIT license.
 annotated-types under the MIT license.
 anymatch under the ISC license
+anynum under the MIT license.
 aproba under the ISC license
 archy under the ISC license
 are-docs-informative under the MIT license.
