@@ -1,6 +1,6 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "3.1.6",
+  "version": "3.1.7",
   "description": "Automated remediation for AWS Security Hub (SO0111)",
   "bin": {
     "solution_deploy": "bin/solution_deploy.js"
@@ -29,14 +29,14 @@
     "@aws-sdk/client-sfn": "3.1014.0",
     "@aws-sdk/client-ssm": "3.1014.0",
     "@aws-sdk/lib-dynamodb": "3.1014.0",
-    "@cdklabs/cdk-ssm-documents": "0.0.60",
+    "@cdklabs/cdk-ssm-documents": "0.0.65",
     "@types/aws-lambda": "8.10.159",
     "@types/jest": "30.0.0",
     "@types/js-yaml": "4.0.9",
     "@types/node": "24.10.1",
     "@typescript-eslint/eslint-plugin": "8.40.0",
-    "aws-cdk": "^2.1122.0",
-    "aws-cdk-lib": "2.256.0",
+    "aws-cdk": "^2.1128.0",
+    "aws-cdk-lib": "2.260.0",
     "aws-sdk-client-mock": "4.1.0",
     "eslint": "8.57.1",
     "eslint-config-prettier": "8.10.2",
@@ -44,7 +44,7 @@
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-prettier": "5.5.4",
     "jest": "30.2.0",
-    "js-yaml": "4.1.1",
+    "js-yaml": "4.2.0",
     "nock": "14.0.10",
     "pako": "2.1.0",
     "source-map-support": "0.5.21",
@@ -61,6 +61,7 @@
     "diff": "^5.2.2",
     "type-fest": "^4.30.0",
     "minimatch@3.x": "3.1.4",
-    "fast-xml-parser": "5.7.3"
+    "fast-xml-parser": "5.7.3",
+    "js-yaml": "4.2.0"
   }
 }
