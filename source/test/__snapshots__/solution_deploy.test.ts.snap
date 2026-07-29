@@ -416,6 +416,13 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Description": "Deploy the Web UI components including API Gateway, Lambda functions, and CloudFront distribution. Select "yes" to enable the web-based dashboard for viewing findings and remediation status.",
       "Type": "String",
     },
+    "SynchronizationFindingsConstructSyncMaxAttemptsPerAccount7CF7E97B": {
+      "Default": 5,
+      "Description": "Circuit breaker: the maximum number of times the sweep re-runs a single account slice before giving up on that account for this run. Each slice imports up to ~10k findings, so the default of 5 covers >50k findings per account. Raise it only for accounts with an exceptionally large backlog. This bound is enforced by the state machine itself and does not depend on the Lambda.",
+      "MaxValue": 100,
+      "MinValue": 1,
+      "Type": "Number",
+    },
     "TicketGenFunctionName": {
       "AllowedPattern": "^$|^([a-zA-Z0-9\\-_]{1,64})?$",
       "Default": "",
@@ -12420,12 +12427,18 @@ exports[`Test if the Stack has all the resources. 1`] = `
               },
             },
             {
-              "Action": "lambda:InvokeFunction",
+              "Action": "states:StartExecution",
               "Effect": "Allow",
               "Resource": {
-                "Fn::GetAtt": [
-                  "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
-                  "Arn",
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":states:eu-west-1:111111111111:stateMachine:SO0111-ASR-SynchronizationSweep",
+                  ],
                 ],
               },
             },
@@ -12436,6 +12449,106 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "Roles": [
           {
             "Ref": "SynchronizationFindingsConstructcustomResourceRoleE4747C9B",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SynchronizationFindingsConstructSweepStateMachineRoleA1DBFB72": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W28",
+              "reason": "Static name chosen intentionally so the trigger can reference the sweep state machine.",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "states.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Execution role for the ASR synchronization sweep state machine",
+        "RoleName": "SO0111-ASR-SynchronizationSweep",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SynchronizationFindingsConstructSweepStateMachineRoleDefaultPolicyF166445C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "logs:CreateLogDelivery",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+                "xray:GetSamplingRules",
+                "xray:GetSamplingTargets",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SynchronizationFindingsConstructSweepStateMachineRoleDefaultPolicyF166445C",
+        "Roles": [
+          {
+            "Ref": "SynchronizationFindingsConstructSweepStateMachineRoleA1DBFB72",
           },
         ],
       },
@@ -12523,39 +12636,157 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "Targets": [
           {
             "Arn": {
-              "Fn::GetAtt": [
-                "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
-                "Arn",
-              ],
+              "Ref": "SynchronizationFindingsConstructSynchronizationSweepStateMachineE629E696",
             },
             "Id": "Target0",
-            "Input": "{"source":"aws.events","detail-type":"Scheduled Event","detail":{"syncType":"baseline"}}",
             "RetryPolicy": {
               "MaximumRetryAttempts": 2,
+            },
+            "RoleArn": {
+              "Fn::GetAtt": [
+                "SynchronizationFindingsConstructSynchronizationSweepStateMachineEventsRoleBBC93D45",
+                "Arn",
+              ],
             },
           },
         ],
       },
       "Type": "AWS::Events::Rule",
     },
-    "SynchronizationFindingsConstructSynchronizationFindingsLambdaWeeklyRuleAllowEventRulestackSynchronizationFindingsConstructSynchronizationFindingsLambdaF3B1D46D786BCF40": {
+    "SynchronizationFindingsConstructSynchronizationSweepLogs36C0F91D": {
+      "DeletionPolicy": "Retain",
       "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
+        "KmsKeyId": {
           "Fn::GetAtt": [
-            "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+            "SHARRkeyE6BD0F56",
             "Arn",
           ],
         },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": {
-          "Fn::GetAtt": [
-            "SynchronizationFindingsConstructSynchronizationFindingsLambdaWeeklyRule158B7187",
-            "Arn",
+        "LogGroupName": "SO0111-ASR-SynchronizationSweep-Logs",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "SynchronizationFindingsConstructSynchronizationSweepStateMachineE629E696": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "SynchronizationFindingsConstructSweepStateMachineRoleDefaultPolicyF166445C",
+        "SynchronizationFindingsConstructSweepStateMachineRoleA1DBFB72",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W11",
+              "reason": "X-Ray tracing requires xray:PutTraceSegments on resource *; scoped as tightly as the API allows.",
+            },
           ],
         },
       },
-      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "DefinitionString": {
+          "Fn::Join": [
+            "",
+            [
+              "{"StartAt":"EnumerateAccounts","States":{"EnumerateAccounts":{"Next":"InjectAttempts","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"",
+              {
+                "Fn::GetAtt": [
+                  "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+                  "Arn",
+                ],
+              },
+              "","Parameters":{"task":"enumerate-accounts"}},"InjectAttempts":{"Type":"Pass","Parameters":{"accountIds.$":"$.accountIds","totalAccounts.$":"$.totalAccounts","maxAttempts":",
+              {
+                "Ref": "SynchronizationFindingsConstructSyncMaxAttemptsPerAccount7CF7E97B",
+              },
+              "},"Next":"SyncAccountsSequentially"},"SyncAccountsSequentially":{"Type":"Map","Comment":"Sync each member account one at a time to stay under the Security Hub GetFindings rate limit","Next":"MarkSweepDone","ItemsPath":"$.accountIds","ItemSelector":{"accountId.$":"$$.Map.Item.Value","attemptsRemaining.$":"$.maxAttempts"},"ItemProcessor":{"ProcessorConfig":{"Mode":"INLINE"},"StartAt":"RunAccountSlice","States":{"RunAccountSlice":{"Next":"DecrementAttempts","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"AccountSliceTolerated"}],"Type":"Task","ResultPath":"$.slice","Resource":"",
+              {
+                "Fn::GetAtt": [
+                  "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+                  "Arn",
+                ],
+              },
+              "","Parameters":{"task":"sync-account-slice","accountId.$":"$.accountId"}},"AccountDone?":{"Type":"Choice","Choices":[{"Variable":"$.slice.done","BooleanEquals":true,"Next":"AccountSliceComplete"},{"Variable":"$.attemptsRemaining","NumericLessThanEquals":0,"Next":"AccountSliceExhausted"},{"Variable":"$.slice.madeProgress","BooleanEquals":true,"Next":"RunAccountSlice"}],"Default":"AccountSliceTolerated"},"DecrementAttempts":{"Type":"Pass","Parameters":{"accountId.$":"$.accountId","attemptsRemaining.$":"States.MathAdd($.attemptsRemaining, -1)","slice.$":"$.slice"},"Next":"AccountDone?"},"AccountSliceTolerated":{"Type":"Pass","End":true},"AccountSliceComplete":{"Type":"Pass","End":true},"AccountSliceExhausted":{"Type":"Pass","End":true}}},"MaxConcurrency":1},"MarkSweepDone":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"",
+              {
+                "Fn::GetAtt": [
+                  "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+                  "Arn",
+                ],
+              },
+              "","Parameters":{"task":"mark-sweep-done"}}},"TimeoutSeconds":86400}",
+            ],
+          ],
+        },
+        "LoggingConfiguration": {
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": {
+                  "Fn::GetAtt": [
+                    "SynchronizationFindingsConstructSynchronizationSweepLogs36C0F91D",
+                    "Arn",
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": true,
+          "Level": "ALL",
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "SynchronizationFindingsConstructSweepStateMachineRoleA1DBFB72",
+            "Arn",
+          ],
+        },
+        "StateMachineName": "SO0111-ASR-SynchronizationSweep",
+        "TracingConfiguration": {
+          "Enabled": true,
+        },
+      },
+      "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "SynchronizationFindingsConstructSynchronizationSweepStateMachineEventsRoleBBC93D45": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SynchronizationFindingsConstructSynchronizationSweepStateMachineEventsRoleDefaultPolicy80919627": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SynchronizationFindingsConstructSynchronizationSweepStateMachineE629E696",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SynchronizationFindingsConstructSynchronizationSweepStateMachineEventsRoleDefaultPolicy80919627",
+        "Roles": [
+          {
+            "Ref": "SynchronizationFindingsConstructSynchronizationSweepStateMachineEventsRoleBBC93D45",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "SynchronizationFindingsConstructSynchronizationTriggerProvider05DEE9E7": {
       "DependsOn": [
@@ -12604,8 +12835,17 @@ exports[`Test if the Stack has all the resources. 1`] = `
             "STACK_ID": {
               "Ref": "AWS::StackId",
             },
-            "SYNCHRONIZATION_FUNCTION_NAME": {
-              "Ref": "SynchronizationFindingsConstructSynchronizationFindingsLambda0E312918",
+            "SYNCHRONIZATION_STATE_MACHINE_ARN": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":states:eu-west-1:111111111111:stateMachine:SO0111-ASR-SynchronizationSweep",
+                ],
+              ],
             },
           },
         },
@@ -12833,6 +13073,11 @@ exports[`Test if the Stack has all the resources. 1`] = `
                 "organizations:ListParents",
                 "organizations:DescribeAccount",
               ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": "securityhub:ListMembers",
               "Effect": "Allow",
               "Resource": "*",
             },

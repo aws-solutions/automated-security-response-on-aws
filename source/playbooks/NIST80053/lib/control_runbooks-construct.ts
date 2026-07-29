@@ -202,7 +202,6 @@ export class ControlRunbooks extends Construct {
   }
 
   protected getEnableParamDescription(controlId: string) {
-    // eslint-disable-next-line prettier/prettier
     return (
       `Enable/disable availability of remediation for ${this.standardLongName} version ` +
       `${this.standardVersion} Control ${controlId} in Security Hub Console Custom Actions. If ` +

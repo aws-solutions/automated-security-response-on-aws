@@ -1,7 +1,7 @@
 {
   "name": "webui",
   "private": true,
-  "version": "3.1.7",
+  "version": "3.1.8",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -24,7 +24,7 @@
     "@types/node": "24.2.0",
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
-    "aws-amplify": "6.16.4",
+    "aws-amplify": "6.19.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-redux": "9.2.0",
@@ -44,16 +44,12 @@
     "msw": "2.10.5",
     "prettier": "3.6.2",
     "typescript": "5.9.2",
-    "vite": "7.3.5",
+    "vite": "7.3.6",
     "vitest": "4.1.9"
   },
   "msw": {
     "workerDirectory": [
       "public"
     ]
-  },
-  "overrides": {
-    "@smithy/config-resolver": "4.4.0",
-    "fast-xml-parser": "5.7.3"
   }
 }

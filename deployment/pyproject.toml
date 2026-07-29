@@ -31,6 +31,8 @@ openapi_spec_validator = "0.7.2"
 jinja2 = "3.1.6"
 requests = ">=2.33.0"
 pygments = ">=2.20.0"
+# click >= 8.3.3 - CVE-2026-7246 (transitive via black)
+click = ">=8.3.3"
 
 [build-system]
 requires = ["poetry-core"]

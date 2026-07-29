@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.8] - 2026-07-28
+
+### Fixed
+
+- Resolved findings synchronization failing to complete for large Security Hub fleets by persisting per-account progress and resuming from the saved cursor.
+- Granted `ssm:StartAutomationExecution` on the `document/` resource form (including the account-less `document/*` for AWS-owned runbooks such as `AWS-ConfigureS3BucketLogging`) so remediations continue to run after the SSM API change that replaced the `automation-definition/` resource form.
+
+### Changed
+
+- Scheduled and deployment-time findings synchronization is now orchestrated with Step Functions, including sequential account processing and bounded per-account retries.
+
+### Security
+
+- Upgraded vulnerable dependencies: aws-cdk-lib, js-yaml, brace-expansion, esbuild, @cdklabs/cdk-ssm-documents, @aws-sdk/client-* (3.1014.0 -> 3.1094.0), aws-amplify (6.16.4 -> 6.19.0), vite (7.3.5 -> 7.3.6), resolving transitive fast-xml-parser/@aws-sdk/xml-builder advisories
+- Removed all `overrides` blocks from package.json files after confirming the CVEs they pinned are now resolved by upgrading direct dependencies to their latest versions
+- Upgraded postcss to mitigate [CVE-2026-45623](https://github.com/advisories/GHSA-r28c-9q8g-f849)
+- Upgraded brace-expansion to mitigate [CVE-2026-14257](https://github.com/advisories/GHSA-mh99-v99m-4gvg)
+- Re-added a single `babel-plugin-istanbul` override where no parent bump resolves CVE-2026-14257, with its rationale and removal condition recorded in `overridesJustification`
+- Removed the stale `fast-uri` attribution from NOTICE.txt; the package is no longer present in any dependency tree
+
 ## [3.1.7] - 2026-06-22
 
 ### Security

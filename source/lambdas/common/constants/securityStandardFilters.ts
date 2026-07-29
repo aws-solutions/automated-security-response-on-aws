@@ -3,6 +3,7 @@
 
 import { GetFindingsCommandInput } from '@aws-sdk/client-securityhub';
 import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import type { NativeAttributeValue } from '@aws-sdk/util-dynamodb';
 
 /**
  * Security Standard identifiers used by AWS Security Hub
@@ -61,25 +62,28 @@ export function getOptimizedFindingFilters(): NonNullable<GetFindingsCommandInpu
 /**
  * Enhanced version that fetches controlIds from REMEDIATION_CONFIG_TABLE and applies them as filters
  * @param controlIds Supported control ids
+ * @param awsAccountId When set, scopes the query to a single member account (AwsAccountId EQUALS)
  * @returns Promise with optimized filters including controlId filters
  */
 export async function getOptimizedFindingFiltersByControlId(
   controlIds: string[],
+  awsAccountId?: string,
 ): Promise<NonNullable<GetFindingsCommandInput['Filters']>> {
   try {
     const baseFilters = getOptimizedFindingFilters();
 
-    if (controlIds.length > 0) {
-      return {
-        ...baseFilters,
+    return {
+      ...baseFilters,
+      ...(controlIds.length > 0 && {
         ComplianceSecurityControlId: controlIds.map((controlId) => ({
           Value: controlId,
           Comparison: 'EQUALS',
         })),
-      };
-    }
-
-    return baseFilters;
+      }),
+      ...(awsAccountId && {
+        AwsAccountId: [{ Value: awsAccountId, Comparison: 'EQUALS' }],
+      }),
+    };
   } catch (error) {
     console.warn('Failed to process controlIds, returning empty filters:', error);
     return {};
@@ -138,6 +142,41 @@ export async function getSupportedControlIds(
   } while (lastEvaluatedKey);
 
   return controlIds;
+}
+
+/**
+ * Fetches the set of controlIds that have automated remediation enabled, used to prioritize their
+ * findings during synchronization.
+ * @param dynamoClient DynamoDB document client
+ * @param tableName Remediation config table name
+ * @returns Set of controlIds whose `automatedRemediationEnabled` flag is true
+ */
+export async function getAutomatedRemediationEnabledControlIds(
+  dynamoClient: DynamoDBDocumentClient,
+  tableName: string,
+): Promise<Set<string>> {
+  const enabledControlIds = new Set<string>();
+  let lastEvaluatedKey: Record<string, NativeAttributeValue> | undefined;
+
+  do {
+    const result = await dynamoClient.send(
+      new ScanCommand({
+        TableName: tableName,
+        ProjectionExpression: 'controlId, automatedRemediationEnabled',
+        ExclusiveStartKey: lastEvaluatedKey,
+      }),
+    );
+
+    for (const item of result.Items ?? []) {
+      if (typeof item.controlId === 'string' && item.automatedRemediationEnabled === true) {
+        enabledControlIds.add(item.controlId);
+      }
+    }
+
+    lastEvaluatedKey = result.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
+
+  return enabledControlIds;
 }
 
 /**

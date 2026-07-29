@@ -388,7 +388,6 @@ test.each(runbooks)('%s takes valid parameters', (runbook: RunbookTestHelper) =>
   if (!parameters) {
     return;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const [_, detailsObj] of Object.entries(parameters)) {
     const details = detailsObj as any;
     switch (details.type) {

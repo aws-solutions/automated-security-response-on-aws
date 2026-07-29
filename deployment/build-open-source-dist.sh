@@ -32,10 +32,15 @@ main() {
         -x ".viperlightrc.*" \
         -x "codescan-*.sh" \
         -x "Config" \
+        -x ".kiro/*" \
         -x ".nightswatch/*" \
         -x "buildspec.yml" \
         -x "AWSSD-README.md" \
         -x "AWSSD-DevNotes.md" \
+        -x "AWSSD-KiroSetup.md" \
+        -x "CLAUDE.md" \
+        -x "AGENTS.md" \
+        -x ".claude/*" \
         -x "build-tools/*" \
         -x "redpencil-suppressions.json" \
         -x "source/data-models/cjs/*" \
@@ -45,6 +50,7 @@ main() {
         -x ".viperlightignore" \
         -x ".git-info" \
         -x "source/test/buildspec.test.ts" \
+        -x "AUTOSDE.yaml" \
     popd
 }
 

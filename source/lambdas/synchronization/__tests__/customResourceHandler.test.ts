@@ -26,10 +26,18 @@ jest.mock('../../common/utils/tracer', () => ({
 
 import { CloudFormationCustomResourceEvent, Context } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { ExecutionAlreadyExists, SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
+import { Clock } from '../../common/utils/clock';
 import { SynchronizationTrigger } from '../customResourceHandler';
 
-const lambdaMock = mockClient(LambdaClient);
+const sfnMock = mockClient(SFNClient);
+
+const STATE_MACHINE_ARN = 'arn:aws:states:us-east-1:123456789012:stateMachine:SO0111-ASR-SynchronizationSweep';
+
+// Fixed clock so the deterministic per-UTC-day execution name is asserted against an exact date rather
+// than a regex that only passes because the test runs on the same UTC day.
+const FIXED_DATE = new Date('2025-01-15T08:30:00Z');
+const stubClock: Clock = { now: () => FIXED_DATE };
 
 describe('SynchronizationTrigger', () => {
   let synchronizationTrigger: SynchronizationTrigger;
@@ -64,17 +72,14 @@ describe('SynchronizationTrigger', () => {
   };
 
   beforeEach(() => {
-    // Set environment variables
     process.env.SOLUTION_TRADEMARKEDNAME = 'automated-security-response-on-aws';
-    process.env.SYNCHRONIZATION_FUNCTION_NAME = 'test-synchronization-function';
+    process.env.SYNCHRONIZATION_STATE_MACHINE_ARN = STATE_MACHINE_ARN;
 
-    // Reset all mocks
     jest.clearAllMocks();
-    lambdaMock.reset();
+    sfnMock.reset();
     mockTracer.captureAWSv3Client.mockClear();
-    (global.fetch as jest.Mock).mockClear();
 
-    synchronizationTrigger = new SynchronizationTrigger();
+    synchronizationTrigger = new SynchronizationTrigger(stubClock);
 
     mockContext = {
       logStreamName: 'test-log-stream',
@@ -83,45 +88,33 @@ describe('SynchronizationTrigger', () => {
 
     mockEvent = createMockEvent();
 
-    // Reset and setup fetch mock
     (global.fetch as jest.Mock).mockReset();
     (global.fetch as jest.Mock).mockResolvedValue({
       status: 200,
       statusText: 'OK',
     });
 
-    lambdaMock.on(InvokeCommand).resolves({
-      StatusCode: 202,
+    sfnMock.on(StartExecutionCommand).resolves({
+      executionArn: `${STATE_MACHINE_ARN.replace('stateMachine', 'execution')}:run-1`,
     });
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     delete process.env.SOLUTION_TRADEMARKEDNAME;
-    delete process.env.SYNCHRONIZATION_FUNCTION_NAME;
+    delete process.env.SYNCHRONIZATION_STATE_MACHINE_ARN;
   });
 
   describe('handler', () => {
-    it('should verify Lambda client mock is working', () => {
-      expect(lambdaMock).toBeDefined();
-      expect(mockTracer.captureAWSv3Client).toBeDefined();
-      expect(process.env.SYNCHRONIZATION_FUNCTION_NAME).toBe('test-synchronization-function');
-    });
-
-    it('should trigger synchronization and send success response on Create event', async () => {
+    it('starts the sweep state machine and sends a success response on a Create event', async () => {
       await synchronizationTrigger.handler(mockEvent, mockContext);
 
-      expect(mockTracer.captureAWSv3Client).toHaveBeenCalled();
-
-      expect(lambdaMock.commandCalls(InvokeCommand)).toHaveLength(1);
-      const invokeCall = lambdaMock.commandCalls(InvokeCommand)[0];
-      expect(invokeCall.args[0].input).toEqual(
-        expect.objectContaining({
-          FunctionName: 'test-synchronization-function',
-          InvocationType: 'Event',
-          Payload: expect.stringContaining('"source":"custom-resource"'),
-        }),
-      );
+      const startCalls = sfnMock.commandCalls(StartExecutionCommand);
+      expect(startCalls).toHaveLength(1);
+      expect(startCalls[0].args[0].input.stateMachineArn).toBe(STATE_MACHINE_ARN);
+      // A deterministic per-UTC-day execution name makes the start idempotent; the injected clock lets
+      // us assert the exact name rather than a coincidentally-passing regex.
+      expect(startCalls[0].args[0].input.name).toBe('initial-sync-2025-01-15');
 
       expect(global.fetch).toHaveBeenCalledWith(
         mockEvent.ResponseURL,
@@ -134,8 +127,25 @@ describe('SynchronizationTrigger', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Stack deployment completed, triggering initial synchronization');
     });
 
-    it('should handle synchronization trigger failure gracefully', async () => {
-      lambdaMock.on(InvokeCommand).rejects(new Error('Lambda invocation failed'));
+    it('treats an already-running sweep (ExecutionAlreadyExists) as success', async () => {
+      sfnMock
+        .on(StartExecutionCommand)
+        .rejects(new ExecutionAlreadyExists({ message: 'already exists', $metadata: {} }));
+
+      await synchronizationTrigger.handler(mockEvent, mockContext);
+
+      // A duplicate start is the desired state, not a failure — the response is still SUCCESS.
+      expect(global.fetch).toHaveBeenCalledWith(
+        mockEvent.ResponseURL,
+        expect.objectContaining({
+          method: 'PUT',
+          body: expect.stringContaining('"Status":"SUCCESS"'),
+        }),
+      );
+    });
+
+    it('sends a FAILED response when starting the state machine throws', async () => {
+      sfnMock.on(StartExecutionCommand).rejects(new Error('StartExecution failed'));
 
       await synchronizationTrigger.handler(mockEvent, mockContext);
 
@@ -150,30 +160,24 @@ describe('SynchronizationTrigger', () => {
       expect(mockLogger.error).toHaveBeenCalledWith('Failed to trigger synchronization', expect.any(Object));
     });
 
-    it('should skip synchronization trigger when function name not set', async () => {
-      const originalFunctionName = process.env.SYNCHRONIZATION_FUNCTION_NAME;
-      delete process.env.SYNCHRONIZATION_FUNCTION_NAME;
+    it('skips the trigger when the state machine ARN is not set', async () => {
+      delete process.env.SYNCHRONIZATION_STATE_MACHINE_ARN;
 
-      try {
-        const triggerWithoutEnv = new SynchronizationTrigger();
-        await triggerWithoutEnv.handler(mockEvent, mockContext);
+      const triggerWithoutEnv = new SynchronizationTrigger(stubClock);
+      await triggerWithoutEnv.handler(mockEvent, mockContext);
 
-        expect(lambdaMock.commandCalls(InvokeCommand)).toHaveLength(0);
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-          'SYNCHRONIZATION_FUNCTION_NAME not set, skipping synchronization trigger',
-        );
-      } finally {
-        if (originalFunctionName) {
-          process.env.SYNCHRONIZATION_FUNCTION_NAME = originalFunctionName;
-        }
-      }
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'SYNCHRONIZATION_STATE_MACHINE_ARN not set, skipping synchronization trigger',
+      );
     });
 
-    it('should send success response on Update event', async () => {
+    it('sends a success response on an Update event without starting the state machine', async () => {
       const updateEvent = createMockEvent('Update');
 
       await synchronizationTrigger.handler(updateEvent, mockContext);
 
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
       expect(global.fetch).toHaveBeenCalledWith(
         updateEvent.ResponseURL,
         expect.objectContaining({
@@ -183,11 +187,12 @@ describe('SynchronizationTrigger', () => {
       );
     });
 
-    it('should send success response on Delete event', async () => {
+    it('sends a success response on a Delete event without starting the state machine', async () => {
       const deleteEvent = createMockEvent('Delete');
 
       await synchronizationTrigger.handler(deleteEvent, mockContext);
 
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
       expect(global.fetch).toHaveBeenCalledWith(
         deleteEvent.ResponseURL,
         expect.objectContaining({
@@ -197,7 +202,7 @@ describe('SynchronizationTrigger', () => {
       );
     });
 
-    it('should include correct response structure when synchronization succeeds', async () => {
+    it('includes the correct response structure when the trigger succeeds', async () => {
       await synchronizationTrigger.handler(mockEvent, mockContext);
 
       const responseCall = (global.fetch as jest.Mock).mock.calls[0];
@@ -216,8 +221,8 @@ describe('SynchronizationTrigger', () => {
       });
     });
 
-    it('should include correct response structure when synchronization fails', async () => {
-      lambdaMock.on(InvokeCommand).rejects(new Error('Lambda invocation failed'));
+    it('includes the correct response structure when the trigger fails', async () => {
+      sfnMock.on(StartExecutionCommand).rejects(new Error('StartExecution failed'));
 
       await synchronizationTrigger.handler(mockEvent, mockContext);
 
@@ -233,7 +238,7 @@ describe('SynchronizationTrigger', () => {
         LogicalResourceId: mockEvent.LogicalResourceId,
         Data: {
           Message: 'Custom resource created successfully, but synchronization trigger failed.',
-          Warning: 'Lambda invocation failed',
+          Warning: 'StartExecution failed',
         },
       });
     });

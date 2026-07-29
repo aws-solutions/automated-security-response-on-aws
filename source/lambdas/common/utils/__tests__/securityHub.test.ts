@@ -163,5 +163,46 @@ describe('SecurityHubUtils', () => {
 
       await expect(securityHubUtils.processAllFindings(processBatch, mockFilters)).rejects.toThrow('Processing Error');
     });
+
+    it('rate-limits between pages (delays before each subsequent GetFindings, not after the last)', async () => {
+      // The sequential-account sweep is paced against the Security Hub GetFindings quota: a ~120ms
+      // delay must run between pages. Assert it via a setTimeout spy rather than wall-clock timing so
+      // the check is deterministic. Two pages -> exactly one inter-page delay; none after the final page.
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+      mockSend
+        .mockResolvedValueOnce({ Findings: [mockFindings[0]], NextToken: 'next-token-123' })
+        .mockResolvedValueOnce({ Findings: [mockFindings[1]], NextToken: undefined });
+
+      const processBatch = jest.fn(async () => {});
+
+      try {
+        await securityHubUtils.processAllFindings(processBatch, mockFilters);
+
+        const rateLimitDelays = setTimeoutSpy.mock.calls.filter(([, delay]) => delay === 120);
+        // One delay for the single page boundary; the exhausted last page adds none.
+        expect(rateLimitDelays).toHaveLength(1);
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
+    });
+
+    it('does not rate-limit a single-page (exhausted) run', async () => {
+      // No NextToken -> the source is exhausted after one call, so no inter-page delay should run.
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+      mockSend.mockResolvedValueOnce({ Findings: mockFindings, NextToken: undefined });
+
+      const processBatch = jest.fn(async () => {});
+
+      try {
+        await securityHubUtils.processAllFindings(processBatch, mockFilters);
+
+        const rateLimitDelays = setTimeoutSpy.mock.calls.filter(([, delay]) => delay === 120);
+        expect(rateLimitDelays).toHaveLength(0);
+      } finally {
+        setTimeoutSpy.mockRestore();
+      }
+    });
   });
 });

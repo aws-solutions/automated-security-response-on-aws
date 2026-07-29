@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LambdaInterface } from '@aws-lambda-powertools/commons/types';
-import { Context, CloudFormationCustomResourceEvent } from 'aws-lambda';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { CloudFormationCustomResourceEvent, Context } from 'aws-lambda';
+import { ExecutionAlreadyExists, SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { getLogger } from '../common/utils/logger';
 import { getTracer } from '../common/utils/tracer';
+import { Clock, getClock } from '../common/utils/clock';
 
 interface CustomResourceResult {
   status: 'SUCCESS' | 'FAILED';
@@ -18,6 +19,12 @@ const tracer = getTracer(SOLUTION_TRADEMARKEDNAME);
 const logger = getLogger(SOLUTION_TRADEMARKEDNAME);
 
 export class SynchronizationTrigger implements LambdaInterface {
+  private readonly clock: Clock;
+
+  constructor(clock: Clock = getClock()) {
+    this.clock = clock;
+  }
+
   @tracer.captureLambdaHandler()
   @logger.injectLambdaContext()
   async handler(event: CloudFormationCustomResourceEvent, context: Context) {
@@ -63,10 +70,10 @@ export class SynchronizationTrigger implements LambdaInterface {
   private async handleCreateRequest(event: CloudFormationCustomResourceEvent): Promise<CustomResourceResult> {
     logger.info('Stack deployment completed, triggering initial synchronization');
 
-    const synchronizationFunctionName = process.env.SYNCHRONIZATION_FUNCTION_NAME;
+    const stateMachineArn = process.env.SYNCHRONIZATION_STATE_MACHINE_ARN;
 
-    if (!synchronizationFunctionName) {
-      logger.warn('SYNCHRONIZATION_FUNCTION_NAME not set, skipping synchronization trigger');
+    if (!stateMachineArn) {
+      logger.warn('SYNCHRONIZATION_STATE_MACHINE_ARN not set, skipping synchronization trigger');
       return {
         status: 'SUCCESS',
         data: { Message: 'Custom resource created successfully, synchronization will be handled by scheduled events' },
@@ -74,7 +81,7 @@ export class SynchronizationTrigger implements LambdaInterface {
     }
 
     try {
-      await this.triggerSynchronization(event.ResourceProperties?.TriggerReason || 'WebUI deployment completed');
+      await this.triggerSynchronization(stateMachineArn);
       return {
         status: 'SUCCESS',
         data: { Message: 'Custom resource created successfully, initial synchronization triggered' },
@@ -85,49 +92,42 @@ export class SynchronizationTrigger implements LambdaInterface {
         status: 'FAILED',
         data: {
           Message: 'Custom resource created successfully, but synchronization trigger failed.',
-          Warning: syncError instanceof Error ? syncError.message : 'Lambda invocation failed',
+          Warning: syncError instanceof Error ? syncError.message : 'State machine start failed',
         },
       };
     }
   }
 
-  private async triggerSynchronization(triggerReason: string): Promise<void> {
-    const synchronizationFunctionName = process.env.SYNCHRONIZATION_FUNCTION_NAME;
-    if (!synchronizationFunctionName) {
-      throw new Error('SYNCHRONIZATION_FUNCTION_NAME environment variable is not set');
+  /**
+   * Starts the synchronization sweep state machine — one end-to-end pass that imports every finding
+   * from AWS Security Hub across all member accounts. StartExecution returns as soon as the execution
+   * is accepted, so CloudFormation stack creation continues without waiting for the sweep to finish —
+   * the state machine drives the fan-out and reports its own success/failure.
+   *
+   * A deterministic per-UTC-day execution name makes the start idempotent: Step Functions rejects a
+   * second execution with the same name, so a stack-create retry (or the weekly schedule firing the
+   * same day) cannot launch a second concurrent sweep that would race the first on the account
+   * cursors. `ExecutionAlreadyExists` therefore means "already running today" — the desired state, not
+   * an error.
+   */
+  private async triggerSynchronization(stateMachineArn: string): Promise<void> {
+    const sfnClient = tracer.captureAWSv3Client(new SFNClient({}));
+
+    const executionName = `initial-sync-${this.clock.now().toISOString().slice(0, 10)}`;
+    logger.info('Starting synchronization sweep state machine', { stateMachineArn, executionName });
+
+    try {
+      const response = await sfnClient.send(new StartExecutionCommand({ stateMachineArn, name: executionName }));
+      logger.info('Synchronization sweep state machine started', { executionArn: response.executionArn });
+    } catch (error) {
+      if (error instanceof ExecutionAlreadyExists) {
+        logger.info('Synchronization sweep is already running for today; skipping duplicate start', {
+          executionName,
+        });
+        return;
+      }
+      throw error;
     }
-
-    const lambdaClient = tracer.captureAWSv3Client(new LambdaClient({}));
-
-    const payload = {
-      source: 'custom-resource',
-      'detail-type': 'Synchronization Trigger',
-      detail: {
-        triggerReason,
-        timestamp: new Date().toISOString(),
-      },
-    };
-
-    const command = new InvokeCommand({
-      FunctionName: synchronizationFunctionName,
-      InvocationType: 'Event', // Asynchronous invocation - allows CloudFormation stack creation to continue without waiting for data synchronization to complete. The synchronization Lambda will handle its own success/failure signaling.
-      Payload: JSON.stringify(payload),
-    });
-
-    logger.info('Triggering synchronization Lambda', {
-      functionName: synchronizationFunctionName,
-      triggerReason,
-    });
-
-    const response = await lambdaClient.send(command);
-
-    if (response.StatusCode !== 202) {
-      throw new Error(`Failed to invoke synchronization Lambda. Status: ${response.StatusCode}`);
-    }
-
-    logger.info('Synchronization Lambda triggered successfully', {
-      statusCode: response.StatusCode,
-    });
   }
 
   private async sendResponse(
