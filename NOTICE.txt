@@ -763,7 +763,6 @@ fast-diff under the Apache-2.0 license.
 fast-glob under the MIT license.
 fast-json-stable-stringify under the MIT license.
 fast-levenshtein under the MIT license.
-fast-uri under the BSD 3-Clause license
 fast-xml-builder under the MIT license.
 fast-xml-parser under the MIT license.
 fastest-levenshtein under the MIT license.
@@ -1413,6 +1412,15 @@ sympy under the BSD-3-Clause license.
 @aws-cdk/cloud-assembly-api under the Apache-2.0 license.
 obug under the MIT license.
 @types/esrecurse under the MIT license.
+jsep under the MIT license.
+@jsep-plugin/assignment under the MIT license.
+@jsep-plugin/regex under the MIT license.
+jsonpath-plus under the MIT license.
+is-unsafe under the MIT license.
+typescript-eslint under the MIT license.
+@aws/cloudformation-validate under the Apache-2.0 license.
+@humanfs/types under the Apache-2.0 license.
+eslint-plugin-headers under the ISC license.
 
 ********************
 OPEN SOURCE LICENSES

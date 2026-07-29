@@ -54,3 +54,4 @@ requirements.txt
 /.temp_redpencil/
 /bom.json
 aws-exports.json
+/.security-scan/

@@ -129,23 +129,7 @@ exports[`MemberRolesStack tests Global Roles Stack 1`] = `
                           {
                             "Ref": "AWS::Partition",
                           },
-                          ":ssm:*:",
-                          {
-                            "Ref": "AWS::AccountId",
-                          },
-                          ":automation-definition/*",
-                        ],
-                      ],
-                    },
-                    {
-                      "Fn::Join": [
-                        "",
-                        [
-                          "arn:",
-                          {
-                            "Ref": "AWS::Partition",
-                          },
-                          ":ssm:*::automation-definition/*",
+                          ":ssm:*::document/*",
                         ],
                       ],
                     },

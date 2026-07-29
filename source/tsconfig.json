@@ -37,6 +37,9 @@
     "dist",
     "**/*.spec.ts",
     "webui",
-    "lib/member/cloud-trail-event-processor"
+    "lambdas",
+    "lib/member/cloud-trail-event-processor",
+    "eslint.config.mjs",
+    "iac-templates"
   ]
 }

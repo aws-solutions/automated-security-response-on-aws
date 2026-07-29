@@ -50,14 +50,7 @@ export class OrchestratorMemberRole extends Construct {
       stack.formatArn({
         service: 'ssm',
         region: '*',
-        resource: 'automation-definition',
-        resourceName: '*',
-        arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
-      }),
-      stack.formatArn({
-        service: 'ssm',
-        region: '*',
-        resource: 'automation-definition',
+        resource: 'document',
         account: '',
         resourceName: '*',
         arnFormat: ArnFormat.SLASH_RESOURCE_NAME,

@@ -439,9 +439,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         const ssmPerms = new PolicyStatement();
         ssmPerms.addActions('ssm:StartAutomationExecution');
         ssmPerms.effect = Effect.ALLOW;
-        ssmPerms.addResources(
-          `arn:${this.partition}:ssm:*:${this.account}:automation-definition/ASR-CreateAccessLoggingBucket:*`,
-        );
+        ssmPerms.addResources(`arn:${this.partition}:ssm:*:${this.account}:document/ASR-CreateAccessLoggingBucket`);
         inlinePolicy.addStatements(ssmPerms);
       }
       {

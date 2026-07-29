@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr-deployment-utils",
-  "version": "3.1.7",
+  "version": "3.1.8",
   "description": "Deployment scripts for Automated Security Response on AWS",
   "author": {
     "name": "Amazon Web Services",
@@ -14,9 +14,10 @@
   "devDependencies": {
     "jest": "30.2.0"
   },
+  "overridesJustification": {
+    "babel-plugin-istanbul": "CVE-2026-14257 (brace-expansion DoS, GHSA-mh99-v99m-4gvg). @jest/transform pins babel-plugin-istanbul ^7.0.1, whose test-exclude 6.x resolves glob 7 -> minimatch 3 -> brace-expansion 1.1.16. The 1.x line has no patched release, and jest is already at its latest version, so no parent bump resolves this. babel-plugin-istanbul 8 pairs with test-exclude 7, which resolves a patched brace-expansion. Remove this override once @jest/transform depends on babel-plugin-istanbul ^8."
+  },
   "overrides": {
-    "minimatch@3.x": "3.1.4",
-    "minimatch@9.x": "9.0.7",
-    "js-yaml": "4.2.0"
+    "babel-plugin-istanbul": "^8.0.0"
   }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LambdaInterface } from '@aws-lambda-powertools/commons/types';
-import { Context, EventBridgeEvent, ScheduledEvent } from 'aws-lambda';
+import { Context } from 'aws-lambda';
 import { SecurityHubClient } from '@aws-sdk/client-securityhub';
 import { getLogger } from '../common/utils/logger';
 import { getTracer } from '../common/utils/tracer';
@@ -13,11 +13,81 @@ import { FindingDataService } from '../common/services/findingDataService';
 import { ASFFFinding } from '@asr/data-models';
 import { applyFilters } from '../common/utils/filterUtils';
 import {
-  getSupportedControlIdsInChunks,
-  getOptimizedFindingFiltersByControlId,
+  getAutomatedRemediationEnabledControlIds,
+  getSupportedControlIds,
 } from '../common/constants/securityStandardFilters';
+import { SyncCursorRepository } from '../common/repositories/syncCursorRepository';
+import { runSyncSlice, SliceResult } from '../common/services/runSyncSlice';
+import { SecurityHubMemberAccountSource } from '../common/services/accountSource';
 
 const BATCH_SIZE = 10;
+
+// Stop the slice this many ms before the Lambda hard-timeout so there is room to checkpoint and exit
+// cleanly. The remaining backlog resumes on the next invocation from the persisted cursor.
+const SLICE_SAFETY_MARGIN_MS = 30_000;
+
+// Identifies this run as the principal on writes.
+const SYNC_PRINCIPAL = 'synchronization';
+
+/**
+ * Tasks the sweep state machine invokes the Lambda with. These use an explicit `task`
+ * discriminator rather than the EventBridge `detail-type` shapes, so the state-machine-driven path is
+ * unambiguous and fully separate from the schedule / custom-resource / self-invoke event paths. Each
+ * task is one Step Functions state, and the state machine — not the Lambda — owns all orchestration
+ * (fan-out across accounts and the resume loop within one account).
+ */
+export interface EnumerateAccountsTask {
+  task: 'enumerate-accounts';
+}
+export interface SyncAccountSliceTask {
+  task: 'sync-account-slice';
+  accountId: string;
+}
+export interface MarkSweepDoneTask {
+  task: 'mark-sweep-done';
+}
+type SweepStateMachineTask = EnumerateAccountsTask | SyncAccountSliceTask | MarkSweepDoneTask;
+
+/** Result of the `enumerate-accounts` task — the Map's item source plus the sweep denominator. */
+export interface EnumerateAccountsResult {
+  accountIds: string[];
+  totalAccounts: number;
+}
+
+/**
+ * Result of a `sync-account-slice` task. `done` / `madeProgress` are top-level so the state machine's
+ * Choice can branch on them directly (invoked with `payloadResponseOnly`): loop the same account while
+ * it is making progress but not yet done, otherwise complete the branch.
+ *
+ * These two fields intentionally break the `is`/`has` boolean-naming convention: their names are the
+ * Step Functions state-machine contract, read verbatim as `$.slice.done` / `$.slice.madeProgress` in
+ * the CDK Choice (and the deploy snapshot). Renaming them here would silently break the sweep.
+ */
+export interface AccountSliceResult {
+  accountId: string;
+  done: boolean;
+  madeProgress: boolean;
+  processedFindings: number;
+  processedControlIds: number;
+  totalControlIds: number;
+  apiCallCount: number;
+}
+
+/** Result of the `mark-sweep-done` task. */
+export interface MarkSweepDoneResult {
+  done: true;
+  totalAccounts: number;
+}
+
+/** Any sweep state-machine task result — the plain object a task returns as its state output. */
+type SweepStateMachineTaskResult = EnumerateAccountsResult | AccountSliceResult | MarkSweepDoneResult;
+
+/** Fleet-position context for the account this slice just synced, for progress reporting. */
+interface AccountProgress {
+  accountId: string;
+  completedAccounts: number;
+  totalAccounts: number;
+}
 
 interface BatchResult {
   successCount: number;
@@ -45,114 +115,181 @@ const logger = getLogger(SOLUTION_TRADEMARKEDNAME);
 export class Synchronization implements LambdaInterface {
   @tracer.captureLambdaHandler()
   @logger.injectLambdaContext()
-  async handler(event: ScheduledEvent | EventBridgeEvent<string, any>, _context: Context) {
+  async handler(task: SweepStateMachineTask, context: Context): Promise<SweepStateMachineTaskResult> {
     try {
-      logger.info('Synchronization Lambda invoked', {
-        eventSource: event.source || 'unknown',
-        detailType: ('detail-type' in event ? event['detail-type'] : 'unknown') || 'unknown',
-        syncMode: 'full',
-      });
-
-      if (this.isValidSyncEvent(event)) {
-        return await this.handleScheduledSync();
-      }
-
-      logger.warn('Unknown event type received', { event });
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: 'Unknown event type' }),
-      };
+      return await this.handleStateMachineTask(task, context);
     } catch (error) {
       logger.error(`Synchronization failed: ${error}`, {
         errorType: error instanceof Error ? error.constructor.name : 'unknown',
-        event,
+        task,
       });
       throw error;
     }
   }
 
-  private isValidSyncEvent(event: ScheduledEvent | EventBridgeEvent<string, any>): boolean {
-    const isScheduledEvent =
-      event.source === 'aws.events' && 'detail-type' in event && event['detail-type'] === 'Scheduled Event';
-
-    const isCustomResourceEvent =
-      event.source === 'custom-resource' &&
-      'detail-type' in event &&
-      event['detail-type'] === 'Synchronization Trigger';
-
-    return isScheduledEvent || isCustomResourceEvent;
+  /**
+   * Dispatches a sweep state-machine task. Each returns a plain object: the state machine invokes with
+   * `payloadResponseOnly`, so the returned object IS the state output its Choice/Map branches on. The
+   * state machine — not the Lambda — owns all orchestration (fan-out across accounts and the resume
+   * loop within one account), so these tasks carry no self-invoke, next-account, or lock logic.
+   */
+  private async handleStateMachineTask(
+    task: SweepStateMachineTask,
+    context: Context,
+  ): Promise<SweepStateMachineTaskResult> {
+    switch (task.task) {
+      case 'enumerate-accounts':
+        return this.enumerateAccountsTask();
+      case 'sync-account-slice':
+        return this.syncAccountSliceTask(task.accountId, context);
+      case 'mark-sweep-done':
+        return this.markSweepDoneTask();
+      default:
+        // Exhaustive over SweepStateMachineTask; an unrecognized task is a malformed input and must
+        // fail loudly rather than resolve to undefined.
+        return this.rejectUnknownTask(task);
+    }
   }
 
-  private async handleScheduledSync() {
+  /** Compile-time exhaustiveness guard: `task` is `never` when every known task is handled above. */
+  private rejectUnknownTask(task: never): never {
+    throw new Error(`Unknown synchronization task: ${JSON.stringify(task)}`);
+  }
+
+  /**
+   * `enumerate-accounts` task: list the member accounts and (re)initialize the sweep record with the
+   * account total. Returns the account list for the state machine's Map to fan out over.
+   */
+  private async enumerateAccountsTask(): Promise<EnumerateAccountsResult> {
+    const clients = this.buildClients();
+    const accountSource = new SecurityHubMemberAccountSource(clients.securityHubClient);
+
+    const accountIds = await accountSource.listAccountIds();
+    await clients.cursorRepository.resetSweep(accountIds.length);
+    logger.info('Started synchronization sweep', { totalAccounts: accountIds.length });
+
+    return { accountIds, totalAccounts: accountIds.length };
+  }
+
+  /**
+   * `sync-account-slice` task: run one time-bounded slice for a single account. The state machine owns
+   * the resume loop, so this task does NOT self-invoke or pick the next account — it just reports
+   * `done` / `madeProgress` for the Choice to branch on. No sweep lock is taken: the state machine
+   * serializes work per account (one slice at a time per Map branch), and accounts are independent.
+   */
+  private async syncAccountSliceTask(accountId: string, context: Context): Promise<AccountSliceResult> {
+    const clients = this.buildClients();
+    const { sliceResult } = await this.syncAccount(accountId, clients, context);
+    return {
+      accountId,
+      done: sliceResult.isDone,
+      madeProgress: sliceResult.hasMadeProgress,
+      processedFindings: sliceResult.processedFindings,
+      processedControlIds: sliceResult.processedControlIds,
+      totalControlIds: sliceResult.totalControlIds,
+      apiCallCount: sliceResult.apiCallCount,
+    };
+  }
+
+  /** `mark-sweep-done` task: the state machine's terminal step once every account branch completed. */
+  private async markSweepDoneTask(): Promise<MarkSweepDoneResult> {
+    const clients = this.buildClients();
+    await clients.cursorRepository.saveSweepDone();
+    const sweep = await clients.cursorRepository.getSweep();
+    logger.info('Synchronization sweep complete; all accounts synced', {
+      totalAccounts: sweep?.totalAccounts ?? 0,
+    });
+    return { done: true, totalAccounts: sweep?.totalAccounts ?? 0 };
+  }
+
+  private buildClients() {
+    const dynamoDBDocumentClient = tracer.captureAWSv3Client(createDynamoDBClient({ maxAttempts: 10 }));
+    const securityHubClient = tracer.captureAWSv3Client(new SecurityHubClient({}));
+    return {
+      dynamoDBDocumentClient,
+      securityHubClient,
+      securityHubUtils: new SecurityHubUtils(securityHubClient),
+      findingDataService: new FindingDataService(FINDINGS_TABLE_NAME!, dynamoDBDocumentClient, SYNC_PRINCIPAL),
+      cursorRepository: new SyncCursorRepository(SYNC_PRINCIPAL, FINDINGS_TABLE_NAME!, dynamoDBDocumentClient),
+    };
+  }
+
+  /** Runs one time-bounded, resumable slice for a single account and reports the per-finding tallies. */
+  private async syncAccount(
+    accountId: string,
+    clients: ReturnType<Synchronization['buildClients']>,
+    context: Context,
+  ): Promise<{ sliceResult: SliceResult }> {
     const startTime = Date.now();
-    logger.info('Processing scheduled synchronization event', {
+    logger.info('Processing account synchronization slice', {
+      accountId,
       startTime: new Date(startTime).toISOString(),
     });
 
-    const dynamoDBDocumentClient = tracer.captureAWSv3Client(createDynamoDBClient({ maxAttempts: 10 }));
-    const securityHubClient = tracer.captureAWSv3Client(new SecurityHubClient({}));
-    const securityHubUtils = new SecurityHubUtils(securityHubClient);
-    const findingDataService = new FindingDataService(FINDINGS_TABLE_NAME!, dynamoDBDocumentClient, 'synchronization');
-    const controlIdChunks = await getSupportedControlIdsInChunks(
-      dynamoDBDocumentClient,
-      REMEDIATION_CONFIG_TABLE_NAME!,
-    );
+    const { dynamoDBDocumentClient, securityHubUtils, findingDataService, cursorRepository } = clients;
 
+    // Per-finding tallies, accumulated by the batch processor across every page of the slice.
     let totalSuccessful = 0;
     let totalError = 0;
     let totalFailed = 0;
     let totalFiltered = 0;
-    let apiCallCount = 0;
     let totalProcessed = 0;
 
     try {
-      for (let chunkIndex = 0; chunkIndex < controlIdChunks.length; chunkIndex++) {
-        const controlIdChunk = controlIdChunks[chunkIndex];
+      const automatedRemediationEnabledControlIds = await getAutomatedRemediationEnabledControlIds(
+        dynamoDBDocumentClient,
+        REMEDIATION_CONFIG_TABLE_NAME!,
+      );
 
-        logger.debug(`Processing control ID chunk ${chunkIndex + 1}/${controlIdChunks.length}`, {
-          chunkSize: controlIdChunk.length,
-          totalChunks: controlIdChunks.length,
-        });
+      const sliceResult: SliceResult = await runSyncSlice(
+        {
+          cursorRepository,
+          securityHubUtils,
+          accountId,
+          getAllControlIds: () => getSupportedControlIds(dynamoDBDocumentClient, REMEDIATION_CONFIG_TABLE_NAME!),
+          isAutomatedRemediationEnabled: (controlId) => automatedRemediationEnabledControlIds.has(controlId),
+          processBatch: async (findings) => {
+            totalProcessed += findings.length;
+            const batchResult = await this.processFindingsInBatch(findings, findingDataService);
+            totalSuccessful += batchResult.successCount;
+            totalFailed += batchResult.failedCount;
+            totalError += batchResult.errorCount;
+            totalFiltered += batchResult.filteredCount;
+          },
+        },
+        {
+          budgetMs: SLICE_SAFETY_MARGIN_MS,
+          getRemainingTimeMs: () => context.getRemainingTimeInMillis(),
+        },
+      );
 
-        const filters = await getOptimizedFindingFiltersByControlId(controlIdChunk);
+      // Derive progress from the done cursors rather than a maintained counter: under parallel
+      // fan-out several account slices finish at once, and a read-modify-write counter would lose
+      // increments to write races. This slice has already checkpointed its own cursor above, so the
+      // count already reflects it when it just completed. Bound the count to cursors finished during
+      // THIS sweep (lastSyncedAt >= the sweep's startedAt): cursors are reset lazily per account, not
+      // cleared at sweep start, so an unbounded count would report last sweep's leftovers and sit near
+      // the total from the first slice instead of climbing from zero.
+      const sweep = await cursorRepository.getSweep();
+      const accountProgress: AccountProgress = {
+        accountId,
+        completedAccounts: await cursorRepository.countCompletedAccounts(sweep?.startedAt),
+        totalAccounts: sweep?.totalAccounts ?? 0,
+      };
 
-        const result = await securityHubUtils.processAllFindings(async (findings) => {
-          const batchResult = await this.processFindingsInBatch(findings, findingDataService);
-          totalSuccessful += batchResult.successCount;
-          totalFailed += batchResult.failedCount;
-          totalError += batchResult.errorCount;
-          totalFiltered += batchResult.filteredCount;
-        }, filters);
-
-        totalProcessed += result.totalProcessed;
-        apiCallCount += result.apiCallCount;
-
-        logger.debug(`Completed chunk ${chunkIndex + 1}/${controlIdChunks.length}`, {
-          chunkProcessed: result.totalProcessed,
-          chunkApiCalls: result.apiCallCount,
-          totalProcessedSoFar: totalProcessed,
-        });
-      }
-
-      return await this.handleSyncSuccess(
+      await this.handleSyncSuccess(
         startTime,
         totalProcessed,
         totalSuccessful,
         totalFailed,
         totalError,
         totalFiltered,
-        apiCallCount,
+        sliceResult,
+        accountProgress,
       );
+      return { sliceResult };
     } catch (error) {
-      await this.handleSyncError(
-        error,
-        startTime,
-        totalSuccessful,
-        totalFailed,
-        totalError,
-        totalFiltered,
-        apiCallCount,
-      );
+      await this.handleSyncError(error, startTime, totalSuccessful, totalFailed, totalError, totalFiltered);
       throw error;
     }
   }
@@ -297,16 +434,31 @@ export class Synchronization implements LambdaInterface {
     totalFailed: number,
     totalError: number,
     totalFiltered: number,
-    apiCallCount: number,
-  ) {
+    sliceResult: SliceResult,
+    accountProgress: AccountProgress,
+  ): Promise<void> {
     const metrics = this.calculateExecutionMetrics(startTime, totalProcessed, totalFiltered);
 
-    logger.info('Synchronization completed successfully', {
+    // A single invocation runs one time-bounded slice; `done` tells the state machine's Choice whether
+    // this account's backlog has been imported or whether another slice is needed to continue it.
+    const message = sliceResult.isDone
+      ? 'Synchronization completed successfully'
+      : 'Synchronization slice completed; more findings remain (state machine will continue)';
+
+    logger.info(message, {
+      accountId: accountProgress.accountId,
+      completedAccounts: accountProgress.completedAccounts,
+      totalAccounts: accountProgress.totalAccounts,
       totalProcessed,
       totalSuccessful,
       totalFailed,
       totalError,
       totalFiltered,
+      done: sliceResult.isDone,
+      processedControlIds: sliceResult.processedControlIds,
+      totalControlIds: sliceResult.totalControlIds,
+      processedFindings: sliceResult.processedFindings,
+      apiCallCount: sliceResult.apiCallCount,
       filterEffectivenessRatio: metrics.filterEffectivenessRatio,
       executionTimeMs: metrics.executionTimeMs,
       executionTimeSeconds: metrics.executionTimeSeconds,
@@ -316,32 +468,23 @@ export class Synchronization implements LambdaInterface {
 
     await sendMetrics({
       synchronization_status: 'SUCCESS',
+      account_id: accountProgress.accountId,
+      completed_accounts: accountProgress.completedAccounts,
+      total_accounts: accountProgress.totalAccounts,
       total_processed: totalProcessed,
       total_successful: totalSuccessful,
       total_failed: totalFailed,
       total_error: totalError,
       total_filtered: totalFiltered,
       filter_effectiveness_ratio: metrics.filterEffectivenessRatio,
-      api_call_count: apiCallCount,
+      sync_done: sliceResult.isDone,
+      processed_control_ids: sliceResult.processedControlIds,
+      total_control_ids: sliceResult.totalControlIds,
+      processed_findings: sliceResult.processedFindings,
+      api_call_count: sliceResult.apiCallCount,
       execution_time_ms: metrics.executionTimeMs,
       execution_time_seconds: metrics.executionTimeSeconds,
     });
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: 'Synchronization completed successfully',
-        totalProcessed,
-        totalSuccessful,
-        totalFailed,
-        totalError,
-        totalFiltered,
-        filterEffectivenessRatio: metrics.filterEffectivenessRatio,
-        executionTimeMs: metrics.executionTimeMs,
-        executionTimeSeconds: metrics.executionTimeSeconds,
-        timestamp: new Date().toISOString(),
-      }),
-    };
   }
 
   private async handleSyncError(
@@ -351,7 +494,6 @@ export class Synchronization implements LambdaInterface {
     totalFailed: number,
     totalError: number,
     totalFiltered: number,
-    apiCallCount: number,
   ) {
     const totalProcessed = totalSuccessful + totalFailed + totalError + totalFiltered;
     const metrics = this.calculateExecutionMetrics(startTime, totalProcessed, totalFiltered);
@@ -362,7 +504,6 @@ export class Synchronization implements LambdaInterface {
       totalError,
       totalFiltered,
       filterEffectivenessRatio: metrics.filterEffectivenessRatio,
-      apiCallCount,
       executionTimeMs: metrics.executionTimeMs,
       executionTimeSeconds: metrics.executionTimeSeconds,
       startTime: new Date(startTime).toISOString(),
@@ -377,7 +518,6 @@ export class Synchronization implements LambdaInterface {
       total_failed: totalFailed,
       total_filtered: totalFiltered,
       filter_effectiveness_ratio: metrics.filterEffectivenessRatio,
-      api_call_count: apiCallCount,
       execution_time_ms: metrics.executionTimeMs,
       execution_time_seconds: metrics.executionTimeSeconds,
       error_message: error instanceof Error ? error.message : 'Unknown error',
@@ -386,4 +526,15 @@ export class Synchronization implements LambdaInterface {
 }
 
 const synchronizationClass = new Synchronization();
-export const handler = synchronizationClass.handler.bind(synchronizationClass);
+
+/**
+ * Lambda entry point. The sync Lambda serves only the sweep state machine, so every invocation is one
+ * of the three Step Functions tasks. Overloaded so each task resolves to its own precise result type
+ * (which the state machine reads as state output) with no casting at the call sites.
+ */
+export function handler(event: EnumerateAccountsTask, context: Context): Promise<EnumerateAccountsResult>;
+export function handler(event: SyncAccountSliceTask, context: Context): Promise<AccountSliceResult>;
+export function handler(event: MarkSweepDoneTask, context: Context): Promise<MarkSweepDoneResult>;
+export function handler(event: SweepStateMachineTask, context: Context): Promise<SweepStateMachineTaskResult> {
+  return synchronizationClass.handler(event, context);
+}

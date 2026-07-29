@@ -190,8 +190,6 @@ export class SsmRole extends Construct {
         actions: ['ssm:StartAutomationExecution', 'ssm:GetAutomationExecution', 'ssm:DescribeAutomationStepExecutions'],
         resources: [
           `arn:${stack.partition}:ssm:*:${stack.account}:document/ASR-${props.ssmDocName}`,
-          `arn:${stack.partition}:ssm:*:${stack.account}:automation-definition/*`,
-          `arn:${stack.partition}:ssm:*::automation-definition/*`,
           `arn:${stack.partition}:ssm:*:${stack.account}:automation-execution/*`,
         ],
         effect: Effect.ALLOW,
