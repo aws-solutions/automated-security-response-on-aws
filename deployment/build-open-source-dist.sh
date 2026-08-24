@@ -58,6 +58,7 @@ PUBLISHED_PATHS=(
 EXCLUDED_PATHS=(
     # Exercises the shell logic in the internal buildspec.yml, which is not published.
     source/test/buildspec.test.ts
+    source/test/customBuildDeployedPaths.test.ts
 )
 
 # Dependencies, build output and local developer state, pruned from the copy at

@@ -43,7 +43,7 @@ or (2) adding a new playbook for a Security Standard not yet implemented in the 
 
 - a Linux client with the following software
   - AWS CLI v2
-  - Python 3.11+ with pip
+  - Python 3.11 with pip
   - AWS CDK 2.1107+
   - Node.js 24+ with npm
   - Poetry v2 with plugin to export

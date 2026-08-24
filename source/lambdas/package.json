@@ -54,19 +54,19 @@
     "@aws-lambda-powertools/tracer": "2.33.1",
     "@aws-sdk/client-account": "3.1023.0",
     "@aws-sdk/client-cloudfront": "3.1023.0",
-    "@aws-sdk/client-cognito-identity-provider": "3.1023.0",
-    "@aws-sdk/client-dynamodb": "3.1023.0",
-    "@aws-sdk/client-lambda": "3.1023.0",
-    "@aws-sdk/client-organizations": "3.1023.0",
-    "@aws-sdk/client-s3": "3.1023.0",
+    "@aws-sdk/client-cognito-identity-provider": "3.1094.0",
+    "@aws-sdk/client-dynamodb": "3.1094.0",
+    "@aws-sdk/client-lambda": "3.1094.0",
+    "@aws-sdk/client-organizations": "3.1094.0",
+    "@aws-sdk/client-s3": "3.1094.0",
     "@aws-sdk/client-secrets-manager": "3.1023.0",
-    "@aws-sdk/client-securityhub": "3.1023.0",
-    "@aws-sdk/client-sfn": "3.1023.0",
+    "@aws-sdk/client-securityhub": "3.1094.0",
+    "@aws-sdk/client-sfn": "3.1094.0",
     "@aws-sdk/client-sns": "3.1023.0",
     "@aws-sdk/client-sqs": "3.1023.0",
-    "@aws-sdk/client-ssm": "3.1023.0",
-    "@aws-sdk/lib-dynamodb": "3.1023.0",
-    "@aws-sdk/s3-request-presigner": "3.1023.0",
+    "@aws-sdk/client-ssm": "3.1094.0",
+    "@aws-sdk/lib-dynamodb": "3.1094.0",
+    "@aws-sdk/s3-request-presigner": "3.1094.0",
     "@middy/core": "7.1.1",
     "@middy/http-cors": "7.1.1",
     "@middy/http-header-normalizer": "7.1.1",
@@ -79,10 +79,12 @@
     "zod": "4.3.6"
   },
   "overridesJustification": {
-    "babel-plugin-istanbul": "Dependency hygiene, no longer a CVE workaround. @jest/transform 30.2.0 pins babel-plugin-istanbul ^7.0.1, whose test-exclude 6.x drags in the legacy glob 7 -> minimatch 3 -> brace-expansion 1.x branch. Forcing babel-plugin-istanbul 8 pairs it with test-exclude 7, keeping that whole branch out of the tree. This override originally worked around CVE-2026-14257 (GHSA-mh99-v99m-4gvg) when the brace-expansion 1.x line had no patched release; that is now fixed upstream in 1.1.18, which also covers CVE-2026-69152, so dropping the override would no longer expose a known CVE. It is retained because dropping it re-adds five superseded transitive packages (babel-plugin-istanbul 7, test-exclude 6, glob 7, minimatch 3, brace-expansion 1.x) that are recurring advisory targets. Safe to remove once @jest/transform depends on babel-plugin-istanbul ^8."
+    "babel-plugin-istanbul": "Dependency hygiene, no longer a CVE workaround. @jest/transform 30.2.0 pins babel-plugin-istanbul ^7.0.1, whose test-exclude 6.x drags in the legacy glob 7 -> minimatch 3 -> brace-expansion 1.x branch. Forcing babel-plugin-istanbul 8 pairs it with test-exclude 7, keeping that whole branch out of the tree. This override originally worked around CVE-2026-14257 (GHSA-mh99-v99m-4gvg) when the brace-expansion 1.x line had no patched release; that is now fixed upstream in 1.1.18, which also covers CVE-2026-69152, so dropping the override would no longer expose a known CVE. It is retained because dropping it re-adds five superseded transitive packages (babel-plugin-istanbul 7, test-exclude 6, glob 7, minimatch 3, brace-expansion 1.x) that are recurring advisory targets. Safe to remove once @jest/transform depends on babel-plugin-istanbul ^8.",
+    "@aws-sdk/util-dynamodb": "Pin the compatible transitive version used by release 3.1.8. Later util-dynamodb 3.996.x releases require @aws-sdk/client-dynamodb ^3.1111.0, which conflicts with the requested 3.1094.0 SDK alignment. Remove after client-dynamodb and lib-dynamodb are upgraded to at least 3.1111.0."
   },
   "overrides": {
-    "babel-plugin-istanbul": "^8.0.0"
+    "babel-plugin-istanbul": "^8.0.0",
+    "@aws-sdk/util-dynamodb": "3.996.7"
   },
   "jestSonar": {
     "reportPath": "coverage"
