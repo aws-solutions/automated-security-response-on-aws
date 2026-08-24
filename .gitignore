@@ -47,6 +47,10 @@ requirements.txt
 # ignore all folders starting with a . (which are often IDE settings, caches)
 .*/
 
+# do not ignore .github (issue/PR templates published to the public repo)
+!.github/
+!.github/**
+
 # do not ignore team-wide kiro steering docs and agents
 !.kiro/
 .kiro/*
