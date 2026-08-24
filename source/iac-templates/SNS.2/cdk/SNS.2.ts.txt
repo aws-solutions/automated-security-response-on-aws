@@ -1,0 +1,41 @@
+// SNS.2 — SNS topics should have delivery status logging enabled
+//
+// ASR remediation enables delivery status logging for all supported protocols on the SNS topic.
+// To apply this fix, add the loggingConfigs property with entries for each protocol on your Topic construct.
+// NOTE: <LOGGING_ROLE> — an IAM role that grants SNS permission to write
+// delivery status logs to CloudWatch Logs.
+
+new sns.Topic(this, '{snsTopic}', {
+  loggingConfigs: [
+    {
+      protocol: sns.LoggingProtocol.HTTP,
+      successFeedbackRole: <LOGGING_ROLE>,
+      failureFeedbackRole: <LOGGING_ROLE>,
+      successFeedbackSampleRate: 0,
+    },
+    {
+      protocol: sns.LoggingProtocol.SQS,
+      successFeedbackRole: <LOGGING_ROLE>,
+      failureFeedbackRole: <LOGGING_ROLE>,
+      successFeedbackSampleRate: 0,
+    },
+    {
+      protocol: sns.LoggingProtocol.LAMBDA,
+      successFeedbackRole: <LOGGING_ROLE>,
+      failureFeedbackRole: <LOGGING_ROLE>,
+      successFeedbackSampleRate: 0,
+    },
+    {
+      protocol: sns.LoggingProtocol.FIREHOSE,
+      successFeedbackRole: <LOGGING_ROLE>,
+      failureFeedbackRole: <LOGGING_ROLE>,
+      successFeedbackSampleRate: 0,
+    },
+    {
+      protocol: sns.LoggingProtocol.APPLICATION,
+      successFeedbackRole: <LOGGING_ROLE>,
+      failureFeedbackRole: <LOGGING_ROLE>,
+      successFeedbackSampleRate: 0,
+    },
+  ],
+});

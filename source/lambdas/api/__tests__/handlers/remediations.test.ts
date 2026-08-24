@@ -303,9 +303,7 @@ describe('RemediationsHandler Integration Tests', () => {
       });
       const context = createMockContext();
 
-      await expect(searchRemediations(event, context)).rejects.toThrow(
-        "Cannot read properties of null (reading 'cognito:groups')",
-      );
+      await expect(searchRemediations(event, context)).rejects.toThrow('Missing authentication claims');
     });
 
     it('should throw BadRequestError when request validation fails', async () => {

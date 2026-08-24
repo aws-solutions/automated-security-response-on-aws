@@ -1,0 +1,11 @@
+# CloudFront.1 — CloudFront distributions should have a default root object configured
+#
+# ASR remediation configures a default root object on the CloudFront distribution.
+# To apply this fix, set DefaultRootObject on your CloudFront distribution.
+
+Resources:
+  {distribution}:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultRootObject: index.html

@@ -4,15 +4,17 @@
 import * as cdk from 'aws-cdk-lib';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import * as fs from 'node:fs';
 import path from 'node:path';
-import { CfnUserPoolUICustomizationAttachment } from 'aws-cdk-lib/aws-cognito';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
+import { createLogGroup } from '../cdk-helper/log-group';
 import { getLambdaCode } from '../cdk-helper/lambda-code-manifest';
+import { getConfig } from '../config/cdk-config';
 
 export interface CognitoConstructProps {
   resourceNamePrefix: string;
@@ -24,6 +26,7 @@ export interface CognitoConstructProps {
   distributionDomainName: string;
   adminUserEmail: string;
   userAccountMappingTableName: string;
+  userAccountMappingTable: dynamodb.ITable;
 }
 
 export class CognitoConstruct extends Construct {
@@ -41,7 +44,7 @@ export class CognitoConstruct extends Construct {
     const stack = cdk.Stack.of(this);
 
     const preSignupTrigger = new lambda.Function(this, 'PreSignupTrigger', {
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'api/handlers/preSignUp.preSignUpHandler',
       code: getLambdaCode(props.solutionsBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       description: 'ASR Cognito pre-signup trigger function',
@@ -54,9 +57,9 @@ export class CognitoConstruct extends Construct {
       memorySize: 256,
       timeout: cdk.Duration.seconds(60),
       tracing: lambda.Tracing.ACTIVE,
+      logGroup: createLogGroup(this, 'PreSignupTriggerLogGroup'),
     });
 
-    // Add IAM permissions for the pre-signup trigger
     preSignupTrigger.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -70,6 +73,18 @@ export class CognitoConstruct extends Construct {
         resources: [`arn:${stack.partition}:cognito-idp:${stack.region}:${stack.account}:userpool/*`],
       }),
     );
+
+    preSignupTrigger.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['dynamodb:GetItem', 'dynamodb:Query'],
+        resources: [
+          `arn:${stack.partition}:dynamodb:${stack.region}:${stack.account}:table/${props.userAccountMappingTableName}`,
+        ],
+      }),
+    );
+
+    preSignupTrigger.node.addDependency(props.userAccountMappingTable);
 
     addCfnGuardSuppression(preSignupTrigger, 'LAMBDA_INSIDE_VPC');
     addCfnGuardSuppression(preSignupTrigger, 'LAMBDA_CONCURRENCY_CHECK');
@@ -116,7 +131,6 @@ export class CognitoConstruct extends Construct {
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      // Add custom attributes required by Lambda services
       customAttributes: {
         invitedBy: new cognito.StringAttribute({ mutable: true }),
       },
@@ -133,10 +147,19 @@ export class CognitoConstruct extends Construct {
           scopeName: 'api',
           scopeDescription: 'Access to ASR API endpoints',
         },
+        {
+          // Granting a machine (client_credentials) token this scope yields Full
+          // Access in the API Lambda. No app client is provisioned here: the
+          // customer creates a confidential client granted this scope post-deploy
+          // (see docs/m2m-authentication.md), so the feature is inert by default.
+          scopeName: 'full-access',
+          scopeDescription: 'Full administrative access to the ASR API for machine-to-machine clients',
+        },
       ],
     });
 
-    const isDevelopmentEnv = process.env.BUILD_ENV === 'development';
+    const config = getConfig();
+    const isDevelopmentEnv = config.development.buildEnv === 'development';
     const callbackUrls = [`https://${props.distributionDomainName}/callback`];
     const logoutUrls = [`https://${props.distributionDomainName}`];
 
@@ -180,6 +203,14 @@ export class CognitoConstruct extends Construct {
 
     this.userPoolClient.node.addDependency(resourceServer);
 
+    // Machine-to-machine (M2M) Full Access is enabled by the customer creating a
+    // confidential `client_credentials` app client granted the `asr-api/full-access`
+    // scope post-deploy (see docs/m2m-authentication.md). No client is provisioned
+    // here: Cognito requires a secret on a client_credentials client at creation and
+    // has no API to add one later, so a deploy-time client cannot be shipped inert.
+    // The API Lambda authorizes such tokens by inspecting the `asr-api/full-access`
+    // scope claim, so no client id needs to be known at deploy time.
+
     this.authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'ASRCognitoAuthorizer', {
       cognitoUserPools: [this.userPool],
       authorizerName: 'ASRCognitoAuthorizer',
@@ -210,7 +241,6 @@ export class CognitoConstruct extends Construct {
       precedence: 3,
     });
 
-    // Create Admin User with required custom attributes
     const adminUser = new cognito.CfnUserPoolUser(this, 'AdminUser', {
       userPoolId: this.userPool.userPoolId,
       username: props.adminUserEmail,
@@ -236,12 +266,12 @@ export class CognitoConstruct extends Construct {
       groupName: this.adminGroup.ref,
     });
 
-    adminUser.addDependency(this.userPool.node.defaultChild as cognito.CfnUserPool);
-    adminUser.addDependency(this.adminGroup);
+    adminUser.addResourceDependency(this.userPool.node.defaultChild as cognito.CfnUserPool);
+    adminUser.addResourceDependency(this.adminGroup);
+    adminUser.addResourceDependency(this.userPoolDomain.node.defaultChild as cognito.CfnUserPoolDomain);
 
     const userPoolResource = this.userPool.node.findChild('Resource') as cognito.CfnUserPool;
 
-    // Load managed login branding settings JSON
     const brandingJsonPath = path.resolve(__dirname, '../../webui/public/cognito-managed-login-branding.json');
     const brandingJsonContent = fs.readFileSync(brandingJsonPath, 'utf8');
     const brandingSettings = JSON.parse(brandingJsonContent);
@@ -262,7 +292,7 @@ export class CognitoConstruct extends Construct {
     });
 
     // avoid race condition where customization is attempting to be applied before domain is active
-    managedLoginBranding.addDependency(this.userPoolDomain.node.defaultChild as cognito.CfnUserPoolDomain);
+    managedLoginBranding.addResourceDependency(this.userPoolDomain.node.defaultChild as cognito.CfnUserPoolDomain);
 
     userPoolResource.cfnOptions.metadata = {
       cfn_nag: {

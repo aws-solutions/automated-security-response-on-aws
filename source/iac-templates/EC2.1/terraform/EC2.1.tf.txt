@@ -1,0 +1,10 @@
+# EC2.1 — Amazon EBS snapshots should not be publicly restorable
+#
+# ASR remediation removes public access from EBS snapshots by revoking the
+# CreateVolumePermission for the "all" group.
+# To apply this fix, add an ebs_snapshot_block_public_access resource to block
+# public sharing of snapshots in your account.
+
+resource "aws_ebs_snapshot_block_public_access" "{snapshotBlockPublicAccess}" {
+  state = "block-all-sharing"
+}

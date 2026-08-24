@@ -1,0 +1,11 @@
+# DynamoDB.6 — DynamoDB tables should have deletion protection enabled
+#
+# ASR remediation enables deletion protection on the DynamoDB table.
+# To apply this fix, set DeletionProtectionEnabled to true on your
+# DynamoDB table resource.
+
+Resources:
+  {tableName}:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      DeletionProtectionEnabled: true

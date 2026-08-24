@@ -5,20 +5,32 @@ Configure a CloudFormation stack with an SNS topic for notifications, creating t
 not already exist
 """
 from time import sleep, time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, TypedDict
 
 import boto3
 from botocore.config import Config
 
 if TYPE_CHECKING:
+    from aws_lambda_powertools.utilities.typing import LambdaContext
     from mypy_boto3_sns.client import SNSClient
 else:
+    LambdaContext = object
     SNSClient = object
 
 boto_config = Config(retries={"mode": "standard"})
 
 
-def lambda_handler(event, _):
+class Event(TypedDict):
+    stack_arn: str
+    topic_name: str
+
+
+class Output(TypedDict):
+    NotificationARNs: List[str]
+    resource_arn: str
+
+
+def lambda_handler(event: Event, _: LambdaContext) -> Output:
     """
     Configure a CloudFormation stack with an SNS topic for notifications,
     creating the topic if it does not already exist
@@ -34,7 +46,9 @@ def lambda_handler(event, _):
     topic_arn = get_or_create_topic(topic_name)
     configure_notifications(stack_arn, topic_arn)
     wait_for_update(stack_arn)
-    return assert_stack_configured(stack_arn, topic_arn)
+    result = assert_stack_configured(stack_arn, topic_arn)
+    result["resource_arn"] = topic_arn
+    return result
 
 
 def get_or_create_topic(topic_name: str) -> str:
@@ -75,19 +89,19 @@ def wait_for_update(stack_arn: str) -> None:
         wait_interval_seconds = wait_interval_seconds * 2
 
 
-def get_stack_status(stack_arn):
+def get_stack_status(stack_arn: str) -> str:
     """Get the status of the CloudFormation stack with ARN `stack_arn`"""
     cloudformation = boto3.client("cloudformation", config=boto_config)
     response = cloudformation.describe_stacks(StackName=stack_arn)
     return response["Stacks"][0]["StackStatus"]
 
 
-def wait_seconds(seconds):
+def wait_seconds(seconds: int) -> None:
     """Wait for `seconds` seconds"""
     sleep(seconds)
 
 
-def assert_stack_configured(stack_arn, topic_arn):
+def assert_stack_configured(stack_arn: str, topic_arn: str):
     """
     Verify that the CloudFormation stack with ARN `stack_arn` is configured to update the SQS topic
     with ARN `topic_arn`

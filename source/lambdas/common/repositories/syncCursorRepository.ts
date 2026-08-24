@@ -208,16 +208,8 @@ export class SyncCursorRepository extends AbstractRepository<SyncCursor> {
    * finishing at once cannot lose an increment to a write race. All account cursors share the
    * `SYNC_CURSOR` partition, so this is a single partition query (paginated), and a server-side
    * filter returns only the done ones.
-   *
-   * Pass `completedAtOrAfter` (the current sweep's `startedAt`) to count only accounts that finished
-   * *this* sweep. Cursors are not cleared when a sweep starts — each is reset lazily when its own turn
-   * comes up — so without this bound every cursor still carries `done: true` from the previous sweep
-   * and the count would report almost the full total from the first slice instead of climbing from
-   * zero. `lastSyncedAt` is refreshed to "now" on every reset and checkpoint, so a cursor completed in
-   * the current sweep necessarily has `lastSyncedAt >= startedAt`, while last sweep's leftovers fall
-   * below it. Omit the argument to count all done cursors regardless of sweep (legacy behaviour).
    */
-  async countCompletedAccounts(completedAtOrAfter?: string): Promise<number> {
+  async countCompletedAccounts(): Promise<number> {
     let completed = 0;
     let exclusiveStartKey: Record<string, unknown> | undefined;
 
@@ -225,19 +217,9 @@ export class SyncCursorRepository extends AbstractRepository<SyncCursor> {
       const params: QueryCommandInput = {
         TableName: this.tableName,
         KeyConditionExpression: '#partitionKey = :cursorPartition',
-        FilterExpression: completedAtOrAfter
-          ? '#done = :true AND #lastSyncedAt >= :completedAtOrAfter'
-          : '#done = :true',
-        ExpressionAttributeNames: {
-          '#partitionKey': this.partitionKeyName,
-          '#done': 'done',
-          ...(completedAtOrAfter && { '#lastSyncedAt': 'lastSyncedAt' }),
-        },
-        ExpressionAttributeValues: {
-          ':cursorPartition': CURSOR_PARTITION,
-          ':true': true,
-          ...(completedAtOrAfter && { ':completedAtOrAfter': completedAtOrAfter }),
-        },
+        FilterExpression: '#done = :true',
+        ExpressionAttributeNames: { '#partitionKey': this.partitionKeyName, '#done': 'done' },
+        ExpressionAttributeValues: { ':cursorPartition': CURSOR_PARTITION, ':true': true },
         Select: 'COUNT',
         ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
       };

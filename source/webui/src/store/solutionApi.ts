@@ -53,7 +53,7 @@ export const solutionApi = createApi({
   baseQuery: dynamicBaseQuery,
   endpoints: (_) => ({}),
   refetchOnMountOrArgChange: true,
-  tagTypes: ['Findings', 'Remediations', 'User', 'Users'],
+  tagTypes: ['Findings', 'Remediations', 'User', 'Users', 'Controls', 'Filters', 'Notifications', 'EmailSubscriptions'],
 });
 
 export enum ApiEndpoints {
@@ -61,4 +61,7 @@ export enum ApiEndpoints {
   REMEDIATIONS = 'remediations',
   FINDINGS = 'findings',
   EXPORT = 'export',
+  FILTERS = 'filters',
+  CONTROLS = 'controls',
+  NOTIFICATIONS = 'notifications',
 }

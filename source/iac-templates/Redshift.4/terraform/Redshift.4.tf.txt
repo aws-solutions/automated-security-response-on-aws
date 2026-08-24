@@ -1,0 +1,12 @@
+# Redshift.4 — Amazon Redshift clusters should have audit logging enabled
+#
+# ASR remediation enables audit logging on the Redshift cluster to an S3 bucket.
+# To apply this fix, add a logging block with your S3 bucket name on your Redshift cluster.
+# NOTE: <AUDIT_LOGGING_BUCKET> — your S3 bucket for audit logs.
+
+resource "aws_redshift_logging" "{redshiftCluster}" {
+  cluster_identifier   = aws_redshift_cluster.{redshiftCluster}.id
+  log_destination_type = "s3"
+  bucket_name          = "<AUDIT_LOGGING_BUCKET>"
+  s3_key_prefix        = "redshift-audit-logs/"
+}

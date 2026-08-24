@@ -12,6 +12,7 @@ import * as autoscaling_3 from '../ssmdocs/SC_AutoScaling.3';
 import * as autoscaling_5 from '../ssmdocs/SC_Autoscaling.5'; // intentionally different casing to match SecurityHub generator id
 import * as athena_4 from '../ssmdocs/SC_Athena.4';
 import * as cloudformation_1 from '../ssmdocs/SC_CloudFormation.1';
+import * as cloudformation_3 from '../ssmdocs/SC_CloudFormation.3';
 import * as cloudfront_1 from '../ssmdocs/SC_CloudFront.1';
 import * as cloudfront_12 from '../ssmdocs/SC_CloudFront.12';
 import * as cloudtrail_1 from '../ssmdocs/SC_CloudTrail.1';
@@ -75,6 +76,7 @@ import * as s3_5 from '../ssmdocs/SC_S3.5';
 import * as s3_6 from '../ssmdocs/SC_S3.6';
 import * as s3_11 from '../ssmdocs/SC_S3.11';
 import * as s3_13 from '../ssmdocs/SC_S3.13';
+import * as s3_14 from '../ssmdocs/SC_S3.14';
 import * as secretsmanager_1 from '../ssmdocs/SC_SecretsManager.1';
 import * as secretsmanager_3 from '../ssmdocs/SC_SecretsManager.3';
 import * as secretsmanager_4 from '../ssmdocs/SC_SecretsManager.4';
@@ -85,6 +87,10 @@ import * as ssm_1 from '../ssmdocs/SC_SSM.1';
 import * as ssm_4 from '../ssmdocs/SC_SSM.4';
 import * as ssm_7 from '../ssmdocs/SC_SSM.7';
 import * as macie_1 from '../ssmdocs/SC_Macie.1';
+import * as iamaccessanalyzer_externalaccess from '../ssmdocs/SC_IAMAccessAnalyzer.ExternalAccess';
+import * as inspector_instancevulnerability from '../ssmdocs/SC_Inspector.InstanceVulnerability';
+import * as guardduty_iamuser from '../ssmdocs/SC_GuardDuty.IAMUser';
+import * as macie_sensitivedatas3object from '../ssmdocs/SC_Macie.SensitiveDataS3Object';
 import { IControl } from '../../../lib/playbook-construct';
 
 export interface PlaybookProps {
@@ -107,6 +113,7 @@ const controlRunbooksRecord: Record<string, any> = {
   'AutoScaling.3': autoscaling_3.createControlRunbook,
   'Autoscaling.5': autoscaling_5.createControlRunbook,
   'CloudFormation.1': cloudformation_1.createControlRunbook,
+  'CloudFormation.3': cloudformation_3.createControlRunbook,
   'CloudFront.1': cloudfront_1.createControlRunbook,
   'CloudFront.12': cloudfront_12.createControlRunbook,
   'CloudTrail.1': cloudtrail_1.createControlRunbook,
@@ -170,6 +177,7 @@ const controlRunbooksRecord: Record<string, any> = {
   'S3.6': s3_6.createControlRunbook,
   'S3.11': s3_11.createControlRunbook,
   'S3.13': s3_13.createControlRunbook,
+  'S3.14': s3_14.createControlRunbook,
   'SecretsManager.1': secretsmanager_1.createControlRunbook,
   'SecretsManager.3': secretsmanager_3.createControlRunbook,
   'SecretsManager.4': secretsmanager_4.createControlRunbook,
@@ -180,6 +188,10 @@ const controlRunbooksRecord: Record<string, any> = {
   'SSM.4': ssm_4.createControlRunbook,
   'SSM.7': ssm_7.createControlRunbook,
   'Macie.1': macie_1.createControlRunbook,
+  'IAMAccessAnalyzer.ExternalAccess': iamaccessanalyzer_externalaccess.createControlRunbook,
+  'Inspector.InstanceVulnerability': inspector_instancevulnerability.createControlRunbook,
+  'GuardDuty.IAMUser': guardduty_iamuser.createControlRunbook,
+  'Macie.SensitiveDataS3Object': macie_sensitivedatas3object.createControlRunbook,
 };
 
 export class ControlRunbooks extends Construct {
@@ -197,6 +209,13 @@ export class ControlRunbooks extends Construct {
       const controlId = remediation.control;
 
       if (remediation.executes) continue; // Skip remediations that map to other controls
+      // Deprecated controls still create their runbook document so a stack update
+      // does not delete a previously-deployed SSM document; they are only excluded
+      // from active-remediation surfaces (e.g. CloudWatch alarms).
+      if (!controlRunbooksRecord[controlId]) {
+        if (remediation.runbookPending) continue;
+        throw new Error(`No control runbook implemented for ${controlId}`);
+      }
       this.add(controlRunbooksRecord[controlId](this, controlId, props));
     }
   }

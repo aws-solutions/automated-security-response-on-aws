@@ -55,7 +55,11 @@ def test_bucket_created_with_encryption_and_ssl_policy() -> None:
     event: Event = {"BucketName": bucket_name, "AWS_REGION": "us-east-1"}
 
     with mock_aws():
-        script.create_logging_bucket(event, LambdaContext())
+        response = script.create_logging_bucket(event, LambdaContext())
+
+        assert "output" in response
+        assert "ResourceArn" in response["output"]
+        assert response["output"]["ResourceArn"] == f"arn:aws:s3:::{bucket_name}"
 
         s3 = boto3.client("s3")
         bucket_encryption = s3.get_bucket_encryption(Bucket=bucket_name)
@@ -131,7 +135,12 @@ def test_create_logging_bucket(mocker):
     mocker.patch(
         "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
     )
-    script.create_logging_bucket(event, LambdaContext())
+    response = script.create_logging_bucket(event, LambdaContext())
+
+    assert "output" in response
+    assert "ResourceArn" in response["output"]
+    assert response["output"]["ResourceArn"] == f"arn:aws:s3:::{event['BucketName']}"
+
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()
 
@@ -174,6 +183,12 @@ def test_bucket_already_owned_by_you(mocker):
     mocker.patch(
         "CreateAccessLoggingBucket_createloggingbucket.connect_to_s3", return_value=s3
     )
-    script.create_logging_bucket(event, LambdaContext())
+    response = script.create_logging_bucket(event, LambdaContext())
+
+    # Verify ResourceArn is returned even when bucket already exists
+    assert "output" in response
+    assert "ResourceArn" in response["output"]
+    assert response["output"]["ResourceArn"] == f"arn:aws:s3:::{event['BucketName']}"
+
     s3_stubber.assert_no_pending_responses()
     s3_stubber.deactivate()

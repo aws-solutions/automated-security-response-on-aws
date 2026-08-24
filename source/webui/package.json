@@ -1,13 +1,14 @@
 {
   "name": "webui",
   "private": true,
-  "version": "3.1.8",
+  "version": "4.0.0",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
   },
   "scripts": {
+    "check": "tsc && vitest --run ./src/__tests__/ --coverage --reporter=agent",
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -17,35 +18,35 @@
     "test": "vitest --run ./src/__tests__/ --coverage"
   },
   "dependencies": {
-    "@aws-amplify/core": "6.16.2",
-    "@aws-amplify/ui-react": "6.15.3",
-    "@cloudscape-design/components": "3.0.1048",
-    "@reduxjs/toolkit": "2.8.2",
-    "@types/node": "24.2.0",
-    "@types/react": "18.3.23",
-    "@types/react-dom": "18.3.7",
+    "@aws-amplify/core": "6.17.0",
+    "@aws-amplify/ui-react": "6.15.4",
+    "@cloudscape-design/components": "3.0.1208",
+    "@reduxjs/toolkit": "2.11.2",
+    "@types/node": "25.3.0",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
     "aws-amplify": "6.19.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "react-redux": "9.2.0",
-    "react-router-dom": "7.18.0",
-    "zod": "3.25.76"
+    "react-router": "8.3.0",
+    "zod": "4.3.6"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "6.7.0",
-    "@testing-library/react": "16.3.0",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
-    "@types/react": "18.3.23",
-    "@types/react-dom": "18.3.7",
-    "@vitejs/plugin-react-swc": "3.11.0",
-    "@vitest/coverage-v8": "4.1.9",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react-swc": "4.2.3",
+    "@vitest/coverage-v8": "4.1.8",
     "eslint": "10.0.1",
-    "jsdom": "26.1.0",
-    "msw": "2.10.5",
-    "prettier": "3.6.2",
-    "typescript": "5.9.2",
+    "jsdom": "28.1.0",
+    "msw": "2.12.10",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
     "vite": "7.3.6",
-    "vitest": "4.1.9"
+    "vitest": "4.1.8"
   },
   "msw": {
     "workerDirectory": [

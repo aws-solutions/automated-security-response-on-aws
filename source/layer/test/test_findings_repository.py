@@ -7,6 +7,7 @@ from layer.findings_repository import (
     build_update_item,
     extract_partial_finding_data,
     get,
+    get_metric_attributes,
     update,
 )
 from moto import mock_aws
@@ -52,6 +53,56 @@ def test_get_finding_not_found(dynamodb_table):
 
     # ASSERT
     assert result is None
+
+
+def test_get_metric_attributes_success(dynamodb_table):
+    # ARRANGE
+    dynamodb_table.put_item(
+        TableName="test-findings-table",
+        Item={
+            "findingType": {"S": "S3.1"},
+            "findingId": {"S": "test-finding-id"},
+            "firstDetectedTime": {"S": "2024-01-05T00:00:00Z"},
+            "hasFindingNotificationsEnabled": {"BOOL": True},
+            "hasFindingRemediationDeadlineConfigured": {"BOOL": False},
+        },
+    )
+
+    # ACT
+    result = get_metric_attributes(dynamodb_table, "S3.1", "test-finding-id")
+
+    # ASSERT
+    assert result == {
+        "first_detected_time": "2024-01-05T00:00:00Z",
+        "finding_notifications_enabled": True,
+        "finding_remediation_deadline_configured": False,
+    }
+
+
+def test_get_metric_attributes_not_found(dynamodb_table):
+    # ACT
+    result = get_metric_attributes(dynamodb_table, "S3.1", "nonexistent-finding")
+
+    # ASSERT
+    assert result == {}
+
+
+def test_get_metric_attributes_omits_absent_attributes(dynamodb_table):
+    # ARRANGE: a finding written before the metric attributes existed carries none of them
+    dynamodb_table.put_item(
+        TableName="test-findings-table",
+        Item={
+            "findingType": {"S": "S3.1"},
+            "findingId": {"S": "legacy-finding-id"},
+            "firstDetectedTime": {"S": "2024-01-05T00:00:00Z"},
+        },
+    )
+
+    # ACT
+    result = get_metric_attributes(dynamodb_table, "S3.1", "legacy-finding-id")
+
+    # ASSERT: only the present attribute is returned
+    assert result == {"first_detected_time": "2024-01-05T00:00:00Z"}
 
 
 @mock_aws

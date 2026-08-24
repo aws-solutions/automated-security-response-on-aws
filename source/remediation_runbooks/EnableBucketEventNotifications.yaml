@@ -38,36 +38,57 @@ parameters:
   EventTypes:
     type: 'StringList'
     description: '(Optional) The event types to add notifications for.'
-    default: [
-                "s3:ReducedRedundancyLostObject",
-                "s3:ObjectCreated:*",
-                "s3:ObjectRemoved:*",
-                "s3:ObjectRestore:*",
-                "s3:Replication:*",
-                "s3:LifecycleExpiration:*",
-                "s3:LifecycleTransition",
-                "s3:IntelligentTiering",
-                "s3:ObjectTagging:*",
-                "s3:ObjectAcl:Put",
-              ]
+    default:
+      [
+        's3:ReducedRedundancyLostObject',
+        's3:ObjectCreated:*',
+        's3:ObjectRemoved:*',
+        's3:ObjectRestore:*',
+        's3:Replication:*',
+        's3:LifecycleExpiration:*',
+        's3:LifecycleTransition',
+        's3:IntelligentTiering',
+        's3:ObjectTagging:*',
+        's3:ObjectAcl:Put',
+      ]
 outputs:
-- 'EnableBucketEventNotifications.Output'
+  - 'EnableBucketEventNotifications.Output'
+  - 'TagTopic.Output'
 mainSteps:
-- name: 'EnableBucketEventNotifications'
-  action: 'aws:executeScript'
-  timeoutSeconds: 600
-  inputs:
-    InputPayload:
-      bucket_name: '{{ BucketName }}'
-      topic_name: '{{ TopicName }}'
-      account_id: '{{ AccountId }}'
-      event_types: '{{ EventTypes }}'
-    Runtime: 'python3.11'
-    Handler: 'lambda_handler'
-    Script: |-
-      %%SCRIPT=enable_bucket_event_notifications.py%%
-  outputs:
-  - Name: 'Output'
-    Selector: '$.Payload.output'
-    Type: 'StringMap'
-  isEnd: true
+  - name: 'EnableBucketEventNotifications'
+    action: 'aws:executeScript'
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        bucket_name: '{{ BucketName }}'
+        topic_name: '{{ TopicName }}'
+        account_id: '{{ AccountId }}'
+        event_types: '{{ EventTypes }}'
+      Runtime: 'python3.11'
+      Handler: 'lambda_handler'
+      Script: |-
+        %%SCRIPT=enable_bucket_event_notifications.py%%
+    outputs:
+      - Name: 'Output'
+        Selector: '$.Payload'
+        Type: 'StringMap'
+      - Name: 'ResourceArn'
+        Selector: '$.Payload.resource_arn'
+        Type: 'String'
+    nextStep: 'TagTopic'
+
+  - name: 'TagTopic'
+    action: 'aws:executeScript'
+    onFailure: 'Continue'
+    inputs:
+      InputPayload:
+        ResourceArn: '{{ EnableBucketEventNotifications.ResourceArn }}'
+      Runtime: 'python3.11'
+      Handler: 'tag_resource'
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: 'Output'
+        Selector: '$.Payload'
+        Type: 'StringMap'
+    isEnd: true

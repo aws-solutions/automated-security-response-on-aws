@@ -1,0 +1,8 @@
+// CloudWatch.16 — CloudWatch log groups should be retained for a specified time period
+//
+// ASR remediation sets the retention period on the log group to 365 days.
+// To apply this fix, add or update the retention property on your log group construct.
+
+new logs.LogGroup(this, '{logGroup}', {
+  retention: logs.RetentionDays.ONE_YEAR,
+});

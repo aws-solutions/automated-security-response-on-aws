@@ -1,0 +1,29 @@
+# SNS.2 — SNS topics should have delivery status logging enabled
+#
+# ASR remediation enables delivery status logging for all supported protocols on the SNS topic.
+# To apply this fix, add the success and failure feedback role ARNs and sample rates
+# for each protocol on your SNS topic resource.
+# NOTE: <LOGGING_ROLE> — an IAM role ARN that grants SNS permission to write
+# delivery status logs to CloudWatch Logs.
+
+resource "aws_sns_topic" "{snsTopic}" {
+  http_success_feedback_role_arn    = "<LOGGING_ROLE>"
+  http_failure_feedback_role_arn    = "<LOGGING_ROLE>"
+  http_success_feedback_sample_rate = 0
+
+  sqs_success_feedback_role_arn    = "<LOGGING_ROLE>"
+  sqs_failure_feedback_role_arn    = "<LOGGING_ROLE>"
+  sqs_success_feedback_sample_rate = 0
+
+  lambda_success_feedback_role_arn    = "<LOGGING_ROLE>"
+  lambda_failure_feedback_role_arn    = "<LOGGING_ROLE>"
+  lambda_success_feedback_sample_rate = 0
+
+  firehose_success_feedback_role_arn    = "<LOGGING_ROLE>"
+  firehose_failure_feedback_role_arn    = "<LOGGING_ROLE>"
+  firehose_success_feedback_sample_rate = 0
+
+  application_success_feedback_role_arn    = "<LOGGING_ROLE>"
+  application_failure_feedback_role_arn    = "<LOGGING_ROLE>"
+  application_success_feedback_sample_rate = 0
+}

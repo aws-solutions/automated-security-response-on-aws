@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Logger } from '@aws-lambda-powertools/logger';
-import { PreSignUpTriggerEvent, Context, Callback } from 'aws-lambda';
+import { PreSignUpTriggerEvent } from 'aws-lambda';
 import { CognitoService } from '../services/cognito';
 import { z } from 'zod';
 
@@ -20,23 +20,20 @@ const extractProviderName = (userName: string): string | null => {
 const handleExternalProvider = async (
   event: PreSignUpTriggerEvent,
   userEmail: string,
-  callback: Callback,
-): Promise<void> => {
+): Promise<PreSignUpTriggerEvent> => {
   const cognitoService = new CognitoService(logger, event.userPoolId);
 
   const existingUser = await cognitoService.getUserById(userEmail);
 
   if (!existingUser) {
     logger.error('Rejecting federated sign-up - no matching user found', { email: userEmail });
-    callback(new Error('User not found in local user pool'), event);
-    return;
+    throw new Error('User not found in local user pool');
   }
 
   const providerName = extractProviderName(event.userName);
   if (!providerName) {
     logger.error(`Rejecting federated sign-up - could not extract provider name from user name ${event.userName}`);
-    callback(new Error('No provider name found'), event);
-    return;
+    throw new Error('No provider name found');
   }
 
   await cognitoService.linkFederatedUser(userEmail, providerName);
@@ -44,10 +41,10 @@ const handleExternalProvider = async (
     email: userEmail,
     existingUserType: existingUser.type,
   });
-  callback(null, event);
+  return event;
 };
 
-export const preSignUpHandler = async (event: PreSignUpTriggerEvent, _: Context, callback: Callback): Promise<void> => {
+export const preSignUpHandler = async (event: PreSignUpTriggerEvent): Promise<PreSignUpTriggerEvent> => {
   try {
     logger.info('PreSignUp trigger invoked', {
       triggerSource: event.triggerSource,
@@ -61,45 +58,38 @@ export const preSignUpHandler = async (event: PreSignUpTriggerEvent, _: Context,
       logger.error('Rejecting sign-up - email attribute not found in userAttributes', {
         userAttributes: request.userAttributes,
       });
-      callback(
-        new Error(
-          '"email" attribute not found in attribute mapping, please ensure you have setup an attribute mapping for "email" in your custom Cognito identity provider',
-        ),
-        event,
+      throw new Error(
+        '"email" attribute not found in attribute mapping, please ensure you have setup an attribute mapping for "email" in your custom Cognito identity provider',
       );
-      return;
     }
 
     const userEmail = request.userAttributes.email;
 
     if (!validateEmail(userEmail)) {
       logger.error('Rejecting sign-up - no valid email found', { userAttributes: request.userAttributes });
-      callback(new Error('No valid email address found'), event);
-      return;
+      throw new Error('No valid email address found');
     }
 
     switch (triggerSource) {
       case 'PreSignUp_ExternalProvider':
-        await handleExternalProvider(event, userEmail, callback);
-        return;
+        return await handleExternalProvider(event, userEmail);
 
       case 'PreSignUp_AdminCreateUser':
         logger.info('Admin-created user sign-up - passing through', { email: userEmail });
-        callback(null, event);
-        return;
+        return event;
 
       default:
         logger.error('Rejecting sign-up from unsupported trigger source', {
           triggerSource,
           email: userEmail,
         });
-        callback(new Error('Sign-up not allowed from this source'), event);
+        throw new Error('Sign-up not allowed from this source');
     }
   } catch (error) {
     logger.error('Error in PreSignUp handler', {
       error: error instanceof Error ? error.message : String(error),
       triggerSource: event.triggerSource,
     });
-    callback(error instanceof Error ? error : new Error(String(error)), event);
+    throw error;
   }
 };

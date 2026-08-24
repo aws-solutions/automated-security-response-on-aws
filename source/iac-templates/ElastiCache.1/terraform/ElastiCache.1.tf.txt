@@ -1,0 +1,9 @@
+# ElastiCache.1 — ElastiCache clusters should have automatic backups enabled
+#
+# ASR remediation enables automatic backups for the Redis OSS ElastiCache cluster.
+# To apply this fix, set snapshot_retention_limit on your ElastiCache
+# replication group or cluster.
+
+resource "aws_elasticache_replication_group" "{replicationGroup}" {
+  snapshot_retention_limit = 1
+}

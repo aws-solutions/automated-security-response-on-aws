@@ -1,0 +1,57 @@
+# CloudWatch.1 — A log metric filter and alarm should exist for usage of the "root" user
+#
+# ASR remediation creates a CloudWatch Logs metric filter and a CloudWatch alarm
+# with an encrypted SNS topic for notifications.
+# To apply this fix, add a metric filter on your log group, a CloudWatch alarm
+# for the metric, and an SNS topic to receive alarm notifications.
+# NOTE: <KMS_KEY> — your KMS key for SNS topic encryption.
+# NOTE: aws_cloudwatch_log_group.{logGroup} — your CloudWatch Logs log group (filled at runtime).
+
+resource "aws_sns_topic" "alarm_notifications" {
+  kms_master_key_id = "<KMS_KEY>"
+}
+
+resource "aws_sns_topic_policy" "alarm_notifications" {
+  arn = aws_sns_topic.alarm_notifications.arn
+
+  policy = jsonencode({
+    Statement = [
+      {
+        Sid       = "AWSCloudWatchSNSPolicy"
+        Effect    = "Allow"
+        Principal = { Service = "cloudwatch.amazonaws.com" }
+        Action    = "SNS:Publish"
+        Resource  = aws_sns_topic.alarm_notifications.arn
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_log_metric_filter" "{logGroup}" {
+  name           = "RootAccountUsageFilter"
+  log_group_name = aws_cloudwatch_log_group.{logGroup}.name
+  pattern        = "{$.userIdentity.type=\"Root\" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !=\"AwsServiceEvent\"}"
+
+  metric_transformation {
+    namespace = "LogMetrics"
+    name      = "RootAccountUsageCount"
+    value     = "1"
+    unit      = "Count"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "{logGroup}" {
+  alarm_name          = "RootAccountUsageAlarm"
+  alarm_description   = "Alarm for root account usage"
+  metric_name         = "RootAccountUsageCount"
+  namespace           = "LogMetrics"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 12
+  datapoints_to_alarm = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarm_notifications.arn]
+  ok_actions          = [aws_sns_topic.alarm_notifications.arn]
+}

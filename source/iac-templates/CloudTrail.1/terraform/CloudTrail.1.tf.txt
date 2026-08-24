@@ -1,0 +1,16 @@
+# CloudTrail.1 — CloudTrail should be enabled and configured with at least one multi-Region trail
+#
+# ASR remediation creates a multi-region CloudTrail trail with KMS encryption and log file validation enabled.
+# To apply this fix, add or update your CloudTrail trail to enable multi-region logging,
+# log file validation, global service events, and KMS encryption.
+# NOTE: <CLOUDTRAIL_BUCKET> — your S3 bucket for CloudTrail logs.
+# NOTE: <KMS_KEY> — your KMS key for trail encryption.
+
+resource "aws_cloudtrail" "{trailName}" {
+  name                          = "multi-region-cloud-trail"
+  s3_bucket_name                = "<CLOUDTRAIL_BUCKET>"
+  is_multi_region_trail         = true
+  include_global_service_events = true
+  enable_log_file_validation    = true
+  kms_key_id                    = "<KMS_KEY>"
+}

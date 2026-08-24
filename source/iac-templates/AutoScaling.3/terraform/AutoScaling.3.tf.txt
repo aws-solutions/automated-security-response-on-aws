@@ -1,0 +1,13 @@
+# AutoScaling.3 — Launch configurations should configure EC2 instances to require IMDSv2
+#
+# ASR remediation creates a new launch configuration with IMDSv2 required and
+# updates the Auto Scaling group to use it.
+# To apply this fix, add a metadata_options block to your launch configuration
+# with http_tokens set to "required" and http_endpoint set to "enabled".
+
+resource "aws_launch_configuration" "{launchConfiguration}" {
+  metadata_options {
+    http_tokens   = "required"
+    http_endpoint = "enabled"
+  }
+}

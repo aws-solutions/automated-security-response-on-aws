@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { CloudFormationCustomResourceEvent, Context } from 'aws-lambda';
+import { CloudFrontClient, CreateInvalidationCommand } from '@aws-sdk/client-cloudfront';
 import { ASRS3Client } from '../clients/ASRS3Client';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { FAILED, send, SUCCESS } from './cfnResponse';
+import { deployWebuiEnvironment } from './deployWebuiEnvironment';
 
 export interface WebUIConfig {
   SrcBucket: string;
@@ -25,16 +27,19 @@ const logger = new Logger({
 export async function lambdaHandler(event: CloudFormationCustomResourceEvent, context: Context): Promise<void> {
   logger.info('Event:', { event });
 
+  const physicalResourceId =
+    event.RequestType === 'Create' ? `WebUIDeployment-${event.StackId.split('/')[1]}` : event.PhysicalResourceId;
+
   try {
     if (event.RequestType === 'Create' || event.RequestType === 'Update') {
       const deployer = new WebUIDeployer();
       await deployer.deploy();
     }
     logger.info('SUCCESS:', { event });
-    await send(event, context, SUCCESS, { Message: 'WebUI successfully deployed' });
+    await send(event, context, SUCCESS, { Message: 'WebUI successfully deployed' }, physicalResourceId);
   } catch (error) {
     logger.error('An error occurred:', { error });
-    await send(event, context, FAILED, { Message: 'An error occurred' });
+    await send(event, context, FAILED, { Message: 'An error occurred' }, physicalResourceId);
   }
 }
 
@@ -60,16 +65,50 @@ export class WebUIDeployer {
      * For that reason, aws-exports.json cannot be included in the build
      * but has to be created dynamically at deploy time.
      */
-    const configString = process.env.CONFIG;
-    if (!configString) {
-      throw new Error('CONFIG environment variable is required');
-    }
+    const env = deployWebuiEnvironment();
 
-    const config: WebUIConfig = JSON.parse(configString);
+    const config: WebUIConfig = JSON.parse(env.CONFIG);
     this.logger.info('Config:', { config });
 
     await this.copyUIFilesToConsoleBucket(config);
     await this.createConfigFile(config);
+    await this.invalidateDistribution(env.CLOUDFRONT_DISTRIBUTION_ID);
+  }
+
+  /**
+   * Invalidate the CloudFront paths that are not content-hashed, so a redeploy
+   * is served immediately instead of stale until the edge cache TTL expires.
+   * index.html references the content-hashed JS/CSS bundles by name, so
+   * invalidating it (plus the dynamically written aws-exports.json) is
+   * sufficient. A failed invalidation must not fail the deploy — the assets are
+   * already copied — so it is logged and swallowed.
+   */
+  private async invalidateDistribution(distributionId: string | undefined): Promise<void> {
+    if (!distributionId) {
+      this.logger.info('CLOUDFRONT_DISTRIBUTION_ID not set; skipping CloudFront invalidation');
+      return;
+    }
+    try {
+      const cloudfront = new CloudFrontClient({});
+      await cloudfront.send(
+        new CreateInvalidationCommand({
+          DistributionId: distributionId,
+          InvalidationBatch: {
+            CallerReference: `asr-webui-deploy-${Date.now()}`,
+            Paths: { Quantity: 3, Items: ['/', '/index.html', '/aws-exports.json'] },
+          },
+        }),
+      );
+      this.logger.info('Created CloudFront invalidation', { distributionId });
+    } catch (error) {
+      this.logger.warn(
+        'CloudFront invalidation failed; assets are deployed but the edge cache may serve stale content until its TTL expires',
+        {
+          distributionId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
   }
 
   private async createConfigFile(config: WebUIConfig): Promise<void> {

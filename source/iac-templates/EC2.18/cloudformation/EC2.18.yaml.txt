@@ -1,0 +1,21 @@
+# EC2.18 — Security groups should only allow unrestricted incoming traffic for authorized ports
+#
+# ASR remediation revokes inbound security group rules that allow unrestricted
+# access (0.0.0.0/0 or ::/0) on ports not in the authorized list (default: TCP 80, 443).
+# To apply this fix, restrict the CidrIp or CidrIpv6 on your ingress rules to
+# specific trusted ranges instead of allowing open access.
+
+Resources:
+  {securityGroup}:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group with restricted ingress
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.0.0.0/16
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 10.0.0.0/16

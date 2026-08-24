@@ -1,0 +1,7 @@
+// IAM.22 — IAM user credentials unused for 45 days should be removed
+//
+// ASR remediation deactivates IAM user access keys and deletes login profiles
+// for credentials that have not been used within 45 days.
+// No IaC change is needed. Revoking unused credentials is an operational
+// activity that cannot be represented as an infrastructure-as-code resource
+// property.

@@ -25,6 +25,72 @@ class PartialFindingData(TypedDict, total=False):
     lastUpdatedBy: str
 
 
+class FindingMetricAttributes(TypedDict, total=False):
+    """Metric-enrichment attributes stamped on a finding at ingestion and read back to
+    enrich the successful-remediation metric. Keys are the snake_case metric field names;
+    each is present only when the corresponding attribute exists on the finding item."""
+
+    first_detected_time: str
+    finding_notifications_enabled: bool
+    finding_remediation_deadline_configured: bool
+
+
+def get_metric_attributes(
+    dynamodb: "DynamoDBClient",
+    finding_type: str,
+    finding_id: str,
+) -> FindingMetricAttributes:
+    """Reads only the metric-enrichment attributes for a finding via a projected GetItem.
+
+    Fetches the first-detected time and the notification/deadline configuration flags used
+    to report Mean Time To Remediate, projecting just those attributes so the large
+    findingJSON blob is never transferred. Returns an empty dict when the finding or the
+    attributes are absent, or on error — enrichment is best-effort and must never block
+    metric publishing.
+    """
+    attributes: FindingMetricAttributes = {}
+    try:
+        response = dynamodb.get_item(
+            TableName=os.getenv("FINDINGS_TABLE_NAME", ""),
+            Key={
+                "findingType": {"S": finding_type},
+                "findingId": {"S": finding_id},
+            },
+            ProjectionExpression="firstDetectedTime, hasFindingNotificationsEnabled, hasFindingRemediationDeadlineConfigured",
+        )
+        item = response.get("Item")
+        if not item:
+            return attributes
+
+        first_detected_time = item.get("firstDetectedTime", {}).get("S")
+        if first_detected_time is not None:
+            attributes["first_detected_time"] = first_detected_time
+
+        notifications_enabled = item.get("hasFindingNotificationsEnabled", {}).get(
+            "BOOL"
+        )
+        if notifications_enabled is not None:
+            attributes["finding_notifications_enabled"] = notifications_enabled
+
+        deadline_configured = item.get(
+            "hasFindingRemediationDeadlineConfigured", {}
+        ).get("BOOL")
+        if deadline_configured is not None:
+            attributes["finding_remediation_deadline_configured"] = deadline_configured
+
+        return attributes
+    except Exception as e:
+        logger.warning(
+            "Error retrieving finding metric attributes",
+            extra={
+                "findingType": finding_type,
+                "findingId": finding_id,
+                "error": str(e),
+            },
+        )
+        return attributes
+
+
 def get(
     dynamodb: "DynamoDBClient",
     finding_type: str,

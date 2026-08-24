@@ -4,7 +4,7 @@
 import { TableProps } from '@cloudscape-design/components/table';
 
 import { Badge, Link, StatusIndicator } from '@cloudscape-design/components';
-import { NavigateFunction } from 'react-router-dom';
+import { NavigateFunction } from 'react-router';
 import { FindingApiResponse } from '@data-models';
 
 const getStatusIndicatorType = (status: string) => {
@@ -42,7 +42,7 @@ const formatStatus = (status: string) => {
 
   // Convert underscores to spaces and capitalize each word
   return status
-    .replace(/_/g, ' ')
+    .replaceAll('_', ' ')
     .toLowerCase()
     .replace(/\b\w/g, (l) => l.toUpperCase());
 };
@@ -101,28 +101,41 @@ export const createColumnDefinitions = (
       const hasHistory = ['in_progress', 'failed', 'success'].includes(remediationStatus?.toLowerCase() || '');
 
       if (hasHistory) {
+        const goToHistory = () =>
+          navigate('/history', {
+            state: {
+              filterTokens: [
+                {
+                  propertyKey: 'findingId',
+                  operator: '=',
+                  value: findingId,
+                },
+              ],
+            },
+          });
+        const setUnderline = (target: EventTarget | null, value: 'underline' | 'none') => {
+          if (target instanceof HTMLElement) target.style.textDecoration = value;
+        };
         return (
           <StatusIndicator type={getStatusIndicatorType(remediationStatus)}>
             <span
-              onClick={() =>
-                navigate('/history', {
-                  state: {
-                    filterTokens: [
-                      {
-                        propertyKey: 'findingId',
-                        operator: '=',
-                        value: findingId,
-                      },
-                    ],
-                  },
-                })
-              }
+              role="button"
+              tabIndex={0}
+              onClick={goToHistory}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  goToHistory();
+                }
+              }}
               style={{
                 cursor: 'pointer',
                 textDecoration: 'none',
               }}
-              onMouseEnter={(e) => ((e.target as HTMLElement).style.textDecoration = 'underline')}
-              onMouseLeave={(e) => ((e.target as HTMLElement).style.textDecoration = 'none')}
+              onMouseEnter={(e) => setUnderline(e.target, 'underline')}
+              onMouseLeave={(e) => setUnderline(e.target, 'none')}
+              onFocus={(e) => setUnderline(e.target, 'underline')}
+              onBlur={(e) => setUnderline(e.target, 'none')}
             >
               {formatStatus(remediationStatus)}
             </span>

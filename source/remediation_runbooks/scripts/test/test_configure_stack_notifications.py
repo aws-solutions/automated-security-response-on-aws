@@ -47,7 +47,8 @@ def test_configures_stack(mock_resource):
     with patch("boto3.client", side_effect=lambda service, **_: clients[service]):
         event = {"stack_arn": stack_arn, "topic_name": topic_name}
         response = lambda_handler(event, {})
-        assert response == {"NotificationARNs": [topic_arn]}
+        assert response == {"NotificationARNs": [topic_arn], "resource_arn": topic_arn}
+        assert response["resource_arn"] == topic_arn
 
     mock_resource.return_value.Stack.return_value.update.assert_called_once_with(
         UsePreviousTemplate=True, NotificationARNs=[topic_arn]
@@ -87,7 +88,8 @@ def test_configures_with_parameters(mock_resource):
     with patch("boto3.client", side_effect=lambda service, **_: clients[service]):
         event = {"stack_arn": stack_arn, "topic_name": topic_name}
         response = lambda_handler(event, {})
-        assert response == {"NotificationARNs": [topic_arn]}
+        assert response == {"NotificationARNs": [topic_arn], "resource_arn": topic_arn}
+        assert response["resource_arn"] == topic_arn
 
     mock_resource.return_value.Stack.return_value.update.assert_called_once_with(
         UsePreviousTemplate=True,
@@ -133,7 +135,8 @@ def test_configures_with_capabilities(mock_resource):
     with patch("boto3.client", side_effect=lambda service, **_: clients[service]):
         event = {"stack_arn": stack_arn, "topic_name": topic_name}
         response = lambda_handler(event, {})
-        assert response == {"NotificationARNs": [topic_arn]}
+        assert response == {"NotificationARNs": [topic_arn], "resource_arn": topic_arn}
+        assert response["resource_arn"] == topic_arn
 
     mock_resource.return_value.Stack.return_value.update.assert_called_once_with(
         UsePreviousTemplate=True,

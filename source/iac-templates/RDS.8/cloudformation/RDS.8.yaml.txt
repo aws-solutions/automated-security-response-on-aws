@@ -1,0 +1,11 @@
+# RDS.8 — RDS DB instances should have deletion protection enabled
+#
+# ASR remediation enables deletion protection on the RDS DB instance by calling
+# ModifyDBInstance with DeletionProtection set to true.
+# To apply this fix, set DeletionProtection to true on your DB instance.
+
+Resources:
+  {dbInstance}:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DeletionProtection: true

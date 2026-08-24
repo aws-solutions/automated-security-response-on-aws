@@ -177,3 +177,52 @@ def test_enable_config_with_existing_recorder():
 
     verify_config_enabled_with_all_resources("my-recorder")
     assert response["Message"]
+
+
+@mock_aws
+def test_create_config_bucket_returns_arn():
+    """Test that create_encrypted_bucket returns the bucket ARN"""
+    kms_key_arn = setup_key_and_logging_bucket()
+
+    event = {
+        "kms_key_arn": kms_key_arn,
+        "partition": "aws",
+        "account": "123456789012",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
+    }
+
+    result = createconfigbucket.create_encrypted_bucket(event, {})
+
+    assert "config_bucket" in result
+    assert "ResourceArn" in result
+    assert result["config_bucket"] == "so0111-aws-config-us-east-1-123456789012"
+    assert (
+        result["ResourceArn"] == "arn:aws:s3:::so0111-aws-config-us-east-1-123456789012"
+    )
+
+
+@mock_aws
+def test_create_config_bucket_returns_arn_for_existing_bucket():
+    """Test that create_encrypted_bucket returns ARN even when bucket already exists"""
+    kms_key_arn = setup_key_and_logging_bucket()
+
+    event = {
+        "kms_key_arn": kms_key_arn,
+        "partition": "aws",
+        "account": "123456789012",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
+    }
+
+    # Create bucket first time
+    result1 = createconfigbucket.create_encrypted_bucket(event, {})
+    assert "ResourceArn" in result1
+
+    # Create bucket second time (should return "already exists")
+    result2 = createconfigbucket.create_encrypted_bucket(event, {})
+    assert "ResourceArn" in result2
+    assert (
+        result2["ResourceArn"]
+        == "arn:aws:s3:::so0111-aws-config-us-east-1-123456789012"
+    )

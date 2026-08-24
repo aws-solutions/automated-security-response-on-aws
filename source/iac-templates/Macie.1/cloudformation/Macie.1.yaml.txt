@@ -1,0 +1,12 @@
+# Macie.1 — Amazon Macie should be enabled
+#
+# ASR remediation enables Amazon Macie with the finding publishing frequency set to SIX_HOURS.
+# To apply this fix, add an AWS::Macie::Session resource with FindingPublishingFrequency
+# and Status set as shown below.
+
+Resources:
+  {macieSession}:
+    Type: AWS::Macie::Session
+    Properties:
+      FindingPublishingFrequency: SIX_HOURS
+      Status: ENABLED

@@ -7,7 +7,7 @@ import { AppRoutes } from './AppRoutes.tsx';
 import { useDispatch } from 'react-redux';
 import { UserContext } from './contexts/UserContext.tsx';
 import { Spinner } from '@cloudscape-design/components';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 
 export const AppComponent = () => {
   const dispatch = useDispatch<any>();

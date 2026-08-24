@@ -47,7 +47,7 @@ class CloudWatchMetrics:
         try:
             ssm_parm = "/Solutions/SO0111/sendCloudwatchMetrics"
             send_cloudwatch_metrics_from_ssm = (
-                self.ssm_client.get_parameter(Name=ssm_parm)  # type: ignore[union-attr]
+                self.ssm_client.get_parameter(Name=ssm_parm)
                 .get("Parameter")
                 .get("Value")
             )
@@ -88,13 +88,18 @@ class CloudWatchMetrics:
             print(f"Could not connect to cloudwatch: {str(e)}")
             raise e
 
-    def send_metric(self, metric: Any) -> None:
+    def send_metric(
+        self, metric: dict[str, Any] | None, namespace: str | None = None
+    ) -> None:
         try:
             if metric is None or not self.metrics_enabled or not self.cloudwatch_client:
                 return
             self.cloudwatch_client.put_metric_data(
-                MetricData=[metric],
-                Namespace=self.namespace,
+                # boto3 stubs define MetricDatumTypeDef with required keys that
+                # conflict with the runtime-accepted dict shape. The dict is valid
+                # at runtime; the stub is overly strict for inline dict literals.
+                MetricData=[metric],  # type: ignore[list-item]
+                Namespace=namespace or self.namespace,
             )
         except Exception as exception:
             print(f"Could not send cloudwatch metric: {str(exception)}")

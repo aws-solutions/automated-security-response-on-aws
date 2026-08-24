@@ -3,16 +3,16 @@ name = "automated_security_response_on_aws"
 package-mode = false
 
 [tool.poetry.dependencies]
-aws-lambda-powertools = {extras = ["tracer"], version = "3.1.0"}
+aws-lambda-powertools = {extras = ["tracer"], version = "3.29.0"}
 python = "^3.11"
-boto3 = "1.40.76"
+boto3 = "1.42.55"
 
 [tool.poetry.group.dev.dependencies]
 python = "^3.11"
 black = "26.3.1"
 flake8 = "7.3.0"
 isort = "5.13.2"
-mypy = "1.17.1"
+mypy = "1.19.1"
 pytest = "9.0.3"
 pytest-cov = "5.0.0"
 pytest-env = "1.1.5"
@@ -22,16 +22,21 @@ tox = "4.28.4"
 virtualenv = "20.36.1"
 filelock = "3.20.3"
 boto3-stubs-lite = { extras = ["cloudfront", "cloudformation", "cloudwatch", "ec2", "iam", "s3", "sns", "ssm", "sts", "dynamodb"], version = "^1.40.0" }
-moto = { extras = ["cloudfront", "dynamodb", "s3"], version = "5.2.2" }
+moto = { extras = ["cloudfront", "dynamodb", "s3", "resourcegroupstaggingapi"], version = "5.1.21" }
 types-urllib3 = "1.26.25.14"
 urllib3 = "2.7.0"
-aws-lambda-powertools = {extras = ["tracer"], version = "3.1.0"}
+aws-lambda-powertools = {extras = ["tracer"], version = "3.29.0"}
 aws_lambda_context = "1.1.0"
 openapi_spec_validator = "0.7.2"
 jinja2 = "3.1.6"
-requests = ">=2.33.0"
-pygments = ">=2.20.0"
-# click >= 8.3.3 - CVE-2026-7246 (transitive via black)
+# Security floors for transitive dependencies (pulled in via moto and other
+# dev tooling). Pinned to the fixed versions from the CVE scan:
+#   cryptography >= 50.0.0 - CVE-2026-69247 (PKCS#7 Bleichenbacher oracle),
+#     supersedes the earlier >= 48.0.1 floor for GHSA-537c-gmf6-5ccf
+#   joserfc >= 1.6.8 - CVE-2026-48990, CVE-2026-49852
+#   click >= 8.3.3 - CVE-2026-7246 (pulled in via black)
+cryptography = ">=50.0.0"
+joserfc = ">=1.6.8"
 click = ">=8.3.3"
 
 [build-system]

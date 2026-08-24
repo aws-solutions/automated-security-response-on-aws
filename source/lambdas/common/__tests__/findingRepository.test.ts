@@ -4,9 +4,10 @@
 import { FindingTableItem } from '@asr/data-models';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { FindingRepository } from '../repositories/findingRepository';
+import { FindingRepository, ValidationError } from '../repositories/findingRepository';
 import { DynamoDBTestSetup } from './dynamodbSetup';
 import { findingsTableName } from './envSetup';
+import { asFindingId } from './utils';
 
 describe('FindingRepository', () => {
   const principal = 'test-user';
@@ -16,7 +17,7 @@ describe('FindingRepository', () => {
 
   const createMockFinding = (overrides: Partial<FindingTableItem> = {}): FindingTableItem => ({
     findingType: 'security-control',
-    findingId: 'test-finding-id',
+    findingId: asFindingId('test-finding-id'),
     findingDescription: 'Test finding description',
     accountId: '123456789012',
     resourceId: 'arn:aws:s3:::test-bucket',
@@ -73,7 +74,7 @@ describe('FindingRepository', () => {
     });
 
     it('should fail gracefully when trying to create duplicate finding', async () => {
-      const finding = createMockFinding({ findingId: 'duplicate-test' });
+      const finding = createMockFinding({ findingId: asFindingId('duplicate-test') });
 
       await repository.createIfNotExists(finding);
 
@@ -83,9 +84,87 @@ describe('FindingRepository', () => {
     });
   });
 
+  describe('tryAcquireRollbackLock', () => {
+    const guardDutyType = 'GuardDuty.IAMUser';
+    const lockFindingId = asFindingId('rollback-lock-test');
+    // staleBefore far in the past so a fresh in-progress lock is never considered stale
+    const NOW = '2024-06-01T12:00:00.000Z';
+    const STALE_BEFORE = '2024-06-01T11:30:00.000Z';
+
+    const seed = async (overrides: Partial<FindingTableItem>) => {
+      await repository.put(createMockFinding({ findingType: guardDutyType, findingId: lockFindingId, ...overrides }));
+    };
+
+    const readStatus = async () => {
+      const result = await dynamoDBDocumentClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: guardDutyType, findingId: lockFindingId },
+        }),
+      );
+      return result.Item;
+    };
+
+    it('acquires the lock from SUCCESS and stamps rollbackStartedAt', async () => {
+      await seed({ remediationStatus: 'SUCCESS' });
+
+      const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      expect(result).toBe('ACQUIRED');
+      const item = await readStatus();
+      expect(item?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+      expect(item?.rollbackStartedAt).toBe(NOW);
+    });
+
+    it('acquires the lock from ROLLBACK_FAILED (retry)', async () => {
+      await seed({ remediationStatus: 'ROLLBACK_FAILED' });
+
+      const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      expect(result).toBe('ACQUIRED');
+    });
+
+    it('rejects a second rollback while a fresh lock is held (double-rollback guard)', async () => {
+      await seed({ remediationStatus: 'ROLLBACK_IN_PROGRESS', rollbackStartedAt: NOW });
+
+      const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      expect(result).toBe('IN_PROGRESS');
+    });
+
+    it('re-acquires the lock when the in-progress lock is stale', async () => {
+      // rollbackStartedAt older than STALE_BEFORE -> treated as abandoned
+      await seed({ remediationStatus: 'ROLLBACK_IN_PROGRESS', rollbackStartedAt: '2024-06-01T10:00:00.000Z' });
+
+      const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      expect(result).toBe('ACQUIRED');
+      const item = await readStatus();
+      expect(item?.rollbackStartedAt).toBe(NOW);
+    });
+
+    it('returns INELIGIBLE for a non-initiable status (e.g. FAILED remediation)', async () => {
+      await seed({ remediationStatus: 'FAILED' });
+
+      const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      expect(result).toBe('INELIGIBLE');
+      const item = await readStatus();
+      expect(item?.remediationStatus).toBe('FAILED');
+    });
+
+    it('returns INELIGIBLE for an already rolled-back finding', async () => {
+      await seed({ remediationStatus: 'ROLLBACK_SUCCESS' });
+
+      const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      expect(result).toBe('INELIGIBLE');
+    });
+  });
+
   describe('updateFinding', () => {
     it('should update existing finding successfully', async () => {
-      const finding = createMockFinding({ findingId: 'update-test' });
+      const finding = createMockFinding({ findingId: asFindingId('update-test') });
       await repository.put(finding);
 
       const updatedFinding = {
@@ -104,7 +183,7 @@ describe('FindingRepository', () => {
 
     it('should not update when securityHubUpdatedAtTime is older', async () => {
       const finding = createMockFinding({
-        findingId: 'timestamp-test',
+        findingId: asFindingId('timestamp-test'),
         securityHubUpdatedAtTime: '2023-01-02T00:00:00Z',
       });
       await repository.put(finding);
@@ -133,7 +212,7 @@ describe('FindingRepository', () => {
 
     it('should update when securityHubUpdatedAtTime is newer', async () => {
       const finding = createMockFinding({
-        findingId: 'newer-timestamp-test',
+        findingId: asFindingId('newer-timestamp-test'),
         securityHubUpdatedAtTime: '2023-01-01T00:00:00Z',
       });
       await repository.put(finding);
@@ -151,7 +230,7 @@ describe('FindingRepository', () => {
     });
 
     it('should handle update with all fields changed', async () => {
-      const finding = createMockFinding({ findingId: 'full-update-test' });
+      const finding = createMockFinding({ findingId: asFindingId('full-update-test') });
       await repository.putIfNewer(finding);
 
       const updatedFinding: FindingTableItem = {
@@ -182,7 +261,7 @@ describe('FindingRepository', () => {
 
   describe('getFinding', () => {
     it('should retrieve existing finding', async () => {
-      const finding = createMockFinding({ findingId: 'get-test' });
+      const finding = createMockFinding({ findingId: asFindingId('get-test') });
       await repository.put(finding);
 
       const result = await repository.findByIdWithCache(finding.findingId, finding.findingType);
@@ -198,8 +277,8 @@ describe('FindingRepository', () => {
     });
 
     it('should not use cache for different finding IDs', async () => {
-      const finding1 = createMockFinding({ findingId: 'cache-test-1' });
-      const finding2 = createMockFinding({ findingId: 'cache-test-2' });
+      const finding1 = createMockFinding({ findingId: asFindingId('cache-test-1') });
+      const finding2 = createMockFinding({ findingId: asFindingId('cache-test-2') });
       await repository.putIfNewer(finding1);
       await repository.putIfNewer(finding2);
 
@@ -216,7 +295,7 @@ describe('FindingRepository', () => {
     });
 
     it('should use cached result on subsequent calls', async () => {
-      const finding = createMockFinding({ findingId: 'cache-test' });
+      const finding = createMockFinding({ findingId: asFindingId('cache-test') });
       await repository.putIfNewer(finding);
 
       const sendSpy = jest.spyOn(dynamoDBDocumentClient, 'send');
@@ -235,7 +314,7 @@ describe('FindingRepository', () => {
     });
 
     it('should expose lastUpdatedBy field for audit purposes', async () => {
-      const finding = createMockFinding({ findingId: 'no-audit-field-test' });
+      const finding = createMockFinding({ findingId: asFindingId('no-audit-field-test') });
       await repository.putIfNewer(finding);
 
       const result = await repository.findByIdWithCache(finding.findingId, finding.findingType);
@@ -247,7 +326,7 @@ describe('FindingRepository', () => {
 
   describe('findingExists', () => {
     it('should return true for existing finding', async () => {
-      const finding = createMockFinding({ findingId: 'existing-finding-id' });
+      const finding = createMockFinding({ findingId: asFindingId('existing-finding-id') });
       await repository.putIfNewer(finding);
 
       const exists = await repository.exists(finding.findingId, finding.findingType);
@@ -266,7 +345,7 @@ describe('FindingRepository', () => {
     });
 
     it('should use cache when available', async () => {
-      const finding = createMockFinding({ findingId: 'cache-exists-test' });
+      const finding = createMockFinding({ findingId: asFindingId('cache-exists-test') });
       await repository.putIfNewer(finding);
 
       const sendSpy = jest.spyOn(dynamoDBDocumentClient, 'send');
@@ -287,7 +366,7 @@ describe('FindingRepository', () => {
 
   describe('deleteIfExists', () => {
     it('should delete existing finding successfully', async () => {
-      const finding = createMockFinding({ findingId: 'delete-test' });
+      const finding = createMockFinding({ findingId: asFindingId('delete-test') });
       await repository.put(finding);
 
       await repository.deleteIfExists(finding.findingId, finding.findingType);
@@ -301,26 +380,161 @@ describe('FindingRepository', () => {
     });
   });
 
+  describe('recordRemediationAttempt', () => {
+    it('atomically increments remediationAttempts and stamps lastRemediationAttemptTime', async () => {
+      const finding = createMockFinding({ findingId: asFindingId('attempt-test') });
+      await repository.put(finding);
+
+      const firstAttemptTime = '2026-07-14T00:00:00.000Z';
+      const secondAttemptTime = '2026-07-14T00:15:00.000Z';
+      await repository.recordRemediationAttempt(finding.findingId, finding.findingType, firstAttemptTime);
+      await repository.recordRemediationAttempt(finding.findingId, finding.findingType, secondAttemptTime);
+
+      // Fresh repository to bypass the read cache and observe persisted values.
+      const freshRepository = new FindingRepository(principal, findingsTableName, dynamoDBDocumentClient);
+      const result = await freshRepository.findByIdWithCache(finding.findingId, finding.findingType);
+      expect(result?.remediationAttempts).toBe(2);
+      expect(result?.lastRemediationAttemptTime).toBe(secondAttemptTime);
+    });
+
+    it('rejects an empty finding key with a ValidationError', async () => {
+      await expect(repository.recordRemediationAttempt('', 'some-type', '2026-07-14T00:00:00.000Z')).rejects.toThrow(
+        ValidationError,
+      );
+    });
+  });
+
+  describe('findByFindingIds', () => {
+    // ARN format required so getControlIdFromFindingId can derive findingType
+    const ARN_1 = asFindingId('arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/findbyids-1');
+    const ARN_2 = asFindingId('arn:aws:securityhub:us-east-1:123456789012:security-control/S3.2/finding/findbyids-2');
+    // Native (non-Security-Hub) ARNs from the OCSF Detection / Vulnerability ingestion path —
+    // the partition key (findingType) is the multi-service remediation id set by
+    // findingTypeMapper at write time, derived from the ARN service prefix at read time.
+    const GUARDDUTY_NATIVE_ARN = asFindingId(
+      'arn:aws:guardduty:us-east-1:123456789012:detector/abcd1234efgh5678/finding/9876543210',
+    );
+    const INSPECTOR_NATIVE_ARN = asFindingId(
+      'arn:aws:inspector2:us-east-1:123456789012:finding/abc123def456ghi789jkl012mno345pqr',
+    );
+    const MACIE_NATIVE_ARN = asFindingId('arn:aws:macie2:us-east-1:123456789012:finding/abc-def-ghi');
+
+    it('should return empty array when no finding IDs are provided', async () => {
+      const { findings: result } = await repository.findByFindingIds([]);
+      expect(result).toEqual([]);
+    });
+
+    it('should return findings that match the provided IDs', async () => {
+      await repository.put(createMockFinding({ findingType: 'security-control/S3.1', findingId: ARN_1 }));
+      await repository.put(createMockFinding({ findingType: 'security-control/S3.2', findingId: ARN_2 }));
+
+      const { findings: result } = await repository.findByFindingIds([ARN_1, ARN_2]);
+
+      expect(result).toHaveLength(2);
+      expect(result.map((f) => f.findingId).sort()).toEqual([ARN_1, ARN_2].sort());
+    });
+
+    it('should skip findingIds that cannot be parsed and return only the valid ones', async () => {
+      await repository.put(createMockFinding({ findingType: 'security-control/S3.1', findingId: ARN_1 }));
+
+      const { findings: result, nonDerivableIds } = await repository.findByFindingIds([
+        ARN_1,
+        asFindingId('not-a-valid-arn'),
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].findingId).toBe(ARN_1);
+      // The unparseable id is surfaced rather than silently dropped: it was never queried, which
+      // is not the same as being queried and not found. See ADR 0010.
+      expect(nonDerivableIds).toEqual(['not-a-valid-arn']);
+    });
+
+    it('should return empty array when all findingIds are unparseable', async () => {
+      const { findings: result, nonDerivableIds } = await repository.findByFindingIds([
+        asFindingId('not-a-valid-arn'),
+        asFindingId('also-not-valid'),
+      ]);
+      expect(result).toEqual([]);
+      expect(nonDerivableIds).toEqual(['not-a-valid-arn', 'also-not-valid']);
+    });
+
+    it('should deduplicate repeated findingIds before batch-get', async () => {
+      await repository.put(createMockFinding({ findingType: 'security-control/S3.1', findingId: ARN_1 }));
+
+      const { findings: result } = await repository.findByFindingIds([ARN_1, ARN_1, ARN_1]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].findingId).toBe(ARN_1);
+    });
+
+    it('should retrieve GuardDuty findings stored with native ARN as findingId', async () => {
+      await repository.put(createMockFinding({ findingType: 'GuardDuty.IAMUser', findingId: GUARDDUTY_NATIVE_ARN }));
+
+      const { findings: result } = await repository.findByFindingIds([GUARDDUTY_NATIVE_ARN]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].findingId).toBe(GUARDDUTY_NATIVE_ARN);
+      expect(result[0].findingType).toBe('GuardDuty.IAMUser');
+    });
+
+    it('should retrieve Inspector findings stored with native ARN as findingId', async () => {
+      await repository.put(
+        createMockFinding({ findingType: 'Inspector.InstanceVulnerability', findingId: INSPECTOR_NATIVE_ARN }),
+      );
+
+      const { findings: result } = await repository.findByFindingIds([INSPECTOR_NATIVE_ARN]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].findingId).toBe(INSPECTOR_NATIVE_ARN);
+      expect(result[0].findingType).toBe('Inspector.InstanceVulnerability');
+    });
+
+    it('should retrieve Macie findings stored with native ARN as findingId', async () => {
+      await repository.put(
+        createMockFinding({ findingType: 'Macie.SensitiveDataS3Object', findingId: MACIE_NATIVE_ARN }),
+      );
+
+      const { findings: result } = await repository.findByFindingIds([MACIE_NATIVE_ARN]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].findingId).toBe(MACIE_NATIVE_ARN);
+      expect(result[0].findingType).toBe('Macie.SensitiveDataS3Object');
+    });
+
+    it('should retrieve mixed Security Hub and native ARN findings in a single call', async () => {
+      await repository.put(createMockFinding({ findingType: 'security-control/S3.1', findingId: ARN_1 }));
+      await repository.put(createMockFinding({ findingType: 'GuardDuty.IAMUser', findingId: GUARDDUTY_NATIVE_ARN }));
+      await repository.put(
+        createMockFinding({ findingType: 'Macie.SensitiveDataS3Object', findingId: MACIE_NATIVE_ARN }),
+      );
+
+      const { findings: result } = await repository.findByFindingIds([ARN_1, GUARDDUTY_NATIVE_ARN, MACIE_NATIVE_ARN]);
+
+      expect(result).toHaveLength(3);
+      expect(result.map((f) => f.findingId).sort()).toEqual([ARN_1, GUARDDUTY_NATIVE_ARN, MACIE_NATIVE_ARN].sort());
+    });
+  });
+
   describe('searchFindings', () => {
     beforeEach(async () => {
       // Create test findings for search
       const findings = [
         createMockFinding({
-          findingId: 'search-test-1',
+          findingId: asFindingId('search-test-1'),
           accountId: '111111111111',
           severity: 'HIGH',
           resourceType: 'AWS::S3::Bucket',
           remediationStatus: 'NOT_STARTED',
         }),
         createMockFinding({
-          findingId: 'search-test-2',
+          findingId: asFindingId('search-test-2'),
           accountId: '222222222222',
           severity: 'MEDIUM',
           resourceType: 'AWS::EC2::Instance',
           remediationStatus: 'IN_PROGRESS',
         }),
         createMockFinding({
-          findingId: 'search-test-3',
+          findingId: asFindingId('search-test-3'),
           accountId: '111111111111',
           severity: 'LOW',
           resourceType: 'AWS::S3::Bucket',
@@ -524,7 +738,7 @@ describe('FindingRepository', () => {
 
     it('should handle resourceId filter', async () => {
       const finding = createMockFinding({
-        findingId: 'resource-filter-test',
+        findingId: asFindingId('resource-filter-test'),
         resourceId: 'arn:aws:s3:::unique-test-bucket',
       });
       await repository.putIfNewer(finding);
@@ -554,7 +768,7 @@ describe('FindingRepository', () => {
   describe('edge cases and error handling', () => {
     it('should handle finding with special characters in ID', async () => {
       const finding = createMockFinding({
-        findingId: 'special-chars-test',
+        findingId: asFindingId('special-chars-test'),
       });
 
       await repository.putIfNewer(finding);
@@ -566,7 +780,7 @@ describe('FindingRepository', () => {
     it('should handle finding with very long description', async () => {
       const longDescription = 'A'.repeat(1000);
       const finding = createMockFinding({
-        findingId: 'long-description-test',
+        findingId: asFindingId('long-description-test'),
         findingDescription: longDescription,
       });
 
@@ -579,7 +793,7 @@ describe('FindingRepository', () => {
     it('should handle finding with large findingJSON', async () => {
       const largeJson = new Uint8Array(Buffer.from(JSON.stringify({ data: 'X'.repeat(1000) })));
       const finding = createMockFinding({
-        findingId: 'large-json-test',
+        findingId: asFindingId('large-json-test'),
         findingJSON: largeJson,
       });
 
@@ -591,7 +805,7 @@ describe('FindingRepository', () => {
 
     it('should handle boolean fields correctly', async () => {
       const finding = createMockFinding({
-        findingId: 'boolean-test',
+        findingId: asFindingId('boolean-test'),
         suppressed: true,
       });
 
@@ -603,7 +817,7 @@ describe('FindingRepository', () => {
 
     it('should handle empty string fields', async () => {
       const finding = createMockFinding({
-        findingId: 'empty-string-test',
+        findingId: asFindingId('empty-string-test'),
         findingDescription: '',
       });
 
@@ -614,7 +828,7 @@ describe('FindingRepository', () => {
     });
 
     it('should maintain cache consistency after update', async () => {
-      const finding = createMockFinding({ findingId: 'cache-consistency-test' });
+      const finding = createMockFinding({ findingId: asFindingId('cache-consistency-test') });
       await repository.putIfNewer(finding);
 
       // Populate cache
@@ -644,7 +858,7 @@ describe('FindingRepository', () => {
 
       for (const status of statuses) {
         const finding = createMockFinding({
-          findingId: `remediation-status-${status}`,
+          findingId: asFindingId(`remediation-status-${status}`),
           remediationStatus: status,
         });
 
@@ -660,7 +874,7 @@ describe('FindingRepository', () => {
 
       for (const severity of severities) {
         const finding = createMockFinding({
-          findingId: `severity-${severity}`,
+          findingId: asFindingId(`severity-${severity}`),
           severity: severity,
         });
 
@@ -676,7 +890,7 @@ describe('FindingRepository', () => {
 
       for (const region of regions) {
         const finding = createMockFinding({
-          findingId: `region-${region}`,
+          findingId: asFindingId(`region-${region}`),
           region: region,
         });
 
@@ -721,7 +935,7 @@ describe('FindingRepository', () => {
       const findings = [
         createMockFinding({
           findingType: 'security-control/S3.1',
-          findingId: 'arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/12345',
+          findingId: asFindingId('arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/12345'),
           accountId: '123456789012',
           severity: 'HIGH',
           resourceType: 'AWS::S3::Bucket',
@@ -729,7 +943,7 @@ describe('FindingRepository', () => {
         }),
         createMockFinding({
           findingType: 'security-control/EC2.1',
-          findingId: 'arn:aws:securityhub:us-east-1:123456789012:security-control/EC2.1/finding/67890',
+          findingId: asFindingId('arn:aws:securityhub:us-east-1:123456789012:security-control/EC2.1/finding/67890'),
           accountId: '123456789012',
           severity: 'MEDIUM',
           resourceType: 'AWS::EC2::Instance',
@@ -737,8 +951,9 @@ describe('FindingRepository', () => {
         }),
         createMockFinding({
           findingType: 'cis-aws-foundations-benchmark/v/1.4.0/4.8',
-          findingId:
+          findingId: asFindingId(
             'arn:aws:securityhub:us-east-1:123456789012:subscription/cis-aws-foundations-benchmark/v/1.4.0/4.8/finding/abcdef',
+          ),
           accountId: '987654321098',
           severity: 'LOW',
           resourceType: 'AWS::IAM::Role',
@@ -773,6 +988,76 @@ describe('FindingRepository', () => {
       );
       expect(result.items[0].findingType).toBe('security-control/S3.1');
       expect(result.nextToken).toBeUndefined();
+    });
+
+    it('should use direct table queries for a native (non-Security-Hub) findingId EQUALS filter', async () => {
+      const guardDutyArn = 'arn:aws:guardduty:us-east-1:123456789012:detector/abcd/finding/1234';
+      await repository.putIfNewer(
+        createMockFinding({
+          findingType: 'GuardDuty.IAMUser',
+          findingId: asFindingId(guardDutyArn),
+          accountId: '123456789012',
+          severity: 'HIGH',
+          resourceType: 'AWS::IAM::User',
+          remediationStatus: 'NOT_STARTED',
+        }),
+      );
+
+      const criteria = {
+        filters: [
+          {
+            fieldName: 'findingId',
+            comparison: 'EQUALS' as const,
+            value: guardDutyArn,
+          },
+        ],
+        pageSize: 10,
+        sortOrder: 'desc' as const,
+      };
+
+      const result = await repository.searchFindings(criteria);
+
+      expect(result.items).toBeDefined();
+      expect(result.items.length).toBe(1);
+      expect(result.items[0].findingId).toBe(guardDutyArn);
+      expect(result.items[0].findingType).toBe('GuardDuty.IAMUser');
+      expect(result.nextToken).toBeUndefined();
+    });
+
+    it('should resolve a bare-hash (non-ARN) findingId EQUALS filter via the GSI fallback', async () => {
+      // Macie's finding id is a bare hash (the Security Hub V2 FindingInfoUid), not an ARN, so the
+      // partition key cannot be derived from it. The direct-query fast path is skipped and the
+      // search falls through to the GSI path, which applies findingId as a FilterExpression.
+      const macieFindingId = asFindingId('12984ad04a62649e69fcb701d3557c1d');
+      await repository.putIfNewer(
+        createMockFinding({
+          findingType: 'Macie.SensitiveDataS3Object',
+          findingId: macieFindingId,
+          accountId: '123456789012',
+          severity: 'HIGH',
+          resourceType: 'AWS::S3::Bucket',
+          remediationStatus: 'NOT_STARTED',
+        }),
+      );
+
+      const criteria = {
+        filters: [
+          {
+            fieldName: 'findingId',
+            comparison: 'EQUALS' as const,
+            value: macieFindingId,
+          },
+        ],
+        pageSize: 10,
+        sortOrder: 'desc' as const,
+      };
+
+      const result = await repository.searchFindings(criteria);
+
+      expect(result.items).toBeDefined();
+      expect(result.items.length).toBe(1);
+      expect(result.items[0].findingId).toBe(macieFindingId);
+      expect(result.items[0].findingType).toBe('Macie.SensitiveDataS3Object');
     });
 
     it('should use direct table queries for multiple findingId EQUALS filters', async () => {

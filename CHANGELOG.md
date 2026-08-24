@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-08-24
+
+### Added
+
+- Multi-service remediation for high-confidence, low-risk findings from Amazon Inspector, Amazon GuardDuty, and Amazon Macie, in both Security Hub CSPM (ASFF) and Security Hub v2 (OCSF) formats. GuardDuty and Macie remediations are first-line containment and require manual follow-up.
+- Automated Remediation Controls in the Web UI: manage automation for 100+ controls, with reusable resource filters (account, OU, ARN pattern, tag) applied per-control in include/exclude modes and role-based access.
+- Findings Notifications: configurable delivery channels (Email, Slack, JIRA, ServiceNow, SNS) with severity filtering, batching, resource-scoped targeting, and test-send.
+- Remediation deadline enforcement, with a 24-hour minimum grace period, on synced and ingested findings.
+- AI Toolkit for Custom Remediations: an instruction prompt that helps AI assistants author ASR-compliant remediations.
+- Machine-to-machine (M2M) authenticated access to the solution API.
+- New control remediations: S3.14, S3.11, and CloudFormation.3.
+- AWS WAF rate-based rules and API Gateway throttling for the solution API.
+- Operational metrics for multi-service remediation and mean-time-to-remediate (MTTR).
+
+### Changed
+
+- Pre-Processor routes multi-service findings, validates `ProductArn`, and skips findings with no resolvable control ID.
+- Findings are ordered by EventBridge event time.
+
+### Removed
+
+- Removed the AWS-retired Security Hub controls CloudFormation.1, CodeBuild.5, S3.4, and SNS.2 from active-remediation surfaces (marked deprecated across the AFSBP, NIST 800-53, and SC playbooks).
+
+### Fixed
+
+- `MaxPasswordAge` on the `ASR-SetIAMPasswordPolicy` remediation runbook defaulted to `0`, which is below the minimum the IAM `UpdateAccountPasswordPolicy` API accepts, so any direct invocation that omitted the parameter failed parameter validation. The remaining defaults were also weaker than the controls they remediate and would have applied a password policy that still failed IAM.7 and IAM.11 through IAM.17. The defaults are removed, and the accepted ranges for `MaxPasswordAge` and `PasswordReusePrevention` no longer admit `0` or an empty value.
+
+- `Inspector.InstanceVulnerability` end-to-end patching (SSM document 64 KiB split, IAM scoping, S3 URI form, OCSF/ASFF dispatch) and remediation timeouts.
+- `Macie.SensitiveDataS3Object` end-to-end delivery across the EventBridge, Pre-Processor, runbook, and finalize path.
+- `GuardDuty.IAMUser` parsing of Security Hub v2 ASFF and OCSF shapes, containment for native-ARN findings, and re-contesting of manual rollbacks.
+- Guard against unsupported resource types across ingest, manual remediation, and runbook execution.
+- Surface skipped and missing finding IDs in remediation responses.
+
+### Security
+
+- Capped auto-remediation retries and stopped remediating temporary-credential (ASIA) `GuardDuty.IAMUser` findings.
+- Scoped the Inspector and `GuardDuty.IAMUser` remediation roles to least privilege.
+- Fail closed when a configured resource filter is missing.
+- Encrypted the notification batches DynamoDB table with the solution CMK.
+- Addressed insufficient API rate limiting and hardened notification/runbook input handling.
+- Upgraded vitest to mitigate [CVE-2026-47429](https://github.com/advisories/GHSA-r28c-9q8g-f849).
+- Upgraded vulnerable dependencies: aws-cdk-lib (bundled brace-expansion).
+
 ## [3.1.8] - 2026-07-28
 
 ### Fixed

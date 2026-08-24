@@ -123,6 +123,7 @@ describe('RemediationService', () => {
             executionId: 'arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:exec-123',
             consoleLink:
               'https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/v2/executions/details/arn%3Aaws%3Astates%3Aus-east-1%3A123456789012%3Aexecution%3ATestStateMachine%3Aexec-123',
+            isRollbackEligible: false,
           },
         ],
         NextToken: undefined,
@@ -422,12 +423,202 @@ describe('RemediationService', () => {
         executionId: 'arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:exec-123',
         consoleLink:
           'https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/v2/executions/details/arn%3Aaws%3Astates%3Aus-east-1%3A123456789012%3Aexecution%3ATestStateMachine%3Aexec-123',
+        isRollbackEligible: false,
       });
 
       expect(result.Remediations[0]).not.toHaveProperty('findingId#executionId');
       expect(result.Remediations[0]).not.toHaveProperty('lastUpdatedTime#findingId');
       expect(result.Remediations[0]).not.toHaveProperty('REMEDIATION_CONSTANT');
       expect(result.Remediations[0]).not.toHaveProperty('expireAt');
+      expect(result.Remediations[0]).not.toHaveProperty('findingJSON');
+    });
+
+    it('should return isRollbackEligible: true for GuardDuty.IAMUser SUCCESS entries with findingJSON', async () => {
+      const mockItem = {
+        findingType: 'security-control/GuardDuty.IAMUser',
+        findingId: 'finding-guardduty-1',
+        remediationStatus: 'SUCCESS',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:iam::123456789012:user/test',
+        resourceType: 'AwsIamUser',
+        resourceTypeNormalized: 'IAM User',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-1',
+        'findingId#executionId': 'finding-guardduty-1#exec-1',
+        'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-guardduty-1',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        findingJSON: new Uint8Array([1, 2, 3]),
+      };
+
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: mockItem }));
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+      const guardDutyItem = result.Remediations.find((r) => r.findingId === 'finding-guardduty-1');
+
+      expect(guardDutyItem?.isRollbackEligible).toBe(true);
+    });
+
+    it('returns isRollbackEligible: true for a ROLLBACK_FAILED entry (retry) with findingJSON', async () => {
+      const mockItem = {
+        findingType: 'security-control/GuardDuty.IAMUser',
+        findingId: 'finding-guardduty-retry',
+        remediationStatus: 'ROLLBACK_FAILED',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:iam::123456789012:user/test',
+        resourceType: 'AwsIamUser',
+        resourceTypeNormalized: 'IAM User',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-retry',
+        'findingId#executionId': 'finding-guardduty-retry#exec-retry',
+        'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-guardduty-retry',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        findingJSON: new Uint8Array([1, 2, 3]),
+      };
+
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: mockItem }));
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+      const item = result.Remediations.find((r) => r.findingId === 'finding-guardduty-retry');
+
+      expect(item?.isRollbackEligible).toBe(true);
+    });
+
+    it('returns isRollbackEligible: false for a FAILED remediation (no rollback on failed executions)', async () => {
+      const mockItem = {
+        findingType: 'security-control/GuardDuty.IAMUser',
+        findingId: 'finding-guardduty-failed',
+        remediationStatus: 'FAILED',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:iam::123456789012:user/test',
+        resourceType: 'AwsIamUser',
+        resourceTypeNormalized: 'IAM User',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-failed',
+        'findingId#executionId': 'finding-guardduty-failed#exec-failed',
+        'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-guardduty-failed',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        findingJSON: new Uint8Array([1, 2, 3]),
+      };
+
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: mockItem }));
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+      const item = result.Remediations.find((r) => r.findingId === 'finding-guardduty-failed');
+
+      expect(item?.isRollbackEligible).toBe(false);
+    });
+
+    it('suppresses rollback on an older SUCCESS row when a newer ROLLBACK_SUCCESS exists for the finding', async () => {
+      // Two rows for the same finding: the original SUCCESS (eligible on its own)
+      // and a newer ROLLBACK_SUCCESS. The finding has already been rolled back,
+      // so NO row should offer the button.
+      const findingId = 'finding-guardduty-already-rolled-back';
+      const base = {
+        findingType: 'security-control/GuardDuty.IAMUser',
+        findingId,
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:iam::123456789012:user/test',
+        resourceType: 'AwsIamUser',
+        resourceTypeNormalized: 'IAM User',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        findingJSON: new Uint8Array([1, 2, 3]),
+      };
+      const successRow = {
+        ...base,
+        remediationStatus: 'SUCCESS',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-contain',
+        'findingId#executionId': `${findingId}#exec-contain`,
+        'lastUpdatedTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+      };
+      const rolledBackRow = {
+        ...base,
+        remediationStatus: 'ROLLBACK_SUCCESS',
+        lastUpdatedTime: '2023-02-01T00:00:00Z',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-rollback',
+        'findingId#executionId': `${findingId}#exec-rollback`,
+        'lastUpdatedTime#findingId': `2023-02-01T00:00:00Z#${findingId}`,
+      };
+
+      await Promise.all([
+        dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: successRow })),
+        dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: rolledBackRow })),
+      ]);
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+      const rows = result.Remediations.filter((r) => r.findingId === findingId);
+
+      expect(rows).toHaveLength(2);
+      // No row offers rollback: the newest row (ROLLBACK_SUCCESS) is not eligible,
+      // and the older SUCCESS row is shadowed by it.
+      expect(rows.every((r) => r.isRollbackEligible === false)).toBe(true);
+    });
+
+    it('marks only the newest SUCCESS entry per finding as rollback eligible within a page', async () => {
+      const baseItem = {
+        findingType: 'security-control/GuardDuty.IAMUser',
+        findingId: 'finding-guardduty-dedup',
+        remediationStatus: 'SUCCESS' as const,
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:iam::123456789012:user/test',
+        resourceType: 'AwsIamUser',
+        resourceTypeNormalized: 'IAM User',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        findingJSON: new Uint8Array([1, 2, 3]),
+      };
+
+      const olderItem = {
+        ...baseItem,
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-old',
+        'findingId#executionId': 'finding-guardduty-dedup#exec-old',
+        'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-guardduty-dedup',
+      };
+      const newerItem = {
+        ...baseItem,
+        lastUpdatedTime: '2023-02-01T00:00:00Z',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-new',
+        'findingId#executionId': 'finding-guardduty-dedup#exec-new',
+        'lastUpdatedTime#findingId': '2023-02-01T00:00:00Z#finding-guardduty-dedup',
+      };
+
+      await Promise.all([
+        dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: olderItem })),
+        dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: newerItem })),
+      ]);
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+      const dedupItems = result.Remediations.filter((r) => r.findingId === 'finding-guardduty-dedup');
+
+      expect(dedupItems).toHaveLength(2);
+      const eligible = dedupItems.filter((r) => r.isRollbackEligible);
+      expect(eligible).toHaveLength(1);
+      expect(eligible[0].lastUpdatedTime).toBe('2023-02-01T00:00:00Z');
     });
 
     it('should publish search metrics when searching remediations', async () => {

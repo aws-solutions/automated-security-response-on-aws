@@ -1,5 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import re
 from datetime import datetime
 
 import boto3.session
@@ -153,6 +154,11 @@ def test_success(mocker):
     iam_stubber.activate()
 
     mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
+        return_value={"success": True, "tagged_count": 1},
+    )
+
+    mocker.patch(
         "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
     )
     mocker.patch(
@@ -166,6 +172,11 @@ def test_success(mocker):
         "Parameters": [successful_parameter_response()],
         "Policy": test_case.policy_serialized(),
         "UpdatedProjectEnv": project_env,
+        "ResourceArn": test_case.policy()["Policy"]["Arn"],
+        "ParameterArns": [
+            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}"
+        ],
+        "TaggingResult": {"success": True, "tagged_count": 1},
     }
 
     assert remediation.replace_credentials(test_case.event(), {}) == successful_response
@@ -238,6 +249,11 @@ def test_multiple_params(mocker):
     iam_stubber.activate()
 
     mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
+        return_value={"success": True, "tagged_count": 2},
+    )
+
+    mocker.patch(
         "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
     )
     mocker.patch(
@@ -251,6 +267,12 @@ def test_multiple_params(mocker):
         "Parameters": [successful_parameter_response()] * 2,
         "Policy": test_case.policy_serialized(),
         "UpdatedProjectEnv": project_env,
+        "ResourceArn": test_case.policy()["Policy"]["Arn"],
+        "ParameterArns": [
+            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}",
+            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[1]['name'])}",
+        ],
+        "TaggingResult": {"success": True, "tagged_count": 2},
     }
 
     assert remediation.replace_credentials(test_case.event(), {}) == successful_response
@@ -306,6 +328,11 @@ def test_param_exists(mocker):
     iam_stubber.activate()
 
     mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
+        return_value={"success": True, "tagged_count": 1},
+    )
+
+    mocker.patch(
         "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
     )
     mocker.patch(
@@ -319,6 +346,11 @@ def test_param_exists(mocker):
         "Parameters": [None],
         "Policy": test_case.policy_serialized(),
         "UpdatedProjectEnv": project_env,
+        "ResourceArn": test_case.policy()["Policy"]["Arn"],
+        "ParameterArns": [
+            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}"
+        ],
+        "TaggingResult": {"success": True, "tagged_count": 1},
     }
 
     assert remediation.replace_credentials(test_case.event(), {}) == successful_response
@@ -374,6 +406,11 @@ def test_policy_exists(mocker):
     iam_stubber.activate()
 
     mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
+        return_value={"success": True, "tagged_count": 1},
+    )
+
+    mocker.patch(
         "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
     )
     mocker.patch(
@@ -387,6 +424,11 @@ def test_policy_exists(mocker):
         "Parameters": [successful_parameter_response()],
         "Policy": {"Policy": {"Arn": test_case.policy_serialized()["Policy"]["Arn"]}},
         "UpdatedProjectEnv": project_env,
+        "ResourceArn": test_case.policy()["Policy"]["Arn"],
+        "ParameterArns": [
+            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}"
+        ],
+        "TaggingResult": {"success": True, "tagged_count": 1},
     }
 
     assert remediation.replace_credentials(test_case.event(), {}) == successful_response
@@ -452,6 +494,11 @@ def test_new_param(mocker):
     iam_stubber.activate()
 
     mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
+        return_value={"success": True, "tagged_count": 1},
+    )
+
+    mocker.patch(
         "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
     )
     mocker.patch(
@@ -465,6 +512,11 @@ def test_new_param(mocker):
         "Parameters": [successful_parameter_response()],
         "Policy": test_case.policy_serialized(),
         "UpdatedProjectEnv": project_env,
+        "ResourceArn": test_case.policy()["Policy"]["Arn"],
+        "ParameterArns": [
+            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[1]['name'])}"
+        ],
+        "TaggingResult": {"success": True, "tagged_count": 1},
     }
 
     assert remediation.replace_credentials(test_case.event(), {}) == successful_response
@@ -624,3 +676,177 @@ def test_attach_policy_fails(mocker):
 
     ssm_stubber.deactivate()
     iam_stubber.deactivate()
+
+
+def test_returns_resource_arn(mocker):
+    """Test that replace_credentials returns ResourceArn in correct format"""
+    env_vars = [
+        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
+    ]
+
+    test_case = Case(env_vars)
+
+    ssm_client = botocore.session.get_session().create_client(
+        "ssm", config=get_config()
+    )
+    ssm_stubber = Stubber(ssm_client)
+
+    ssm_stubber.add_response(
+        "put_parameter",
+        successful_parameter_response(),
+        {
+            "Name": test_case.parameter_name(env_vars[0]["name"]),
+            "Description": ANY,
+            "Value": env_vars[0]["value"],
+            "Type": "SecureString",
+            "Overwrite": False,
+            "DataType": "text",
+        },
+    )
+
+    ssm_stubber.activate()
+
+    iam_client = botocore.session.get_session().create_client(
+        "iam", config=get_config()
+    )
+    iam_stubber = Stubber(iam_client)
+
+    iam_stubber.add_response("create_policy", test_case.policy())
+    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
+
+    iam_stubber.activate()
+
+    mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
+    )
+    mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
+    )
+
+    result = remediation.replace_credentials(test_case.event(), {})
+
+    expected_arn = test_case.policy()["Policy"]["Arn"]
+
+    # Verify ResourceArn is present
+    assert "ResourceArn" in result
+
+    # Verify ARN format matches the policy ARN
+    assert result["ResourceArn"] == expected_arn
+    assert re.match(
+        r"arn:aws:iam::\d{12}:policy/CodeBuildSSMParameterPolicy-[a-zA-Z0-9_-]+-[a-z0-9-]+",
+        result["ResourceArn"],
+    )
+
+    ssm_stubber.deactivate()
+    iam_stubber.deactivate()
+
+
+def test_returns_parameter_arns(mocker):
+    """Test that replace_credentials returns ParameterArns for created SSM parameters"""
+    env_vars = [
+        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"},
+        {"name": "AWS_SECRET_ACCESS_KEY", "value": "test_value_2", "type": "PLAINTEXT"},
+    ]
+
+    test_case = Case(env_vars)
+
+    ssm_client = botocore.session.get_session().create_client(
+        "ssm", config=get_config()
+    )
+    ssm_stubber = Stubber(ssm_client)
+
+    for env_var in env_vars:
+        ssm_stubber.add_response(
+            "put_parameter",
+            successful_parameter_response(),
+            {
+                "Name": test_case.parameter_name(env_var["name"]),
+                "Description": ANY,
+                "Value": env_var["value"],
+                "Type": "SecureString",
+                "Overwrite": False,
+                "DataType": "text",
+            },
+        )
+
+    ssm_stubber.activate()
+
+    iam_client = botocore.session.get_session().create_client(
+        "iam", config=get_config()
+    )
+    iam_stubber = Stubber(iam_client)
+
+    iam_stubber.add_response("create_policy", test_case.policy())
+    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
+
+    iam_stubber.activate()
+
+    mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
+    )
+    mocker.patch(
+        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
+    )
+
+    result = remediation.replace_credentials(test_case.event(), {})
+
+    # Verify ParameterArns is present
+    assert "ParameterArns" in result
+    assert isinstance(result["ParameterArns"], list)
+    assert len(result["ParameterArns"]) == 2
+
+    # Verify ARN formats
+    for param_arn in result["ParameterArns"]:
+        assert re.match(
+            r"arn:aws:ssm:[a-z0-9-]+:\d{12}:parameter/CodeBuild/[a-zA-Z0-9_-]+/env/(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY)",
+            param_arn,
+        )
+
+    ssm_stubber.deactivate()
+    iam_stubber.deactivate()
+
+
+def test_parse_project_arn_valid():
+    """Test parse_project_arn with valid ARN"""
+    arn = f"arn:aws:codebuild:{get_region()}:111111111111:project/test-project"
+    partition, region, account = remediation.parse_project_arn(arn)
+
+    assert partition == "aws"
+    assert region == get_region()
+    assert account == "111111111111"
+
+
+def test_parse_project_arn_gov_cloud():
+    """Test parse_project_arn with GovCloud ARN"""
+    arn = "arn:aws-us-gov:codebuild:us-gov-west-1:111111111111:project/test-project"
+    partition, region, account = remediation.parse_project_arn(arn)
+
+    assert partition == "aws-us-gov"
+    assert region == "us-gov-west-1"
+    assert account == "111111111111"
+
+
+def test_parse_project_arn_none():
+    """Test parse_project_arn with None raises ValueError"""
+    with pytest.raises(ValueError) as exc_info:
+        remediation.parse_project_arn(None)
+
+    assert "CodeBuild Project ARN could not be found" in str(exc_info.value)
+
+
+def test_parse_project_arn_empty():
+    """Test parse_project_arn with empty string raises ValueError"""
+    with pytest.raises(ValueError) as exc_info:
+        remediation.parse_project_arn("")
+
+    assert "CodeBuild Project ARN could not be found" in str(exc_info.value)
+
+
+def test_parse_project_arn_invalid_format():
+    """Test parse_project_arn with invalid ARN format raises ValueError"""
+    invalid_arn = "arn:aws:s3:::my-bucket"
+
+    with pytest.raises(ValueError) as exc_info:
+        remediation.parse_project_arn(invalid_arn)
+
+    assert "Invalid CodeBuild project ARN format" in str(exc_info.value)

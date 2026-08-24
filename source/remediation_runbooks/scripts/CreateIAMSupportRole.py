@@ -14,6 +14,12 @@ class Response(TypedDict):
     RoleName: Literal["aws_incident_support_role"]
 
 
+class Output(TypedDict):
+    Output: str
+    HttpResponses: Dict[Literal["CreateIAMRoleResponse"], List[Response]]
+    ResourceArn: str
+
+
 responses: Dict[Literal["CreateIAMRoleResponse"], List[Response]] = {
     "CreateIAMRoleResponse": []
 }
@@ -35,7 +41,7 @@ def get_partition(boto_config):
     )
 
 
-def create_iam_role(_, __):
+def create_iam_role(_, __) -> Output:
     account = get_account(BOTO_CONFIG)
     partition = get_partition(BOTO_CONFIG)
 
@@ -71,7 +77,13 @@ def create_iam_role(_, __):
         {"Account": account, "RoleName": role_name}
     )
 
-    return {"output": "IAM role creation is successful.", "http_responses": responses}
+    role_arn = f"arn:{partition}:iam::{account}:role/{role_name}"
+
+    return {
+        "Output": "IAM role creation is successful.",
+        "HttpResponses": responses,
+        "ResourceArn": role_arn,
+    }
 
 
 def does_role_exist(iam_client, role_name) -> bool:

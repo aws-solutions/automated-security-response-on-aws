@@ -1,0 +1,31 @@
+# SSM.1 — EC2 instances should be managed by AWS Systems Manager
+#
+# ASR remediation attaches an IAM instance profile with the
+# AmazonSSMManagedInstanceCore managed policy to the EC2 instance.
+# To apply this fix, add an IAM role with the AmazonSSMManagedInstanceCore
+# managed policy, an instance profile, and reference it on your EC2 instance.
+
+Resources:
+  SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  SSMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref SSMRole
+
+  {instanceId}:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: !Ref SSMInstanceProfile

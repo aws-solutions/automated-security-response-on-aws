@@ -31,6 +31,7 @@ class Event(TypedDict):
 
 class Output(TypedDict):
     Message: str
+    ResourceArn: str
 
 
 class Response(TypedDict):
@@ -92,14 +93,27 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
         # Apply the SSL policy to the bucket
         s3.put_bucket_policy(Bucket=event["BucketName"], Policy=json.dumps(ssl_policy))
 
-        return {"output": {"Message": f'Bucket {event["BucketName"]} created'}}
+        bucket_arn = f"arn:{partition}:s3:::{event['BucketName']}"
+        return {
+            "output": {
+                "Message": f'Bucket {event["BucketName"]} created',
+                "ResourceArn": bucket_arn,
+            }
+        }
     except ClientError as error:
         if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
             exit(str(error))
         else:
+            partition = "aws"
+            if "cn-" in event["AWS_REGION"]:
+                partition = "aws-cn"
+            elif "us-gov" in event["AWS_REGION"]:
+                partition = "aws-us-gov"
+            bucket_arn = f"arn:{partition}:s3:::{event['BucketName']}"
             return {
                 "output": {
-                    "Message": f'Bucket {event["BucketName"]} already exists and is owned by you'
+                    "Message": f'Bucket {event["BucketName"]} already exists and is owned by you',
+                    "ResourceArn": bucket_arn,
                 }
             }
     except Exception as e:

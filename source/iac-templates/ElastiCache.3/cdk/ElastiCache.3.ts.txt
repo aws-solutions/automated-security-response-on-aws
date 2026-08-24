@@ -1,0 +1,9 @@
+// ElastiCache.3 — ElastiCache replication groups should have automatic failover enabled
+//
+// ASR remediation enables automatic failover for the ElastiCache replication group.
+// To apply this fix, set automaticFailoverEnabled to true on your ElastiCache
+// replication group.
+
+new elasticache.CfnReplicationGroup(this, '{replicationGroup}', {
+  automaticFailoverEnabled: true,
+});

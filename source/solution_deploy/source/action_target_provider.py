@@ -28,7 +28,7 @@ logger_obj = get_logger("action_target_provider", LOG_LEVEL)
 REGION = os.getenv("AWS_REGION", "us-east-1")
 PARTITION = os.getenv("AWS_PARTITION", default="aws")  # Set by deployment template
 
-BOTO_CONFIG = Config(retries={"mode": "standard"})
+BOTO_CONFIG = Config(retries={"mode": "standard"}, connect_timeout=5, read_timeout=10)
 CLIENTS = {}
 
 
@@ -129,7 +129,7 @@ class CustomAction(object):
 
 
 def get_account_id():
-    return boto3.client("sts").get_caller_identity()["Account"]
+    return boto3.client("sts", config=BOTO_CONFIG).get_caller_identity()["Account"]
 
 
 def lambda_handler(event, context):

@@ -66,6 +66,10 @@ export class OrchestratorConstruct extends Construct {
         'EventType.$': '$.detail-type',
         'Findings.$': '$.detail.findings',
         'CustomActionName.$': '$.detail.actionName',
+        // Detail carries the full envelope so Lambdas can read optional fields
+        // (findingFormat, remediationId, findingType) that may not exist in
+        // Custom Action events. Finding batches are small (typically 1 finding).
+        'Detail.$': '$.detail',
       },
     });
 
@@ -229,6 +233,7 @@ export class OrchestratorConstruct extends Construct {
         'RemediationOutput.$': '$.Payload.remediation_output',
         'LogData.$': '$.Payload.logdata',
         'AffectedObject.$': '$.Payload.affected_object',
+        'BackupS3Key.$': '$.Payload.backup_s3_key',
       },
       resultPath: '$.Remediation',
     });
@@ -299,6 +304,7 @@ export class OrchestratorConstruct extends Construct {
         'Finding.$': '$$.Map.Item.Value',
         'EventType.$': '$.EventType',
         'CustomActionName.$': '$.CustomActionName',
+        'Detail.$': '$.Detail',
       },
       itemsPath: '$.Findings',
     });
@@ -401,10 +407,11 @@ export class OrchestratorConstruct extends Construct {
       },
     });
 
-    const docStateError = new sfn.Pass(this, 'check_ssm_doc_state Error', {
+    const docStateError = new sfn.Pass(this, 'resolve_ssm_doc_for_finding Error', {
       parameters: {
         Notification: {
-          'Message.$': "States.Format('check_ssm_doc_state returned an error: {}', $.AutomationDocument.Message)",
+          'Message.$':
+            "States.Format('resolve_ssm_doc_for_finding returned an error: {}', $.AutomationDocument.Message)",
           'State.$': "States.Format('LAMBDA_ERROR')",
           'StepFunctionsExecutionId.$': '$$.Execution.Id',
         },
@@ -460,6 +467,7 @@ export class OrchestratorConstruct extends Construct {
           'SSMExecutionId.$': '$.Remediation.SSMExecutionId',
           'StepFunctionsExecutionId.$': '$$.Execution.Id',
           'AffectedObject.$': '$.Remediation.AffectedObject',
+          'BackupS3Key.$': '$.Remediation.BackupS3Key',
         },
       },
     });
@@ -472,6 +480,10 @@ export class OrchestratorConstruct extends Construct {
         'Finding.$': '$.Finding',
         'AutomationDocument.$': '$.AutomationDocument',
         'SSMExecution.$': '$.SSMExecution',
+        // Surface ControlId so the notification Lambda can resolve the finding
+        // type for multi-service OCSF findings, whose bare finding ids carry no
+        // control id (parity with the terminal notify state).
+        'ControlId.$': '$.AutomationDocument.ControlId',
         Notification: {
           'Message.$':
             "States.Format('Remediation queued for {} control {} in account {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId)",
@@ -492,7 +504,16 @@ export class OrchestratorConstruct extends Construct {
       sfn.Condition.or(
         sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Custom Action'),
         sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - API Action'),
-        sfn.Condition.stringEquals('$.Finding.Workflow.Status', 'NEW'),
+        sfn.Condition.and(
+          // OCSF findings from multi-service integrations (Inspector, GuardDuty, Macie)
+          // don't carry Workflow.Status — without isPresent the stringEquals check throws.
+          sfn.Condition.isPresent('$.Finding.Workflow.Status'),
+          sfn.Condition.stringEquals('$.Finding.Workflow.Status', 'NEW'),
+        ),
+        sfn.Condition.and(
+          sfn.Condition.isPresent('$.Detail.findingType'),
+          sfn.Condition.stringEquals('$.Detail.findingType', 'multiService'),
+        ),
       ),
       getApprovalRequirement,
     );
@@ -696,7 +717,7 @@ export class OrchestratorConstruct extends Construct {
       IncludeExecutionData: true,
       Level: 'ALL',
     });
-    stateMachineConstruct.addDependency(nestedLogStack.nestedStackResource as CfnResource);
+    stateMachineConstruct.addResourceDependency(nestedLogStack.nestedStackResource as CfnResource);
 
     // Remove the unnecessary Policy created by the L2 StateMachine construct
     const roleToModify = this.node.findChild('Role') as CfnRole;

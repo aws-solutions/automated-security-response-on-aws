@@ -1,0 +1,8 @@
+// Redshift.1 — Amazon Redshift clusters should prohibit public access
+//
+// ASR remediation disables public accessibility on the Redshift cluster.
+// To apply this fix, set publiclyAccessible to false on your Redshift cluster.
+
+new redshift.CfnCluster(this, '{redshiftCluster}', {
+  publiclyAccessible: false,
+});

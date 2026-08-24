@@ -6,7 +6,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 
 // Shared SSM Client with retry configuration to handle throttling
 const ssmClient = new SSMClient({
-  maxAttempts: parseInt(process.env.AWS_MAX_ATTEMPTS || '10', 10),
+  maxAttempts: Number.parseInt(process.env.AWS_MAX_ATTEMPTS || '10', 10),
   retryMode: (process.env.AWS_RETRY_MODE as 'adaptive' | 'standard' | 'legacy') || 'adaptive',
 });
 

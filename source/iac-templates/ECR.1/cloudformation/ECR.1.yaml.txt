@@ -1,0 +1,12 @@
+# ECR.1 — ECR private repositories should have image scanning configured
+#
+# ASR remediation enables image scanning on push for the private ECR repository.
+# To apply this fix, set ImageScanningConfiguration.ScanOnPush to true
+# on your ECR repository.
+
+Resources:
+  {repository}:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true

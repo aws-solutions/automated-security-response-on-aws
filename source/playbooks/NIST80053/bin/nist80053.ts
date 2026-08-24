@@ -7,32 +7,29 @@ import 'source-map-support/register';
 import { PlaybookPrimaryStack } from '../../../lib/playbook-construct';
 import { NIST80053_REMEDIATIONS } from '../lib/nist80053_remediations';
 import { splitMemberStack } from '../../split_member_stacks';
+import { getConfig, getMemberStackLimit } from '../../../lib/config/cdk-config';
 
-// set by solution_env.sh
-const SOLUTION_ID = process.env['SOLUTION_ID'] || 'undefined';
-const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'undefined';
-const MEMBER_STACK_LIMIT = process.env['NIST_MEMBER_STACK_LIMIT']
-  ? Number(process.env['NIST_MEMBER_STACK_LIMIT'])
-  : Infinity;
-// DIST_* - set by build-s3-dist.sh
-const DIST_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
-const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
-const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
+const config = getConfig();
+const MEMBER_STACK_LIMIT = getMemberStackLimit('NIST');
 
 const standardShortName = 'NIST80053R5';
 const standardLongName = 'nist-800-53';
 const standardVersion = '5.0.0'; // DO NOT INCLUDE 'V'
 
-const app = new App();
+const app = new App({
+  context: {
+    '@aws-cdk/core:suppressTemplateIndentation': true,
+  },
+});
 
 const adminStack = new PlaybookPrimaryStack(app, 'NIST80053Stack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-  description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
-  solutionId: SOLUTION_ID,
-  solutionVersion: DIST_VERSION,
-  solutionDistBucket: DIST_OUTPUT_BUCKET,
-  solutionDistName: DIST_SOLUTION_NAME,
+  description: `(${config.solution.id}P) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${config.build.distVersion}`,
+  solutionId: config.solution.id,
+  solutionVersion: config.build.distVersion,
+  solutionDistBucket: config.build.distOutputBucket,
+  solutionDistName: config.solution.trademarkedName,
   remediations: NIST80053_REMEDIATIONS,
   securityStandardLongName: standardLongName,
   securityStandard: standardShortName,

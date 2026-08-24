@@ -7,13 +7,13 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
-import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
 import { findingsTableName } from '../../../common/__tests__/envSetup';
 import { API_HEADERS } from '../../handlers/apiHandler';
 import { executeFindingAction, searchFindings } from '../../handlers/findings';
-import { createMockContext, createMockEvent, createMockFinding, TEST_REQUEST_CONTEXT } from '../utils';
+import { createMockContext, createMockEvent, createMockFinding, TEST_REQUEST_CONTEXT, asFindingId } from '../utils';
 
 const cognitoMock = mockClient(CognitoIdentityProviderClient);
 const sfnMock = mockClient(SFNClient);
@@ -82,7 +82,7 @@ describe('FindingsHandler Integration Tests', () => {
     beforeEach(async () => {
       const testFindings = [
         createMockFinding({
-          findingId: 'finding-1',
+          findingId: asFindingId('finding-1'),
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::bucket-1',
           severity: 'HIGH',
@@ -90,7 +90,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00Z#finding-1',
         }),
         createMockFinding({
-          findingId: 'finding-2',
+          findingId: asFindingId('finding-2'),
           accountId: '123456789012',
           resourceId: 'arn:aws:ec2:us-east-1:123456789012:instance/i-1234567890abcdef0',
           resourceType: 'AWS::EC2::Instance',
@@ -99,7 +99,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-02T00:00:00Z#finding-2',
         }),
         createMockFinding({
-          findingId: 'finding-3',
+          findingId: asFindingId('finding-3'),
           accountId: '987654321098',
           resourceId: 'arn:aws:rds:us-west-2:987654321098:db:mydb',
           resourceType: 'AWS::RDS::DBInstance',
@@ -352,7 +352,7 @@ describe('FindingsHandler Integration Tests', () => {
       const context = createMockContext();
 
       await expect(searchFindings(event, context)).rejects.toThrow(
-        "Invalid request: Filters.CompositeFilters.0.Operator: Invalid enum value. Expected 'AND' | 'OR', received 'INVALID_OPERATOR'",
+        'Invalid request: Filters.CompositeFilters.0.Operator: Invalid option: expected one of "AND"|"OR"',
       );
     });
 
@@ -403,7 +403,7 @@ describe('FindingsHandler Integration Tests', () => {
 
       const testFindings = [
         createMockFinding({
-          findingId: 'finding-s3-1',
+          findingId: asFindingId('finding-s3-1'),
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::bucket-1',
           resourceType: 'AWS::S3::Bucket',
@@ -413,7 +413,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00Z#finding-s3-1',
         }),
         createMockFinding({
-          findingId: 'finding-s3-2',
+          findingId: asFindingId('finding-s3-2'),
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::bucket-2',
           resourceType: 'AwsS3Bucket',
@@ -423,7 +423,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-02T00:00:00Z#finding-s3-2',
         }),
         createMockFinding({
-          findingId: 'finding-ec2-1',
+          findingId: asFindingId('finding-ec2-1'),
           accountId: '123456789012',
           resourceId: 'arn:aws:ec2:us-east-1:123456789012:instance/i-1234567890abcdef0',
           resourceType: 'AWS::EC2::Instance',
@@ -496,7 +496,7 @@ describe('FindingsHandler Integration Tests', () => {
 
       const testFindings = [
         createMockFinding({
-          findingId: 'finding-s3-3',
+          findingId: asFindingId('finding-s3-3'),
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::bucket-3',
           resourceType: 'AWS::S3::Bucket',
@@ -506,7 +506,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00Z#finding-s3-3',
         }),
         createMockFinding({
-          findingId: 'finding-s3-4',
+          findingId: asFindingId('finding-s3-4'),
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::bucket-4',
           resourceType: 'AwsS3Bucket',
@@ -516,7 +516,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-02T00:00:00Z#finding-s3-4',
         }),
         createMockFinding({
-          findingId: 'finding-rds-1',
+          findingId: asFindingId('finding-rds-1'),
           accountId: '123456789012',
           resourceId: 'arn:aws:rds:us-west-2:123456789012:db:mydb',
           resourceType: 'AWS::RDS::DBInstance',
@@ -679,7 +679,7 @@ describe('FindingsHandler Integration Tests', () => {
 
         testFindings.push(
           createMockFinding({
-            findingId: `finding-${i.toString().padStart(3, '0')}`,
+            findingId: asFindingId(`finding-${i.toString().padStart(3, '0')}`),
             accountId: '123456789012',
             resourceId: `arn:aws:s3:::bucket-${i}`,
             severity,
@@ -817,7 +817,7 @@ describe('FindingsHandler Integration Tests', () => {
       for (let i = 61; i <= 80; i++) {
         additionalFindings.push(
           createMockFinding({
-            findingId: `finding-${i.toString().padStart(3, '0')}`,
+            findingId: asFindingId(`finding-${i.toString().padStart(3, '0')}`),
             accountId: '987654321098', // Different account ID
             resourceId: `arn:aws:s3:::bucket-${i}`,
             severity: 'HIGH',
@@ -934,7 +934,7 @@ describe('FindingsHandler Integration Tests', () => {
       const context = createMockContext();
 
       await expect(searchFindings(event, context)).rejects.toThrow(
-        "Invalid request: Filters.CompositeFilters.0.StringFilters.0.Filter.Comparison: Invalid enum value. Expected 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS' | 'NOT_CONTAINS' | 'GREATER_THAN_OR_EQUAL' | 'LESS_THAN_OR_EQUAL', received 'INVALID_COMPARISON'",
+        'Invalid request: Filters.CompositeFilters.0.StringFilters.0.Filter.Comparison: Invalid option: expected one of "EQUALS"|"NOT_EQUALS"|"CONTAINS"|"NOT_CONTAINS"|"GREATER_THAN_OR_EQUAL"|"LESS_THAN_OR_EQUAL"',
       );
     });
 
@@ -969,7 +969,7 @@ describe('FindingsHandler Integration Tests', () => {
       const context = createMockContext();
 
       await expect(searchFindings(event, context)).rejects.toThrow(
-        "Invalid request: SortCriteria.0.SortOrder: Invalid enum value. Expected 'asc' | 'desc', received 'invalid'",
+        'Invalid request: SortCriteria.0.SortOrder: Invalid option: expected one of "asc"|"desc"',
       );
     });
 
@@ -1031,7 +1031,7 @@ describe('FindingsHandler Integration Tests', () => {
       // Create test findings for action testing
       const testFindings = [
         createMockFinding({
-          findingId: 'finding-1',
+          findingId: asFindingId('finding-1'),
           findingType: 'cis-aws-foundations-benchmark/v/1.4.0/4.8',
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::test-bucket-1',
@@ -1041,7 +1041,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00Z#finding-1',
         }),
         createMockFinding({
-          findingId: 'finding-2',
+          findingId: asFindingId('finding-2'),
           findingType: 'cis-aws-foundations-benchmark/v/1.4.0/4.9',
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::test-bucket-2',
@@ -1051,7 +1051,7 @@ describe('FindingsHandler Integration Tests', () => {
           'securityHubUpdatedAtTime#findingId': '2023-01-02T00:00:00Z#finding-2',
         }),
         createMockFinding({
-          findingId: 'finding-3',
+          findingId: asFindingId('finding-3'),
           findingType: 'cis-aws-foundations-benchmark/v/1.4.0/4.10',
           accountId: '123456789012',
           resourceId: 'arn:aws:s3:::test-bucket-3',
@@ -1074,8 +1074,9 @@ describe('FindingsHandler Integration Tests', () => {
 
     describe('Suppress Action', () => {
       it('should return 200 and suppress single finding', async () => {
-        const suppressSingleFindingId =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/suppress-single-test';
+        const suppressSingleFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/suppress-single-test',
+        );
         const testFinding = createMockFinding({
           findingId: suppressSingleFindingId,
           findingType: 'security-control/Lambda.3',
@@ -1126,10 +1127,12 @@ describe('FindingsHandler Integration Tests', () => {
       });
 
       it('should return 200 and suppress multiple findings', async () => {
-        const suppressFinding1Id =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/suppress-multiple-test-1';
-        const suppressFinding2Id =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/suppress-multiple-test-2';
+        const suppressFinding1Id = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/suppress-multiple-test-1',
+        );
+        const suppressFinding2Id = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/suppress-multiple-test-2',
+        );
 
         const additionalFindings = [
           createMockFinding({
@@ -1226,8 +1229,9 @@ describe('FindingsHandler Integration Tests', () => {
 
     describe('Unsuppress Action', () => {
       it('should return 200 and unsuppress single finding', async () => {
-        const unsuppressSingleFindingId =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/unsuppress-single-test';
+        const unsuppressSingleFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/unsuppress-single-test',
+        );
         const testFinding = createMockFinding({
           findingId: unsuppressSingleFindingId,
           findingType: 'security-control/Lambda.3',
@@ -1278,10 +1282,12 @@ describe('FindingsHandler Integration Tests', () => {
       });
 
       it('should return 200 and unsuppress multiple findings', async () => {
-        const unsuppressFinding1Id =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/unsuppress-test-1';
-        const unsuppressFinding2Id =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/unsuppress-test-2';
+        const unsuppressFinding1Id = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/unsuppress-test-1',
+        );
+        const unsuppressFinding2Id = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/unsuppress-test-2',
+        );
 
         const additionalFindings = [
           createMockFinding({
@@ -1568,10 +1574,12 @@ describe('FindingsHandler Integration Tests', () => {
       });
 
       it('should handle mixed existing and non-existing finding IDs', async () => {
-        const existingFinding1Id =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/mixed-test-1';
-        const existingFinding2Id =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/mixed-test-2';
+        const existingFinding1Id = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/mixed-test-1',
+        );
+        const existingFinding2Id = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/mixed-test-2',
+        );
 
         const additionalFindings = [
           createMockFinding({
@@ -1643,8 +1651,9 @@ describe('FindingsHandler Integration Tests', () => {
 
     describe('Response Format', () => {
       it('should return correct headers', async () => {
-        const findingId =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345678-1234-1234-1234-123456789013';
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345678-1234-1234-1234-123456789013',
+        );
         const testFinding = createMockFinding({
           findingId,
           findingType: 'security-control/Lambda.3',
@@ -1695,8 +1704,9 @@ describe('FindingsHandler Integration Tests', () => {
       });
 
       it('should return empty body for successful action', async () => {
-        const findingId =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345678-1234-1234-1234-123456789012';
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345678-1234-1234-1234-123456789012',
+        );
         const testFinding = createMockFinding({
           findingId,
           findingType: 'security-control/Lambda.3',
@@ -1750,8 +1760,9 @@ describe('FindingsHandler Integration Tests', () => {
 
     describe('Remediate Action', () => {
       it('should return 202 and initiate remediation for single finding', async () => {
-        const remediateFindingId =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-finding-remediate';
+        const remediateFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-finding-remediate',
+        );
 
         const testFinding = createMockFinding({
           findingId: remediateFindingId,
@@ -1803,9 +1814,74 @@ describe('FindingsHandler Integration Tests', () => {
         expect(responseBody.status).toBe('IN_PROGRESS');
       });
 
+      it('should not write a remediation history row when the orchestrator returns no execution ID', async () => {
+        // The orchestrator invocation "succeeds" at the API level but yields no executionArn,
+        // which mirrors a failed Step Functions start. Without an executionId we must not
+        // persist a history row, because the composite key `findingId#executionId` would be
+        // malformed (`findingId#`) and corrupt later lookups.
+        sfnMock.reset();
+        sfnMock.on(StartExecutionCommand).resolves({});
+
+        const remediateFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-finding-no-exec-id',
+        );
+
+        const testFinding = createMockFinding({
+          findingId: remediateFindingId,
+          findingType: 'security-control/Lambda.3',
+          accountId: '123456789012',
+          resourceId: 'arn:aws:lambda:us-east-1:123456789012:function:test-function-no-exec-id',
+          severity: 'HIGH',
+          findingDescription: 'Test finding with no execution id',
+          suppressed: false,
+          'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${remediateFindingId}`,
+        });
+
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: testFinding,
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: {
+            'Content-Type': 'application/json',
+            authorization: 'Bearer valid-token',
+          },
+          body: JSON.stringify({
+            actionType: 'Remediate',
+            findingIds: [remediateFindingId],
+          }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: {
+              claims: {
+                'cognito:groups': ['AdminGroup'],
+                username: 'admin-user@example.com',
+              },
+            },
+          },
+        });
+
+        const result = await executeFindingAction(event, createMockContext());
+
+        expect(result.statusCode).toBe(202);
+        expect(JSON.parse(result.body).status).toBe('IN_PROGRESS');
+
+        // Observable outcome: no history row was written for the finding.
+        const historyScan = await dynamoDBDocumentClient.send(
+          new ScanCommand({ TableName: remediationHistoryTableName }),
+        );
+        expect(historyScan.Items ?? []).toHaveLength(0);
+      });
+
       it('should return 202 and initiate remediation with ticket generation', async () => {
-        const remediateFindingId =
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-finding-remediate-ticket';
+        const remediateFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/test-finding-remediate-ticket',
+        );
 
         const testFinding = createMockFinding({
           findingId: remediateFindingId,
@@ -1855,6 +1931,274 @@ describe('FindingsHandler Integration Tests', () => {
         expect(result.statusCode).toBe(202);
         const responseBody = JSON.parse(result.body);
         expect(responseBody.status).toBe('IN_PROGRESS');
+      });
+
+      it('should return 202 and initiate rollback for eligible GuardDuty finding', async () => {
+        const rollbackFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-001',
+        );
+
+        const testFinding = createMockFinding({
+          findingId: rollbackFindingId,
+          findingType: 'security-control/GuardDuty.IAMUser',
+          accountId: '123456789012',
+          resourceId: 'arn:aws:iam::123456789012:user/test-compromised-user',
+          severity: 'HIGH',
+          remediationStatus: 'SUCCESS',
+          findingDescription: 'GuardDuty IAM credential compromise',
+          suppressed: false,
+          'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${rollbackFindingId}`,
+        });
+
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: testFinding,
+          }),
+        );
+
+        const requestBody = {
+          actionType: 'Rollback',
+          findingIds: [rollbackFindingId],
+        };
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: {
+            'Content-Type': 'application/json',
+            authorization: 'Bearer valid-token',
+          },
+          body: JSON.stringify(requestBody),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: {
+              claims: {
+                'cognito:groups': ['AdminGroup'],
+                username: 'admin-user@example.com',
+              },
+            },
+          },
+        });
+        const context = createMockContext();
+
+        const result = await executeFindingAction(event, context);
+
+        expect(result.statusCode).toBe(202);
+        const responseBody = JSON.parse(result.body);
+        expect(responseBody.status).toBe('IN_PROGRESS');
+
+        // Verify the orchestrator was invoked with Action=Restore in docParameters
+        const sfnCalls = sfnMock.commandCalls(StartExecutionCommand);
+        expect(sfnCalls).toHaveLength(1);
+        const rawInput = sfnCalls[0].args[0].input.input;
+        expect(rawInput).toBeDefined();
+        const orchestratorInput = JSON.parse(rawInput!);
+        expect(orchestratorInput.detail.docParameters).toEqual({ Action: 'Restore' });
+      });
+
+      it('rolls back both a live finding and an archived (history-only) finding in one request', async () => {
+        // GIVEN one GuardDuty finding that still exists in the findings table (live)...
+        const liveFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-live',
+        );
+        const liveFinding = createMockFinding({
+          findingId: liveFindingId,
+          findingType: 'security-control/GuardDuty.IAMUser',
+          resourceId: 'arn:aws:iam::123456789012:user/live-user',
+          remediationStatus: 'SUCCESS',
+          'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${liveFindingId}`,
+        });
+        await dynamoDBDocumentClient.send(new PutCommand({ TableName: findingsTableName, Item: liveFinding }));
+
+        // ...and one GuardDuty finding that has been archived from the findings table but whose
+        // findingJSON was preserved in remediation history (history-only).
+        const archivedFindingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-archived',
+        );
+        const archivedSource = createMockFinding({
+          findingId: archivedFindingId,
+          findingType: 'security-control/GuardDuty.IAMUser',
+          resourceId: 'arn:aws:iam::123456789012:user/archived-user',
+          remediationStatus: 'SUCCESS',
+        });
+        const executionId = 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-archived';
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationHistoryTableName,
+            Item: {
+              findingType: archivedSource.findingType,
+              'findingId#executionId': `${archivedFindingId}#${executionId}`,
+              findingId: archivedFindingId,
+              accountId: archivedSource.accountId,
+              resourceId: archivedSource.resourceId,
+              resourceType: archivedSource.resourceType,
+              resourceTypeNormalized: archivedSource.resourceTypeNormalized,
+              severity: archivedSource.severity,
+              region: archivedSource.region,
+              remediationStatus: 'SUCCESS',
+              lastUpdatedTime: '2023-02-01T00:00:00Z',
+              'lastUpdatedTime#findingId': `2023-02-01T00:00:00Z#${archivedFindingId}`,
+              REMEDIATION_CONSTANT: 'remediation',
+              lastUpdatedBy: 'admin-user@example.com',
+              executionId,
+              findingJSON: archivedSource.findingJSON,
+            },
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [liveFindingId, archivedFindingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: {
+              claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' },
+            },
+          },
+        });
+
+        const result = await executeFindingAction(event, createMockContext());
+
+        expect(result.statusCode).toBe(202);
+        expect(JSON.parse(result.body).status).toBe('IN_PROGRESS');
+
+        // THEN the orchestrator is invoked for BOTH findings — the history-only finding is not
+        // silently dropped just because the live finding was resolvable.
+        const sfnCalls = sfnMock.commandCalls(StartExecutionCommand);
+        expect(sfnCalls).toHaveLength(2);
+        const restoredResourceIds = sfnCalls.map((call) => {
+          const input = JSON.parse(call.args[0].input.input!);
+          return input.detail.findings[0].Resources[0].Id;
+        });
+        expect(restoredResourceIds).toEqual(
+          expect.arrayContaining([
+            'arn:aws:iam::123456789012:user/live-user',
+            'arn:aws:iam::123456789012:user/archived-user',
+          ]),
+        );
+      });
+
+      it('resolves a rollback finding whose id is not a derivable ARN when findingKeys are supplied', async () => {
+        // ARRANGE — a rollback-eligible finding that exists only in the findings table (no history
+        // entry), whose findingId is not a parseable Security Hub ARN. The partition key therefore
+        // cannot be derived from the id, so the table-fallback leg needs an explicit key.
+        const bareHashFindingId = asFindingId('9f8e7d6c5b4a392817060f1e2d3c4b5a');
+        const findingType = 'security-control/GuardDuty.IAMUser';
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId: bareHashFindingId,
+              findingType,
+              resourceId: 'arn:aws:iam::123456789012:user/bare-hash-user',
+              remediationStatus: 'SUCCESS',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${bareHashFindingId}`,
+            }),
+          }),
+        );
+
+        const rollbackEvent = (body: Record<string, unknown>) =>
+          createMockEvent({
+            httpMethod: 'POST',
+            path: '/findings/action',
+            headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+            body: JSON.stringify(body),
+            requestContext: {
+              ...TEST_REQUEST_CONTEXT,
+              authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+            },
+          });
+
+        // ACT / ASSERT — without keys the id cannot be derived to a partition key, so nothing resolves
+        await expect(
+          executeFindingAction(
+            rollbackEvent({ actionType: 'Rollback', findingIds: [bareHashFindingId] }),
+            createMockContext(),
+          ),
+        ).rejects.toThrow(/No findings found for the provided IDs/);
+
+        // ACT — the same request supplying the explicit key
+        const result = await executeFindingAction(
+          rollbackEvent({
+            actionType: 'Rollback',
+            findingIds: [bareHashFindingId],
+            findingKeys: [{ findingId: bareHashFindingId, findingType }],
+          }),
+          createMockContext(),
+        );
+
+        // ASSERT — the finding resolves and the rollback is dispatched
+        expect(result.statusCode).toBe(202);
+        expect(JSON.parse(result.body).status).toBe('IN_PROGRESS');
+      });
+
+      it('should return 400 when rollback is attempted on a non-GuardDuty finding', async () => {
+        // GIVEN a non-GuardDuty finding with SUCCESS status
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/test-rollback-wrong-type',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'security-control/S3.1',
+              remediationStatus: 'SUCCESS',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+            }),
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [findingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+          },
+        });
+
+        await expect(executeFindingAction(event, createMockContext())).rejects.toThrow(
+          /Rollback is only supported for GuardDuty\.IAMUser findings/,
+        );
+      });
+
+      it('should return 400 when rollback is attempted on a GuardDuty finding that is not SUCCESS', async () => {
+        // GIVEN a GuardDuty finding with IN_PROGRESS status
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-wrong-status',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'security-control/GuardDuty.IAMUser',
+              remediationStatus: 'IN_PROGRESS',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+            }),
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [findingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+          },
+        });
+
+        await expect(executeFindingAction(event, createMockContext())).rejects.toThrow(
+          /Rollback requires a successful remediation/,
+        );
       });
     });
   });

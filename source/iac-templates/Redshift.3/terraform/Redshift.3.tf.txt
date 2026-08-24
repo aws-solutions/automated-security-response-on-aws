@@ -1,0 +1,8 @@
+# Redshift.3 — Amazon Redshift clusters should have automatic snapshots enabled
+#
+# ASR remediation enables automatic snapshots on the Redshift cluster by setting the retention period.
+# To apply this fix, set automated_snapshot_retention_period to your desired retention period in days on your Redshift cluster.
+
+resource "aws_redshift_cluster" "{redshiftCluster}" {
+  automated_snapshot_retention_period = 7
+}

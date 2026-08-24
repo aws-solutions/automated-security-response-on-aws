@@ -1,0 +1,16 @@
+# S3.1 — S3 Block Public Access setting should be enabled
+#
+# ASR remediation enables S3 Block Public Access at the account level,
+# blocking public ACLs and public bucket policies for all buckets.
+# To apply this fix, add an S3 account-level public access block resource
+# with all four settings set to true.
+
+Resources:
+  {accountPublicAccessBlock}:
+    Type: AWS::S3::AccountPublicAccessBlock
+    Properties:
+      AccountId: !Ref 'AWS::AccountId'
+      BlockPublicAcls: true
+      BlockPublicPolicy: true
+      IgnorePublicAcls: true
+      RestrictPublicBuckets: true

@@ -1,0 +1,11 @@
+# SSM.7 — SSM documents should have the block public sharing setting enabled
+#
+# ASR remediation enables the block public sharing setting at the account level
+# by setting /ssm/documents/console/public-sharing-permission to "Disable".
+# To apply this fix, add an aws_ssm_service_setting resource with the
+# setting_id and setting_value shown below.
+
+resource "aws_ssm_service_setting" "block_public_sharing" {
+  setting_id    = "/ssm/documents/console/public-sharing-permission"
+  setting_value = "Disable"
+}

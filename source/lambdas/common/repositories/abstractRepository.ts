@@ -1,8 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import {
+  BatchGetCommand,
   BatchWriteCommand,
   BatchWriteCommandInput,
+  DeleteCommand,
   DynamoDBDocumentClient,
   GetCommand,
   GetCommandInput,
@@ -11,9 +13,13 @@ import {
   QueryCommand,
   QueryCommandInput,
   QueryCommandOutput,
+  ScanCommand,
+  ScanCommandInput,
 } from '@aws-sdk/lib-dynamodb';
+import type { KeysAndAttributes } from '@aws-sdk/client-dynamodb';
 import type { NativeAttributeValue } from '@aws-sdk/util-dynamodb';
 import { PaginationAttributeValue, PaginationToken, SearchFilter } from '@asr/data-models';
+import { Sleeper, getSleeper } from '../utils/sleeper';
 import { getLogger } from '../utils/logger';
 
 export type DynamoDBAttributeValue = NativeAttributeValue;
@@ -27,9 +33,50 @@ export interface ExpressionAttributeValues extends Record<string, DynamoDBAttrib
 export interface QueryResult<T = DynamoDBItem> {
   items: T[];
   lastEvaluatedKey?: DynamoDBKey;
+  /**
+   * Number of items DynamoDB examined to produce this page. When a `FilterExpression` is applied,
+   * this can exceed `items.length` because `Limit` caps items *scanned* before filtering. Callers
+   * that bound work by examination cost (rather than matches) should advance their budget by this.
+   */
+  scannedCount?: number;
 }
 
 type BatchWriteRequestItems = NonNullable<BatchWriteCommandInput['RequestItems']>;
+
+/** Default chunk size for DynamoDB BatchGetItem operations (100 is the service limit). */
+export const DEFAULT_BATCH_GET_CHUNK_SIZE = 100;
+
+/** Default base delay (in ms) for exponential backoff when throttled. */
+export const DEFAULT_BATCH_GET_BACKOFF_BASE_MS = 50;
+
+/** Default cap (in ms) for exponential backoff when throttled. */
+export const DEFAULT_BATCH_GET_MAX_BACKOFF_MS = 5000;
+
+/**
+ * Per-table request options for `batchGetWithRetry`. Narrowed to the DynamoDB
+ * `KeysAndAttributes` shape (minus `Keys`, which this helper owns) so callers get
+ * IDE auto-completion and typos on `ProjectionExpression`, `ConsistentRead`, etc.
+ * are caught at compile time.
+ */
+export type BatchGetRequestItemOptions = Omit<KeysAndAttributes, 'Keys'>;
+
+export interface BatchGetWithRetryOptions {
+  /** Additional parameters to apply to each RequestItems entry (such as ProjectionExpression, ConsistentRead). */
+  requestItemOptions?: BatchGetRequestItemOptions;
+  /** Override the batch chunk size (default: 100 — the DynamoDB service limit). */
+  chunkSize?: number;
+  /** Override the base backoff delay in milliseconds (default: 50). */
+  backoffBaseMs?: number;
+  /** Override the maximum backoff delay in milliseconds (default: 5000). */
+  maxBackoffMs?: number;
+}
+
+export interface BatchGetWithRetryResult<TItem> {
+  /** Items returned by BatchGetItem. */
+  items: TItem[];
+  /** Keys that could not be fetched after exhausting retries. Empty on full success. */
+  unprocessedKeys: DynamoDBKey[];
+}
 // The Repository Pattern hides the underlying database implementation (DynamoDB) from the business application code
 // and provides convenient CRUD operations for a given entity type T
 export abstract class AbstractRepository<T> {
@@ -45,7 +92,38 @@ export abstract class AbstractRepository<T> {
     protected readonly principal: string,
     protected readonly tableName: string,
     protected readonly dynamoDBClient: DynamoDBDocumentClient,
+    protected readonly sleeper: Sleeper = getSleeper(),
   ) {}
+
+  protected async findAllWithTransform<TransformResult>(
+    transform: (item: Record<string, unknown>) => TransformResult,
+    options?: Partial<ScanCommandInput>,
+  ): Promise<TransformResult[]> {
+    const results: TransformResult[] = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+
+    do {
+      const scanCommand = new ScanCommand({
+        TableName: this.tableName,
+        ExclusiveStartKey: lastEvaluatedKey,
+        ...options,
+      });
+
+      const response = await this.dynamoDBClient.send(scanCommand);
+
+      if (response.Items) {
+        for (const item of response.Items) {
+          results.push(transform(item));
+        }
+      }
+
+      lastEvaluatedKey = response.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    this.logger.debug('Retrieved all items', { count: results.length });
+
+    return results;
+  }
 
   async findById(partitionKey: string, sortKey: string): Promise<T | undefined> {
     try {
@@ -66,6 +144,23 @@ export abstract class AbstractRepository<T> {
     } catch (error) {
       this.logger.debug('Could not find item by ID', { partitionKey, sortKey });
       return undefined;
+    }
+  }
+
+  async deleteById(partitionKey: string, sortKey: string): Promise<void> {
+    try {
+      await this.dynamoDBClient.send(
+        new DeleteCommand({
+          TableName: this.tableName,
+          Key: {
+            [this.partitionKeyName]: partitionKey,
+            [this.sortKeyName]: sortKey,
+          },
+        }),
+      );
+    } catch (error) {
+      this.logger.error('Error deleting item', { partitionKey, sortKey });
+      throw error;
     }
   }
 
@@ -103,12 +198,33 @@ export abstract class AbstractRepository<T> {
     limit?: number,
     exclusiveStartKey?: DynamoDBKey,
   ): Promise<QueryResult<T>> {
+    return this.queryIndexWithPaginationAndNames(
+      indexName,
+      keyConditionExpression,
+      expressionAttributeValues,
+      undefined,
+      scanIndexForward,
+      limit,
+      exclusiveStartKey,
+    );
+  }
+
+  private async queryIndexWithPaginationAndNames(
+    indexName: string,
+    keyConditionExpression: string,
+    expressionAttributeValues: ExpressionAttributeValues,
+    expressionAttributeNames?: Record<string, string>,
+    scanIndexForward: boolean = true,
+    limit?: number,
+    exclusiveStartKey?: DynamoDBKey,
+  ): Promise<QueryResult<T>> {
     const params: QueryCommandInput = {
       TableName: this.tableName,
       IndexName: indexName,
       KeyConditionExpression: keyConditionExpression,
       ExpressionAttributeValues: expressionAttributeValues,
       ScanIndexForward: scanIndexForward,
+      ...(expressionAttributeNames && { ExpressionAttributeNames: expressionAttributeNames }),
       ...(limit && { Limit: limit }),
       ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
     };
@@ -189,7 +305,7 @@ export abstract class AbstractRepository<T> {
     limit?: number;
     exclusiveStartKey?: DynamoDBKey;
   }): Promise<QueryResult<T>> {
-    const keyConditionExpression = `${partitionKeyName} = :partitionKey`;
+    const keyConditionExpression = `#pk = :partitionKey`;
 
     const expressionAttributeValues = {
       ':partitionKey': partitionKeyValue,
@@ -205,10 +321,11 @@ export abstract class AbstractRepository<T> {
     });
 
     try {
-      const result = await this.queryIndexWithPagination(
+      const result = await this.queryIndexWithPaginationAndNames(
         indexName,
         keyConditionExpression,
         expressionAttributeValues,
+        { '#pk': partitionKeyName },
         scanIndexForward,
         limit,
         exclusiveStartKey,
@@ -520,5 +637,65 @@ export abstract class AbstractRepository<T> {
     });
 
     return nextTokenKey;
+  }
+
+  /**
+   * Shared implementation of DynamoDB BatchGetItem with chunking and exponential backoff for UnprocessedKeys.
+   * Chunks the provided keys into batches of `chunkSize` (default 100 — the DynamoDB service limit) using a
+   * queue. When a response contains UnprocessedKeys, those keys are placed back at the front of the queue and
+   * included in the next batch. Applies capped exponential backoff on consecutive throttles (i.e. when
+   * UnprocessedKeys are returned). Uses the `Sleeper` instance injected into the constructor (ADR 0004).
+   *
+   * @param keys - DynamoDB keys to fetch across all batches. Safe to pass an empty array.
+   * @param options - Optional overrides for batch size, backoff, or per-request parameters
+   *   (such as ProjectionExpression).
+   * @returns Retrieved items (unprocessedKeys is always empty — all keys are fetched).
+   */
+  protected async batchGetWithRetry<TItem extends DynamoDBItem>(
+    keys: DynamoDBKey[],
+    options: BatchGetWithRetryOptions = {},
+  ): Promise<BatchGetWithRetryResult<TItem>> {
+    if (keys.length === 0) {
+      return { items: [], unprocessedKeys: [] };
+    }
+
+    const chunkSize = options.chunkSize ?? DEFAULT_BATCH_GET_CHUNK_SIZE;
+    const backoffBaseMs = options.backoffBaseMs ?? DEFAULT_BATCH_GET_BACKOFF_BASE_MS;
+    const maxBackoffMs = options.maxBackoffMs ?? DEFAULT_BATCH_GET_MAX_BACKOFF_MS;
+    const requestItemOptions: BatchGetRequestItemOptions = options.requestItemOptions ?? {};
+
+    const allItems: TItem[] = [];
+    const queue: DynamoDBKey[] = [...keys];
+    let consecutiveThrottles = 0;
+
+    while (queue.length > 0) {
+      if (consecutiveThrottles > 0) {
+        await this.sleeper.sleep(Math.min(2 ** consecutiveThrottles * backoffBaseMs, maxBackoffMs));
+      }
+
+      const batch = queue.splice(0, chunkSize);
+
+      const response = await this.dynamoDBClient.send(
+        new BatchGetCommand({
+          RequestItems: {
+            [this.tableName]: { Keys: batch, ...requestItemOptions },
+          },
+        }),
+      );
+
+      const responseItems = response.Responses?.[this.tableName] ?? [];
+      allItems.push(...(responseItems as TItem[]));
+
+      const unprocessed = (response.UnprocessedKeys?.[this.tableName]?.Keys ?? []) as DynamoDBKey[];
+
+      if (unprocessed.length > 0) {
+        queue.unshift(...unprocessed);
+        consecutiveThrottles++;
+      } else {
+        consecutiveThrottles = 0;
+      }
+    }
+
+    return { items: allItems, unprocessedKeys: [] };
   }
 }

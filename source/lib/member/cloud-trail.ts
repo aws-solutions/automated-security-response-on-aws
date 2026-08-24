@@ -14,17 +14,19 @@ import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
-import { CrossAccount } from '../constants/parameters';
+import { createLogGroup } from '../cdk-helper/log-group';
+import { CROSS_ACCOUNT_LOG_WRITER_EXTERNAL_ID } from '../action-log';
+import { getConfig } from '../config/cdk-config';
 
 export const EVENT_FILTER_FUNCTION_NAME = `ASR-EventProcessor`;
-const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
+const config = getConfig();
 
 export class MemberCloudTrailStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
     const stack = Stack.of(this);
 
-    const resourceNamePrefix = SOLUTION_ID.replace(/^DEV-/, '');
+    const resourceNamePrefix = config.solution.id.replace(/^DEV-/, '');
 
     const namespace = new CfnParameter(this, 'Namespace');
     const cloudTrailLogGroupName = new CfnParameter(this, 'CloudTrailLogGroupName');
@@ -110,16 +112,20 @@ export class MemberCloudTrailStack extends Stack {
     // Add S3 notification to trigger the EventProcessor Lambda function
     const eventProcessorFunction = new lambda.Function(this, EVENT_FILTER_FUNCTION_NAME, {
       functionName: resourceNamePrefix + '-' + EVENT_FILTER_FUNCTION_NAME,
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       timeout: Duration.seconds(15),
       handler: 'index.handler',
       code: inlineCode,
+      logGroup: createLogGroup(this, 'EventProcessorLogGroup'),
+      // Suppress DEBUG/TRACE logs.
+      loggingFormat: lambda.LoggingFormat.JSON,
+      applicationLogLevelV2: lambda.ApplicationLogLevel.INFO,
       environment: {
         CLOUD_TRAIL_INVOKED_BY: 'NAME',
         LOG_GROUP_NAME: cloudTrailLogGroupName.valueAsString,
         LOG_WRITER_ROLE_ARN: logWriterRoleArn.valueAsString,
-        LOG_WRITER_EXTERNAL_ID: CrossAccount.FIXED_EXTERNAL_ID,
+        LOG_WRITER_EXTERNAL_ID: CROSS_ACCOUNT_LOG_WRITER_EXTERNAL_ID,
         AWS_ACCOUNT_ID: stack.account,
         STACK_ID: stack.stackId,
       },

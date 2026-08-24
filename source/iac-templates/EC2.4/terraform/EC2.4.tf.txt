@@ -1,0 +1,6 @@
+# EC2.4 — Stopped EC2 instances should be removed after a specified time period
+#
+# ASR remediation terminates EC2 instances that have been stopped longer than
+# the allowed number of days.
+# No IaC change is needed. This remediation is purely operational — remove the
+# EC2 instance resource from your IaC code if the instance is no longer required.

@@ -7,10 +7,12 @@ import { MemberStack } from './member-stack';
 import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
 import { NIST80053_REMEDIATIONS } from '../playbooks/NIST80053/lib/nist80053_remediations';
 import { AFSBP_REMEDIATIONS } from '../playbooks/AFSBP/lib/afsbp_remediations';
+import { getConfig } from './config/cdk-config';
 
-const SC_MEMBER_STACK_LIMIT = Number(process.env['SC_MEMBER_STACK_LIMIT']);
-const NIST_MEMBER_STACK_LIMIT = Number(process.env['NIST_MEMBER_STACK_LIMIT']);
-const AFSBP_MEMBER_STACK_LIMIT = Number(process.env['AFSBP_MEMBER_STACK_LIMIT']);
+const config = getConfig();
+const SC_MEMBER_STACK_LIMIT = config.memberStackLimits.sc;
+const NIST_MEMBER_STACK_LIMIT = config.memberStackLimits.nist;
+const AFSBP_MEMBER_STACK_LIMIT = config.memberStackLimits.afsbp;
 const description = 'ASR Member Stack';
 const solutionId = 'SO9999';
 const solutionTradeMarkName = 'my-solution-tmn';
@@ -201,6 +203,202 @@ describe('member stack', function () {
         Name: `/Solutions/${solutionId}/afsbp/1.0.0/S3.4/KmsKeyAlias`,
         Type: 'String',
         Value: 'default-s3-encryption',
+      });
+    });
+  });
+
+  describe('Remediation Configuration bucket', function () {
+    const bucketLogicalId = 'RemediationConfigurationBucketF5FA3D12';
+
+    it('is present with correct configuration', function () {
+      template.hasResource('AWS::S3::Bucket', {
+        DeletionPolicy: 'Retain',
+        Properties: {
+          BucketName: {
+            ['Fn::Join']: ['', ['so0111-asr-remediation-', { Ref: 'AWS::Region' }, '-', { Ref: 'AWS::AccountId' }]],
+          },
+          BucketEncryption: {
+            ServerSideEncryptionConfiguration: [
+              {
+                ServerSideEncryptionByDefault: {
+                  SSEAlgorithm: 'AES256',
+                },
+              },
+            ],
+          },
+          LifecycleConfiguration: {
+            Rules: [
+              {
+                ExpirationInDays: 90,
+                Id: 'GuardDutyBackupRetention',
+                Prefix: 'guardduty-backups/',
+                Status: 'Enabled',
+              },
+              {
+                ExpirationInDays: 7,
+                Id: 'InstallOverrideListExpiration',
+                Prefix: 'install-overrides/',
+                Status: 'Enabled',
+              },
+            ],
+          },
+          PublicAccessBlockConfiguration: {
+            BlockPublicAcls: true,
+            BlockPublicPolicy: true,
+            IgnorePublicAcls: true,
+            RestrictPublicBuckets: true,
+          },
+          VersioningConfiguration: {
+            Status: 'Enabled',
+          },
+        },
+        UpdateReplacePolicy: 'Retain',
+      });
+    });
+
+    it('bucket policy enforces SSL and grants EC2 read access', function () {
+      const accountPrincipalArn = {
+        ['Fn::Join']: ['', ['arn:', { Ref: 'AWS::Partition' }, ':iam::', { Ref: 'AWS::AccountId' }, ':root']],
+      };
+
+      template.hasResourceProperties('AWS::S3::BucketPolicy', {
+        Bucket: { Ref: bucketLogicalId },
+        PolicyDocument: {
+          Statement: [
+            {
+              Action: 's3:*',
+              Condition: {
+                Bool: { 'aws:SecureTransport': 'false' },
+              },
+              Effect: 'Deny',
+              Principal: { AWS: '*' },
+              Resource: [
+                { ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] },
+                {
+                  ['Fn::Join']: ['', [{ ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] }, '/*']],
+                },
+              ],
+            },
+            {
+              Sid: 'AllowEC2ReadForPatching',
+              Action: 's3:GetObject',
+              Effect: 'Allow',
+              Principal: { AWS: accountPrincipalArn },
+              Resource: [
+                {
+                  ['Fn::Join']: ['', [{ ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] }, '/install-overrides/*']],
+                },
+                {
+                  ['Fn::Join']: ['', [{ ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] }, '/baseline-overrides/*']],
+                },
+              ],
+              Condition: {
+                StringEquals: {
+                  'aws:PrincipalAccount': { Ref: 'AWS::AccountId' },
+                },
+              },
+            },
+            {
+              Sid: 'AllowListBucket',
+              Action: 's3:ListBucket',
+              Effect: 'Allow',
+              Principal: { AWS: accountPrincipalArn },
+              Resource: { ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] },
+              Condition: {
+                StringLike: {
+                  's3:prefix': ['install-overrides/*', 'baseline-overrides/*'],
+                },
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    it('SSM parameter for bucket name is present', function () {
+      template.hasResourceProperties('AWS::SSM::Parameter', {
+        Name: `/Solutions/${solutionId}/RemediationConfigurationBucket`,
+        Type: 'String',
+        Value: {
+          Ref: bucketLogicalId,
+        },
+      });
+    });
+
+    it('remediation config bucket-access managed policy is present and scoped to the bucket', function () {
+      template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
+        ManagedPolicyName: 'ASR-RemediationConfigBucketAccess',
+        PolicyDocument: {
+          Statement: [
+            {
+              Action: 's3:GetObject',
+              Effect: 'Allow',
+              Resource: [
+                {
+                  ['Fn::Join']: ['', [{ ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] }, '/install-overrides/*']],
+                },
+                {
+                  ['Fn::Join']: ['', [{ ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] }, '/baseline-overrides/*']],
+                },
+              ],
+            },
+            {
+              Action: 's3:ListBucket',
+              Effect: 'Allow',
+              Resource: { ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] },
+            },
+          ],
+        },
+      });
+    });
+
+    it('baseline configuration Lambda function is present', function () {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Handler: 'baseline-configuration/baselineConfigurationHandler.handler',
+        Runtime: 'nodejs22.x',
+        Description: 'Uploads Windows security baseline configuration to the Remediation Configuration bucket',
+        Timeout: 300,
+      });
+    });
+
+    it('baseline configuration Lambda role has S3 PutObject permission', function () {
+      template.hasResourceProperties('AWS::IAM::Role', {
+        AssumeRolePolicyDocument: {
+          Statement: [
+            {
+              Action: 'sts:AssumeRole',
+              Effect: 'Allow',
+              Principal: { Service: 'lambda.amazonaws.com' },
+            },
+          ],
+        },
+        Policies: [
+          {
+            PolicyName: 'BaselineConfigPolicy',
+            PolicyDocument: {
+              Statement: [
+                {
+                  Action: 's3:PutObject',
+                  Effect: 'Allow',
+                  Resource: {
+                    ['Fn::Join']: ['', [{ ['Fn::GetAtt']: [bucketLogicalId, 'Arn'] }, '/baseline-overrides/*']],
+                  },
+                },
+                {
+                  Action: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
+                  Effect: 'Allow',
+                  Resource: '*',
+                },
+              ],
+            },
+          },
+        ],
+      });
+    });
+
+    it('baseline configuration custom resource is present with bucket name', function () {
+      template.hasResourceProperties('Custom::BaselineConfiguration', {
+        BucketName: { Ref: bucketLogicalId },
       });
     });
   });

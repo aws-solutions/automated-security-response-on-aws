@@ -1,0 +1,17 @@
+# S3.4 — S3 buckets should have server-side encryption enabled
+#
+# ASR remediation enables default server-side encryption on the S3 bucket
+# using AES-256 (SSE-S3) with an S3 Bucket Key.
+# To apply this fix, add an aws_s3_bucket_server_side_encryption_configuration
+# resource with sse_algorithm set to AES256 and bucket_key_enabled set to true.
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "{bucketName}" {
+  bucket = aws_s3_bucket.{bucketName}.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}

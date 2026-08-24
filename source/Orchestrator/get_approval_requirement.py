@@ -9,6 +9,7 @@ This Lambda can be further modified by the customer to gather additional
 information to determine when to inject RUN_WORKFLOW. Methods are defined
 and stubbed out to support this: _is_remediation_destructive(), etc.
 """
+
 import json
 import os
 import re
@@ -23,6 +24,7 @@ from layer.powertools_logger import get_logger
 from layer.sechub_findings import Finding
 from layer.simple_validation import extract_safe_product_name, safe_ssm_path
 from layer.tracer_utils import init_tracer
+from layer.utils import StepFunctionLambdaAnswerDict
 
 logger = get_logger("get_approval_requirement")
 tracer = init_tracer()
@@ -133,8 +135,70 @@ def _doc_is_active(doc: str, account: str) -> bool:
         return False
 
 
-@tracer.capture_lambda_handler  # type: ignore[misc]
-def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
+def _evaluate_approval_and_alt_workflow(
+    answer: utils.StepFunctionLambdaAnswer,
+    *,
+    event_type: str,
+    standard_shortname: str,
+    standard_version: str,
+    standard_control: str,
+    account_id: str,
+) -> None:
+    """
+    Apply the customer-extensible approval/destructive/sensitive evaluation and,
+    when an alternate workflow is configured and active, redirect the remediation
+    to it. Shared by both the SecurityHub-standard path and the multi-service path
+    so the two cannot diverge: a customer who extends the destructive/sensitive
+    stubs or configures WORKFLOW_RUNBOOK has it honored consistently regardless of
+    finding type. With the default stubs (all False) and no WORKFLOW_RUNBOOK the
+    answer is left at its non-destructive, no-approval defaults.
+    """
+    auto_trigger = _is_automatic_trigger(event_type)
+    is_destructive = _is_remediation_destructive(
+        standard_shortname, standard_version, standard_control
+    )
+    is_sensitive = _is_account_sensitive(account_id)
+
+    approval_required = "false"
+    remediation_impact = "nondestructive"
+
+    #
+    # PUT ADDITIONAL CRITERIA HERE. When done, remediation_impact and approval_required
+    # must be set per your needs
+    # ----------------------------------------------------------------------------------
+    if auto_trigger and is_destructive and is_sensitive:
+        remediation_impact = "destructive"
+        approval_required = "true"
+
+    # ----------------------------------------------------------------------------------
+
+    # Is there an alternative workflow configured?
+    alt_workflow, alt_account, alt_role = _get_alternate_workflow(account_id)
+
+    # If so, update workflow_data
+    # ---------------------------
+    # When WORKFLOW_RUNBOOK is configured (and the runbook is active in the member
+    # account) every remediation is redirected to it, carrying the impact/approval
+    # assessment computed above. workflow_data can be modified to suit your needs.
+    # Using the alt_workflow redirects the remediation to your workflow only! The
+    # normal ASR workflow will not be executed.
+    # ----------------------------------------------------------------------------------
+    if alt_workflow:
+        answer.update(
+            {
+                "workflowdoc": alt_workflow,
+                "workflowaccount": alt_account,
+                "workflowrole": alt_role,
+                "workflow_data": {
+                    "impact": remediation_impact,
+                    "approvalrequired": approval_required,
+                },
+            }
+        )
+
+
+@tracer.capture_lambda_handler  # type: ignore[untyped-decorator]
+def lambda_handler(event: Dict[str, Any], _: Any) -> StepFunctionLambdaAnswerDict:
     answer = utils.StepFunctionLambdaAnswer()
     answer.update(
         {
@@ -150,7 +214,24 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             {"status": "ERROR", "message": "Missing required data in request"}
         )
         logger.error(answer.message)
-        return answer.json()  # type: ignore[no-any-return]
+        return answer.json()
+
+    # Multi-service findings (Inspector, GuardDuty, Macie, IAM Access Analyzer)
+    # don't have a SecurityHub-style standard / control / version triple, and
+    # they're not registered as non-SecurityHub products in SSM Parameter Store
+    # either. Skip the standard / alt-workflow logic and return defaults — the
+    # orchestrator routes them via Detail.remediationId in
+    # resolve_ssm_doc_for_finding.
+    if event.get("Detail", {}).get("findingType") == "multiService":
+        _evaluate_approval_and_alt_workflow(
+            answer,
+            event_type=event["EventType"],
+            standard_shortname="",
+            standard_version="",
+            standard_control=event.get("Detail", {}).get("remediationId", ""),
+            account_id=event["Finding"].get("AwsAccountId", ""),
+        )
+        return answer.json()
 
     #
     # Check to see if this is a non-sechub finding that we are remediating
@@ -184,55 +265,25 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
                     },
                 }
             )
-            return answer.json()  # type: ignore[no-any-return]
+            return answer.json()
         except Exception as error:
-            answer.update({"status": "ERROR", "message": error})
+            # Stringify so Step Functions can serialize the response — passing
+            # the exception object directly produced "Runtime.MarshalError:
+            # Object of type ParameterNotFound is not JSON serializable" and
+            # killed the state machine.
+            answer.update({"status": "ERROR", "message": str(error)})
             logger.error(answer.message)
-            return answer.json()  # type: ignore[no-any-return]
+            return answer.json()
 
     finding = Finding(event["Finding"])
 
-    auto_trigger = _is_automatic_trigger(event["EventType"])
-    is_destructive = _is_remediation_destructive(
-        finding.standard_shortname, finding.standard_version, finding.standard_control
+    _evaluate_approval_and_alt_workflow(
+        answer,
+        event_type=event["EventType"],
+        standard_shortname=finding.standard_shortname,
+        standard_version=finding.standard_version,
+        standard_control=finding.standard_control,
+        account_id=finding.account_id,
     )
-    is_sensitive = _is_account_sensitive(finding.account_id)
 
-    approval_required = "false"
-    remediation_impact = "nondestructive"
-    use_alt_workflow = "false"
-
-    #
-    # PUT ADDITIONAL CRITERIA HERE. When done, remediation_impact and approval_required
-    # must be set per your needs
-    # ----------------------------------------------------------------------------------
-    if auto_trigger and is_destructive and is_sensitive:
-        remediation_impact = "destructive"
-        approval_required = "true"
-        use_alt_workflow = "true"
-
-    # ----------------------------------------------------------------------------------
-
-    # Is there an alternative workflow configured?
-    alt_workflow, alt_account, alt_role = _get_alternate_workflow(finding.account_id)
-
-    # If so, update workflow_data
-    # ---------------------------
-    # workflow_data can be modified to suit your needs. This data is passed to the
-    # alt_workflow. Using the alt_workflow redirects the remediation to your workflow
-    # only! The normal ASR workflow will not be executed.
-    # ----------------------------------------------------------------------------------
-    if alt_workflow and use_alt_workflow:
-        answer.update(
-            {
-                "workflowdoc": alt_workflow,
-                "workflowaccount": alt_account,
-                "workflowrole": alt_role,
-                "workflow_data": {
-                    "impact": remediation_impact,
-                    "approvalrequired": approval_required,
-                },
-            }
-        )
-
-    return answer.json()  # type: ignore[no-any-return]
+    return answer.json()

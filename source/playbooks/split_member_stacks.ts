@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { IControl } from '../lib/playbook-construct';
 import { App, DefaultStackSynthesizer } from 'aws-cdk-lib';
+import { getConfig } from '../lib/config/cdk-config';
 
-// SOLUTION_* - set by solution_env.sh
-const SOLUTION_ID = process.env['SOLUTION_ID'] || 'SO0111';
-const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'Automated Security Response on AWS';
-// DIST_* - set by build-s3-dist.sh
-const DIST_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
-const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
+const config = getConfig();
 
 export interface SplitStackProps {
   scope: App;
@@ -26,21 +22,21 @@ export interface SplitStackProps {
  */
 export function splitMemberStack(props: SplitStackProps): any[] {
   const memberStacks = [];
-  const numDivisions = isFinite(props.stackLimit) ? Math.ceil(props.remediations.length / props.stackLimit) : 1;
+  const numDivisions = Number.isFinite(props.stackLimit) ? Math.ceil(props.remediations.length / props.stackLimit) : 1;
 
   for (let stackIndex = 0; stackIndex < numDivisions; stackIndex++) {
     const stackName = stackIndex === 0 ? props.baseStackName : `${props.baseStackName}${stackIndex}`;
-    const start = stackIndex * (isFinite(props.stackLimit) ? props.stackLimit : props.remediations.length);
-    const end = start + (isFinite(props.stackLimit) ? props.stackLimit : props.remediations.length);
+    const start = stackIndex * (Number.isFinite(props.stackLimit) ? props.stackLimit : props.remediations.length);
+    const end = start + (Number.isFinite(props.stackLimit) ? props.stackLimit : props.remediations.length);
     const remediationsSubset: IControl[] = props.remediations.slice(start, end);
 
     const memberStack = new props.stackClass(props.scope, stackName, {
       analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-      description: `(${SOLUTION_ID}PM) ${SOLUTION_NAME} ${props.standardShortName} ${props.standardVersion} Compliance Pack ${stackIndex} - Member Account, ${DIST_VERSION}`,
-      solutionId: SOLUTION_ID,
-      solutionVersion: DIST_VERSION,
-      solutionDistBucket: DIST_OUTPUT_BUCKET,
+      description: `(${config.solution.id}PM) ${config.solution.name} ${props.standardShortName} ${props.standardVersion} Compliance Pack ${stackIndex} - Member Account, ${config.build.distVersion}`,
+      solutionId: config.solution.id,
+      solutionVersion: config.build.distVersion,
+      solutionDistBucket: config.build.distOutputBucket,
       securityStandard: props.standardShortName,
       securityStandardVersion: props.standardVersion,
       securityStandardLongName: props.standardLongName,

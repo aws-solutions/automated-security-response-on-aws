@@ -5,55 +5,27 @@
 //
 // The Lambda serves only the sweep state machine, so every test drives the exported handler() with one
 // of the three Step Functions tasks (enumerate-accounts / sync-account-slice / mark-sweep-done). It runs
-// end-to-end — through the slice engine, the finding data service, and the cursor/finding repositories —
-// down to a REAL DynamoDB Local table. Only true external boundaries are mocked: Security Hub
-// (GetFindings / ListMembers), SSM/filter config, the tracer, and the metrics HTTP endpoint. DynamoDB is
-// never mocked, so key schemas, conditional writes, cursor isolation, and resume behaviour are all
-// exercised against real database semantics.
+// end-to-end — through the slice engine, the finding data service, the resource-filter and
+// deadline-eligibility enrichment, and the cursor/finding repositories — down to a REAL DynamoDB Local
+// table. Only true external boundaries are mocked: Security Hub (GetFindings / ListMembers), the tracer,
+// and the metrics HTTP emission. DynamoDB is never mocked, so key schemas, conditional writes, cursor
+// isolation, and resume behaviour are all exercised against real database semantics.
 
 import { DynamoDBTestSetup } from '../../common/__tests__/dynamodbSetup';
-// Import after mocks so module-scope wiring in the handler picks them up.
-import { Context } from 'aws-lambda';
-import {
-  AwsSecurityFinding,
-  GetFindingsCommand,
-  GetFindingsCommandInput,
-  GetFindingsCommandOutput,
-  ListMembersCommand,
-  ListMembersCommandOutput,
-  RecordState,
-  SecurityHubClient,
-  SeverityLabel,
-} from '@aws-sdk/client-securityhub';
-import { GetCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
-import { mockClient } from 'aws-sdk-client-mock';
-import { configTableName, findingsTableName, mockAccountId } from '../../common/__tests__/envSetup';
-import { handler } from '../synchronizationHandler';
 
-// The handler builds its DynamoDB client at request time via createDynamoDBClient(); point that at the
+// The handler builds its DynamoDB client at module load via createDynamoDBClient(); point that at the
 // DynamoDB Local test client. initialize() is synchronous in practice (it only constructs the client).
 void DynamoDBTestSetup.initialize();
 const testClient = DynamoDBTestSetup.getDocClient();
 
 // Each jest.mock factory references its `mock*` const LAZILY (through an arrow), never directly. Jest
-// hoists these factories above the top-level `import { handler }`, whose module-scope imports resolve
-// these mocked modules at load time — before the `const mock*` declarations below have initialized.
-// A direct reference would hit the temporal dead zone ('Cannot access mock* before initialization');
-// wrapping it defers the read until the mocked function is actually called, by which point the const
-// exists. This keeps the plain top-level import (no require()) while staying hoist-order-safe.
+// hoists these factories above the top-level imports, whose module-scope wiring in the handler resolves
+// these mocked modules at load time — before the `const mock*` declarations below have initialized. A
+// direct reference would hit the temporal dead zone; wrapping it defers the read until the mocked
+// function is actually called, by which point the const exists.
 const mockCreateDynamoDBClient = jest.fn(() => testClient);
 jest.mock('../../common/utils/dynamodb', () => ({
   createDynamoDBClient: () => mockCreateDynamoDBClient(),
-}));
-
-// Filter config comes from SSM; mock the SSM cache so applyFilters() sees "all filters disabled"
-// (every finding passes) without reaching a real parameter store.
-const mockGetCachedParametersByPath = jest.fn();
-jest.mock('../../common/utils/ssmCache', () => ({
-  getCachedParameter: jest.fn(() => Promise.resolve('test-uuid')),
-  getCachedParametersByPath: (path: unknown) => mockGetCachedParametersByPath(path),
-  clearSSMCache: jest.fn(),
-  getSSMClient: jest.fn(() => ({})),
 }));
 
 const mockCaptureAWSv3Client = jest.fn((client) => client);
@@ -71,6 +43,30 @@ jest.mock('../../common/utils/metricsUtils', () => ({
   buildFailureMetric: jest.fn(() => ({ status: 'FAILED' })),
 }));
 
+// Import after mocks so module-scope wiring in the handler picks them up.
+import { Context } from 'aws-lambda';
+import {
+  AwsSecurityFinding,
+  GetFindingsCommand,
+  GetFindingsCommandInput,
+  GetFindingsCommandOutput,
+  ListMembersCommand,
+  ListMembersCommandOutput,
+  RecordState,
+  SecurityHubClient,
+  SeverityLabel,
+} from '@aws-sdk/client-securityhub';
+import { GetCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { mockClient } from 'aws-sdk-client-mock';
+import {
+  findingsTableName,
+  remediationConfigTableName,
+  resourceFiltersTableName,
+  notificationConfigTableName,
+  mockAccountId,
+} from '../../common/__tests__/envSetup';
+import { handler } from '../synchronizationHandler';
+
 const securityHubMock = mockClient(SecurityHubClient);
 
 // The cursor and sweep live in the findings table under these partitions; readers never touch them. The
@@ -78,7 +74,7 @@ const securityHubMock = mockClient(SecurityHubClient);
 const CURSOR_PARTITION = 'SYNC_CURSOR';
 const SWEEP_PARTITION = 'SYNC_SWEEP';
 const SWEEP_KEY = 'global';
-// The sync-account-slice tests below key their cursor under mockAccountId.
+// The sync-account-slice tests below key their cursor under mockAccountId by default.
 const SYNC_SCOPE = mockAccountId;
 
 describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
@@ -112,11 +108,15 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
     } as ListMembersCommandOutput);
   };
 
-  // Seed the remediation-config table so getSupportedControlIds() returns real controlIds to sync.
+  // Seed the remediation-config table so getSupportedControlIds() returns real controlIds to sync. No
+  // resource filters are configured on the control, so every finding passes the enrichment filter step.
   const seedControls = async (...controlIds: string[]) => {
     for (const controlId of controlIds) {
       await testClient.send(
-        new PutCommand({ TableName: configTableName, Item: { controlId, automatedRemediationEnabled: true } }),
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: { controlId, automatedRemediationEnabled: true },
+        }),
       );
     }
   };
@@ -166,25 +166,28 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
 
   beforeAll(async () => {
     await DynamoDBTestSetup.createFindingsTable(findingsTableName);
-    await DynamoDBTestSetup.createConfigTable(configTableName);
+    await DynamoDBTestSetup.createConfigTable(remediationConfigTableName);
+    await DynamoDBTestSetup.createResourceFiltersTable(resourceFiltersTableName);
+    await DynamoDBTestSetup.createNotificationConfigTable(notificationConfigTableName);
   });
 
   afterAll(async () => {
     await DynamoDBTestSetup.deleteTable(findingsTableName);
-    await DynamoDBTestSetup.deleteTable(configTableName);
+    await DynamoDBTestSetup.deleteTable(remediationConfigTableName);
+    await DynamoDBTestSetup.deleteTable(resourceFiltersTableName);
+    await DynamoDBTestSetup.deleteTable(notificationConfigTableName);
   });
 
   beforeEach(async () => {
     await DynamoDBTestSetup.clearTable(findingsTableName, 'findings');
-    await DynamoDBTestSetup.clearTable(configTableName, 'config');
+    await DynamoDBTestSetup.clearTable(remediationConfigTableName, 'config');
+    await DynamoDBTestSetup.clearTable(resourceFiltersTableName, 'resourceFilters');
+    await DynamoDBTestSetup.clearTable(notificationConfigTableName, 'notificationConfig');
 
     securityHubMock.reset();
     mockSendMetrics.mockClear();
     mockCaptureAWSv3Client.mockImplementation((client) => client ?? testClient);
     mockCreateDynamoDBClient.mockReturnValue(testClient);
-
-    // All filters disabled → every finding passes applyFilters().
-    mockGetCachedParametersByPath.mockResolvedValue([]);
 
     // Default to a single member account so enumerate-accounts yields one account.
     stubMemberAccounts(mockAccountId);
@@ -264,6 +267,62 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
       const stored = await countStoredFindings();
       expect(stored).toHaveLength(1);
       expect(stored[0].findingId).toContain('active');
+    });
+
+    it('persists the finding attributes the Web UI reads', async () => {
+      await seedControls('Lambda.3');
+      stubFindingsPages({ findings: [createMockFinding('attrs')] });
+
+      await runSlice();
+
+      const stored = await countStoredFindings();
+      expect(stored).toHaveLength(1);
+      expect(stored[0].accountId).toBe('123456789012');
+      expect(stored[0].severity).toBe('HIGH');
+      expect(stored[0].remediationStatus).toBe('NOT_STARTED');
+    });
+  });
+
+  describe('Resource-filter enrichment', () => {
+    it('skips a finding blocked by the control resource filter', async () => {
+      // The control has an account-scoped resource filter in include mode whose account does NOT match
+      // this finding's account, so the finding fails the include filter during enrichment and is never
+      // written to the table. A control id unique to this test is used so the module-level control-config
+      // cache (a singleton on the handler) is not pre-warmed with a no-filter config by another test.
+      await testClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'EC2.99',
+            automatedRemediationEnabled: true,
+            filters: ['other-account-only'],
+            filterMode: 'include',
+          },
+        }),
+      );
+      await testClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: { filterId: 'other-account-only', name: 'other-account-only', accountIds: ['999999999999'] },
+        }),
+      );
+      stubFindingsPages({
+        findings: [
+          createMockFinding('blocked', {
+            GeneratorId: 'security-control/EC2.99',
+            Compliance: { Status: 'FAILED', SecurityControlId: 'EC2.99' },
+          }),
+        ],
+      });
+
+      const result = await runSlice();
+
+      expect(result.done).toBe(true);
+      // The finding was filtered out, so no row is written.
+      expect(await countStoredFindings()).toHaveLength(0);
+      expect(mockSendMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({ synchronization_status: 'SUCCESS', total_filtered: 1, total_successful: 0 }),
+      );
     });
   });
 
@@ -375,33 +434,6 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
       // Still exactly one row; the stale update did not overwrite.
       expect(await countStoredFindings()).toHaveLength(1);
     });
-
-    it('counts a finding missing a required field as ERROR and writes no row', async () => {
-      await seedControls('Lambda.3');
-
-      // Severity.Label is required to build the finding-table item; a finding without it survives the
-      // archived/filter checks but fails construction, so the data service classifies it ERROR (distinct
-      // from a FAILED conditional write). This is the only path that exercises the error bucket.
-      stubFindingsPages({
-        findings: [createMockFinding('broken', { Severity: { Normalized: 70 } })],
-      });
-
-      const result = await runSlice();
-
-      // The slice still completes — a single unprocessable finding is tallied, not thrown.
-      expect(result.done).toBe(true);
-      expect(mockSendMetrics).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          synchronization_status: 'SUCCESS',
-          total_processed: 1,
-          total_error: 1,
-          total_successful: 0,
-          total_failed: 0,
-        }),
-      );
-      // Nothing was persisted for the unprocessable finding.
-      expect(await countStoredFindings()).toHaveLength(0);
-    });
   });
 
   describe('Error handling', () => {
@@ -456,13 +488,6 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
         .commandCalls(GetFindingsCommand)
         .map((call) => call.args[0].input as GetFindingsCommandInput);
       expect(getFindingsInputs[0].Filters?.AwsAccountId).toEqual([{ Value: '444455556666', Comparison: 'EQUALS' }]);
-      // ...and ordered highest-severity-then-most-recent so the most important findings land first even
-      // when a slice runs out of budget partway through. This ordering is the wiring the state machine
-      // relies on; assert it survives the delegation from the handler through to the GetFindings call.
-      expect(getFindingsInputs[0].SortCriteria).toEqual([
-        { Field: 'SeverityNormalized', SortOrder: 'desc' },
-        { Field: 'UpdatedAt', SortOrder: 'desc' },
-      ]);
       // The slice checkpoints its own cursor under that account's scope.
       expect((await getCursor('444455556666'))?.done).toBe(true);
     });

@@ -3,13 +3,12 @@
 
 import { Logger } from '@aws-lambda-powertools/logger';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { SearchCriteria, SearchFilter } from '@asr/data-models';
+import { SearchCriteria, SearchFilter, FindingAbstractData } from '@asr/data-models';
 import { AuthenticatedUser } from './authorization';
 import { DEFAULT_PAGE_SIZE } from '../../common/constants/apiConstant';
 import { createDynamoDBClient } from '../../common/utils/dynamodb';
 import { sendMetrics } from '../../common/utils/metricsUtils';
 import { normalizeResourceType } from '../../common/services/findingDataService';
-import { FindingAbstractData } from '@asr/data-models';
 
 type ResourceType = 'Findings' | 'Remediations';
 

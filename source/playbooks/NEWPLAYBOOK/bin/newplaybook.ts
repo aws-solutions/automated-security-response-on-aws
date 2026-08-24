@@ -4,14 +4,9 @@
 import { PlaybookPrimaryStack, PlaybookMemberStack, IControl } from '../../../lib/playbook-construct';
 import * as cdk from 'aws-cdk-lib';
 import 'source-map-support/register';
+import { getConfig } from '../../../lib/config/cdk-config';
 
-// SOLUTION_* - set by solution_env.sh
-const SOLUTION_ID = process.env['SOLUTION_ID'] || 'undefined';
-const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'undefined';
-// DIST_* - set by build-s3-dist.sh
-const DIST_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
-const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
-const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
+const config = getConfig();
 
 const standardShortName = 'NPB';
 const standardLongName = 'NewPlaybook';
@@ -26,11 +21,11 @@ const remediations: IControl[] = [{ control: 'RDS.6', versionAdded: '2.1.0' }];
 const adminStack = new PlaybookPrimaryStack(app, 'NPBStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-  description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
-  solutionId: SOLUTION_ID,
-  solutionVersion: DIST_VERSION,
-  solutionDistBucket: DIST_OUTPUT_BUCKET,
-  solutionDistName: DIST_SOLUTION_NAME,
+  description: `(${config.solution.id}P) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${config.build.distVersion}`,
+  solutionId: config.solution.id,
+  solutionVersion: config.build.distVersion,
+  solutionDistBucket: config.build.distOutputBucket,
+  solutionDistName: config.solution.trademarkedName,
   remediations: remediations,
   securityStandardLongName: standardLongName,
   securityStandard: standardShortName,
@@ -40,10 +35,10 @@ const adminStack = new PlaybookPrimaryStack(app, 'NPBStack', {
 const memberStack = new PlaybookMemberStack(app, 'NPBMemberStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-  description: `(${SOLUTION_ID}M) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${DIST_VERSION}`,
-  solutionId: SOLUTION_ID,
-  solutionVersion: DIST_VERSION,
-  solutionDistBucket: DIST_OUTPUT_BUCKET,
+  description: `(${config.solution.id}M) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Member Account, ${config.build.distVersion}`,
+  solutionId: config.solution.id,
+  solutionVersion: config.build.distVersion,
+  solutionDistBucket: config.build.distOutputBucket,
   securityStandard: standardShortName,
   securityStandardVersion: standardVersion,
   securityStandardLongName: standardLongName,

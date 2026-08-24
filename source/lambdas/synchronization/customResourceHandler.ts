@@ -7,6 +7,7 @@ import { ExecutionAlreadyExists, SFNClient, StartExecutionCommand } from '@aws-s
 import { getLogger } from '../common/utils/logger';
 import { getTracer } from '../common/utils/tracer';
 import { Clock, getClock } from '../common/utils/clock';
+import { synchronizationTriggerEnvironment } from './synchronizationTriggerEnvironment';
 
 interface CustomResourceResult {
   status: 'SUCCESS' | 'FAILED';
@@ -70,7 +71,7 @@ export class SynchronizationTrigger implements LambdaInterface {
   private async handleCreateRequest(event: CloudFormationCustomResourceEvent): Promise<CustomResourceResult> {
     logger.info('Stack deployment completed, triggering initial synchronization');
 
-    const stateMachineArn = process.env.SYNCHRONIZATION_STATE_MACHINE_ARN;
+    const { SYNCHRONIZATION_STATE_MACHINE_ARN: stateMachineArn } = synchronizationTriggerEnvironment();
 
     if (!stateMachineArn) {
       logger.warn('SYNCHRONIZATION_STATE_MACHINE_ARN not set, skipping synchronization trigger');

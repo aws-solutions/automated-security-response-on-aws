@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { CustomResource, Duration, Stack } from 'aws-cdk-lib';
 import { PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { Code, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { createLogGroup } from './cdk-helper/log-group';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 
@@ -84,6 +85,7 @@ export class WaitProvider extends Construct {
       handler: 'wait_provider.lambda_handler',
       environment: { LOG_LEVEL: 'INFO' },
       timeout: Duration.minutes(15),
+      logGroup: createLogGroup(scope, `${id}FunctionLogGroup`),
     });
     addCfnGuardSuppression(lambdaFunction, 'LAMBDA_CONCURRENCY_CHECK');
     addCfnGuardSuppression(lambdaFunction, 'LAMBDA_INSIDE_VPC');

@@ -45,7 +45,6 @@ function filterForAsrEvents(cloudTrailLog) {
       recipientAccountId,
       resources,
     }) => {
-      console.debug(eventName, eventSource);
       const actionLogRecord = {
         eventSource,
         eventName,
@@ -84,7 +83,6 @@ async function assumeRoleInAdminAccount(AssumeRoleCommand, stsClient) {
 }
 
 async function sendToCloudWatchLogGroup(asrEvents) {
-  console.debug('Sending to CloudWatch Logs', asrEvents);
   const logStreamName = new Date().toISOString().split('T')[0]; // use current date as logStreamName
 
   const putLogEventsCommand = new PutLogEventsCommand({
@@ -120,7 +118,6 @@ exports.handler = async (event) => {
   const cloudTrailLog = await getLogsFromS3(bucket, key);
 
   if (!cloudTrailLog.Records) {
-    console.debug('No Records in Log', cloudTrailLog);
     return { statusCode: 204, body: 'No Records to filter' };
   }
 

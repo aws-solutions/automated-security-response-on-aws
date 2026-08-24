@@ -28,6 +28,7 @@ import SsmDocRateLimit from './ssm-doc-rate-limit';
 import NamespaceParam from './parameters/namespace-param';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import { MemberRolesStack } from './member-roles-stack';
+import { REMEDIATION_CONFIG_BUCKET_ACCESS_POLICY_NAME } from './member/remediation-configuration-bucket';
 
 export interface StackProps extends cdk.StackProps {
   readonly solutionId: string;
@@ -201,6 +202,7 @@ export class RemediationRunbookStack extends cdk.Stack {
         'cloudtrail:UpdateTrail',
         'cloudtrail:StartLogging',
         'cloudtrail:AddTags',
+        'cloudtrail:ListTags',
       );
       cloudtrailPerms.effect = Effect.ALLOW;
       cloudtrailPerms.addResources(`arn:${this.partition}:cloudtrail:*:${this.account}:trail/*`);
@@ -233,10 +235,18 @@ export class RemediationRunbookStack extends cdk.Stack {
         's3:PutBucketAcl',
         's3:PutBucketPolicy',
         's3:PutBucketOwnershipControls',
+        's3:PutBucketTagging',
+        's3:GetBucketTagging',
       );
       s3Perms.effect = Effect.ALLOW;
       s3Perms.addResources(`arn:${this.partition}:s3:::so0111-*`);
       inlinePolicy.addStatements(s3Perms);
+
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
 
       const kmsPerms = new PolicyStatement();
       kmsPerms.addActions('kms:Decrypt', 'kms:GenerateDataKey', 'kms:DescribeKey', 'kms:CreateGrant');
@@ -271,7 +281,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             {
               id: 'W12',
               reason:
-                'Resource * is required for cloudtrail:DescribeTrails to check existing trails and for KMS operations on customer-managed keys.',
+                'Resource * is required for cloudtrail:DescribeTrails to check existing trails, for KMS operations on customer-managed keys, and for tag:TagResources to tag resources using Resource Groups Tagging API.',
             },
             {
               id: 'W28',
@@ -322,10 +332,34 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(kmsPerms);
 
       const ssmPerms = new PolicyStatement();
-      ssmPerms.addActions('ssm:PutParameter');
+      ssmPerms.addActions('ssm:PutParameter', 'ssm:AddTagsToResource', 'ssm:ListTagsForResource');
       ssmPerms.effect = Effect.ALLOW;
       ssmPerms.addResources(`arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/*`);
       inlinePolicy.addStatements(ssmPerms);
+
+      const snsTaggingPerms = new PolicyStatement();
+      snsTaggingPerms.addActions('sns:TagResource', 'sns:ListTagsForResource');
+      snsTaggingPerms.effect = Effect.ALLOW;
+      snsTaggingPerms.addResources(`arn:${this.partition}:sns:*:${this.account}:*`);
+      inlinePolicy.addStatements(snsTaggingPerms);
+
+      const logsTaggingPerms = new PolicyStatement();
+      logsTaggingPerms.addActions('logs:TagLogGroup', 'logs:ListTagsLogGroup');
+      logsTaggingPerms.effect = Effect.ALLOW;
+      logsTaggingPerms.addResources(`arn:${this.partition}:logs:*:${this.account}:log-group:*`);
+      inlinePolicy.addStatements(logsTaggingPerms);
+
+      const cloudwatchTaggingPerms = new PolicyStatement();
+      cloudwatchTaggingPerms.addActions('cloudwatch:TagResource', 'cloudwatch:ListTagsForResource');
+      cloudwatchTaggingPerms.effect = Effect.ALLOW;
+      cloudwatchTaggingPerms.addResources(`arn:${this.partition}:cloudwatch:*:${this.account}:alarm:*`);
+      inlinePolicy.addStatements(cloudwatchTaggingPerms);
+
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -352,7 +386,7 @@ export class RemediationRunbookStack extends cdk.Stack {
             {
               id: 'W12',
               reason:
-                'Resource * is required for logs:DescribeLogGroups to list all log groups and for KMS operations on customer-managed keys.',
+                'Resource * is required for logs:DescribeLogGroups to list all log groups, for KMS operations on customer-managed keys, and for tag:TagResources which requires * per AWS API requirements.',
             },
           ],
         },
@@ -466,10 +500,20 @@ export class RemediationRunbookStack extends cdk.Stack {
         's3:PutBucketLogging',
         's3:PutBucketAcl',
         's3:PutBucketPolicy',
+        's3:PutBucketTagging',
+        's3:GetBucketTagging',
       );
       s3Perms.effect = Effect.ALLOW;
       s3Perms.addResources(`arn:${this.partition}:s3:::so0111-*`);
       inlinePolicy.addStatements(s3Perms);
+
+      {
+        const taggingPerms = new PolicyStatement();
+        taggingPerms.addActions('tag:TagResources');
+        taggingPerms.effect = Effect.ALLOW;
+        taggingPerms.addResources('*');
+        inlinePolicy.addStatements(taggingPerms);
+      }
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -495,7 +539,10 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation for *any* resource.',
+              reason:
+                'Resource * is required for to allow remediation for *any* resource. ' +
+                'tag:TagResources, ssm:GetAutomationExecution, ssm:AddTagsToResource, ssm:ListTagsForResource, ' +
+                'config:*, and config:DescribeConfigurationRecorderStatus require * resources.',
             },
           ],
         },
@@ -730,6 +777,68 @@ export class RemediationRunbookStack extends cdk.Stack {
       };
     }
     //-----------------------
+    // EnableCFNTerminationProtection
+    //
+    {
+      const remediationName = 'EnableCFNTerminationProtection';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+      inlinePolicy.addStatements(
+        new PolicyStatement({
+          actions: ['cloudformation:UpdateTerminationProtection', 'cloudformation:DescribeStacks'],
+          resources: [`arn:${this.partition}:cloudformation:*:${this.account}:stack/*/*`],
+          effect: Effect.ALLOW,
+        }),
+      );
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
+        ssmDocName: remediationName,
+        ssmDocPath: ssmdocs,
+        ssmDocFileName: `${remediationName}.yaml`,
+        scriptPath: `${ssmdocs}/scripts`,
+        solutionVersion: props.solutionVersion,
+        solutionDistBucket: props.solutionDistBucket,
+        solutionId: props.solutionId,
+        namespace: namespace,
+      });
+    }
+    //-----------------------
+    // EnableS3BucketVersioning
+    //
+    {
+      const remediationName = 'EnableS3BucketVersioning';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+      inlinePolicy.addStatements(
+        new PolicyStatement({
+          actions: ['s3:PutBucketVersioning', 's3:GetBucketVersioning'],
+          resources: [`arn:${this.partition}:s3:::*`],
+          effect: Effect.ALLOW,
+        }),
+      );
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
+        ssmDocName: remediationName,
+        ssmDocPath: ssmdocs,
+        ssmDocFileName: `${remediationName}.yaml`,
+        scriptPath: `${ssmdocs}/scripts`,
+        solutionVersion: props.solutionVersion,
+        solutionDistBucket: props.solutionDistBucket,
+        solutionId: props.solutionId,
+        namespace: namespace,
+      });
+    }
+    //-----------------------
     // EnableVPCFlowLogs
     //
     {
@@ -779,6 +888,34 @@ export class RemediationRunbookStack extends cdk.Stack {
         cloudwatchLogsCreatePerms.effect = Effect.ALLOW;
         cloudwatchLogsCreatePerms.addResources(`arn:${this.partition}:logs:*:${this.account}:log-group:*`);
         inlinePolicy.addStatements(cloudwatchLogsCreatePerms);
+      }
+      {
+        const taggingPerms = new PolicyStatement();
+        taggingPerms.addActions('tag:TagResources');
+        taggingPerms.effect = Effect.ALLOW;
+        taggingPerms.addResources('*');
+        inlinePolicy.addStatements(taggingPerms);
+      }
+      {
+        const iamTagPerms = new PolicyStatement();
+        iamTagPerms.addActions('iam:TagRole', 'iam:ListRoleTags');
+        iamTagPerms.effect = Effect.ALLOW;
+        iamTagPerms.addResources(`arn:${this.partition}:iam::*:role/*`);
+        inlinePolicy.addStatements(iamTagPerms);
+      }
+      {
+        const ec2TagPerms = new PolicyStatement();
+        ec2TagPerms.addActions('ec2:CreateTags');
+        ec2TagPerms.effect = Effect.ALLOW;
+        ec2TagPerms.addResources(`arn:${this.partition}:ec2:*:*:vpc-flow-log/*`);
+        inlinePolicy.addStatements(ec2TagPerms);
+
+        // DescribeTags requires wildcard resources per AWS documentation
+        const ec2DescribeTagsPerms = new PolicyStatement();
+        ec2DescribeTagsPerms.addActions('ec2:DescribeTags');
+        ec2DescribeTagsPerms.effect = Effect.ALLOW;
+        ec2DescribeTagsPerms.addResources('*');
+        inlinePolicy.addStatements(ec2DescribeTagsPerms);
       }
 
       // Permissions for 'EnableVPCFlowLogs-remediationrole'
@@ -853,7 +990,8 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation for *any* resources.',
+              reason:
+                'Resource * is required for to allow remediation for *any* resources. tag:TagResources requires * resource.',
             },
           ],
         },
@@ -873,11 +1011,21 @@ export class RemediationRunbookStack extends cdk.Stack {
         's3:PutBucketAcl',
         's3:PutBucketOwnershipControls',
         's3:PutBucketPolicy',
+        's3:PutBucketTagging',
+        's3:GetBucketTagging',
       );
       s3Perms.effect = Effect.ALLOW;
       s3Perms.addResources(`arn:${this.partition}:s3:::so0111-*`);
 
       inlinePolicy.addStatements(s3Perms);
+
+      // Add Resource Groups Tagging API permissions
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+
+      inlinePolicy.addStatements(taggingPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -1181,6 +1329,24 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(remediationPolicy);
 
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
+
+      const iamTaggingPerms = new PolicyStatement();
+      iamTaggingPerms.addActions('iam:TagPolicy', 'iam:ListPolicyTags');
+      iamTaggingPerms.effect = Effect.ALLOW;
+      iamTaggingPerms.addResources(`arn:${this.partition}:iam::${this.account}:policy/*`);
+      inlinePolicy.addStatements(iamTaggingPerms);
+
+      const ssmTaggingPerms = new PolicyStatement();
+      ssmTaggingPerms.addActions('ssm:AddTagsToResource', 'ssm:ListTagsForResource');
+      ssmTaggingPerms.effect = Effect.ALLOW;
+      ssmTaggingPerms.addResources(`arn:${this.partition}:ssm:*:${this.account}:parameter/*`);
+      inlinePolicy.addStatements(ssmTaggingPerms);
+
       // CodeBuild projects are built by service roles
       const attachRolePolicy = new PolicyStatement();
       attachRolePolicy.addActions('iam:AttachRolePolicy');
@@ -1222,7 +1388,7 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation for *any* resource.',
+              reason: 'Resource * is required for tag:TagResources and to allow remediation for *any* resource.',
             },
           ],
         },
@@ -1547,10 +1713,16 @@ export class RemediationRunbookStack extends cdk.Stack {
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
       const roleName = 'aws_incident_support_role';
       const iamPerms = new PolicyStatement();
-      iamPerms.addActions('iam:GetRole', 'iam:CreateRole', 'iam:AttachRolePolicy', 'iam:TagRole');
+      iamPerms.addActions('iam:GetRole', 'iam:CreateRole', 'iam:AttachRolePolicy', 'iam:TagRole', 'iam:ListRoleTags');
       iamPerms.effect = Effect.ALLOW;
       iamPerms.addResources(`arn:${this.partition}:iam::${this.account}:role/${roleName}`);
       inlinePolicy.addStatements(iamPerms);
+
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
 
       const denyAddPermsToSelf = new PolicyStatement();
       denyAddPermsToSelf.addActions('iam:AttachRolePolicy');
@@ -1588,7 +1760,7 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation.',
+              reason: 'Resource * is required for tag:TagResources to allow remediation to tag resources.',
             },
             {
               id: 'W28',
@@ -1662,12 +1834,19 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(cfnDescribeStacksDependentPerms);
 
       const snsPerms = new PolicyStatement();
-      snsPerms.addActions('sns:CreateTopic', 'sns:Publish');
+      snsPerms.addActions('sns:CreateTopic', 'sns:Publish', 'sns:TagResource', 'sns:ListTagsForResource');
       snsPerms.effect = Effect.ALLOW;
       snsPerms.addResources(
         `arn:${this.partition}:sns:${this.region}:${this.account}:SO0111-ASR-CloudFormationNotifications`,
       );
       inlinePolicy.addStatements(snsPerms);
+
+      // Add Resource Groups Tagging API permissions
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
 
       const remediationPolicy = new PolicyStatement();
       remediationPolicy.addActions('servicecatalog:GetApplication');
@@ -1703,7 +1882,8 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation.',
+              reason:
+                'Resource * is required for to allow remediation and for tag:TagResources which requires * per AWS API requirements.',
             },
           ],
         },
@@ -3165,10 +3345,19 @@ export class RemediationRunbookStack extends cdk.Stack {
         'sns:CreateTopic',
         'sns:GetTopicAttributes',
         'sns:SetTopicAttributes',
+        'sns:TagResource',
+        'sns:ListTagsForResource',
       );
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:sns:*:${this.account}:*`, `arn:${this.partition}:s3:::*`);
       inlinePolicy.addStatements(remediationPolicy);
+
+      // Add Resource Groups Tagging API permissions
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -3193,7 +3382,8 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation for any resource.',
+              reason:
+                'Resource * is required for to allow remediation for any resource and for tag:TagResources which requires * per AWS API requirements.',
             },
           ],
         },
@@ -3339,6 +3529,19 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(elbV2ListenerWritePerms);
 
+      // DescribeTags requires wildcard resources per AWS documentation
+      const elbV2DescribeTagsPerms = new PolicyStatement();
+      elbV2DescribeTagsPerms.addActions('elasticloadbalancing:DescribeTags');
+      elbV2DescribeTagsPerms.effect = Effect.ALLOW;
+      elbV2DescribeTagsPerms.addResources('*');
+      inlinePolicy.addStatements(elbV2DescribeTagsPerms);
+
+      const taggingPerms = new PolicyStatement();
+      taggingPerms.addActions('tag:TagResources');
+      taggingPerms.effect = Effect.ALLOW;
+      taggingPerms.addResources('*');
+      inlinePolicy.addStatements(taggingPerms);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
@@ -3356,6 +3559,19 @@ export class RemediationRunbookStack extends cdk.Stack {
         solutionId: props.solutionId,
         namespace: namespace,
       });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason: 'Resource * is required for elasticloadbalancing:DescribeListeners and tag:TagResources.',
+            },
+          ],
+        },
+      };
+
       addCfnGuardSuppression(inlinePolicy, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
     }
 
@@ -3766,6 +3982,18 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(guardDutyServiceLinkedRolePerms);
 
+      const taggingApiPerms = new PolicyStatement();
+      taggingApiPerms.addActions('tag:TagResources');
+      taggingApiPerms.effect = Effect.ALLOW;
+      taggingApiPerms.addResources('*');
+      inlinePolicy.addStatements(taggingApiPerms);
+
+      const guardDutyTaggingPerms = new PolicyStatement();
+      guardDutyTaggingPerms.addActions('guardduty:TagResource', 'guardduty:ListTagsForResource');
+      guardDutyTaggingPerms.effect = Effect.ALLOW;
+      guardDutyTaggingPerms.addResources(`arn:${this.partition}:guardduty:*:${this.account}:detector/*`);
+      inlinePolicy.addStatements(guardDutyTaggingPerms);
+
       // Add protection against permission mutation on own role
       const denyPermissionMutation = new PolicyStatement();
       denyPermissionMutation.addActions(...PRIVILEGE_ESCALATION_ACTIONS);
@@ -3800,7 +4028,9 @@ export class RemediationRunbookStack extends cdk.Stack {
           rules_to_suppress: [
             {
               id: 'W12',
-              reason: 'Resource * is required for to allow remediation for any resource.',
+              reason:
+                'Resource * is required for to allow remediation for any resource. ' +
+                'tag:TagResources requires * resource.',
             },
           ],
         },
@@ -4410,6 +4640,435 @@ export class RemediationRunbookStack extends cdk.Stack {
             {
               id: 'W12',
               reason: 'Resource wildcard (*) is required to update any Athena Work Group in the member account.',
+            },
+          ],
+        },
+      };
+    }
+
+    //-----------------------
+    // TightenResourcePolicy
+    //
+    {
+      const remediationName = 'TightenResourcePolicy';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const orgPerms = new PolicyStatement();
+      orgPerms.addActions('organizations:DescribeOrganization');
+      orgPerms.effect = Effect.ALLOW;
+      orgPerms.addResources('*');
+      inlinePolicy.addStatements(orgPerms);
+
+      const s3Perms = new PolicyStatement();
+      s3Perms.addActions('s3:GetBucketPolicy', 's3:PutBucketPolicy');
+      s3Perms.effect = Effect.ALLOW;
+      s3Perms.addResources(`arn:${this.partition}:s3:::*`);
+      inlinePolicy.addStatements(s3Perms);
+
+      const kmsPerms = new PolicyStatement();
+      kmsPerms.addActions('kms:GetKeyPolicy', 'kms:PutKeyPolicy');
+      kmsPerms.effect = Effect.ALLOW;
+      kmsPerms.addResources(`arn:${this.partition}:kms:*:${this.account}:key/*`);
+      inlinePolicy.addStatements(kmsPerms);
+
+      const stsPerms = new PolicyStatement();
+      stsPerms.addActions('sts:GetCallerIdentity');
+      stsPerms.effect = Effect.ALLOW;
+      stsPerms.addResources('*');
+      inlinePolicy.addStatements(stsPerms);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
+        ssmDocName: remediationName,
+        ssmDocPath: ssmdocs,
+        ssmDocFileName: `${remediationName}.yaml`,
+        scriptPath: `${ssmdocs}/scripts`,
+        solutionVersion: props.solutionVersion,
+        solutionDistBucket: props.solutionDistBucket,
+        solutionId: props.solutionId,
+        namespace: namespace,
+      });
+
+      const childToMod = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason:
+                'Resource * is required for organizations:DescribeOrganization and sts:GetCallerIdentity which do not support resource-level permissions.',
+            },
+          ],
+        },
+      };
+    }
+
+    //-----------------------
+    // Inspector.InstanceVulnerability
+    //
+    {
+      const remediationName = 'Inspector.InstanceVulnerability';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      const ssmReadPerms = new PolicyStatement();
+      ssmReadPerms.addActions('ssm:DescribeInstanceInformation', 'ssm:GetCommandInvocation');
+      ssmReadPerms.effect = Effect.ALLOW;
+      ssmReadPerms.addResources('*');
+      inlinePolicy.addStatements(ssmReadPerms);
+
+      const ssmSendPerms = new PolicyStatement();
+      ssmSendPerms.addActions('ssm:SendCommand');
+      ssmSendPerms.effect = Effect.ALLOW;
+      ssmSendPerms.addResources(
+        `arn:${this.partition}:ssm:*::document/AWS-RunPatchBaseline`,
+        `arn:${this.partition}:ec2:*:${this.account}:instance/*`,
+      );
+      inlinePolicy.addStatements(ssmSendPerms);
+
+      const ec2DescribePerms = new PolicyStatement();
+      ec2DescribePerms.addActions('ec2:DescribeInstances');
+      ec2DescribePerms.effect = Effect.ALLOW;
+      ec2DescribePerms.addResources('*');
+      inlinePolicy.addStatements(ec2DescribePerms);
+
+      const ec2AssociatePerms = new PolicyStatement();
+      ec2AssociatePerms.addActions('ec2:AssociateIamInstanceProfile');
+      ec2AssociatePerms.effect = Effect.ALLOW;
+      ec2AssociatePerms.addResources(`arn:${this.partition}:ec2:*:${this.account}:instance/*`);
+      inlinePolicy.addStatements(ec2AssociatePerms);
+
+      const iamWritePerms = new PolicyStatement();
+      iamWritePerms.addActions('iam:CreateRole', 'iam:CreateInstanceProfile', 'iam:AddRoleToInstanceProfile');
+      iamWritePerms.effect = Effect.ALLOW;
+      iamWritePerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/ASR-InspectorRemediation-*`,
+        `arn:${this.partition}:iam::${this.account}:instance-profile/ASR-InspectorRemediation-*`,
+      );
+      inlinePolicy.addStatements(iamWritePerms);
+
+      const iamPassRolePerms = new PolicyStatement();
+      iamPassRolePerms.addActions('iam:PassRole');
+      iamPassRolePerms.effect = Effect.ALLOW;
+      iamPassRolePerms.addResources(`arn:${this.partition}:iam::${this.account}:role/ASR-InspectorRemediation-*`);
+      iamPassRolePerms.addCondition('StringEquals', {
+        'iam:PassedToService': 'ec2.amazonaws.com',
+      });
+      inlinePolicy.addStatements(iamPassRolePerms);
+
+      // iam:AttachRolePolicy restricted to AmazonSSMManagedInstanceCore only
+      const iamAttachRolePolicyPerms = new PolicyStatement();
+      iamAttachRolePolicyPerms.addActions('iam:AttachRolePolicy');
+      iamAttachRolePolicyPerms.effect = Effect.ALLOW;
+      iamAttachRolePolicyPerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/ASR-InspectorRemediation-*`,
+      );
+      iamAttachRolePolicyPerms.addCondition('ArnEquals', {
+        'iam:PolicyARN': `arn:${this.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore`,
+      });
+      inlinePolicy.addStatements(iamAttachRolePolicyPerms);
+
+      // Use the shared denyPrivilegeEscalation statement
+      inlinePolicy.addStatements(denyPrivilegeEscalation);
+
+      const iamReadPerms = new PolicyStatement();
+      iamReadPerms.addActions(
+        'iam:GetRole',
+        'iam:GetRolePolicy',
+        'iam:ListAttachedRolePolicies',
+        'iam:GetInstanceProfile',
+      );
+      iamReadPerms.effect = Effect.ALLOW;
+      iamReadPerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/*`,
+        `arn:${this.partition}:iam::${this.account}:instance-profile/*`,
+      );
+      inlinePolicy.addStatements(iamReadPerms);
+
+      // iam:AttachRolePolicy on role/* — the remediation script attaches a
+      // read-only S3 policy to whatever IAM role the target instance already
+      // has, so the target role ARN cannot be pre-known (hence role/*). Unlike
+      // the removed iam:PutRolePolicy, AttachRolePolicy supports the iam:PolicyARN
+      // condition key, so the attach is scoped to exactly the deploy-time
+      // RemediationConfigBucketAccess managed policy. The role therefore cannot
+      // write arbitrary (e.g. admin) policy content onto any role — closing the
+      // privilege-escalation path while preserving the remediation's function.
+      const iamAttachS3PolicyPerms = new PolicyStatement();
+      iamAttachS3PolicyPerms.addActions('iam:AttachRolePolicy');
+      iamAttachS3PolicyPerms.effect = Effect.ALLOW;
+      iamAttachS3PolicyPerms.addResources(`arn:${this.partition}:iam::${this.account}:role/*`);
+      iamAttachS3PolicyPerms.addCondition('ArnEquals', {
+        'iam:PolicyARN': `arn:${this.partition}:iam::${this.account}:policy/${REMEDIATION_CONFIG_BUCKET_ACCESS_POLICY_NAME}`,
+      });
+      inlinePolicy.addStatements(iamAttachS3PolicyPerms);
+
+      const s3Perms = new PolicyStatement();
+      s3Perms.addActions('s3:PutObject', 's3:GetObject', 's3:DeleteObject');
+      s3Perms.effect = Effect.ALLOW;
+      s3Perms.addResources(`arn:${this.partition}:s3:::so0111-asr-remediation-*/install-overrides/*`);
+      inlinePolicy.addStatements(s3Perms);
+
+      const ssmParamPerms = new PolicyStatement();
+      ssmParamPerms.addActions('ssm:GetParameter');
+      ssmParamPerms.effect = Effect.ALLOW;
+      ssmParamPerms.addResources(
+        `arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/RemediationConfigurationBucket`,
+      );
+      inlinePolicy.addStatements(ssmParamPerms);
+
+      const securityHubPerms = new PolicyStatement();
+      securityHubPerms.addActions('securityhub:BatchUpdateFindings');
+      securityHubPerms.effect = Effect.ALLOW;
+      securityHubPerms.addResources('*');
+      inlinePolicy.addStatements(securityHubPerms);
+
+      // Note: No RunbookFactory.createRemediationRunbook call here — Inspector uses
+      // a single-step architecture where all logic is inline in the control runbook
+      // (SC_Inspector.InstanceVulnerability.ts). There is no separate remediation
+      // runbook YAML; the control runbook directly invokes AWS-RunPatchBaseline
+      // via SSM SendCommand.
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const childToMod2 = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      childToMod2.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason:
+                'Resource * is required for ssm:DescribeInstanceInformation, ssm:GetCommandInvocation, ec2:DescribeInstances, and securityhub:BatchUpdateFindings which do not support resource-level permissions. ' +
+                'iam:AttachRolePolicy is granted on role/* because the remediation attaches a read-only S3 policy to the existing IAM role of the EC2 instance being patched, and the instance role name is not known at deploy time. ' +
+                'It is constrained by an iam:PolicyARN condition to exactly the deploy-time RemediationConfigBucketAccess managed policy, so no arbitrary or privilege-granting policy can be attached to any role.',
+            },
+          ],
+        },
+      };
+    }
+
+    //-----------------------
+    // GuardDuty.IAMUser
+    //
+    {
+      const remediationName = 'GuardDuty.IAMUser';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      // Invoke AWSSupport-ContainIAMPrincipal (AWS-managed automation runbook).
+      // AWS-owned documents are account-less, so grant on the account-less document/ form.
+      const ssmStartAutomationPerms = new PolicyStatement();
+      ssmStartAutomationPerms.addActions('ssm:StartAutomationExecution');
+      ssmStartAutomationPerms.effect = Effect.ALLOW;
+      ssmStartAutomationPerms.addResources(`arn:${this.partition}:ssm:*::document/AWSSupport-ContainIAMPrincipal`);
+      inlinePolicy.addStatements(ssmStartAutomationPerms);
+
+      // Read execution status of the invoked automation. ssm:GetAutomationExecution
+      // supports the automation-execution resource type, so scope to that type
+      // rather than '*'. AWSSupport-ContainIAMPrincipal is invoked with
+      // TargetLocations targeting the finding's account/region (untrusted,
+      // unknown at deploy time), so the polled execution can live in another
+      // account/region — hence the account and region segments are wildcarded.
+      const ssmGetAutomationPerms = new PolicyStatement();
+      ssmGetAutomationPerms.addActions('ssm:GetAutomationExecution');
+      ssmGetAutomationPerms.effect = Effect.ALLOW;
+      ssmGetAutomationPerms.addResources(`arn:${this.partition}:ssm:*:*:automation-execution/*`);
+      inlinePolicy.addStatements(ssmGetAutomationPerms);
+
+      // IAM read/contain operations required by AWSSupport-ContainIAMPrincipal
+      // (Contain action, IAM user principal type). The runbook gathers full
+      // principal details, disables access keys, removes console access, and
+      // attaches an inline deny policy. User-scoped actions resolve against the
+      // target user ARN.
+      //
+      // iam:CreateAccessKey / iam:DeleteAccessKey are required by the managed
+      // runbook's Contain/Restore flow: Contain backs up then deletes the
+      // principal's existing access keys, and Restore recreates them from the
+      // backup. They are scoped to user/* (not iam:*) and only assumable via
+      // the runbook path. iam:UpdateAccessKey alone cannot restore a deleted
+      // key, so the create/delete pair is needed for the reversible containment.
+      const iamUserPerms = new PolicyStatement();
+      iamUserPerms.addActions(
+        'iam:GetUser',
+        'iam:GetUserPolicy',
+        'iam:ListUserPolicies',
+        'iam:ListAttachedUserPolicies',
+        'iam:ListAccessKeys',
+        'iam:ListMFADevices',
+        'iam:GetLoginProfile',
+        'iam:UpdateAccessKey',
+        'iam:CreateAccessKey',
+        'iam:DeleteLoginProfile',
+        'iam:DeleteAccessKey',
+        'iam:PutUserPolicy',
+        'iam:DeleteUserPolicy',
+        'iam:DeactivateMFADevice',
+        'iam:AttachUserPolicy',
+        'iam:TagMFADevice',
+        'iam:TagUser',
+        'iam:UntagUser',
+      );
+      iamUserPerms.effect = Effect.ALLOW;
+      iamUserPerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:user/*`,
+        `arn:${this.partition}:iam::${this.account}:mfa/*`,
+      );
+      inlinePolicy.addStatements(iamUserPerms);
+
+      // Account-level IAM list operations the runbook performs. iam:ListPolicies
+      // and iam:ListVirtualMFADevices do not support resource-level permissions,
+      // so they require Resource '*'.
+      const iamListPerms = new PolicyStatement();
+      iamListPerms.addActions('iam:ListVirtualMFADevices', 'iam:ListPolicies');
+      iamListPerms.effect = Effect.ALLOW;
+      iamListPerms.addResources('*');
+      inlinePolicy.addStatements(iamListPerms);
+
+      // iam:GetPolicy supports resource-level permissions. The runbook reads the
+      // managed policies attached to the target user, which are either
+      // customer-managed (iam::<account>:policy/*) or AWS-managed
+      // (iam::aws:policy/*); scope to both rather than '*'.
+      const iamGetPolicyPerms = new PolicyStatement();
+      iamGetPolicyPerms.addActions('iam:GetPolicy');
+      iamGetPolicyPerms.effect = Effect.ALLOW;
+      iamGetPolicyPerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:policy/*`,
+        `arn:${this.partition}:iam::aws:policy/*`,
+      );
+      inlinePolicy.addStatements(iamGetPolicyPerms);
+
+      // S3 object access for IAM configuration backup/restore. The runbook
+      // writes to a date-partitioned key it chooses at runtime
+      // (<yyyy>/<mm>/<dd>/<hh>/<mm>/<executionId>.json), so the object scope is
+      // bounded to that date-shaped prefix rather than the whole bucket.
+      const s3BackupPerms = new PolicyStatement();
+      s3BackupPerms.addActions('s3:PutObject', 's3:GetObject');
+      s3BackupPerms.effect = Effect.ALLOW;
+      s3BackupPerms.addResources(`arn:${this.partition}:s3:::so0111-asr-remediation-*/????/??/??/??/??/*`);
+      inlinePolicy.addStatements(s3BackupPerms);
+
+      const s3BucketPublicAccessPerms = new PolicyStatement();
+      s3BucketPublicAccessPerms.addActions(
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetBucketPublicAccessBlock',
+        's3:GetBucketPolicyStatus',
+        's3:GetBucketAcl',
+      );
+      s3BucketPublicAccessPerms.effect = Effect.ALLOW;
+      s3BucketPublicAccessPerms.addResources(`arn:${this.partition}:s3:::so0111-asr-remediation-*`);
+      inlinePolicy.addStatements(s3BucketPublicAccessPerms);
+
+      const s3AccountPublicAccessPerms = new PolicyStatement();
+      s3AccountPublicAccessPerms.addActions('s3:GetAccountPublicAccessBlock');
+      s3AccountPublicAccessPerms.effect = Effect.ALLOW;
+      s3AccountPublicAccessPerms.addResources('*');
+      inlinePolicy.addStatements(s3AccountPublicAccessPerms);
+
+      // AWSSupport-ContainIAMPrincipal backs up the original principal
+      // configuration to Secrets Manager during containment and deletes it on
+      // restore. The managed runbook names its backup secret with the
+      // AWSSupport-ContainIAMPrincipal- prefix, so scope to that rather than
+      // all secrets in the account.
+      const secretsManagerPerms = new PolicyStatement();
+      secretsManagerPerms.addActions('secretsmanager:CreateSecret', 'secretsmanager:DeleteSecret');
+      secretsManagerPerms.effect = Effect.ALLOW;
+      secretsManagerPerms.addResources(
+        `arn:${this.partition}:secretsmanager:*:${this.account}:secret:AWSSupport-ContainIAMPrincipal-*`,
+      );
+      inlinePolicy.addStatements(secretsManagerPerms);
+
+      const ssmParamPerms = new PolicyStatement();
+      ssmParamPerms.addActions('ssm:GetParameter');
+      ssmParamPerms.effect = Effect.ALLOW;
+      ssmParamPerms.addResources(
+        `arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/RemediationConfigurationBucket`,
+      );
+      inlinePolicy.addStatements(ssmParamPerms);
+
+      const securityHubPerms = new PolicyStatement();
+      securityHubPerms.addActions('securityhub:BatchUpdateFindings');
+      securityHubPerms.effect = Effect.ALLOW;
+      securityHubPerms.addResources('*');
+      inlinePolicy.addStatements(securityHubPerms);
+
+      // PassRole to AWSSupport-ContainIAMPrincipal execution role
+      const iamPassRolePerms = new PolicyStatement();
+      iamPassRolePerms.addActions('iam:PassRole');
+      iamPassRolePerms.effect = Effect.ALLOW;
+      iamPassRolePerms.addResources(
+        `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_PREFIX}-GuardDuty.IAMUser-*`,
+      );
+      iamPassRolePerms.addCondition('StringEquals', {
+        'iam:PassedToService': 'ssm.amazonaws.com',
+      });
+      inlinePolicy.addStatements(iamPassRolePerms);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const guardDutyIamUserPolicyResource = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      guardDutyIamUserPolicyResource.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason:
+                'Resource * is required for securityhub:BatchUpdateFindings, s3:GetAccountPublicAccessBlock, and the account-level IAM list operations (iam:ListVirtualMFADevices, iam:ListPolicies) that AWSSupport-ContainIAMPrincipal performs per its documented required-permissions, none of which support resource-level permissions. ssm:GetAutomationExecution is scoped to automation-execution ARNs and iam:GetPolicy to customer-managed (iam::<account>:policy/*) and AWS-managed (iam::aws:policy/*) policy ARNs in separate statements.',
+            },
+          ],
+        },
+      };
+    }
+
+    //-----------------------
+    // Macie.SensitiveDataS3Object
+    //
+    {
+      const remediationName = 'Macie.SensitiveDataS3Object';
+      const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
+
+      // S3 Block Public Access on the bucket containing sensitive data
+      const s3PublicAccessBlockPerms = new PolicyStatement();
+      s3PublicAccessBlockPerms.addActions('s3:PutBucketPublicAccessBlock');
+      s3PublicAccessBlockPerms.effect = Effect.ALLOW;
+      s3PublicAccessBlockPerms.addResources(`arn:${this.partition}:s3:::*`);
+      inlinePolicy.addStatements(s3PublicAccessBlockPerms);
+
+      const securityHubPerms = new PolicyStatement();
+      securityHubPerms.addActions('securityhub:BatchUpdateFindings');
+      securityHubPerms.effect = Effect.ALLOW;
+      securityHubPerms.addResources('*');
+      inlinePolicy.addStatements(securityHubPerms);
+
+      new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
+        solutionId: props.solutionId,
+        ssmDocName: remediationName,
+        remediationPolicy: inlinePolicy,
+        remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
+      });
+
+      const maciePolicyResource = inlinePolicy.node.findChild('Resource') as CfnPolicy;
+      maciePolicyResource.cfnOptions.metadata = {
+        cfn_nag: {
+          rules_to_suppress: [
+            {
+              id: 'W12',
+              reason:
+                'Resource * is required for securityhub:BatchUpdateFindings which does not support resource-level permissions. ' +
+                's3:PutBucketPublicAccessBlock uses * because the bucket name is not known at deploy time — ' +
+                'Macie findings can reference any bucket in the account.',
             },
           ],
         },

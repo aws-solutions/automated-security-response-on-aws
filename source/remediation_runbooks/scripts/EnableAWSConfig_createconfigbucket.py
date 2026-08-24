@@ -1,10 +1,18 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
+from typing import TYPE_CHECKING, TypedDict
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+
+if TYPE_CHECKING:
+    from aws_lambda_powertools.utilities.typing import LambdaContext
+    from mypy_boto3_s3.client import S3Client
+else:
+    S3Client = object
+    LambdaContext = object
 
 boto_config = Config(retries={"mode": "standard"})
 
@@ -142,20 +150,40 @@ def create_bucket_policy(config_bucket, aws_partition):
         exit(f"ERROR: PutBucketPolicy failed for {config_bucket}: {str(e)}")
 
 
-def create_encrypted_bucket(event, _):
-    kms_key_arn = event["kms_key_arn"]
-    aws_partition = event["partition"]
-    aws_account = event["account"]
-    aws_region = event["region"]
-    logging_bucket = event["logging_bucket"]
+class Event(TypedDict):
+    kms_key_arn: str
+    partition: str
+    account: str
+    region: str
+    logging_bucket: str
+
+
+class Output(TypedDict):
+    config_bucket: str
+    ResourceArn: str
+
+
+def create_encrypted_bucket(event: Event, _: LambdaContext) -> Output:
+    kms_key_arn: str = event["kms_key_arn"]
+    aws_partition: str = event["partition"]
+    aws_account: str = event["account"]
+    aws_region: str = event["region"]
+    logging_bucket: str = event["logging_bucket"]
     bucket_name = "so0111-aws-config-" + aws_region + "-" + aws_account
 
+    partition = "aws"
+    if "cn-" in aws_region:
+        partition = "aws-cn"
+    elif "us-gov" in aws_region:
+        partition = "aws-us-gov"
+    resource_arn = f"arn:{partition}:s3:::{bucket_name}"
+
     if create_bucket(bucket_name, aws_region) == "already exists":
-        return {"config_bucket": bucket_name}
+        return {"config_bucket": bucket_name, "ResourceArn": resource_arn}
 
     encrypt_bucket(bucket_name, kms_key_arn.split("key/")[1])
     block_public_access(bucket_name)
     enable_access_logging(bucket_name, logging_bucket)
     create_bucket_policy(bucket_name, aws_partition)
 
-    return {"config_bucket": bucket_name}
+    return {"config_bucket": bucket_name, "ResourceArn": resource_arn}

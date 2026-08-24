@@ -291,6 +291,320 @@ exports[`member stack snapshot matches 1`] = `
       },
       "Type": "AWS::Lambda::LayerVersion",
     },
+    "BaselineConfigFunctionAA6B05B6": {
+      "DependsOn": [
+        "BaselineConfigRoleEF7E1107",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_CONCURRENCY_CHECK",
+            "LAMBDA_INSIDE_VPC",
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": my-solution-tmn/v9.9.9/lambda/asr_lambdas.zip,
+        },
+        "Description": "Uploads Windows security baseline configuration to the Remediation Configuration bucket",
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "INFO",
+            "SOLUTION_TRADEMARKEDNAME": "my-solution-tmn",
+          },
+        },
+        "Handler": "baseline-configuration/baselineConfigurationHandler.handler",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "BaselineConfigFunctionLogGroup5BCE9DC0",
+          },
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "BaselineConfigRoleEF7E1107",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "BaselineConfigFunctionLogGroup5BCE9DC0": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "BaselineConfigRoleEF7E1107": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "s3:PutObject",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "RemediationConfigurationBucketF5FA3D12",
+                            "Arn",
+                          ],
+                        },
+                        "/baseline-overrides/*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "BaselineConfigPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "BaselineConfigurationResource": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "BucketName": {
+          "Ref": "RemediationConfigurationBucketF5FA3D12",
+        },
+        "DeploymentTimestamp": "2025-01-01T00:00:00.000Z",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "BaselineConfigFunctionAA6B05B6",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::BaselineConfiguration",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691": {
+      "DependsOn": [
+        "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "ZipFile": "import boto3  # type: ignore
+import json
+import logging
+import urllib.request
+
+s3 = boto3.client("s3")
+
+EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+def handler(event: dict, context):
+  response_status = "SUCCESS"
+  error_message = ""
+  try:
+    props = event["ResourceProperties"]
+    notification_configuration = props["NotificationConfiguration"]
+    managed = props.get('Managed', 'true').lower() == 'true'
+    skipDestinationValidation = props.get('SkipDestinationValidation', 'false').lower() == 'true'
+    stack_id = event['StackId']
+    old = event.get("OldResourceProperties", {}).get("NotificationConfiguration", {})
+    if managed:
+      config = handle_managed(event["RequestType"], notification_configuration)
+    else:
+      config = handle_unmanaged(props["BucketName"], stack_id, event["RequestType"], notification_configuration, old)
+    s3.put_bucket_notification_configuration(Bucket=props["BucketName"], NotificationConfiguration=config, SkipDestinationValidation=skipDestinationValidation)
+  except Exception as e:
+    logging.exception("Failed to put bucket notification configuration")
+    response_status = "FAILED"
+    error_message = f"Error: {str(e)}. "
+  finally:
+    submit_response(event, context, response_status, error_message)
+
+def handle_managed(request_type, notification_configuration):
+  if request_type == 'Delete':
+    return {}
+  return notification_configuration
+
+def handle_unmanaged(bucket, stack_id, request_type, notification_configuration, old):
+  def get_id(n):
+    n['Id'] = ''
+    sorted_notifications = sort_filter_rules(n)
+    strToHash=json.dumps(sorted_notifications, sort_keys=True).replace('"Name": "prefix"', '"Name": "Prefix"').replace('"Name": "suffix"', '"Name": "Suffix"')
+    return f"{stack_id}-{hash(strToHash)}"
+  def with_id(n):
+    n['Id'] = get_id(n)
+    return n
+
+  external_notifications = {}
+  existing_notifications = s3.get_bucket_notification_configuration(Bucket=bucket)
+  for t in CONFIGURATION_TYPES:
+    if request_type == 'Update':
+        old_incoming_ids = [get_id(n) for n in old.get(t, [])]
+        external_notifications[t] = [n for n in existing_notifications.get(t, []) if not get_id(n) in old_incoming_ids]      
+    elif request_type == 'Delete':
+        external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+    elif request_type == 'Create':
+        external_notifications[t] = [n for n in existing_notifications.get(t, [])]
+  if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+    external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+  if request_type == 'Delete':
+    return external_notifications
+
+  notifications = {}
+  for t in CONFIGURATION_TYPES:
+    external = external_notifications.get(t, [])
+    incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+    notifications[t] = external + incoming
+
+  if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+    notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+  elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+    notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+  return notifications
+
+def submit_response(event: dict, context, response_status: str, error_message: str):
+  response_body = json.dumps(
+    {
+      "Status": response_status,
+      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+      "StackId": event["StackId"],
+      "RequestId": event["RequestId"],
+      "LogicalResourceId": event["LogicalResourceId"],
+      "NoEcho": False,
+    }
+  ).encode("utf-8")
+  headers = {"content-type": "", "content-length": str(len(response_body))}
+  try:
+    req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+    with urllib.request.urlopen(req) as response:
+      print(response.read().decode("utf-8"))
+    print("Status code: " + response.reason)
+  except Exception as e:
+      print("send(..) failed executing request.urlopen(..): " + str(e))
+
+def sort_filter_rules(json_obj):
+  if not isinstance(json_obj, dict):
+      return json_obj
+  for key, value in json_obj.items():
+      if isinstance(value, dict):
+          json_obj[key] = sort_filter_rules(value)
+      elif isinstance(value, list):
+          json_obj[key] = [sort_filter_rules(item) for item in value]
+  if "Filter" in json_obj and "Key" in json_obj["Filter"] and "FilterRules" in json_obj["Filter"]["Key"]:
+      filter_rules = json_obj["Filter"]["Key"]["FilterRules"]
+      sorted_filter_rules = sorted(filter_rules, key=lambda x: x["Name"])
+      json_obj["Filter"]["Key"]["FilterRules"] = sorted_filter_rules
+  return json_obj",
+        },
+        "Description": "AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)",
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.13",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "MemberCloudTrailNestedStackMemberCloudTrailNestedStackResource2ED3A9F6": {
       "Condition": "CloudTrailCondition",
       "DeletionPolicy": "Delete",
@@ -404,6 +718,11 @@ exports[`member stack snapshot matches 1`] = `
             "Ref": "ASRLambdaLayerDAD507E4",
           },
         ],
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "MetricResourcesASRDeploymentCustomResourceLambdaLogGroup9FC7DFE7",
+          },
+        },
         "MemorySize": 256,
         "Role": {
           "Fn::GetAtt": [
@@ -415,6 +734,21 @@ exports[`member stack snapshot matches 1`] = `
         "Timeout": 5,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "MetricResourcesASRDeploymentCustomResourceLambdaLogGroup9FC7DFE7": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
     "MetricResourcesASRDeploymentMetricsCustomResource0940D9B2": {
       "DeletionPolicy": "Delete",
@@ -1625,6 +1959,592 @@ exports[`member stack snapshot matches 1`] = `
       "Type": "AWS::CloudFormation::Stack",
       "UpdateReplacePolicy": "Delete",
     },
+    "RemediationConfigAccessLogs08FBABE2": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "S3_BUCKET_LOGGING_ENABLED",
+          ],
+        },
+      },
+      "Properties": {
+        "AccessControl": "LogDeliveryWrite",
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256",
+              },
+            },
+          ],
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "ExpirationInDays": 90,
+              "Id": "ExpireAccessLogs",
+              "Status": "Enabled",
+            },
+          ],
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "ObjectWriter",
+            },
+          ],
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RemediationConfigAccessLogsPolicy24BAACEC": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "RemediationConfigAccessLogs08FBABE2",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigAccessLogs08FBABE2",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "RemediationConfigAccessLogs08FBABE2",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "RemediationConfigBucketAccessPolicyF4D04687": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "Description": "Read-only access to the ASR remediation configuration bucket (patch and baseline overrides). Attached by the Inspector.InstanceVulnerability remediation to the target EC2 instance role.",
+        "ManagedPolicyName": "ASR-RemediationConfigBucketAccess",
+        "Path": "/",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:GetObject",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "RemediationConfigurationBucketF5FA3D12",
+                          "Arn",
+                        ],
+                      },
+                      "/install-overrides/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "RemediationConfigurationBucketF5FA3D12",
+                          "Arn",
+                        ],
+                      },
+                      "/baseline-overrides/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "s3:ListBucket",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigurationBucketF5FA3D12",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::ManagedPolicy",
+    },
+    "RemediationConfigMonitoringTopicC62EFF45": {
+      "Properties": {
+        "DisplayName": "ASR Remediation Config Bucket Monitoring",
+        "KmsMasterKeyId": {
+          "Fn::GetAtt": [
+            "SHARRRemediationKeyE744743D",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::SNS::Topic",
+    },
+    "RemediationConfigMonitoringTopicPolicyA3412541": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Condition": {
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::GetAtt": [
+                      "RemediationConfigurationBucketF5FA3D12",
+                      "Arn",
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "s3.amazonaws.com",
+              },
+              "Resource": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+              "Sid": "0",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Topics": [
+          {
+            "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+          },
+        ],
+      },
+      "Type": "AWS::SNS::TopicPolicy",
+    },
+    "RemediationConfigurationBucketF5FA3D12": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256",
+              },
+            },
+          ],
+        },
+        "BucketName": {
+          "Fn::Join": [
+            "",
+            [
+              "so0111-asr-remediation-",
+              {
+                "Ref": "AWS::Region",
+              },
+              "-",
+              {
+                "Ref": "AWS::AccountId",
+              },
+            ],
+          ],
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "ExpirationInDays": 90,
+              "Id": "GuardDutyBackupRetention",
+              "Prefix": "guardduty-backups/",
+              "Status": "Enabled",
+            },
+            {
+              "ExpirationInDays": 7,
+              "Id": "InstallOverrideListExpiration",
+              "Prefix": "install-overrides/",
+              "Status": "Enabled",
+            },
+          ],
+        },
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
+            "Ref": "RemediationConfigAccessLogs08FBABE2",
+          },
+          "LogFilePrefix": "remediation-config-access-logs/",
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RemediationConfigurationBucketNameParam450ACC24": {
+      "Properties": {
+        "Description": "S3 bucket name for ASR remediation configuration files (patch overrides, GuardDuty backups)",
+        "Name": "/Solutions/SO9999/RemediationConfigurationBucket",
+        "Type": "String",
+        "Value": {
+          "Ref": "RemediationConfigurationBucketF5FA3D12",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "RemediationConfigurationBucketNotificationsE3D136AD": {
+      "DependsOn": [
+        "RemediationConfigMonitoringTopicPolicyA3412541",
+        "RemediationConfigMonitoringTopicC62EFF45",
+        "RemediationConfigurationBucketNotificationsHandlerPolicy465AD009",
+        "RemediationConfigurationBucketPolicyE889843F",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "RemediationConfigurationBucketF5FA3D12",
+        },
+        "Managed": true,
+        "NotificationConfiguration": {
+          "TopicConfigurations": [
+            {
+              "Events": [
+                "s3:ObjectCreated:*",
+              ],
+              "Filter": {
+                "Key": {
+                  "FilterRules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "guardduty-backups/",
+                    },
+                  ],
+                },
+              },
+              "TopicArn": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+            },
+            {
+              "Events": [
+                "s3:ObjectRemoved:*",
+              ],
+              "Filter": {
+                "Key": {
+                  "FilterRules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "guardduty-backups/",
+                    },
+                  ],
+                },
+              },
+              "TopicArn": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+            },
+            {
+              "Events": [
+                "s3:ObjectCreated:*",
+              ],
+              "Filter": {
+                "Key": {
+                  "FilterRules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "install-overrides/",
+                    },
+                  ],
+                },
+              },
+              "TopicArn": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+            },
+            {
+              "Events": [
+                "s3:ObjectRemoved:*",
+              ],
+              "Filter": {
+                "Key": {
+                  "FilterRules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "install-overrides/",
+                    },
+                  ],
+                },
+              },
+              "TopicArn": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+            },
+            {
+              "Events": [
+                "s3:ObjectCreated:*",
+              ],
+              "Filter": {
+                "Key": {
+                  "FilterRules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "baseline-overrides/",
+                    },
+                  ],
+                },
+              },
+              "TopicArn": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+            },
+            {
+              "Events": [
+                "s3:ObjectRemoved:*",
+              ],
+              "Filter": {
+                "Key": {
+                  "FilterRules": [
+                    {
+                      "Name": "prefix",
+                      "Value": "baseline-overrides/",
+                    },
+                  ],
+                },
+              },
+              "TopicArn": {
+                "Ref": "RemediationConfigMonitoringTopicC62EFF45",
+              },
+            },
+          ],
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691",
+            "Arn",
+          ],
+        },
+        "SkipDestinationValidation": false,
+      },
+      "Type": "Custom::S3BucketNotifications",
+    },
+    "RemediationConfigurationBucketNotificationsHandlerPolicy465AD009": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:PutBucketNotification",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigurationBucketF5FA3D12",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "RemediationConfigurationBucketNotificationsHandlerPolicy465AD009",
+        "Roles": [
+          {
+            "Ref": "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "RemediationConfigurationBucketPolicyE889843F": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "RemediationConfigurationBucketF5FA3D12",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigurationBucketF5FA3D12",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "RemediationConfigurationBucketF5FA3D12",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "s3:GetObject",
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalAccount": {
+                    "Ref": "AWS::AccountId",
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "RemediationConfigurationBucketF5FA3D12",
+                          "Arn",
+                        ],
+                      },
+                      "/install-overrides/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "RemediationConfigurationBucketF5FA3D12",
+                          "Arn",
+                        ],
+                      },
+                      "/baseline-overrides/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "AllowEC2ReadForPatching",
+            },
+            {
+              "Action": "s3:ListBucket",
+              "Condition": {
+                "StringLike": {
+                  "s3:prefix": [
+                    "install-overrides/*",
+                    "baseline-overrides/*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "RemediationConfigurationBucketF5FA3D12",
+                  "Arn",
+                ],
+              },
+              "Sid": "AllowListBucket",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
     "RunbookStackNoRoles": {
       "DeletionPolicy": "Delete",
       "Properties": {
@@ -1980,6 +2900,11 @@ exports[`member stack snapshot matches 1`] = `
           },
         },
         "Handler": "wait_provider.lambda_handler",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "WaitProviderFunctionLogGroup521DCE00",
+          },
+        },
         "Role": {
           "Fn::GetAtt": [
             "WaitProviderRole83B0295F",
@@ -1990,6 +2915,21 @@ exports[`member stack snapshot matches 1`] = `
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "WaitProviderFunctionLogGroup521DCE00": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
     "WaitProviderRole83B0295F": {
       "Metadata": {

@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-from typing import TYPE_CHECKING, Dict, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import boto3
 from botocore.config import Config
@@ -29,9 +29,12 @@ class Event(TypedDict):
     kms_key_arn: str
 
 
-def create_logging_bucket(
-    event: Event, _: LambdaContext
-) -> Dict[Literal["logging_bucket"], str]:
+class Output(TypedDict):
+    logging_bucket: str
+    ResourceArn: str
+
+
+def create_logging_bucket(event: Event, _: LambdaContext) -> Output:
     s3 = connect_to_s3()
 
     kms_key_arn: str = event["kms_key_arn"]
@@ -39,13 +42,20 @@ def create_logging_bucket(
     aws_region: str = event["region"]
     bucket_name = "so0111-access-logs-" + aws_region + "-" + aws_account
 
+    partition = "aws"
+    if "cn-" in aws_region:
+        partition = "aws-cn"
+    elif "us-gov" in aws_region:
+        partition = "aws-us-gov"
+    resource_arn = f"arn:{partition}:s3:::{bucket_name}"
+
     if create_bucket(s3, bucket_name, aws_region) == "bucket_exists":
-        return {"logging_bucket": bucket_name}
+        return {"logging_bucket": bucket_name, "ResourceArn": resource_arn}
     encrypt_bucket(s3, bucket_name, kms_key_arn)
     put_access_block(s3, bucket_name)
     put_bucket_acl(s3, bucket_name)
 
-    return {"logging_bucket": bucket_name}
+    return {"logging_bucket": bucket_name, "ResourceArn": resource_arn}
 
 
 def create_bucket(s3: S3Client, bucket_name: str, aws_region: str) -> str:

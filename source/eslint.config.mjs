@@ -17,7 +17,7 @@ export default defineConfig([
 
   // Use typescript-eslint only for parsing, not its rule presets
   {
-    files: ['**/*.ts', '**/*.mts'],
+    files: ['**/*.ts', '**/*.mts', '**/*.tsx'],
     languageOptions: {
       parser: tseslint.parser,
     },

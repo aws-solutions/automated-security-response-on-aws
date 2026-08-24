@@ -1,0 +1,10 @@
+// EC2.7 — EBS default encryption should be enabled
+//
+// ASR remediation enables EBS encryption by default for the AWS account in the
+// current region by calling the EC2 EnableEbsEncryptionByDefault API.
+// No CDK change is needed. EBS default encryption is an account-level setting
+// that cannot be managed via a native CDK/CloudFormation resource type.
+// Use the AWS CLI or a CDK Custom Resource to enable it:
+//   aws ec2 enable-ebs-encryption-by-default
+// (Terraform users: a native aws_ebs_encryption_by_default resource exists —
+// see the Terraform template for this control.)

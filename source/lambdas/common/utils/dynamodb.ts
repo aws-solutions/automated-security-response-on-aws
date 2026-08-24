@@ -29,3 +29,14 @@ export function createDynamoDBClient(config: DynamoDBClientConfig = {}): DynamoD
 
   return DynamoDBDocumentClient.from(new DynamoDBClient(finalConfig));
 }
+
+/**
+ * Converts a DynamoDB String Set (SS) or array to a plain string array.
+ * DynamoDB returns Set<string> for SS attributes, but JSON serialization requires arrays.
+ */
+export function toStringArray(value: Set<string> | string[] | undefined): string[] {
+  if (!value) return [];
+  if (value instanceof Set) return Array.from(value);
+  if (Array.isArray(value)) return value;
+  return [];
+}

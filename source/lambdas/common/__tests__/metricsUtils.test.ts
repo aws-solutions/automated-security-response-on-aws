@@ -3,7 +3,6 @@
 
 import {
   buildFailureMetric,
-  buildFilteringMetric,
   sendMetrics,
   postMetricsToApi,
   getSolutionVersion,
@@ -100,40 +99,6 @@ describe('metricsUtils', () => {
         region: undefined,
         truncated_record: undefined,
         error: 'error',
-      });
-    });
-  });
-
-  describe('buildFilteringMetric', () => {
-    it('should build filtering metric for account_id_filter', () => {
-      const result = buildFilteringMetric('account_id_filter');
-
-      expect(result).toEqual({
-        finding_filtered_by_user: 'account_id_filter',
-      });
-    });
-
-    it('should build filtering metric for OUs_filter', () => {
-      const result = buildFilteringMetric('OUs_filter');
-
-      expect(result).toEqual({
-        finding_filtered_by_user: 'OUs_filter',
-      });
-    });
-
-    it('should build filtering metric for tags_filter', () => {
-      const result = buildFilteringMetric('tags_filter');
-
-      expect(result).toEqual({
-        finding_filtered_by_user: 'tags_filter',
-      });
-    });
-
-    it('should build filtering metric for none', () => {
-      const result = buildFilteringMetric('none');
-
-      expect(result).toEqual({
-        finding_filtered_by_user: 'none',
       });
     });
   });

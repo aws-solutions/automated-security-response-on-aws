@@ -20,6 +20,13 @@ import { MOCK_SERVER_URL, server } from '../server.ts';
 import { generateTestFindings } from '../test-data-factory.ts';
 import { renderAppContent } from '../test-utils.tsx';
 
+async function waitForLoadingToFinish(container: ReturnType<typeof within>) {
+  const loading = container.queryByText('Loading findings');
+  if (loading) {
+    await waitForElementToBeRemoved(() => container.queryByText('Loading findings'), { timeout: 2000 });
+  }
+}
+
 it('renders an empty table', async () => {
   // GIVEN the backend returns no findings
   server.use(
@@ -33,7 +40,7 @@ it('renders an empty table', async () => {
 
   // THEN
   const withinMain = within(screen.getByTestId('main-content'));
-  expect(withinMain.getByRole('heading', { name: 'Findings to Remediate (0)' })).toBeInTheDocument();
+  expect(withinMain.getByRole('heading', { name: /Findings to Remediate\s*\(0\)/ })).toBeInTheDocument();
   expect(await withinMain.findByText(/no findings to display/i)).toBeInTheDocument();
 });
 
@@ -55,7 +62,7 @@ it('renders a table with findings', async () => {
   const loadingIndicator = await withinMain.findByText('Loading findings');
   await waitForElementToBeRemoved(loadingIndicator, { timeout: 2000 });
 
-  const heading = await withinMain.findByRole('heading', { name: `Findings to Remediate (5)` });
+  const heading = await withinMain.findByRole('heading', { name: /Findings to Remediate\s*\(5\)/ });
   expect(heading).toBeInTheDocument();
 
   const table = await withinMain.findByRole('table');
@@ -83,7 +90,7 @@ it('shows Actions dropdown with correct options when findings are selected', asy
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // THEN the Actions dropdown should be disabled initially
   const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
@@ -121,7 +128,7 @@ it('enables Suppress action only for unsuppressed findings', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN selecting an unsuppressed finding
   const table = await withinMain.findByRole('table');
@@ -160,9 +167,7 @@ it('enables Unsuppress action only for suppressed findings', async () => {
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), {
-    timeout: 2000,
-  });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN selecting a suppressed finding
   const table = await withinMain.findByRole('table');
@@ -202,7 +207,7 @@ it('shows confirmation modal when Unsuppress action is selected', async () => {
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN selecting findings and clicking Unsuppress
   const table = await withinMain.findByRole('table');
@@ -253,7 +258,7 @@ it('executes Unsuppress action when confirmed', async () => {
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN selecting a finding and confirming unsuppress
   const table = await withinMain.findByRole('table');
@@ -299,7 +304,7 @@ it('cancels Unsuppress action when Cancel is clicked', async () => {
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
 
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN selecting a finding and clicking Unsuppress, then Cancel
   const table = await withinMain.findByRole('table');
@@ -342,7 +347,7 @@ it('shows suppressed findings when toggle is enabled', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // THEN initially only unsuppressed findings should be visible
   let table = await withinMain.findByRole('table');
@@ -415,7 +420,7 @@ it('handles sorting changes', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN clicking on a sortable column header
   const table = await withinMain.findByRole('table');
@@ -440,7 +445,7 @@ it('shows confirmation modals for different actions', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   const table = await withinMain.findByRole('table');
   const checkboxes = await within(table).findAllByRole('checkbox');
@@ -510,7 +515,7 @@ it('executes Suppress action when confirmed', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // Select finding and confirm suppress
   const table = await withinMain.findByRole('table');
@@ -555,7 +560,7 @@ it('executes RemediateAndGenerateTicket action when confirmed', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // Select finding and confirm remediate with ticket
   const table = await withinMain.findByRole('table');
@@ -597,7 +602,7 @@ it('handles action execution errors', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // Select finding and confirm suppress
   const table = await withinMain.findByRole('table');
@@ -635,7 +640,7 @@ it('refreshes findings when refresh button is clicked', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // WHEN clicking refresh button
   const refreshButton = await withinMain.findByLabelText('Refresh findings');
@@ -659,7 +664,7 @@ it('shows finding IDs in confirmation modal', async () => {
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // Select all findings
   const table = await withinMain.findByRole('table');
@@ -705,7 +710,7 @@ it('persists filter, sorting, and showSuppressed preferences across page navigat
   // Enable show suppressed
   const showSuppressedToggle = await withinMain.findByText('Show suppressed findings');
   await userEvent.click(showSuppressedToggle);
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // Apply filter using Cloudscape PropertyFilter dropdown
   const filterInput = await withinMain.findByPlaceholderText('Search Findings');
@@ -773,7 +778,7 @@ it('navigates to history page when View History button is clicked', async () => 
   });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // Execute a successful remediate action
   const table = await withinMain.findByRole('table');
@@ -801,6 +806,57 @@ it('navigates to history page when View History button is clicked', async () => 
   await waitFor(() => {
     expect(screen.queryByText('Findings to Remediate')).not.toBeInTheDocument();
   });
+});
+
+it('warns and does not report success when the API skips a finding (unsupported resource type)', async () => {
+  // A finding stored under an earlier build can carry a remediation on a
+  // resource type it cannot act on (e.g. an Amazon Inspector Lambda/ECR finding
+  // routed to the EC2-only patch remediation). The API skips it and returns it
+  // in unresolvedIds. The UI must surface a warning and NOT show a blanket
+  // success or leave the finding stuck at IN_PROGRESS.
+  const findings = generateTestFindings(1, {
+    suppressed: false,
+    remediationStatus: 'NOT_STARTED',
+    findingType: 'Inspector.InstanceVulnerability',
+    resourceType: 'AwsLambdaFunction',
+  });
+  const skippedId = findings[0].findingId;
+
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+    http.post(
+      MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action',
+      async () => await ok({ status: 'IN_PROGRESS', unresolvedIds: [skippedId] }),
+    ),
+  );
+
+  renderAppContent({ initialRoute: '/findings' });
+
+  const withinMain = within(screen.getByTestId('main-content'));
+  await waitForLoadingToFinish(withinMain);
+
+  const table = await withinMain.findByRole('table');
+  const checkboxes = await within(table).findAllByRole('checkbox');
+  await userEvent.click(checkboxes[1]);
+
+  const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
+  await userEvent.click(actionsButton);
+
+  const dropdown = await screen.findByRole('menu');
+  await userEvent.click(within(dropdown).getByText('Remediate'));
+
+  const modal = await screen.findByRole('dialog');
+  await userEvent.click(within(modal).getByRole('button', { name: 'Remediate' }));
+
+  // THEN a skip warning is shown that pairs the finding type with the unsupported
+  // resource type, and no success message appears. Match the full toast phrase in
+  // one regex — the bare "AwsLambdaFunction" / "Inspector.InstanceVulnerability"
+  // also render in the table columns, so a standalone matcher would hit multiple
+  // elements.
+  await withinMain.findByText(
+    /skipped: the resource type is not supported.*Inspector\.InstanceVulnerability does not support AwsLambdaFunction/i,
+  );
+  expect(withinMain.queryByText(/successfully sent .* for remediation/i)).not.toBeInTheDocument();
 });
 
 it('initializes with showSuppressed preference when persisted', async () => {
@@ -832,7 +888,7 @@ it('updates column preferences when confirmed', async () => {
   renderAppContent({ initialRoute: '/findings' });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // ACT - Open preferences and confirm changes
   const preferencesButton = await withinMain.findByRole('button', { name: /preferences/i });
@@ -864,7 +920,7 @@ it('exports findings to CSV', async () => {
   renderAppContent({ initialRoute: '/findings' });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // ACT
   const exportButton = await withinMain.findByRole('button', { name: /export to csv/i });
@@ -892,7 +948,7 @@ it('handles export error', async () => {
   renderAppContent({ initialRoute: '/findings' });
 
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
 
   // ACT
   const exportButton = await withinMain.findByRole('button', { name: /export to csv/i });
@@ -928,6 +984,170 @@ it('falls back to default sorting column when persisted sorting field is invalid
 
   // ASSERT - table should render without errors using default sorting
   const withinMain = within(screen.getByTestId('main-content'));
-  await waitForElementToBeRemoved(await withinMain.findByText('Loading findings'), { timeout: 2000 });
+  await waitForLoadingToFinish(withinMain);
   expect(await withinMain.findByRole('table')).toBeInTheDocument();
+});
+
+it('shows GuardDuty-specific confirmation modal when all selected findings are GuardDuty.IAMUser', async () => {
+  // GIVEN the backend returns GuardDuty findings
+  const findings = generateTestFindings(2, {
+    suppressed: false,
+    remediationStatus: 'NOT_STARTED',
+    findingType: 'GuardDuty.IAMUser',
+  });
+
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
+
+  renderAppContent({ initialRoute: '/findings' });
+
+  const withinMain = within(screen.getByTestId('main-content'));
+  await waitForLoadingToFinish(withinMain);
+
+  // WHEN selecting all GuardDuty findings and clicking Remediate
+  const table = await withinMain.findByRole('table');
+  const checkboxes = await within(table).findAllByRole('checkbox');
+  await userEvent.click(checkboxes[1]);
+  await userEvent.click(checkboxes[2]);
+
+  const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
+  await userEvent.click(actionsButton);
+  const dropdown = await screen.findByRole('menu');
+  await userEvent.click(within(dropdown).getByText('Remediate'));
+
+  // THEN the GuardDuty-specific modal should appear
+  const modal = await screen.findByRole('dialog');
+  expect(within(modal).getByText('Confirm GuardDuty Credential Containment')).toBeInTheDocument();
+  expect(within(modal).getByText(/first-line defense action/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/disable the compromised IAM access keys/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/roll back the containment from the History page/i)).toBeInTheDocument();
+  expect(within(modal).getByRole('button', { name: 'Contain Credentials' })).toBeInTheDocument();
+});
+
+it('shows Macie-specific confirmation modal when all selected findings are Macie.SensitiveDataS3Object', async () => {
+  // GIVEN the backend returns Macie findings
+  const findings = generateTestFindings(1, {
+    suppressed: false,
+    remediationStatus: 'NOT_STARTED',
+    findingType: 'Macie.SensitiveDataS3Object',
+  });
+
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
+
+  renderAppContent({ initialRoute: '/findings' });
+
+  const withinMain = within(screen.getByTestId('main-content'));
+  await waitForLoadingToFinish(withinMain);
+
+  // WHEN selecting the Macie finding and clicking Remediate
+  const table = await withinMain.findByRole('table');
+  const checkboxes = await within(table).findAllByRole('checkbox');
+  await userEvent.click(checkboxes[1]);
+
+  const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
+  await userEvent.click(actionsButton);
+  const dropdown = await screen.findByRole('menu');
+  await userEvent.click(within(dropdown).getByText('Remediate'));
+
+  // THEN the Macie-specific modal should appear
+  const modal = await screen.findByRole('dialog');
+  expect(within(modal).getByText('Confirm Macie Sensitive Data Protection')).toBeInTheDocument();
+  expect(within(modal).getByText(/enable all four S3 Block Public Access settings/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/GDPR, HIPAA, PCI-DSS/i)).toBeInTheDocument();
+  expect(within(modal).getByRole('button', { name: 'Enable Block Public Access' })).toBeInTheDocument();
+});
+
+it('shows generic confirmation modal with mixed-type note when GuardDuty and generic findings are selected together', async () => {
+  // GIVEN the backend returns a mix of GuardDuty and generic findings
+  const findings = [
+    ...generateTestFindings(1, {
+      suppressed: false,
+      remediationStatus: 'NOT_STARTED',
+      findingType: 'GuardDuty.IAMUser',
+    }),
+    ...generateTestFindings(1, {
+      suppressed: false,
+      remediationStatus: 'NOT_STARTED',
+      findingType: 'Security.SomeOtherFinding',
+    }),
+  ];
+
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+  );
+
+  renderAppContent({ initialRoute: '/findings' });
+
+  const withinMain = within(screen.getByTestId('main-content'));
+  await waitForLoadingToFinish(withinMain);
+
+  // WHEN selecting both findings and clicking Remediate
+  const table = await withinMain.findByRole('table');
+  const checkboxes = await within(table).findAllByRole('checkbox');
+  await userEvent.click(checkboxes[1]);
+  await userEvent.click(checkboxes[2]);
+
+  const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
+  await userEvent.click(actionsButton);
+  const dropdown = await screen.findByRole('menu');
+  await userEvent.click(within(dropdown).getByText('Remediate'));
+
+  // THEN the generic modal should appear with a mixed-type note
+  const modal = await screen.findByRole('dialog');
+  expect(within(modal).getByText('Confirm Remediation')).toBeInTheDocument();
+  expect(within(modal).getByText(/different types/i)).toBeInTheDocument();
+  expect(within(modal).getByRole('button', { name: 'Remediate' })).toBeInTheDocument();
+});
+
+it('executes Remediate action for GuardDuty findings when confirmed', async () => {
+  // GIVEN the backend returns a GuardDuty finding
+  const findings = generateTestFindings(1, {
+    suppressed: false,
+    remediationStatus: 'NOT_STARTED',
+    findingType: 'GuardDuty.IAMUser',
+  });
+  let remediateActionCalled = false;
+
+  server.use(
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS, async () => await ok({ Findings: findings, NextToken: null })),
+    http.post(MOCK_SERVER_URL + ApiEndpoints.FINDINGS + '/action', async ({ request }) => {
+      const body = (await request.json()) as any;
+      if (body.actionType === 'Remediate') {
+        remediateActionCalled = true;
+        expect(body.findingIds).toEqual([findings[0].findingId]);
+      }
+      return await ok({});
+    }),
+  );
+
+  renderAppContent({ initialRoute: '/findings' });
+
+  const withinMain = within(screen.getByTestId('main-content'));
+  await waitForLoadingToFinish(withinMain);
+
+  // Select finding and confirm remediate
+  const table = await withinMain.findByRole('table');
+  const checkboxes = await within(table).findAllByRole('checkbox');
+  await userEvent.click(checkboxes[1]);
+
+  const actionsButton = await withinMain.findByRole('button', { name: 'Actions' });
+  await userEvent.click(actionsButton);
+  const dropdown = await screen.findByRole('menu');
+  await userEvent.click(within(dropdown).getByText('Remediate'));
+
+  const modal = await screen.findByRole('dialog');
+  const confirmButton = within(modal).getByRole('button', { name: 'Contain Credentials' });
+  await userEvent.click(confirmButton);
+
+  // THEN the remediate action should be called
+  await waitFor(() => {
+    expect(remediateActionCalled).toBe(true);
+  });
+
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

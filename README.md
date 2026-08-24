@@ -30,7 +30,7 @@ Findings feature.
 
 ## Architecture Diagram
 
-![](./docs/automated-security-response-on-aws-architecture-diagram.png)
+![](./docs/published/automated-security-response-on-aws-architecture-diagram.png)
 
 ## Customizing the Solution
 
@@ -44,8 +44,8 @@ or (2) adding a new playbook for a Security Standard not yet implemented in the 
 - a Linux client with the following software
   - AWS CLI v2
   - Python 3.11+ with pip
-  - AWS CDK 2.1025.0+
-  - Node.js 22+ with npm
+  - AWS CDK 2.1107+
+  - Node.js 24+ with npm
   - Poetry v2 with plugin to export
   - Java Runtime Environment (JRE) version 17.x or newer
   - [DynamoDB Local installed and setup](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html#DynamoDBLocal.DownloadingAndRunning.title)
@@ -195,7 +195,7 @@ Add the playbook-specific control ID to the list of remediations in `_<playbook_
 ```
 { control: 'ElastiCache.2', versionAdded: '2.3.0' },
 ```
-The `versionAdded` field should be the latest version of the solution. If adding the remediation breaches the template size limit, increase the `versionAdded`. You can adjust the number of remediations included in each playbook member stack in `solution_env.sh`.
+The `versionAdded` field should be the latest version of the solution. If adding the remediation breaches the template size limit, increase the `versionAdded`. You can adjust the number of remediations included in each playbook member stack in `source/cdk-config.json` under the `memberStackLimits` section.
 
 #### Step 4: Create the Markdown File
 In order for the solution to build, you must create a markdown file that describes the remediation runbook you've created. The name of the markdown file must match the control ID in the SC playbook; for example, `ElastiCache.2.md` is created in the path `source/playbooks/SC/ssmdocs/descriptions/ElastiCache.2.md`. This markdown file describes what the runbook does, the input and output parameters, and links to the Security Hub documentation.
@@ -251,10 +251,20 @@ This file enforces testing for each new regular expression included in the solut
 
 Finally, you'll need to update the snapshots for each stack. Snapshots are version-controlled CloudFormation template definitions that are used to track changes made to ASR's infrastructure. You can update these snapshot files by running the following command from the `deployment` directory:
 ```
-./run-unit-tests.sh update
+./run-unit-tests.sh snapshot
 ```
 
 Now you are ready to deploy your new remediation! Navigate to the **Build and Deploy** section below for instructions on building and deploying the solution with your new changes. 
+
+### Deprecated Controls
+
+The following controls have been retired by AWS Security Hub ("no longer supported"). They are flagged with `deprecated: true` in their `IControl` entries: their runbook SSM documents are still generated (so stack updates do not delete a previously deployed resource), but they are excluded from active-remediation surfaces such as the CloudWatch failure-rate alarms.
+
+- CloudFormation.1
+- CodeBuild.5
+- S3.4
+- SNS.2
+
 ### Custom Playbooks
 
 Go to source/playbooks in the solution source downloaded above. In this folder is a Playbook skeleton, **NEWPLAYBOOK**.
@@ -366,6 +376,40 @@ access. Use KMS encryption. And verify bucket ownership before uploading.
 
 First ensure that you've run `npm install` in the _source_ folder.
 
+**Configuration:**
+The solution uses `source/cdk-config.json` as the single source of truth for all build configuration. This file is version-controlled and used by both local builds and CI/CD pipelines. You typically don't need to modify it for standard builds, but you can customize values like TTL settings, member stack limits, and development options.
+
+#### Configuring API rate limits
+
+The web UI API rate limiting has two enforcement layers (an API Gateway stage throttle and WAF rate-based rules) plus a CloudWatch alarm layer for detection, all configurable under the `rateLimiting` section. The defaults live in `DEFAULT_CONFIG` in `source/lib/config/cdk-config.ts`; to change them, add a `rateLimiting` block to `source/cdk-config.json` with only the keys you want to override (the file is deep-merged over the defaults, so you do not need to copy the whole section). After changing values, rebuild and redeploy for them to take effect.
+
+```jsonc
+{
+  "rateLimiting": {
+    "stage": {
+      "rateLimit": 500,   // account-wide API Gateway steady-state requests/second ceiling
+      "burstLimit": 1000  // account-wide burst allowance
+    },
+    "waf": {
+      "perUserLimit": 1000,        // max requests per user (Cognito JWT) per evaluation window
+      "perIpLimit": 2000,          // max requests per source IP per evaluation window
+      "sensitiveWriteLimit": 300,  // tighter limit for mutating requests to sensitive paths
+      "evaluationWindowSec": 60,   // WAF window: one of 60, 120, 300, or 600
+      "mode": "block"              // "block" rejects over-limit requests (HTTP 429); "count" only observes
+    },
+    "alarms": {
+      "controlStateChangesPerMinute": 5,  // CloudWatch alarm threshold for control state changes
+      "sensitiveWritesPerMinute": 20      // alarm threshold for sensitive write requests
+    }
+  }
+}
+```
+
+Guidance on each section:
+- **`stage`** is a coarse, account-wide API Gateway throttle — a global safety ceiling far below the 10,000 RPS default, not a per-user limit. Set it liberally so it never bites legitimate multi-operator usage.
+- **`waf`** holds the per-user and per-IP rate-based rules. WAF's minimum granularity is 10 requests per 60s per aggregation instance and it re-evaluates roughly every 10s, so these bound abusive bursts rather than enforcing a precise per-second limit. Set limits well above realistic usage so they only trip on egregious abuse. Use `"mode": "count"` to validate new limits via WAF sampled requests before switching to `"block"`.
+- **`alarms`** are CloudWatch thresholds (per minute) for the write-anomaly detection alarms — an observability layer, not enforcement; lower them to be alerted sooner, raise them to reduce noise.
+
 Next from the _deployment_ folder in your cloned repo, run build-s3-dist.sh, passing the root name of your bucket (ex.
 mybucket) and the version you are building (ex. v1.0.0). We recommend using a semver version based on the version
 downloaded from GitHub (ex. GitHub: v1.0.0, your build: v1.0.0.mybuild)
@@ -388,7 +432,7 @@ We recommend using [pipx](https://pipx.pypa.io/stable/installation/) to install 
 **Note**: You must install Poetry version 2 to execute the `run-unit-tests.sh` script. Since version 2, the `export` command is no longer included by default in Poetry. To use it, you need to install the poetry-plugin-export plugin.
 
 Follow these steps to install and setup Poetry on your local machine:
-1. Install version 2.1.2 of Poetry by running `pipx install poetry==2.1.2`
+1. Install version 2.1.3 of Poetry by running `pipx install poetry==2.1.3`
 2. Set the `POETRY_HOME` environment variable to be the path to your local installation of Poetry. E.g., `POETRY_HOME=/Users/YOUR_USERNAME/.local/pipx/venvs/poetry`
 3. Install Poetry export plugin by running `poetry self add poetry-plugin-export@1.9.0`
 
@@ -426,6 +470,24 @@ chmod +x ./run-unit-tests.sh
 
 Confirm that all unit tests pass.
 
+To auto-format Python source files and run linting (mypy + flake8) without running the full test suite:
+
+```bash
+./run-unit-tests.sh format
+```
+
+To update CDK snapshots only (without running any other tests):
+
+```bash
+./run-unit-tests.sh snapshot
+```
+
+To update CDK snapshots and run all CDK unit tests with snapshot update mode (mismatches are updated rather than failing):
+
+```bash
+./run-unit-tests.sh update
+```
+
 ### Upload to your buckets
 
 **Note**: Verify bucket ownership before uploading.
@@ -456,6 +518,7 @@ If you anticipate that you will need to deploy multiple times during your develo
 For example:
 
 ```bash
+  export NAMESPACE=$(date +%s | grep -oE '.{8}$')
   export ADMIN_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-admin.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -475,11 +538,10 @@ For example:
     ParameterKey=UseCloudWatchMetricsAlarms,ParameterValue=yes \
     ParameterKey=RemediationFailureAlarmThreshold,ParameterValue=5 \
     ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no \
+    ParameterKey=Namespace,ParameterValue=$NAMESPACE \
     ParameterKey=ShouldDeployWebUI,ParameterValue=yes \
     ParameterKey=AdminUserEmail,ParameterValue={AdminUserEmail} \
     ParameterKey=TicketGenFunctionName,ParameterValue=""
-    
-  export NAMESPACE=$(date +%s | tail -c 9)
   export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -511,6 +573,80 @@ For example:
     ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount}
 ```
 
+## Customizing IaC Templates
+
+ASR deploys IaC remediation templates (CloudFormation, Terraform, CDK) to a central S3 bucket in your administrator account. These templates show you what your infrastructure-as-code should look like after a remediation runs. You can customize these templates to match your organization's conventions.
+
+### Bucket Layout
+
+```
+{controlId}/{format}/{filename}         ← Solution-managed (always overwritten on upgrade)
+.customized/{controlId}/{format}/{filename} ← Customer customizations (never touched by sync)
+.metadata/manifest.json                 ← Deployment manifest (do not modify)
+```
+
+### How the Sync Works
+
+When you deploy or upgrade ASR, the template sync mechanism:
+1. **Always overwrites** all solution-managed templates at `{controlId}/{format}/` with the latest version
+2. **Never touches** anything under `.customized/` — your customizations are always preserved
+
+The template resolver checks `.customized/{controlId}/{format}/` first. If a customized template exists, it takes priority over the solution default. If not, the solution's version at `{controlId}/{format}/` is used.
+
+### Rules for Customizing Templates
+
+1. **Copy and customize under `.customized/`.** To override a template, copy it from `{controlId}/{format}/` to `.customized/{controlId}/{format}/` and edit the copy. Your version will always take priority.
+
+2. **Do not edit templates at the root path.** Files at `{controlId}/{format}/` are overwritten on every upgrade. Edits made here will be lost.
+
+3. **Do not modify `.metadata/manifest.json`.** This file tracks the solution's template inventory. Corrupting it will cause the sync to fail on the next upgrade.
+
+4. **Adding new templates under `.customized/`** for controls ASR doesn't cover is safe — the sync never touches this prefix.
+
+## Jira Blueprint Configuration
+
+The Jira blueprint allows you to create Jira tickets automatically when Security Hub findings are remediated. To configure the Jira integration:
+
+### Environment Variables
+
+The Jira ticket generator Lambda function uses the following environment variable for field customization:
+
+- **JIRA_FIELDS_MAPPING**: JSON string that overrides default Jira ticket fields. Must follow the Jira API fields structure.
+
+### Default Values
+
+When `JIRA_FIELDS_MAPPING` is empty or fields are not specified, the following defaults are used:
+- **priority**: `{"id": "3"}` (Medium priority)
+- **issuetype**: `{"id": "10006"}` (Task)
+- **accountId**: The Jira script will automatically retrieve the `reporter/accountId` using the `GET /rest/api/2/myself` API endpoint.
+
+### Example Configuration
+
+To override default fields and add custom fields:
+
+```json
+{
+  "reporter": {"accountId": "123456:494dcbff-1b80-482c-a89d-56ae81c145a4"},
+  "priority": {"id": "1"},
+  "issuetype": {"id": "10006"},
+  "assignee": {"accountId": "123456:another-user-id"},
+  "customfield_10001": "custom value"
+}
+```
+
+The fields structure follows the [Jira REST API v2 Issue POST format](https://developer.atlassian.com/server/jira/platform/rest/v10000/api-group-issue/#api-api-2-issue-post).
+
+### Common Jira Field IDs
+
+- **Priority IDs**: 1 (Highest), 2 (High), 3 (Medium), 4 (Low), 5 (Lowest)
+- **Issue Type ID**: Varies by Jira project (e.g., 10006 for Task)
+- **Account ID**: Format `123456:494dcbff-1b80-482c-a89d-56ae81c145a4`
+
+You can find your Jira field IDs and account IDs by:
+1. Using the Jira REST API: `GET /rest/api/2/myself` for account ID
+2. Using the Jira REST API: `GET /rest/api/2/priority` for priority IDs
+3. Using the Jira REST API: `GET /rest/api/2/project/{projectKey}` for issue type IDs
+
 ## Directory structure
 
 <pre>
@@ -519,6 +655,7 @@ For example:
   |-manifest-generator/   [ Manifest generation tool ]
   |-utils/                [ Utility scripts for deployment ]
 |-docs/                   [ Solution documentation and diagrams ]
+  |-published/            [ Documentation published to the public repository ]
 |-simtest/                [ Tool and sample data used to simulate findings for testing ]
 |-source/                 [ Solution source code and tests ]
   |-blueprints/           [ Blueprint integrations (Jira, ServiceNow) ]

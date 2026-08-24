@@ -11,8 +11,8 @@ description: |
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * BucketName: (Required) Name of the bucket to create
 
-schemaVersion: "0.3"
-assumeRole: "{{ AutomationAssumeRole }}"
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -24,10 +24,10 @@ parameters:
     allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
 outputs:
   - CreateAccessLoggingBucket.Output
+  - TagResource.Output
 
 mainSteps:
-  -
-    name: CreateAccessLoggingBucket
+  - name: CreateAccessLoggingBucket
     action: 'aws:executeScript'
     inputs:
       InputPayload:
@@ -41,5 +41,23 @@ mainSteps:
       - Name: Output
         Selector: $.Payload.output
         Type: StringMap
+      - Name: ResourceArn
+        Selector: $.Payload.output.ResourceArn
+        Type: String
+    nextStep: TagResource
 
+  - name: TagResource
+    action: 'aws:executeScript'
+    onFailure: Continue
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateAccessLoggingBucket.ResourceArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
     isEnd: true

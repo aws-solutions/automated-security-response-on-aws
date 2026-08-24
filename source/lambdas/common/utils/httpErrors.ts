@@ -43,3 +43,55 @@ export class BadRequestError extends HttpError {
     this.name = 'BadRequestError';
   }
 }
+
+export const SERVICE_UNAVAILABLE_ERROR_MESSAGE =
+  'The service is temporarily unable to complete this request, please retry.';
+
+export class ServiceUnavailableError extends HttpError {
+  constructor(message = SERVICE_UNAVAILABLE_ERROR_MESSAGE) {
+    super(503, message);
+    this.name = 'ServiceUnavailableError';
+  }
+}
+
+export const CONFLICT_ERROR_MESSAGE =
+  'Data was modified by another user - please refresh, review updated state, and try again.';
+
+export class VersionConflictError extends HttpError {
+  public readonly currentVersion?: number;
+
+  constructor(
+    message = 'Version conflict: the configuration was modified by another request',
+    options?: { currentVersion?: number },
+  ) {
+    super(409, message);
+    this.name = 'VersionConflictError';
+    this.currentVersion = options?.currentVersion;
+  }
+}
+
+export class ConflictError extends HttpError {
+  public readonly code?: string;
+  public readonly context?: Record<string, unknown>;
+
+  constructor(message = CONFLICT_ERROR_MESSAGE, options?: { code?: string; context?: Record<string, unknown> }) {
+    super(409, message);
+    this.name = 'ConflictError';
+    this.code = options?.code;
+    this.context = options?.context;
+  }
+}
+
+export class TooManyRequestsError extends HttpError {
+  constructor(message = 'Too many requests') {
+    super(429, message);
+    this.name = 'TooManyRequestsError';
+  }
+}
+
+export class NotImplementedError extends HttpError {
+  constructor(message = 'This feature is not yet implemented') {
+    super(501, message);
+    this.name = 'NotImplementedError';
+  }
+}

@@ -14,7 +14,13 @@ interface FindingsTablePreferences extends BaseTablePreferences {
   visibleContent?: string[];
 }
 
-type TablePreferences = BaseTablePreferences | FindingsTablePreferences;
+interface ControlsTablePreferences {
+  pageSize: number;
+  visibleContent: string[];
+  contentDensity: 'compact' | 'comfortable';
+}
+
+type TablePreferences = BaseTablePreferences | FindingsTablePreferences | ControlsTablePreferences;
 
 function createPreferencesManager<T extends TablePreferences>(storageKey: string, defaults: T) {
   return {
@@ -50,4 +56,18 @@ export const historyTablePreferences = createPreferencesManager<BaseTablePrefere
   sortingField: 'lastUpdatedTime',
   sortingDescending: true,
   filterTokens: [],
+});
+
+export const controlsTablePreferences = createPreferencesManager<ControlsTablePreferences>('controlsTablePreferences', {
+  pageSize: 20,
+  visibleContent: [
+    'controlId',
+    'description',
+    'isEnabled',
+    'appliedFilters',
+    'notifications',
+    'modifiedBy',
+    'lastModified',
+  ],
+  contentDensity: 'comfortable',
 });

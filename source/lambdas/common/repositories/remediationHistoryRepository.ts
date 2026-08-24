@@ -3,6 +3,7 @@
 
 import { DynamoDBDocumentClient, PutCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import {
+  FindingId,
   PaginationToken,
   SearchCriteria,
   SearchFilter,
@@ -11,8 +12,9 @@ import {
   RemediationHistoryTableItem,
 } from '@asr/data-models';
 import { calculateHistoryTtlTimestamp } from '../utils/ttlUtils';
-import { AbstractRepository, DynamoDBKey, ExpressionAttributeValues, QueryResult } from './abstractRepository';
+import { AbstractRepository, DynamoDBKey, ExpressionAttributeValues } from './abstractRepository';
 import { mapRemediationStatus } from '../utils/remediationStatusMapper';
+import { Clock, getClock } from '../utils/clock';
 
 interface QueryParameters {
   indexName: string;
@@ -61,6 +63,7 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
     tableName: string,
     dynamoDBClient: DynamoDBDocumentClient,
     private readonly findingsTableName: string,
+    private readonly clock: Clock = getClock(),
   ) {
     super(principal, tableName, dynamoDBClient);
   }
@@ -79,6 +82,7 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
     timestamp: string,
     user: string,
   ): RemediationHistoryTableItem {
+    const status = mapRemediationStatus(finding.remediationStatus);
     return {
       findingType: finding.findingType,
       findingId: finding.findingId,
@@ -89,7 +93,7 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
       resourceTypeNormalized: finding.resourceTypeNormalized,
       severity: finding.severity,
       region: finding.region,
-      remediationStatus: mapRemediationStatus(finding.remediationStatus),
+      remediationStatus: status,
       lastUpdatedTime: timestamp,
       'lastUpdatedTime#findingId': `${timestamp}#${finding.findingId}`,
       REMEDIATION_CONSTANT: 'remediation',
@@ -97,6 +101,7 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
       executionId,
       error: finding.error,
       expireAt: calculateHistoryTtlTimestamp(timestamp),
+      ...(finding.findingJSON?.length ? { findingJSON: finding.findingJSON } : {}),
     };
   }
 
@@ -106,7 +111,7 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
    * @param executionId - The orchestrator execution ID
    */
   async createRemediationHistory(finding: FindingTableItem, executionId: string): Promise<void> {
-    const timestamp = new Date().toISOString();
+    const timestamp = this.clock.now().toISOString();
     const user = finding.lastUpdatedBy || this.principal;
 
     const remediationHistoryItem = this.createRemediationHistoryItem(finding, executionId, timestamp, user);
@@ -137,13 +142,18 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
   }
 
   async createRemediationHistoryWithFindingUpdate(finding: FindingTableItem, executionId: string): Promise<void> {
-    const timestamp = new Date().toISOString();
+    const timestamp = this.clock.now().toISOString();
     const user = finding.lastUpdatedBy || this.principal;
 
     const remediationHistoryItem = this.createRemediationHistoryItem(finding, executionId, timestamp, user);
 
+    // Clear the deadline-enforcement stamp as the finding transitions into remediation.
+    // The transaction writes via Put (full-item replacement), so omitting these fields
+    // is equivalent to a REMOVE and keeps stale entries out of the remediationDueBy GSI.
+    const { remediationDueBy, enforcementConfigIds, ...findingWithoutEnforcementStamp } = finding;
+
     const updatedFinding: FindingTableItem = {
-      ...finding,
+      ...findingWithoutEnforcementStamp,
       remediationStatus: mapRemediationStatus(finding.remediationStatus),
       lastUpdatedTime: timestamp,
       lastUpdatedBy: user,
@@ -450,6 +460,78 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
       });
       return [];
     }
+  }
+
+  /**
+   * Fetches the latest remediation history entry for each finding ID.
+   * Queries the findingId GSI in descending order (newest first) and returns
+   * only the most recent entry per finding. Used by the batch processor to
+   * build CSV exports for remediation batches without depending on the findings table.
+   *
+   * Processes queries in bounded-concurrency chunks (25 at a time) to avoid
+   * DynamoDB throttling when batch sizes are large.
+   */
+  async findLatestByFindingIds(findingIds: FindingId[]): Promise<RemediationHistoryTableItem[]> {
+    const CONCURRENCY_LIMIT = 25;
+    const uniqueIds = [...new Set(findingIds)];
+    const results: (RemediationHistoryTableItem | null)[] = [];
+
+    for (let i = 0; i < uniqueIds.length; i += CONCURRENCY_LIMIT) {
+      const chunk = uniqueIds.slice(i, i + CONCURRENCY_LIMIT);
+      const chunkResults = await Promise.all(
+        chunk.map(async (findingId) => {
+          try {
+            const result = await this.queryIndexPK({
+              indexName: 'findingId-lastUpdatedTime-GSI',
+              partitionKeyName: 'findingId',
+              partitionKeyValue: findingId,
+              scanIndexForward: false,
+              limit: 1,
+            });
+            return result.items?.[0] ?? null;
+          } catch (error) {
+            this.logger.warn('Error querying history for findingId', {
+              findingId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return null;
+          }
+        }),
+      );
+      results.push(...chunkResults);
+    }
+
+    return results.filter((item): item is RemediationHistoryTableItem => item !== null);
+  }
+
+  /**
+   * Returns the most recent SUCCESS remediation history entry that carries a
+   * non-empty `findingJSON` blob. Used by the API to render IaC templates
+   * with real finding data (the pre-processor copies the compressed
+   * findingJSON onto history).
+   *
+   * Both predicates are pushed to DynamoDB via the FilterExpression
+   * (`remediationStatus = SUCCESS AND attribute_exists(findingJSON) AND
+   * size(findingJSON) > 0`) so the database — not the client — does the
+   * filtering. The query reads the GSI newest-first and takes the first
+   * surviving item.
+   *
+   * Single-page assumption: we intentionally do not paginate. ASR writes very
+   * few history entries per finding, so a matching SUCCESS+findingJSON entry
+   * (if one exists) is expected within the first 1 MB page. The
+   * `attribute_exists`/`size` predicates keep that page dense with viable
+   * candidates rather than spending it on SUCCESS entries that lack the blob.
+   */
+  async findLatestSuccessWithFindingJSON(findingId: FindingId): Promise<RemediationHistoryTableItem | undefined> {
+    const result = await this.queryIndexWithFilter({
+      indexName: 'findingId-lastUpdatedTime-GSI',
+      partitionKeyName: 'findingId',
+      partitionKeyValue: findingId,
+      scanIndexForward: false,
+      filterExpression: 'remediationStatus = :status AND attribute_exists(findingJSON) AND size(findingJSON) > :zero',
+      expressionAttributeValues: { ':status': 'SUCCESS', ':zero': 0 },
+    });
+    return result.items?.[0];
   }
 
   private matchesCriteria(remediation: RemediationHistoryTableItem, criteria: SearchCriteria): boolean {

@@ -404,6 +404,7 @@ export function getRegexRegistry(): RegexRegistry {
   addElastiCacheClusterTestCases(registry);
   addECSTaskDefinitionTestCases(registry);
   addELBArnTestCases(registry);
+  addGenericResourceArnTestCases(registry);
 
   return registry;
 }
@@ -1030,4 +1031,19 @@ function addELBArnTestCases(registry: RegexRegistry) {
     ],
   );
   registry.addCase(elbArnTestCases);
+}
+
+function addGenericResourceArnTestCases(registry: RegexRegistry) {
+  const genericResourceArn: RegexMatchTestCase = new RegexMatchTestCase(
+    String.raw`^arn:(?:aws|aws-us-gov|aws-cn):[a-zA-Z0-9]+:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)?:\d{0,12}:.*$`,
+    'Generic AWS Resource ARN',
+    [
+      'arn:aws:s3:::my-test-bucket',
+      'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
+      'arn:aws-us-gov:s3:::gov-bucket',
+      'arn:aws-cn:kms:cn-north-1:123456789012:key/abcd-1234',
+    ],
+    ['invalid-arn', 'arn:aws-fictional:s3:::bucket'],
+  );
+  registry.addCase(genericResourceArn);
 }

@@ -1,0 +1,19 @@
+# S3.13 — S3 buckets should have lifecycle policies configured
+#
+# ASR remediation sets an example lifecycle policy that transitions objects
+# larger than 128 KB to Intelligent-Tiering after 30 days.
+# To apply this fix, add a LifecycleConfiguration to your S3 bucket
+# with a rule that transitions objects to your desired storage class.
+
+Resources:
+  {bucketName}:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: S3.13 Remediation Example
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: INTELLIGENT_TIERING
+            ObjectSizeGreaterThan: 131072

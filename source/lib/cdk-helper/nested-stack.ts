@@ -60,7 +60,7 @@ export class SerializedNestedStackFactory extends Construct {
     cfnStack.addPropertyOverride('TemplateURL', templateUrl);
 
     this.unconditionalNestedStacks.forEach(function (previousStack: CfnStack) {
-      cfnStack.addDependency(previousStack);
+      cfnStack.addResourceDependency(previousStack);
     });
 
     if (this.conditionalNestedStacks.length > 0) {
@@ -71,7 +71,7 @@ export class SerializedNestedStackFactory extends Construct {
           Fn.conditionIf(previousStack.condition.logicalId, Fn.ref(previousStack.stack.logicalId), ''),
         );
       });
-      cfnStack.addDependency(dummyResource);
+      cfnStack.addResourceDependency(dummyResource);
     }
 
     if (props.condition) {

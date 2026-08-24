@@ -1,0 +1,18 @@
+# SSM.7 — SSM documents should have the block public sharing setting enabled
+#
+# ASR remediation enables the block public sharing setting at the account level
+# by setting /ssm/documents/console/public-sharing-permission to "Disable".
+# To apply this fix, add a CloudFormation custom resource that calls the SSM
+# UpdateServiceSetting API.
+# NOTE: CloudFormation does not have a native resource for SSM service settings.
+# You must provide a Lambda function (BlockPublicSharingFunction) that calls the
+# SSM UpdateServiceSetting API. Alternatively, use the CDK AwsCustomResource
+# approach which handles the Lambda automatically.
+
+Resources:
+  BlockPublicSharingCustomResource:
+    Type: Custom::SSMBlockPublicSharing
+    Properties:
+      ServiceToken: !GetAtt BlockPublicSharingFunction.Arn
+      SettingId: /ssm/documents/console/public-sharing-permission
+      SettingValue: Disable

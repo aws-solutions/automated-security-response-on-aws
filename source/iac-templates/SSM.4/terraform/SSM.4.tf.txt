@@ -1,0 +1,7 @@
+# SSM.4 — SSM documents should not be public
+#
+# ASR remediation removes public access from the SSM document by revoking
+# the shared "all" account permission.
+# To apply this fix, remove any aws_ssm_document_permission resource that
+# has account_ids = ["all"]. Documents without an explicit permission
+# resource are private by default.

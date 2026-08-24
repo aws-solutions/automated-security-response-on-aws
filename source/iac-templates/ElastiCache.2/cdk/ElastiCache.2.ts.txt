@@ -1,0 +1,8 @@
+// ElastiCache.2 — ElastiCache clusters should have automatic minor version upgrades enabled
+//
+// ASR remediation enables automatic minor version upgrades for the ElastiCache cluster.
+// To apply this fix, set autoMinorVersionUpgrade to true on your ElastiCache cache cluster.
+
+new elasticache.CfnCacheCluster(this, '{cacheCluster}', {
+  autoMinorVersionUpgrade: true,
+});

@@ -1,0 +1,10 @@
+# Redshift.1 — Amazon Redshift clusters should prohibit public access
+#
+# ASR remediation disables public accessibility on the Redshift cluster.
+# To apply this fix, set PubliclyAccessible to false on your Redshift cluster.
+
+Resources:
+  {redshiftCluster}:
+    Type: AWS::Redshift::Cluster
+    Properties:
+      PubliclyAccessible: false

@@ -1,0 +1,9 @@
+# CloudTrail.2 — CloudTrail should have encryption at rest enabled
+#
+# ASR remediation enables SSE-KMS encryption on the CloudTrail trail using a KMS CMK.
+# To apply this fix, add or update the kms_key_id argument on your CloudTrail resource.
+# NOTE: <KMS_KEY> — your KMS key for trail encryption.
+
+resource "aws_cloudtrail" "{trailName}" {
+  kms_key_id = "<KMS_KEY>"
+}

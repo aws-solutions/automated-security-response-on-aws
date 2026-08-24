@@ -1,0 +1,20 @@
+// GuardDuty.1 — GuardDuty should be enabled
+//
+// ASR remediation enables Amazon GuardDuty by creating a detector with S3 data event logs
+// and Kubernetes audit logs enabled.
+// To apply this fix, add a CfnDetector to your stack with enable set to true
+// and the features shown below.
+
+const detector = new guardduty.CfnDetector(this, '{detector}', {
+  enable: true,
+  features: [
+    {
+      name: 'S3_DATA_EVENTS',
+      status: 'ENABLED',
+    },
+    {
+      name: 'EKS_AUDIT_LOGS',
+      status: 'ENABLED',
+    },
+  ],
+});

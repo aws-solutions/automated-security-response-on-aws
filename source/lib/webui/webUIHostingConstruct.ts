@@ -15,6 +15,7 @@ export interface UIConstructProps {
 export class WebUIHostingConstruct extends Construct {
   bucket: Bucket;
   distributionDomainName: string;
+  distributionId: string;
 
   constructor(scope: Construct, id: string, props: UIConstructProps) {
     super(scope, id);
@@ -94,5 +95,6 @@ export class WebUIHostingConstruct extends Construct {
 
     this.bucket = cloudFrontToS3.s3Bucket as Bucket;
     this.distributionDomainName = cloudFrontToS3.cloudFrontWebDistribution.distributionDomainName;
+    this.distributionId = cloudFrontToS3.cloudFrontWebDistribution.distributionId;
   }
 }

@@ -1,0 +1,11 @@
+// APIGateway.1 — API Gateway REST and WebSocket API execution logging should be enabled
+//
+// ASR remediation sets the logging level to INFO on all methods/routes.
+// To apply this fix, set the deployOptions.loggingLevel property to INFO
+// on your REST API.
+
+const api = new apigateway.RestApi(this, 'RestApi', {
+  deployOptions: {
+    loggingLevel: apigateway.MethodLoggingLevel.INFO,
+  },
+});

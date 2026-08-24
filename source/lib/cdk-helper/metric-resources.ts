@@ -4,6 +4,7 @@
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { addCfnGuardSuppression } from './add-cfn-guard-suppression';
+import { createLogGroup } from './log-group';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { getLambdaCode } from './lambda-code-manifest';
 import { PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
@@ -83,6 +84,7 @@ export default class MetricResources extends Construct {
       timeout: Duration.seconds(5),
       role: customResourceLambdaRole,
       layers: [props.lambdaLayer],
+      logGroup: createLogGroup(this, 'ASR-DeploymentCustomResource-LambdaLogGroup'),
     });
 
     addCfnGuardSuppression(customResourceFunction, 'LAMBDA_INSIDE_VPC');

@@ -1,5 +1,5 @@
 {
-    "app": "npx ts-node bin/nist80053.ts",
+    "app": "npx tsx bin/nist80053.ts",
     "versionReporting": false,
     "context": {
       "aws-cdk:enableDiffNoFail": "true"

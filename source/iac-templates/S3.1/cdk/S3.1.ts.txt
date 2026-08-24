@@ -1,0 +1,13 @@
+// S3.1 — S3 Block Public Access setting should be enabled
+//
+// ASR remediation enables S3 Block Public Access at the account level,
+// blocking public ACLs and public bucket policies for all buckets.
+// To apply this fix, add a CfnAccountPublicAccessBlock to your stack
+// with all four settings set to true.
+
+new s3.CfnAccountPublicAccessBlock(this, '{accountPublicAccessBlock}', {
+  blockPublicAcls: true,
+  blockPublicPolicy: true,
+  ignorePublicAcls: true,
+  restrictPublicBuckets: true,
+});

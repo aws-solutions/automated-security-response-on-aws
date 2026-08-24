@@ -1,6 +1,6 @@
 {
   "name": "@amzn/cloud-trail-event-processor",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "description": "Filters CloudsTrail events from the member stacks to create the ASR Action Log",
   "author": {
     "name": "Amazon Web Services",
@@ -19,7 +19,7 @@
     "jest": "30.2.0"
   },
   "overridesJustification": {
-    "babel-plugin-istanbul": "CVE-2026-14257 (brace-expansion DoS, GHSA-mh99-v99m-4gvg). @jest/transform pins babel-plugin-istanbul ^7.0.1, whose test-exclude 6.x resolves glob 7 -> minimatch 3 -> brace-expansion 1.1.16. The 1.x line has no patched release, and jest is already at its latest version, so no parent bump resolves this. babel-plugin-istanbul 8 pairs with test-exclude 7, which resolves a patched brace-expansion. Remove this override once @jest/transform depends on babel-plugin-istanbul ^8."
+    "babel-plugin-istanbul": "Dependency hygiene, no longer a CVE workaround. @jest/transform 30.2.0 pins babel-plugin-istanbul ^7.0.1, whose test-exclude 6.x drags in the legacy glob 7 -> minimatch 3 -> brace-expansion 1.x branch. Forcing babel-plugin-istanbul 8 pairs it with test-exclude 7, keeping that whole branch out of the tree. This override originally worked around CVE-2026-14257 (GHSA-mh99-v99m-4gvg) when the brace-expansion 1.x line had no patched release; that is now fixed upstream in 1.1.18, which also covers CVE-2026-69152, so dropping the override would no longer expose a known CVE. It is retained because dropping it re-adds five superseded transitive packages (babel-plugin-istanbul 7, test-exclude 6, glob 7, minimatch 3, brace-expansion 1.x) that are recurring advisory targets. Safe to remove once @jest/transform depends on babel-plugin-istanbul ^8."
   },
   "overrides": {
     "babel-plugin-istanbul": "^8.0.0"

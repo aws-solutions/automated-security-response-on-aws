@@ -6,6 +6,8 @@
 [[ $DEBUG ]] && set -x
 set -eu -o pipefail
 
+source "$(cd -P -- "$(dirname "$0")" && pwd -P)"/npm-build-cache.sh
+
 header() {
     declare text=$1
     echo "------------------------------------------------------------------------------"
@@ -14,11 +16,14 @@ header() {
 }
 
 usage() {
-    echo "Usage: $0 -b <bucket> [-v <version>] [-t]"
+    echo "Usage: $0 -b <bucket> [-v <version>] [-t] [--tags <tags>] [-y]"
     echo "Version must be provided via a parameter or ../version.txt. Others are optional."
     echo "-t indicates this is a pre-prod build and instructs the build to use a non-prod Solution ID, DEV-SOxxxx"
+    echo "--tags <tags> inject dynamic tags into templates (format: 'key=value,key=value')"
+    echo "              e.g. --tags 'tagKey=tagValue,auto-stop=no'"
+    echo "-y auto-accept dummy values (bucket=dummy-bucket, version=v0.0.0-dev) when parameters are missing"
     echo "Production example: ./build-s3-dist.sh -b solutions -v v1.0.0"
-    echo "Dev example: ./build-s3-dist.sh -b solutions -v v1.0.0 -t"
+    echo "Dev example: ./build-s3-dist.sh -b solutions -v v1.0.0 -t --tags 'auto-delete=never'"
 }
 
 clean() {
@@ -49,22 +54,54 @@ main() {
     local source_dir="$root_dir"/source
     local temp_work_dir="${deployment_dir}"/temp
     local devtest=""
+    local should_auto_accept=""
+    local dynamic_tags=""
 
     local clean_dirs=("$template_dist_dir" "$build_dist_dir" "$temp_work_dir")
 
-    while getopts ":b:v:tch" opt;
+    # Parse --tags long option before getopts
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tags) dynamic_tags="$2"; shift 2;;
+            *) args+=("$1"); shift;;
+        esac
+    done
+    set -- "${args[@]}"
+
+    while getopts ":b:v:tych" opt;
     do
         case "${opt}" in
             b) local bucket=${OPTARG};;
             v) local version=${OPTARG};;
             t) devtest=1;;
+            y) should_auto_accept=1;;
             c) clean "${clean_dirs[@]}" && exit 0;;
             *) usage && exit 0;;
         esac
     done
 
-    if [[ -z "$version" ]]; then
-        usage && exit 1
+    if [[ -z "${version:-}" ]] || [[ -z "${bucket:-}" ]]; then
+        if [[ -n "$should_auto_accept" ]]; then
+            bucket="${bucket:-dummy-bucket}"
+            version="${version:-v0.0.0-dev}"
+            echo "Using dummy values: bucket=$bucket, version=$version"
+        elif [[ -t 0 ]]; then
+            usage
+            echo ""
+            echo "Missing required parameters. Continue build with dummy values? (bucket=dummy-bucket, version=v0.0.0-dev)"
+            read -r -p "[y/N] " response
+            if [[ "$response" =~ ^[Yy]$ ]]; then
+                bucket="${bucket:-dummy-bucket}"
+                version="${version:-v0.0.0-dev}"
+                echo "Continuing with bucket=$bucket, version=$version"
+            else
+                exit 1
+            fi
+        else
+            usage
+            exit 1
+        fi
     fi
 
     # Prepend version with "v" if it does not already start with "v"
@@ -78,14 +115,33 @@ main() {
     echo "export DIST_OUTPUT_BUCKET=$bucket" > "$deployment_dir"/setenv.sh
     echo "export DIST_VERSION=$version" >> "$deployment_dir"/setenv.sh
 
-    if [[ ! -e "$deployment_dir"/solution_env.sh ]]; then
-        echo "solution_env.sh is missing from the solution root." && exit 1
+    # Load solution configuration from cdk-config.json (single source of truth)
+    local cdk_config_path="$source_dir/cdk-config.json"
+    if [[ ! -e "$cdk_config_path" ]]; then
+        echo "ERROR: cdk-config.json not found at $cdk_config_path"
+        echo "This file is required for builds. Ensure the file exists in source/ directory."
+        exit 1
     fi
 
-    source "$deployment_dir"/solution_env.sh
+    # Read solution info from cdk-config.json using Node.js (single call for performance)
+    # Note: SOLUTION_NAME env var maps to trademarkedName for backward compatibility
+    eval "$(node -e "
+        const c = require('$cdk_config_path').solution;
+        const id = process.env.SOLUTION_ID || c.id;
+        const name = process.env.SOLUTION_NAME || c.trademarkedName;
+        console.log('SOLUTION_ID=' + JSON.stringify(id));
+        console.log('SOLUTION_NAME=' + JSON.stringify(name));
+        console.log('SOLUTION_DISPLAY_NAME=' + JSON.stringify(c.name));
+    ")"
 
-    if [[ -z "$SOLUTION_ID" ]] || [[ -z "$SOLUTION_NAME" ]] || [[ -z "$SOLUTION_TRADEMARKEDNAME" ]]; then
-        echo "Missing one of SOLUTION_ID, SOLUTION_NAME, or SOLUTION_TRADEMARKEDNAME from solution_env.sh" && exit 1
+    if [[ -z "$SOLUTION_ID" ]] || [[ "$SOLUTION_ID" == "null" ]]; then
+        echo "ERROR: solution.id is missing from cdk-config.json"
+        exit 1
+    fi
+
+    if [[ -z "$SOLUTION_NAME" ]] || [[ "$SOLUTION_NAME" == "null" ]]; then
+        echo "ERROR: solution.trademarkedName is missing from cdk-config.json"
+        exit 1
     fi
 
     if [[ ! -z $devtest ]]; then
@@ -93,7 +149,6 @@ main() {
     fi
     export SOLUTION_ID
     export SOLUTION_NAME
-    export SOLUTION_TRADEMARKEDNAME
 
     # You must set BUILD_ENV=development if you wish to run the frontend locally
         if [[ "${BUILD_ENV:-}" != "development" ]]; then
@@ -106,11 +161,11 @@ main() {
             sleep 2
         fi
 
-    echo "export DIST_SOLUTION_NAME=$SOLUTION_TRADEMARKEDNAME" >> ./setenv.sh
+    echo "export DIST_SOLUTION_NAME=$SOLUTION_NAME" >> ./setenv.sh
 
     source "$deployment_dir"/setenv.sh
 
-    header "Building $SOLUTION_NAME ($SOLUTION_ID) version $version for bucket $bucket"
+    header "Building $SOLUTION_DISPLAY_NAME ($SOLUTION_ID) version $version for bucket $bucket"
 
     header "[Init] Create folders"
     mkdir -p "$template_dist_dir"
@@ -163,6 +218,12 @@ main() {
     zip -q ${build_dist_dir}/lambda/remediation_config_provider.zip remediation_config_provider.py cfnresponse.py
     popd
 
+    header "[Pack] Migration Auto-Remediation Provider Lambda"
+
+    pushd "$source_dir"/solution_deploy/source
+    zip -q ${build_dist_dir}/lambda/migration_auto_remediation_provider.zip migration_auto_remediation_provider.py cfnresponse.py
+    popd
+
     header "[Pack] Enable Adaptive Concurrency Custom Action Lambda"
 
     pushd "$source_dir"/solution_deploy/source
@@ -186,8 +247,9 @@ main() {
     popd
 
     header "[Build] Data-models"
+    install_npm_dependencies_if_stale "$source_dir/data-models"
     pushd "$source_dir"/data-models
-    npm run clean && npm install && npm run build
+    npm run build
     popd
 
     header "[Pack] Non-Orchestrator Lambdas"
@@ -228,8 +290,8 @@ main() {
 
     header "Run UI Builds"
 
+    install_npm_dependencies_if_stale "$source_dir/webui"
     cd "$source_dir/webui/" || exit 1
-    npm install
     GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false npm run build
 
     if [ $? -eq 0 ]
@@ -256,10 +318,16 @@ main() {
     # to CloudFront S3 bucket is to use a manifest file.
 
     cd $deployment_dir/manifest-generator
-    [ -e node_modules ] && rm -rf node_modules
+    # `npm ci` already removes node_modules before installing, so deleting the
+    # tree first only duplicated that work.
     npm ci
     node app.js --target "$build_dist_dir/webui" --output webui-manifest.json
     mv webui-manifest.json $build_dist_dir/webui/webui-manifest.json
+
+    # Generate SHA256 hash of webui-manifest.json for CloudFormation CustomResource
+    # This hash triggers UI redeploy when UI source files change
+    webui_manifest_hash=$(sha256sum "$build_dist_dir/webui/webui-manifest.json" | cut -d' ' -f1)
+    echo "WebUI manifest hash: $webui_manifest_hash"
 
     # IMPORTANT: Pack all lambda assets before this line
 
@@ -301,10 +369,43 @@ main() {
         echo -n "  \"$original\": \"$hashed\"" >> "$build_dist_dir"/lambda/lambda-hashes.json
     done < "$temp_mappings"
 
-    echo "" >> "$build_dist_dir"/lambda/lambda-hashes.json
+    # Add webui manifest hash to the same file
+    echo "," >> "$build_dist_dir"/lambda/lambda-hashes.json
+    echo "  \"webui-manifest-hash\": \"$webui_manifest_hash\"" >> "$build_dist_dir"/lambda/lambda-hashes.json
+
     echo "}" >> "$build_dist_dir"/lambda/lambda-hashes.json
 
-    header "[Create] Playbooks"
+    header "[Pack] IaC Remediation Templates"
+
+    if [[ ! -d "$source_dir/iac-templates" ]]; then
+        echo "WARNING: $source_dir/iac-templates does not exist. Skipping IaC template packaging."
+    else
+        mkdir -p "$build_dist_dir/iac-templates"
+
+        for dir in "$source_dir"/iac-templates/*/; do
+            [ -d "$dir" ] || continue
+            if [ -d "$dir/cdk" ] || [ -d "$dir/cloudformation" ] || [ -d "$dir/terraform" ]; then
+                # Strip the trailing slash the glob appends. BSD cp (macOS) copies the
+                # directory contents when the source ends in a slash, which flattens the
+                # intended <controlId>/<format>/ tree into shared format dirs; GNU cp
+                # (Linux build hosts) ignores it. Removing the slash keeps both portable
+                # so the controlId-first layout and manifest generation are consistent.
+                cp -r "${dir%/}" "$build_dist_dir/iac-templates/"
+            fi
+        done
+
+        node "$deployment_dir"/utils/generate-iac-manifest.js \
+            --target "$build_dist_dir/iac-templates" \
+            --output "$build_dist_dir/iac-templates/.metadata/manifest.json" \
+            --version "$version"
+    fi
+
+    if [[ -n "$dynamic_tags" ]]; then
+    export DYNAMIC_TAGS="$dynamic_tags"
+    echo "Dynamic tags enabled: $DYNAMIC_TAGS"
+  fi
+
+  header "[Create] Playbooks"
 
     for playbook in $(ls "$source_dir"/playbooks); do
         if [ $playbook == 'NEWPLAYBOOK' ] || [ $playbook == '.coverage' ] || [ $playbook == 'common' ] || [ $playbook == 'playbook-index.ts' ] || [ $playbook == 'split_member_stacks.ts' ]; then

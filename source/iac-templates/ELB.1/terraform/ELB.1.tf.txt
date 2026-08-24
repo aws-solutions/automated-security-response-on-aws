@@ -1,0 +1,24 @@
+# ELB.1 — Application Load Balancer should be configured to redirect all HTTP requests to HTTPS
+#
+# ASR remediation creates or modifies an HTTP listener on port 80 to redirect traffic to HTTPS on port 443.
+# To apply this fix, add an aws_lb_listener resource on port 80 with a redirect action to HTTPS
+# on your Application Load Balancer.
+
+resource "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.{applicationLoadBalancer}.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      protocol    = "HTTPS"
+      port        = "443"
+      host        = "#{host}"
+      path        = "/#{path}"
+      query       = "#{query}"
+      status_code = "HTTP_301"
+    }
+  }
+}

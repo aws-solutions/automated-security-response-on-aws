@@ -66,8 +66,8 @@ def setup_client_stubber(client, method, exception, mocker):
 def test_create_iam_role():
     result = remediation.create_iam_role(None, None)
 
-    assert result["output"] == "IAM role creation is successful."
-    role_name = result["http_responses"]["CreateIAMRoleResponse"][0]["RoleName"]
+    assert result["Output"] == "IAM role creation is successful."
+    role_name = result["HttpResponses"]["CreateIAMRoleResponse"][0]["RoleName"]
     assert role_exists(role_name)
     assert role_has_aws_support_policy(role_name)
 
@@ -77,6 +77,24 @@ def test_create_iam_role_with_existing_role():
     create_iam_role("aws_incident_support_role")
 
     result = remediation.create_iam_role(None, None)
-    assert result["output"] == "IAM role creation is successful."
-    role_name = result["http_responses"]["CreateIAMRoleResponse"][0]["RoleName"]
+    assert result["Output"] == "IAM role creation is successful."
+    role_name = result["HttpResponses"]["CreateIAMRoleResponse"][0]["RoleName"]
     assert role_has_aws_support_policy(role_name)
+
+
+@mock_aws(config={"iam": {"load_aws_managed_policies": True}})
+def test_create_iam_role_returns_resource_arn():
+    """Test that create_iam_role returns ResourceArn in correct format"""
+    result = remediation.create_iam_role(None, None)
+
+    # Verify ResourceArn is present
+    assert "ResourceArn" in result
+
+    # Verify ARN format
+    role_arn = result["ResourceArn"]
+    assert role_arn.startswith("arn:aws:iam::")
+    assert ":role/aws_incident_support_role" in role_arn
+
+    # Verify role name matches
+    role_name = result["HttpResponses"]["CreateIAMRoleResponse"][0]["RoleName"]
+    assert role_arn.endswith(f":role/{role_name}")
