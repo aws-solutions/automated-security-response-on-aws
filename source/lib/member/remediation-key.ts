@@ -12,6 +12,8 @@ export interface MemberRemediationKeyProps {
 }
 
 export class MemberRemediationKey extends Construct {
+  public readonly key: Key;
+
   constructor(scope: Construct, id: string, props: MemberRemediationKeyProps) {
     super(scope, id);
 
@@ -54,6 +56,7 @@ export class MemberRemediationKey extends Construct {
       enableKeyRotation: true,
       policy: kmsKeyPolicy,
     });
+    this.key = kmsKey;
 
     const alias = new Alias(scope, 'SHARR Remediation Key Alias', {
       aliasName: `${props.solutionId}-SHARR-Remediation-Key`,

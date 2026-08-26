@@ -14,7 +14,11 @@ import 'aws-sdk-client-mock-jest';
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { UserAccountMapping } from '@asr/data-models';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
-import { userAccountMappingTableName } from '../../../common/__tests__/envSetup';
+import {
+  resourceFiltersTableName,
+  userAccountMappingTableName,
+  notificationConfigTableName,
+} from '../../../common/__tests__/envSetup';
 import { createMockEvent, createMockContext, TEST_REQUEST_CONTEXT } from '../utils';
 import { handler, createResponse } from '../../handlers/apiHandler';
 import { FORBIDDEN_ERROR_MESSAGE } from '../../../common/utils/httpErrors';
@@ -38,21 +42,33 @@ const expectCorsHeaders = (result: any) => {
   expect(result.headers).toEqual(expect.objectContaining(EXPECTED_CORS_HEADERS));
 };
 
+const remediationConfigTableName = 'test-remediation-config-table';
+
 describe('Top-level routing', () => {
   beforeAll(async () => {
     await DynamoDBTestSetup.initialize();
     await DynamoDBTestSetup.createUserAccountMappingTable(userAccountMappingTableName);
+    await DynamoDBTestSetup.createConfigTable(remediationConfigTableName);
+    await DynamoDBTestSetup.createResourceFiltersTable(resourceFiltersTableName);
+    await DynamoDBTestSetup.createNotificationConfigTable(notificationConfigTableName);
   });
 
   afterAll(async () => {
     await DynamoDBTestSetup.deleteTable(userAccountMappingTableName);
+    await DynamoDBTestSetup.deleteTable(remediationConfigTableName);
+    await DynamoDBTestSetup.deleteTable(resourceFiltersTableName);
+    await DynamoDBTestSetup.deleteTable(notificationConfigTableName);
     cleanupMetricsMocks();
   });
 
   beforeEach(async () => {
     await DynamoDBTestSetup.clearTable(userAccountMappingTableName, 'userAccountMapping');
+    await DynamoDBTestSetup.clearTable(remediationConfigTableName, 'config');
+    await DynamoDBTestSetup.clearTable(resourceFiltersTableName, 'resourceFilters');
+    await DynamoDBTestSetup.clearTable(notificationConfigTableName, 'notificationConfig');
     process.env.USER_POOL_ID = 'test-user-pool-id';
     process.env.USER_ACCOUNT_MAPPING_TABLE_NAME = userAccountMappingTableName;
+    process.env.REMEDIATION_CONFIG_TABLE_NAME = remediationConfigTableName;
 
     cognitoMock.reset();
     setupMetricsMocks();
@@ -1230,6 +1246,995 @@ describe('Top-level routing', () => {
       expectCorsHeaders(result);
       const body = result.body;
       expect(body).toBe(JSON.stringify({ message: 'User deleted successfully' }));
+    });
+  });
+
+  describe('controls routes', () => {
+    it('should route GET /controls request successfully', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'GET',
+        path: '/controls',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin-user@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.controls).toBeDefined();
+      expect(Array.isArray(body.controls)).toBe(true);
+    });
+
+    it('should handle ForbiddenError when user has no valid groups for GET /controls', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'GET',
+        path: '/controls',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['UnknownGroup'],
+              username: 'unknown-user@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should authorize a machine (client_credentials) token with the full-access scope for GET /controls', async () => {
+      // ARRANGE: a client_credentials token carries neither `cognito:groups` nor
+      // `username` — only `sub`/`client_id`/`scope`. The full-access scope must be
+      // honored even though the human-claims are absent.
+      const clientId = 'machine-client-id';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-machine-token' },
+        httpMethod: 'GET',
+        path: '/controls',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              sub: clientId,
+              client_id: clientId,
+              scope: 'asr-api/api asr-api/full-access',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.controls).toBeDefined();
+      expect(Array.isArray(body.controls)).toBe(true);
+    });
+
+    it('should reject a machine token without the full-access scope for GET /controls', async () => {
+      // ARRANGE: a machine token granted only the base scope must fail closed.
+      const clientId = 'machine-client-id';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-machine-token' },
+        httpMethod: 'GET',
+        path: '/controls',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              sub: clientId,
+              client_id: clientId,
+              scope: 'asr-api/api',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should route POST /controls/bulk-edit request successfully for AdminGroup', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+
+      // Create a test control in the config table
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            description: 'Test control',
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 1,
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'system',
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'update',
+          data: [
+            {
+              controlId: 'S3.1',
+              description: 'Test control',
+              automatedRemediationEnabled: true,
+              filters: [],
+              filterMode: 'include',
+              version: 1,
+              lastModified: '2024-01-01T00:00:00Z',
+              modifiedBy: 'system',
+            },
+          ],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe('Controls updated successfully');
+      expect(body.updatedCount).toBe(1);
+
+      // Verify DynamoDB was updated
+      const getResponse = await dynamoDBDocumentClient.send(
+        new GetCommand({
+          TableName: remediationConfigTableName,
+          Key: { controlId: 'S3.1' },
+        }),
+      );
+      expect(getResponse.Item?.automatedRemediationEnabled).toBe(true);
+      expect(getResponse.Item?.version).toBe(2);
+    });
+
+    it('should handle ForbiddenError when AccountOperator tries POST /controls/bulk-edit', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'update',
+          data: [
+            {
+              controlId: 'S3.1',
+              description: 'Test control',
+              automatedRemediationEnabled: true,
+              filters: [],
+              filterMode: 'include',
+              version: 1,
+              lastModified: '2024-01-01T00:00:00Z',
+              modifiedBy: 'system',
+            },
+          ],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AccountOperatorGroup'],
+              username: 'operator@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should route POST /controls/bulk-edit applyFilterToAll request successfully for AdminGroup', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            description: 'Test control',
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 1,
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'system',
+          },
+        }),
+      );
+
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'applyFilterToAll',
+          data: filterId,
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe('Filter applied to all controls successfully');
+      expect(body.updatedCount).toBe(1);
+
+      const getResponse = await dynamoDBDocumentClient.send(
+        new GetCommand({
+          TableName: remediationConfigTableName,
+          Key: { controlId: 'S3.1' },
+        }),
+      );
+      expect(getResponse.Item?.version).toBe(2);
+      expect(Array.from(getResponse.Item?.filters as Set<string>)).toContain(filterId);
+    });
+
+    it('should handle validation error for invalid UUID in applyFilterToAll', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'applyFilterToAll',
+          data: 'not-a-valid-uuid',
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(400);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toMatch(/Invalid bulk edit request/);
+    });
+
+    it('should handle ForbiddenError when AccountOperator tries applyFilterToAll', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'applyFilterToAll',
+          data: '550e8400-e29b-41d4-a716-446655440000',
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AccountOperatorGroup'],
+              username: 'operator@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+  });
+
+  describe('filters routes', () => {
+    it('should route GET /filters request successfully', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'GET',
+        path: '/filters',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin-user@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.filters).toBeDefined();
+      expect(Array.isArray(body.filters)).toBe(true);
+    });
+
+    it('should return filters data when table has items', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId: '550e8400-e29b-41d4-a716-446655440000',
+            name: 'Production Filter',
+            accountIds: new Set(['123456789012']),
+            version: 1,
+            createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'admin@example.com',
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'admin@example.com',
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'GET',
+        path: '/filters',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin-user@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.filters).toHaveLength(1);
+      expect(body.filters[0].filterId).toBe('550e8400-e29b-41d4-a716-446655440000');
+      expect(body.filters[0].name).toBe('Production Filter');
+    });
+
+    it('should handle ForbiddenError when user has no valid groups for GET /filters', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'GET',
+        path: '/filters',
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['UnknownGroup'],
+              username: 'unknown-user@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should route PUT /filters/{filterId} request successfully for AdminGroup', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'Original Name',
+            accountIds: new Set(['123456789012']),
+            tags: [{ key: 'Env', value: 'Prod' }],
+            version: 1,
+            createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'admin@example.com',
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'admin@example.com',
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'PUT',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        body: JSON.stringify({
+          name: 'Updated Name',
+          accountIds: ['123456789012', '987654321098'],
+          organizationalUnits: [],
+          tags: [{ key: 'Env', value: 'Staging' }],
+          arnPatterns: [],
+          version: 1,
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.name).toBe('Updated Name');
+      expect(body.version).toBe(2);
+      expect(body.modifiedBy).toBe('admin@example.com');
+    });
+
+    it('should handle ForbiddenError when AccountOperator tries PUT /filters/{filterId}', async () => {
+      // ARRANGE
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'PUT',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        body: JSON.stringify({
+          name: 'Updated Name',
+          accountIds: ['123456789012'],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: [],
+          version: 1,
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AccountOperatorGroup'],
+              username: 'operator@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should handle validation error for invalid request body in PUT /filters/{filterId}', async () => {
+      // ARRANGE
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'PUT',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        body: JSON.stringify({
+          name: 'Empty Filter',
+          accountIds: [],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: [],
+          version: 1,
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(400);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toMatch(/Invalid filter update request/);
+    });
+
+    it('should return 409 Conflict when version does not match in PUT /filters/{filterId}', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'Original Name',
+            accountIds: new Set(['123456789012']),
+            tags: [{ key: 'Env', value: 'Prod' }],
+            version: 5,
+            createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'admin@example.com',
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'admin@example.com',
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'PUT',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        body: JSON.stringify({
+          name: 'Updated Name',
+          accountIds: ['123456789012'],
+          organizationalUnits: [],
+          tags: [{ key: 'Env', value: 'Staging' }],
+          arnPatterns: [],
+          version: 1,
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(409);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toMatch(/Data was modified by another user/);
+    });
+
+    it('should route POST /filters request successfully for AdminGroup', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/filters',
+        body: JSON.stringify({
+          name: 'New Filter',
+          accountIds: ['123456789012'],
+          organizationalUnits: [],
+          tags: [{ key: 'Env', value: 'Prod' }],
+          arnPatterns: [],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(201);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.filterId).toBeDefined();
+      expect(body.name).toBe('New Filter');
+      expect(body.accountIds).toEqual(['123456789012']);
+      expect(body.version).toBe(1);
+      expect(body.createdBy).toBe('admin@example.com');
+    });
+
+    it('should handle ForbiddenError when AccountOperator tries POST /filters', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/filters',
+        body: JSON.stringify({
+          name: 'New Filter',
+          accountIds: ['123456789012'],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: [],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AccountOperatorGroup'],
+              username: 'operator@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should handle validation error for invalid request body in POST /filters', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/filters',
+        body: JSON.stringify({
+          name: 'Empty Filter',
+          accountIds: [],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: [],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(400);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toMatch(/Invalid filter creation request/);
+    });
+
+    it('should return 400 when filter name already exists in POST /filters', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId: '550e8400-e29b-41d4-a716-446655440099',
+            name: 'Existing Filter',
+            accountIds: new Set(['111111111111']),
+            version: 1,
+            createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'admin@example.com',
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'admin@example.com',
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'POST',
+        path: '/filters',
+        body: JSON.stringify({
+          name: 'Existing Filter',
+          accountIds: ['123456789012'],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: [],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(400);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toMatch(/A filter with the name "Existing Filter" already exists/);
+    });
+
+    it('should route DELETE /filters/{filterId} request successfully for AdminGroup', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'Filter To Delete',
+            accountIds: new Set(['123456789012']),
+            version: 1,
+            createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'admin@example.com',
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'admin@example.com',
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'DELETE',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe('Filter deleted successfully');
+      expect(body.affectedControlIds).toEqual([]);
+    });
+
+    it('should handle ForbiddenError when AccountOperator tries DELETE /filters/{filterId}', async () => {
+      // ARRANGE
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'DELETE',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AccountOperatorGroup'],
+              username: 'operator@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(403);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+    });
+
+    it('should return 400 for invalid UUID in DELETE /filters/{filterId}', async () => {
+      // ARRANGE
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'DELETE',
+        path: '/filters/not-a-uuid',
+        pathParameters: { filterId: 'not-a-uuid' },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(400);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toMatch(/filterId must be a valid UUID/);
+    });
+
+    it('should delete filter and remove it from associated controls via DELETE /filters/{filterId}', async () => {
+      // ARRANGE
+      const dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+      const filterId = '550e8400-e29b-41d4-a716-446655440000';
+
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'Filter With Controls',
+            accountIds: new Set(['123456789012']),
+            version: 1,
+            createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'admin@example.com',
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'admin@example.com',
+          },
+        }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            automatedRemediationEnabled: true,
+            filters: new Set([filterId]),
+            filterMode: 'include',
+            version: 1,
+          },
+        }),
+      );
+
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'DELETE',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(200);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe('Filter deleted successfully');
+      expect(body.affectedControlIds).toEqual(['S3.1']);
     });
   });
 });

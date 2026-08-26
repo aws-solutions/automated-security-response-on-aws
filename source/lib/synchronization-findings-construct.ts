@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { CfnFunction, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { CfnPolicy, CfnRole, Effect, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { Runtime, Tracing, CfnFunction } from 'aws-cdk-lib/aws-lambda';
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { SfnStateMachine } from 'aws-cdk-lib/aws-events-targets';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { createLogGroup } from './cdk-helper/log-group';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
+import { CfnParameter, Duration, Stack } from 'aws-cdk-lib';
+import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import * as cdk from 'aws-cdk-lib';
-import { CfnParameter, Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
-import { Table } from 'aws-cdk-lib/aws-dynamodb';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import { LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks';
+import { SynchronizationFindingsEnvironmentConfig } from '@asr/data-models';
 
 export interface SynchronizationFindingsConstructProps {
   readonly solutionId: string;
@@ -24,10 +25,12 @@ export interface SynchronizationFindingsConstructProps {
   readonly solutionVersion: string;
   readonly resourceNamePrefix: string;
   readonly sourceCodeBucket: IBucket;
-  readonly findingsTable: string;
+  readonly findingsTable: ITable;
   readonly kmsKey: IKey;
   readonly findingsTTL: string;
-  readonly remediationConfigTable: string;
+  readonly remediationConfigTable: ITable;
+  readonly resourceFiltersTable: ITable;
+  readonly notificationConfigTable: ITable;
 }
 
 export class SynchronizationFindingsConstruct extends Construct {
@@ -69,11 +72,7 @@ export class SynchronizationFindingsConstruct extends Construct {
         }),
         new PolicyStatement({
           actions: ['ssm:GetParameters', 'ssm:GetParameter', 'ssm:GetParametersByPath'],
-          resources: [
-            `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/Solutions/SO0111/*`,
-            `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/ASR/Filters`,
-            `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/ASR/Filters/*`,
-          ],
+          resources: [`arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/Solutions/SO0111/*`],
           effect: Effect.ALLOW,
         }),
         new PolicyStatement({
@@ -140,8 +139,9 @@ export class SynchronizationFindingsConstruct extends Construct {
     //---------------------------------------------------------------------
     this.synchronizationLambda = new lambda.Function(this, 'SynchronizationFindingsLambda', {
       functionName: props.resourceNamePrefix + '-ASR-SynchronizationFindingsLambda',
+      logGroup: createLogGroup(this, 'SynchronizationFindingsLambdaLogGroup'),
       handler: 'synchronization/synchronizationHandler.handler',
-      runtime: Runtime.NODEJS_22_X,
+      runtime: Runtime.NODEJS_24_X,
       description: 'Synchronization findings lambda',
       code: getLambdaCode(props.sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       environment: {
@@ -151,12 +151,14 @@ export class SynchronizationFindingsConstruct extends Construct {
         POWERTOOLS_LOGGER_LOG_EVENT: 'false',
         POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true',
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
-        FINDINGS_TABLE_ARN: props.findingsTable,
-        REMEDIATION_CONFIG_TABLE_ARN: props.remediationConfigTable,
+        FINDINGS_TABLE_NAME: props.findingsTable.tableName,
+        REMEDIATION_CONFIG_TABLE_NAME: props.remediationConfigTable.tableName,
+        RESOURCE_FILTERS_TABLE_NAME: props.resourceFiltersTable.tableName,
+        NOTIFICATION_CONFIG_TABLE_NAME: props.notificationConfigTable.tableName,
         FINDINGS_TTL_DAYS: props.findingsTTL,
         AWS_ACCOUNT_ID: stack.account,
         STACK_ID: stack.stackId,
-      },
+      } satisfies SynchronizationFindingsEnvironmentConfig,
       memorySize: 512,
       timeout: Duration.minutes(15),
       role: this.synchronizationRole,
@@ -185,15 +187,17 @@ export class SynchronizationFindingsConstruct extends Construct {
       };
     }
 
-    const findingsTable = Table.fromTableArn(this, 'FindingsTable', props.findingsTable);
-    findingsTable.grantReadWriteData(this.synchronizationLambda);
+    props.findingsTable.grantReadWriteData(this.synchronizationLambda);
 
-    const remediationConfigTable = Table.fromTableArn(this, 'RemediationConfigTable', props.remediationConfigTable);
-    remediationConfigTable.grantReadWriteData(this.synchronizationLambda);
+    props.remediationConfigTable.grantReadWriteData(this.synchronizationLambda);
+
+    props.resourceFiltersTable.grantReadData(this.synchronizationLambda);
+
+    props.notificationConfigTable.grantReadData(this.synchronizationLambda);
 
     // The sweep state machine is defined later in this constructor, but the trigger needs its ARN now
     // (for the StartExecution grant and env var). Build it from the static name to avoid reordering the
-    // constructor or a circular dependency, mirroring the self-invoke ARN above.
+    // constructor or a circular dependency.
     const sweepStateMachineName = `${props.resourceNamePrefix}-ASR-SynchronizationSweep`;
     const sweepStateMachineArn = `arn:${stack.partition}:states:${stack.region}:${stack.account}:stateMachine:${sweepStateMachineName}`;
 
@@ -253,8 +257,9 @@ export class SynchronizationFindingsConstruct extends Construct {
 
     this.customResourceProvider = new lambda.Function(this, 'SynchronizationTriggerProvider', {
       functionName: props.resourceNamePrefix + '-ASR-SynchronizationTriggerProvider',
+      logGroup: createLogGroup(this, 'SynchronizationTriggerProviderLogGroup'),
       handler: 'synchronization/customResourceHandler.handler',
-      runtime: Runtime.NODEJS_22_X,
+      runtime: Runtime.NODEJS_24_X,
       description: 'Custom resource provider to trigger initial synchronization',
       code: getLambdaCode(props.sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       environment: {
@@ -323,10 +328,10 @@ export class SynchronizationFindingsConstruct extends Construct {
     const maxAttemptsPerAccount = new CfnParameter(this, 'SyncMaxAttemptsPerAccount', {
       type: 'Number',
       description:
-        'Circuit breaker: the maximum number of times the sweep re-runs a single account slice before ' +
+        'Circuit breaker: the maximum number of times the import of security findings re-runs a single account before ' +
         'giving up on that account for this run. Each slice imports up to ~10k findings, so the default ' +
         'of 5 covers >50k findings per account. Raise it only for accounts with an exceptionally large ' +
-        'backlog. This bound is enforced by the state machine itself and does not depend on the Lambda.',
+        'backlog.',
       default: 5,
       minValue: 1,
       maxValue: 100,
@@ -442,13 +447,6 @@ export class SynchronizationFindingsConstruct extends Construct {
     }
     addCfnGuardSuppression(sweepStateMachineRole, 'IAM_NO_INLINE_POLICY_CHECK');
 
-    const sweepLogGroup = new LogGroup(this, 'SynchronizationSweepLogs', {
-      logGroupName: `${sweepStateMachineName}-Logs`,
-      encryptionKey: props.kmsKey,
-      retention: RetentionDays.TEN_YEARS,
-      removalPolicy: RemovalPolicy.RETAIN,
-    });
-
     this.sweepStateMachine = new sfn.StateMachine(this, 'SynchronizationSweepStateMachine', {
       stateMachineName: sweepStateMachineName,
       definitionBody: sfn.DefinitionBody.fromChainable(definition),
@@ -457,11 +455,6 @@ export class SynchronizationFindingsConstruct extends Construct {
       // generous ceiling well above any realistic run.
       timeout: Duration.hours(24),
       tracingEnabled: true,
-      logs: {
-        destination: sweepLogGroup,
-        includeExecutionData: true,
-        level: sfn.LogLevel.ALL,
-      },
     });
 
     {

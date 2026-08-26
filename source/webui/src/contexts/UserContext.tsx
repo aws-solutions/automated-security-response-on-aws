@@ -11,6 +11,7 @@ import {
   fetchAuthSession,
 } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
+import { AUTH_REDIRECT_DESTINATION_KEY } from '../utils/constants.ts';
 
 export const UserContext = createContext<{
   user: AuthUser | null;
@@ -44,9 +45,9 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
           break;
       }
     });
-    
+
     // Don't call checkUser immediately on callback page - let CallbackPage handle it
-    const isCallbackPage = window.location.pathname === '/callback';
+    const isCallbackPage = globalThis.location.pathname === '/callback';
     if (!isCallbackPage) {
       checkUser();
     }
@@ -66,6 +67,8 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
         const groups = authSession.tokens?.accessToken.payload['cognito:groups'] as string[];
         setGroups(groups);
       } catch (e) {
+        setGroups([]); // Set groups to empty array to resolve loading state in ProtectedRoute
+
         console.log(e);
       }
     } catch (error) {
@@ -73,10 +76,14 @@ export const UserContextProvider = (props: { children: ReactNode }) => {
       setUser(null);
       setEmail(null);
       setGroups(null);
-      
-      const isCallbackPage = window.location.pathname === '/callback';
+
+      const isCallbackPage = globalThis.location.pathname === '/callback';
       if (!isCallbackPage) {
         try {
+          const currentPath = globalThis.location.pathname + globalThis.location.search + globalThis.location.hash;
+          if (currentPath !== '/' && currentPath !== '/callback') {
+            sessionStorage.setItem(AUTH_REDIRECT_DESTINATION_KEY, currentPath);
+          }
           await signInWithRedirect();
         } catch (signInError) {
           console.debug('Sign in error:', signInError);

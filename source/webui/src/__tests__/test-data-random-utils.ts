@@ -44,7 +44,7 @@ export function randomAccountId() {
 }
 
 const severityLevels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFORMATIONAL'] as const;
-const remediationStatuses = ['SUCCESS', 'FAILED', 'IN_PROGRESS', 'NOT_STARTED'] as const;
+const remediationStatuses = ['SUCCESS', 'FAILED', 'IN_PROGRESS', 'NOT_STARTED', 'ROLLBACK_SUCCESS'] as const;
 
 export function randomRemediationStatus() {
   return remediationStatuses[Math.floor(Math.random() * remediationStatuses.length)];

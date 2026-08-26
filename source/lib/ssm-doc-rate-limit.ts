@@ -73,7 +73,7 @@ export default class SsmDocRateLimit implements IAspect {
       updateWaitResourceHash(this.currentCreateWaitResource, digest);
       updateWaitResourceHash(this.currentDeleteWaitResource, digest);
 
-      node.addDependency(this.currentCreateWaitResource.node.defaultChild as CfnCustomResource);
+      node.addResourceDependency(this.currentCreateWaitResource.node.defaultChild as CfnCustomResource);
 
       if (node.cfnOptions.condition) {
         this.initDummyResource(scope);

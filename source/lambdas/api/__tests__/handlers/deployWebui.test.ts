@@ -3,11 +3,13 @@
 
 import { mockClient } from 'aws-sdk-client-mock';
 import { CopyObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { CloudFrontClient, CreateInvalidationCommand } from '@aws-sdk/client-cloudfront';
 import { CloudFormationCustomResourceEvent, Context } from 'aws-lambda';
 import nock from 'nock';
 import { lambdaHandler, WebUIDeployer } from '../../handlers/deployWebui';
 
 const s3Mock = mockClient(S3Client);
+const cloudFrontMock = mockClient(CloudFrontClient);
 
 describe('WebUI Deploy', () => {
   const webuiSrcPath = 'solution-name/v1.2.3/webui/';
@@ -29,6 +31,7 @@ describe('WebUI Deploy', () => {
 
   beforeEach(() => {
     s3Mock.reset();
+    cloudFrontMock.reset();
     jest.clearAllMocks();
     nock.cleanAll();
     process.env.CONFIG = JSON.stringify(config);
@@ -36,6 +39,7 @@ describe('WebUI Deploy', () => {
 
   afterEach(() => {
     delete process.env.CONFIG;
+    delete process.env.CLOUDFRONT_DISTRIBUTION_ID;
     nock.cleanAll();
   });
 
@@ -112,6 +116,64 @@ describe('WebUI Deploy', () => {
           'Content-Type': 'application/json',
         },
       });
+    });
+
+    it('invalidates non-content-hashed CloudFront paths when a distribution id is configured', async () => {
+      // ARRANGE
+      process.env.CLOUDFRONT_DISTRIBUTION_ID = 'E3JDFORJ9JO18T';
+      const webUIDeployer = new WebUIDeployer();
+
+      s3Mock
+        .on(GetObjectCommand, { Bucket: config.SrcBucket, Key: webuiSrcPath + 'webui-manifest.json' })
+        .resolves({ Body: { transformToString: async () => JSON.stringify({ files: ['index.html'] }) } as any });
+      s3Mock.on(CopyObjectCommand).resolves({});
+      s3Mock.on(PutObjectCommand).resolves({});
+      cloudFrontMock.on(CreateInvalidationCommand).resolves({});
+
+      // ACT
+      await webUIDeployer.deploy();
+
+      // ASSERT
+      const calls = cloudFrontMock.commandCalls(CreateInvalidationCommand);
+      expect(calls).toHaveLength(1);
+      const input = calls[0].args[0].input;
+      expect(input.DistributionId).toBe('E3JDFORJ9JO18T');
+      expect(input.InvalidationBatch?.Paths).toEqual({
+        Quantity: 3,
+        Items: ['/', '/index.html', '/aws-exports.json'],
+      });
+    });
+
+    it('does not fail the deploy when no distribution id is configured', async () => {
+      // ARRANGE — CLOUDFRONT_DISTRIBUTION_ID intentionally unset
+      const webUIDeployer = new WebUIDeployer();
+      s3Mock
+        .on(GetObjectCommand, { Bucket: config.SrcBucket, Key: webuiSrcPath + 'webui-manifest.json' })
+        .resolves({ Body: { transformToString: async () => JSON.stringify({ files: ['index.html'] }) } as any });
+      s3Mock.on(CopyObjectCommand).resolves({});
+      s3Mock.on(PutObjectCommand).resolves({});
+
+      // ACT
+      await webUIDeployer.deploy();
+
+      // ASSERT — no invalidation attempted
+      expect(cloudFrontMock.commandCalls(CreateInvalidationCommand)).toHaveLength(0);
+    });
+
+    it('swallows a CloudFront invalidation failure so the deploy still succeeds', async () => {
+      // ARRANGE
+      process.env.CLOUDFRONT_DISTRIBUTION_ID = 'E3JDFORJ9JO18T';
+      const webUIDeployer = new WebUIDeployer();
+      s3Mock
+        .on(GetObjectCommand, { Bucket: config.SrcBucket, Key: webuiSrcPath + 'webui-manifest.json' })
+        .resolves({ Body: { transformToString: async () => JSON.stringify({ files: ['index.html'] }) } as any });
+      s3Mock.on(CopyObjectCommand).resolves({});
+      s3Mock.on(PutObjectCommand).resolves({});
+      cloudFrontMock.on(CreateInvalidationCommand).rejects(new Error('AccessDenied'));
+
+      // ACT + ASSERT — invalidation error must not propagate
+      await expect(webUIDeployer.deploy()).resolves.toBeUndefined();
+      expect(cloudFrontMock.commandCalls(CreateInvalidationCommand)).toHaveLength(1);
     });
 
     it('should handle lambda Create event and send success response', async () => {

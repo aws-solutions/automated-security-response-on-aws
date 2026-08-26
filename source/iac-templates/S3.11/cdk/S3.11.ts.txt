@@ -1,0 +1,28 @@
+// S3.11 — S3 buckets should have event notifications enabled
+//
+// ASR remediation creates an SNS topic and configures event notifications
+// on the S3 bucket to publish to that topic for key event types.
+// To apply this fix, add an SNS topic and call addEventNotification on
+// your S3 bucket for the desired event types.
+
+const notificationTopic = new sns.Topic(this, 'BucketNotificationTopic', {
+  topicName: 'SO0111-ASR-S3BucketNotifications',
+});
+
+const bucket = new s3.Bucket(this, '{bucketName}');
+
+bucket.addEventNotification(s3.EventType.REDUCED_REDUNDANCY_LOST_OBJECT, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_CREATED, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_REMOVED, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_RESTORE_POST, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_RESTORE_COMPLETED, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_RESTORE_DELETE, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.REPLICATION_OPERATION_FAILED_REPLICATION, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.REPLICATION_OPERATION_MISSED_THRESHOLD, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.REPLICATION_OPERATION_NOT_TRACKED, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.REPLICATION_OPERATION_REPLICATED_AFTER_THRESHOLD, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.LIFECYCLE_EXPIRATION, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.LIFECYCLE_TRANSITION, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.INTELLIGENT_TIERING, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_TAGGING, new s3n.SnsDestination(notificationTopic));
+bucket.addEventNotification(s3.EventType.OBJECT_ACL_PUT, new s3n.SnsDestination(notificationTopic));

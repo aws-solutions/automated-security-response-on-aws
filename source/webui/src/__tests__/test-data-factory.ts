@@ -1,7 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { add, sub } from 'date-fns';
-import { FindingApiResponse, RemediationHistoryApiResponse, User } from '@data-models';
+import {
+  FindingApiResponse,
+  FindingId,
+  RemediationHistoryApiResponse,
+  ROLLBACK_ELIGIBLE_FINDING_TYPE,
+  User,
+} from '@data-models';
 import {
   randomAccountId,
   randomAlias,
@@ -27,9 +33,14 @@ export const mockUserContext = {
   signInWithRedirect: () => Promise.resolve(),
 };
 
+/** Cast a string to FindingId for use in tests */
+export const asFindingId = (id: string): FindingId => id as FindingId;
+
 // Functions to generate random test data for unit test and early stage UI development
 export function generateTestRemediation(data?: Partial<RemediationHistoryApiResponse>): RemediationHistoryApiResponse {
-  const id = window.crypto.randomUUID();
+  const id = asFindingId(window.crypto.randomUUID());
+  const remediationStatus = data?.remediationStatus ?? randomRemediationStatus();
+  const findingType = data?.findingType ?? randomWord(10, 15);
   return {
     executionId: id,
     findingId: id,
@@ -38,15 +49,21 @@ export function generateTestRemediation(data?: Partial<RemediationHistoryApiResp
       minutes: Math.random() * 60,
     }).toISOString(),
     accountId: randomAccountId(),
-    remediationStatus: randomRemediationStatus(),
+    remediationStatus,
     region: randomWord(5, 10),
     resourceId: randomWord(30, 40),
     resourceType: randomWord(10, 15),
     resourceTypeNormalized: randomWord(10, 15),
-    findingType: randomWord(10, 15),
+    findingType,
     lastUpdatedBy: randomAlias(),
     severity: randomSeverity(),
     consoleLink: `https://console.aws.amazon.com/states/home?region=${randomWord(5, 10)}#/executions/details/${id}`,
+    // Mirror remediationService.convertToApiResponse: rollback is offered for a
+    // GuardDuty.IAMUser whose original remediation succeeded or whose prior
+    // rollback failed (retry). Never for a failed remediation or wrong type.
+    isRollbackEligible:
+      findingType.endsWith(ROLLBACK_ELIGIBLE_FINDING_TYPE) &&
+      (remediationStatus === 'SUCCESS' || remediationStatus === 'ROLLBACK_FAILED'),
     ...data,
   };
 }
@@ -59,7 +76,7 @@ export function generateTestRemediations(
 }
 
 export function generateTestFinding(data?: Partial<FindingApiResponse>): FindingApiResponse {
-  const id = window.crypto.randomUUID();
+  const id = asFindingId(window.crypto.randomUUID());
   const creationTime = sub(new Date(), {
     days: Math.floor(Math.random() * 30),
     hours: Math.floor(Math.random() * 24),

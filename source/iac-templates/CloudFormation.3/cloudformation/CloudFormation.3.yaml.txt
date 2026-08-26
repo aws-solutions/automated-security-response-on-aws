@@ -1,0 +1,10 @@
+# CloudFormation.3 — CloudFormation stacks should have termination protection enabled
+#
+# ASR remediation enables termination protection on the stack.
+# Termination protection is not a template property — it is a stack-level
+# setting applied at deployment time.
+#
+# To enable when deploying:
+#   aws cloudformation create-stack --enable-termination-protection ...
+#   aws cloudformation update-termination-protection \
+#     --enable-termination-protection --stack-name {stack}

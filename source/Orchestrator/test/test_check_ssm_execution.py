@@ -169,14 +169,17 @@ def test_failed_remediation(mocker):
     test_event["AutomationDocument"]["AccountId"] = account
     ssm_c = AWS.get_connection("ssm")
 
+    expected_failure_message = "Step fails when it is Poll action status for completion. Traceback (most recent call last):\n  File \"/tmp/5a927c4c-3d51-4915-8d7e-82fc4c61e479-2021-05-24-14-57-35/customer_script.py\", line 4, in parse_event\n    my_control_id = event['expected_control_id']\n\nKeyError - 'expected_control_id'. Please refer to Automation Service Troubleshooting Guide for more diagnosis details."
+
     expected_result = {
         "affected_object": "No output available yet because the step is not successfully executed",
         "executionid": "43374019-a309-4627-b8a2-c641e0140262",
         "logdata": ANY,
-        "remediation_output": "{}",
+        "remediation_output": expected_failure_message,
         "remediation_status": "Failed",
         "status": "Failed",
         "message": "See Automation Execution output for details",
+        "backup_s3_key": "",
     }
 
     ssmc_stub = Stubber(ssm_c)
@@ -217,8 +220,9 @@ def test_successful_remediation(mocker):
         "logdata": "[]",
         "message": '{"ModifyAccount.EnableEbsEncryptionByDefaultResponse": ["{\\"EbsEncryptionByDefault\\":true,\\"ResponseMetadata\\":{\\"RequestId\\":\\"c45a9839-5a40-472e-ac83-d0058987948c\\",\\"HTTPStatusCode\\":200,\\"HTTPHeaders\\":{\\"x-amzn-requestid\\":\\"c45a9839-5a40-472e-ac83-d0058987948c\\",\\"cache-control\\":\\"no-cache, no-store\\",\\"strict-transport-security\\":\\"max-age\\\\u003d31536000; includeSubDomains\\",\\"content-type\\":\\"text/xml;charset\\\\u003dUTF-8\\",\\"transfer-encoding\\":\\"chunked\\",\\"vary\\":\\"accept-encoding\\",\\"date\\":\\"Thu, 06 May 2021 19:16:14 GMT\\",\\"server\\":\\"AmazonEC2\\"},\\"RetryAttempts\\":0}}"]}',
         "remediation_status": "Success",
-        "remediation_output": "{}",
+        "remediation_output": '{"ModifyAccount.EnableEbsEncryptionByDefaultResponse": ["{\\"EbsEncryptionByDefault\\":true,\\"ResponseMetadata\\":{\\"RequestId\\":\\"c45a9839-5a40-472e-ac83-d0058987948c\\",\\"HTTPStatusCode\\":200,\\"HTTPHeaders\\":{\\"x-amzn-requestid\\":\\"c45a9839-5a40-472e-ac83-d0058987948c\\",\\"cache-control\\":\\"no-cache, no-store\\",\\"strict-transport-security\\":\\"max-age\\\\u003d31536000; includeSubDomains\\",\\"content-type\\":\\"text/xml;charset\\\\u003dUTF-8\\",\\"transfer-encoding\\":\\"chunked\\",\\"vary\\":\\"accept-encoding\\",\\"date\\":\\"Thu, 06 May 2021 19:16:14 GMT\\",\\"server\\":\\"AmazonEC2\\"},\\"RetryAttempts\\":0}}"]}',
         "status": "Success",
+        "backup_s3_key": "",
     }
 
     ssmc_stub = Stubber(ssm_c)
@@ -412,5 +416,350 @@ def test_missing_region(mocker):
         response.value.code
         == "ERROR: missing remediation account information. SSMExecution missing region or account."
     )
+
+    ssmc_stub.deactivate()
+
+
+# Tests for get_remediation_details functions
+from check_ssm_execution import (
+    determine_remediation_output,
+    get_remediation_runbook_failure_message,
+    get_remediation_runbook_output,
+)
+
+
+def test_get_remediation_details_failure_message_with_failure():
+    """
+    Verifies that failure message is extracted from control runbook outputs
+    when child remediation runbook fails
+    """
+    ssm_outputs = {
+        "ParseInput.AffectedObject": ["AwsEc2SecurityGroup sg-12345"],
+        "Remediation.Output": ["See Automation Execution output for details"],
+        "GetRemediationDetails.FailureMessage": [
+            "Step fails when it is executing remediation script. Error: No security group rules to delete."
+        ],
+    }
+
+    result = get_remediation_runbook_failure_message(ssm_outputs)
+    assert (
+        result
+        == "Step fails when it is executing remediation script. Error: No security group rules to delete."
+    )
+
+
+def test_get_remediation_details_failure_message_without_failure():
+    """
+    Verifies that None is returned when no failure message is present (successful remediation)
+    """
+    ssm_outputs = {
+        "ParseInput.AffectedObject": ["AwsEc2SecurityGroup sg-12345"],
+        "Remediation.Output": ['{"status": "SUCCESS"}'],
+    }
+
+    result = get_remediation_runbook_failure_message(ssm_outputs)
+    assert result is None
+
+
+def test_get_remediation_details_failure_message_empty_list():
+    """
+    Verifies that None is returned when failure message key exists but list is empty
+    """
+    ssm_outputs = {
+        "ParseInput.AffectedObject": ["AwsEc2SecurityGroup sg-12345"],
+        "GetRemediationDetails.FailureMessage": [],
+    }
+
+    result = get_remediation_runbook_failure_message(ssm_outputs)
+    assert result is None
+
+
+def test_get_remediation_details_output_with_output():
+    """
+    Verifies that output is extracted from control runbook outputs on success
+    """
+    ssm_outputs = {
+        "ParseInput.AffectedObject": ["AwsEc2SecurityGroup sg-12345"],
+        "GetRemediationDetails.Output": [
+            '{"status": "SUCCESS", "message": "Remediation completed"}'
+        ],
+    }
+
+    result = get_remediation_runbook_output(ssm_outputs)
+    assert result == '{"status": "SUCCESS", "message": "Remediation completed"}'
+
+
+def test_get_remediation_details_output_without_output():
+    """
+    Verifies that None is returned when no output is present
+    """
+    ssm_outputs = {
+        "ParseInput.AffectedObject": ["AwsEc2SecurityGroup sg-12345"],
+    }
+
+    result = get_remediation_runbook_output(ssm_outputs)
+    assert result is None
+
+
+# Tests for determine_remediation_output function
+def test_determine_remediation_output_remediation_failure_highest_priority():
+    """
+    Verifies that remediation runbook failure message has highest priority
+    """
+    # ARRANGE
+    logdata: list[str] = []
+    remediation_failure = "Remediation failed: Security group not found"
+    control_failure = "Control runbook failed: Timeout"
+    remediation_output = '{"status": "SUCCESS"}'
+
+    # ACT
+    result = determine_remediation_output(
+        remediation_runbook_output=remediation_output,
+        remediation_runbook_failure_message=remediation_failure,
+        control_runbook_failure_message=control_failure,
+        ssm_outputs={},
+        remediation_logdata=logdata,
+    )
+
+    # ASSERT
+    assert result == remediation_failure
+    assert remediation_failure in logdata
+
+
+def test_determine_remediation_output_control_failure_over_remediation_output():
+    """
+    Verifies that control runbook failure message takes priority over remediation output
+    """
+    # ARRANGE
+    logdata: list[str] = []
+    control_failure = "Control runbook failed: ParseInput error"
+    remediation_output = '{"status": "SUCCESS", "message": "Completed"}'
+
+    # ACT
+    result = determine_remediation_output(
+        remediation_runbook_output=remediation_output,
+        remediation_runbook_failure_message=None,
+        control_runbook_failure_message=control_failure,
+        ssm_outputs={},
+        remediation_logdata=logdata,
+    )
+
+    # ASSERT
+    assert result == control_failure
+    assert control_failure in logdata
+
+
+def test_determine_remediation_output_uses_remediation_output_when_no_failures():
+    """
+    Verifies that remediation output is used when no failures are present
+    """
+    # ARRANGE
+    logdata: list[str] = []
+    remediation_output = '{"status": "SUCCESS", "message": "Remediation completed"}'
+
+    # ACT
+    result = determine_remediation_output(
+        remediation_runbook_output=remediation_output,
+        remediation_runbook_failure_message=None,
+        control_runbook_failure_message=None,
+        ssm_outputs={},
+        remediation_logdata=logdata,
+    )
+
+    # ASSERT
+    assert result == remediation_output
+    assert len(logdata) == 0
+
+
+def test_determine_remediation_output_full_ssm_outputs_before_default():
+    """
+    Verifies that full SSM outputs (as JSON) are returned before default message
+    """
+    # ARRANGE
+    logdata: list[str] = []
+    ssm_outputs = {
+        "Remediation.Output": [{"status": "completed"}],
+        "ParseInput.AffectedObject": ["AwsEc2SecurityGroup sg-12345"],
+        "GetRemediationDetails.ExecutionId": ["exec-123"],
+    }
+
+    # ACT
+    result = determine_remediation_output(
+        remediation_runbook_output=None,
+        remediation_runbook_failure_message=None,
+        control_runbook_failure_message=None,
+        ssm_outputs=ssm_outputs,
+        remediation_logdata=logdata,
+    )
+
+    # ASSERT
+    import json
+
+    result_dict = json.loads(result)
+    assert result_dict == ssm_outputs
+    assert len(logdata) == 0
+
+
+def test_determine_remediation_output_default_when_nothing_available():
+    """
+    Verifies that default message is returned when no output or failures are available
+    """
+    # ARRANGE
+    logdata: list[str] = []
+
+    # ACT
+    result = determine_remediation_output(
+        remediation_runbook_output=None,
+        remediation_runbook_failure_message=None,
+        control_runbook_failure_message=None,
+        ssm_outputs={},
+        remediation_logdata=logdata,
+    )
+
+    # ASSERT
+    assert (
+        result
+        == "No output available - check the Step Function execution logs for details."
+    )
+    assert len(logdata) == 0
+
+
+def test_failed_remediation_with_child_failure_message(mocker):
+    """
+    Verifies that child remediation failure message is included in logdata and remediation_output
+    """
+    import copy
+
+    AWS = AWSCachedClient(get_region())
+    account = "111111111111"
+    event = copy.deepcopy(test_event)
+    event["AutomationDocument"]["AccountId"] = account
+    event["SSMExecution"]["SSMExecutionId"] = "43374019-a309-4627-b8a2-c641e0140262"
+    event["SSMExecution"]["Account"] = account
+    event["SSMExecution"]["Region"] = "us-east-1"
+    ssm_c = AWS.get_connection("ssm")
+
+    child_failure_message = "Step fails when it is executing remediation script. Error: No security group rules to delete."
+
+    ssm_response_with_child_failure = {
+        "AutomationExecutionMetadataList": [
+            {
+                "AutomationExecutionId": "43374019-a309-4627-b8a2-c641e0140262",
+                "DocumentName": "ASR-SC_EC2.19",
+                "DocumentVersion": "1",
+                "AutomationExecutionStatus": "Failed",
+                "ExecutionStartTime": "2021-05-24T10:57:31.322000-04:00",
+                "ExecutionEndTime": "2021-05-24T10:57:39.878000-04:00",
+                "ExecutedBy": "arn:aws:sts::111111111111:assumed-role/SO0111-SHARR-Orchestrator-Member_us-east-1/sechub_admin",
+                "LogFile": "",
+                "Outputs": {
+                    "ParseInput.AffectedObject": [
+                        '{"Type": "AwsEc2SecurityGroup", "Id": "sg-12345"}'
+                    ],
+                    "Remediation.Output": [
+                        "See Automation Execution output for details"
+                    ],
+                    "GetRemediationDetails.FailureMessage": [child_failure_message],
+                },
+                "Mode": "Auto",
+                "FailureMessage": "Child automation execution failed",
+                "Targets": [],
+                "ResolvedTargets": {"ParameterValues": [], "Truncated": False},
+                "AutomationType": "Local",
+            }
+        ]
+    }
+
+    ssmc_stub = Stubber(ssm_c)
+    ssmc_stub.add_response(
+        "describe_automation_executions",
+        ssm_response_with_child_failure,
+        {
+            "Filters": [
+                {
+                    "Key": "ExecutionId",
+                    "Values": ["43374019-a309-4627-b8a2-c641e0140262"],
+                }
+            ]
+        },
+    )
+    ssmc_stub.activate()
+    mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
+
+    response = lambda_handler(event, create_lambda_context())
+
+    assert response["status"] == "Failed"
+    assert response["remediation_output"] == child_failure_message
+    assert child_failure_message in response["logdata"]
+
+    ssmc_stub.deactivate()
+
+
+def test_control_runbook_failure_uses_failure_message(mocker):
+    """
+    Verifies that when control runbook fails (e.g., ParseInput fails),
+    the control runbook's failure message is used as remediation_output
+    """
+    import copy
+
+    AWS = AWSCachedClient(get_region())
+    account = "111111111111"
+    event = copy.deepcopy(test_event)
+    event["AutomationDocument"]["AccountId"] = account
+    event["SSMExecution"]["SSMExecutionId"] = "12345678-1234-1234-1234-123456789012"
+    event["SSMExecution"]["Account"] = account
+    event["SSMExecution"]["Region"] = "us-east-1"
+    ssm_c = AWS.get_connection("ssm")
+
+    control_failure_message = (
+        "Step fails when it is executing ParseInput. Error: Invalid finding format."
+    )
+
+    ssm_response_control_failure = {
+        "AutomationExecutionMetadataList": [
+            {
+                "AutomationExecutionId": "12345678-1234-1234-1234-123456789012",
+                "DocumentName": "ASR-SC_EC2.19",
+                "DocumentVersion": "1",
+                "AutomationExecutionStatus": "Failed",
+                "ExecutionStartTime": "2021-05-24T10:57:31.322000-04:00",
+                "ExecutionEndTime": "2021-05-24T10:57:39.878000-04:00",
+                "ExecutedBy": "arn:aws:sts::111111111111:assumed-role/SO0111-SHARR-Orchestrator-Member_us-east-1/sechub_admin",
+                "LogFile": "",
+                "Outputs": {
+                    "ParseInput.FindingId": [
+                        "arn:aws:securityhub:us-east-1:111111111111:finding/12345"
+                    ],
+                },
+                "Mode": "Auto",
+                "FailureMessage": control_failure_message,
+                "Targets": [],
+                "ResolvedTargets": {"ParameterValues": [], "Truncated": False},
+                "AutomationType": "Local",
+            }
+        ]
+    }
+
+    ssmc_stub = Stubber(ssm_c)
+    ssmc_stub.add_response(
+        "describe_automation_executions",
+        ssm_response_control_failure,
+        {
+            "Filters": [
+                {
+                    "Key": "ExecutionId",
+                    "Values": ["12345678-1234-1234-1234-123456789012"],
+                }
+            ]
+        },
+    )
+    ssmc_stub.activate()
+    mocker.patch("check_ssm_execution._get_ssm_client", return_value=ssm_c)
+
+    response = lambda_handler(event, create_lambda_context())
+
+    assert response["status"] == "Failed"
+    assert response["remediation_output"] == control_failure_message
+    assert control_failure_message in response["logdata"]
 
     ssmc_stub.deactivate()

@@ -1,12 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { FindingEventNormalizer } from '../Normalizer/findingEventNormalizer';
+import { FindingEventNormalizer, FindingSchema } from '../Normalizer/findingEventNormalizer';
 import { OCSFComplianceFinding } from '@asr/data-models';
 import nock from 'nock';
 import { mockClient } from 'aws-sdk-client-mock';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 import { getLogger } from '../../common/utils/logger';
+import { mockVulnerabilityFinding, mockDetectionFinding } from './fixtures/multiServiceFixtures';
 
 const ssmMock = mockClient(SSMClient);
 const mockLogger = getLogger('test');
@@ -143,12 +144,104 @@ describe('FindingEventNormalizer', () => {
 
     it('should throw error for unknown schema', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding({})).rejects.toThrow('Finding schema is not OCSF or ASFF.');
+      await expect(normalizer.normalizeFinding({})).rejects.toThrow(
+        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
+      );
     });
 
     it('should throw error for null finding', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding(null as any)).rejects.toThrow('Finding schema is not OCSF or ASFF.');
+      await expect(normalizer.normalizeFinding(null as any)).rejects.toThrow(
+        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
+      );
+    });
+
+    it('should throw when normalizeFinding receives an OCSF Vulnerability Finding', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      await expect(normalizer.normalizeFinding(mockVulnerabilityFinding)).rejects.toThrow(
+        'Multi-service OCSF findings must be processed via the multi-service path',
+      );
+    });
+
+    it('should throw when normalizeFinding receives an OCSF Detection Finding', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      await expect(normalizer.normalizeFinding(mockDetectionFinding)).rejects.toThrow(
+        'Multi-service OCSF findings must be processed via the multi-service path',
+      );
+    });
+  });
+
+  describe('validateFindingSchema classification', () => {
+    it('should classify OCSF Compliance finding (class_uid 2003) as OCSF', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      const result = await normalizer.detectFindingSchema(mockOCSFFinding);
+      expect(result).toBe(FindingSchema.OCSF);
+    });
+
+    it('should classify OCSF Vulnerability finding (class_uid 2002) as OCSF_VULNERABILITY', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      const result = await normalizer.detectFindingSchema(mockVulnerabilityFinding);
+      expect(result).toBe(FindingSchema.OCSF_VULNERABILITY);
+    });
+
+    it('should classify OCSF Detection finding (class_uid 2004) as OCSF_DETECTION', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      const result = await normalizer.detectFindingSchema(mockDetectionFinding);
+      expect(result).toBe(FindingSchema.OCSF_DETECTION);
+    });
+
+    it('should classify ASFF finding as ASFF', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      const result = await normalizer.detectFindingSchema({
+        SchemaVersion: '2018-10-08',
+        Id: 'test-asff-finding',
+        ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+        GeneratorId: 'security-control/S3.1',
+        AwsAccountId: '123456789012',
+        Types: ['Software and Configuration Checks'],
+        CreatedAt: '2023-01-01T00:00:00Z',
+        UpdatedAt: '2023-01-01T00:00:00Z',
+        Severity: { Label: 'HIGH' },
+        Title: 'Test ASFF Finding',
+        Resources: [{ Type: 'AwsS3Bucket', Id: 'arn:aws:s3:::test' }],
+        Compliance: { SecurityControlId: 'S3.1' },
+      });
+      expect(result).toBe(FindingSchema.ASFF);
+    });
+
+    it('should classify ASFF finding without Compliance as ASFF', async () => {
+      // Real IAM Access Analyzer findings arrive in ASFF format but without a
+      // Compliance block — IAA is not wrapped by a Security Hub managed
+      // control. The ASFF schema must accept this shape so the PreProcessor
+      // can route via the multi-service mapping rather than rejecting at
+      // schema detection.
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      const result = await normalizer.detectFindingSchema({
+        SchemaVersion: '2018-10-08',
+        Id: 'arn:aws:access-analyzer:us-east-1:123456789012:analyzer/test/arn:aws:kms:us-east-1:123456789012:key/00000000-0000-0000-0000-000000000000',
+        ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/access-analyzer',
+        ProductName: 'IAM Access Analyzer',
+        GeneratorId: 'aws/access-analyzer',
+        AwsAccountId: '123456789012',
+        Types: ['Software and Configuration Checks/AWS Security Best Practices/External Access Granted'],
+        CreatedAt: '2026-06-19T18:37:47.247Z',
+        UpdatedAt: '2026-06-19T18:37:48.625Z',
+        Severity: { Label: 'MEDIUM' },
+        Title: 'AwsKmsKey allows public access',
+        Resources: [
+          {
+            Type: 'AwsKmsKey',
+            Id: 'arn:aws:kms:us-east-1:123456789012:key/00000000-0000-0000-0000-000000000000',
+          },
+        ],
+        // No Compliance block — the real-world shape.
+      });
+      expect(result).toBe(FindingSchema.ASFF);
+    });
+
+    it('should throw for unrecognized schema', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      await expect(normalizer.detectFindingSchema({})).rejects.toThrow('Finding schema is not');
     });
   });
 
@@ -174,7 +267,11 @@ describe('FindingEventNormalizer', () => {
     it('should throw error for invalid severity', async () => {
       const finding = { ...mockOCSFFinding, severity: 'invalid' };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding(finding)).rejects.toThrow('Finding schema is not OCSF or ASFF.');
+      // Invalid severity causes OCSFComplianceSchema to fail (strict enum).
+      // class_uid 2003 doesn't match Vulnerability (2002) or Detection (2004) schemas either.
+      await expect(normalizer.normalizeFinding(finding)).rejects.toThrow(
+        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
+      );
     });
   });
 

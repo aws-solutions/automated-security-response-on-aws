@@ -18,37 +18,37 @@ export const ActionsDropdown = ({
   onRemediate,
   onRemediateAndGenerateTicket,
   onSuppress,
-  onUnsuppress
+  onUnsuppress,
 }: ActionsDropdownProps) => {
   const { ticketingEnabled } = useConfig();
   const isDisabled = selectedItems.length === 0;
-  const hasSuppressedItems = selectedItems.some(item => item.suppressed);
-  const hasUnsuppressedItems = selectedItems.some(item => !item.suppressed);
-  const hasInProgressOrSuccessItems = selectedItems.some(item => 
-    item.remediationStatus === 'IN_PROGRESS' || item.remediationStatus === 'SUCCESS'
+  const hasSuppressedItems = selectedItems.some((item) => item.suppressed);
+  const hasUnsuppressedItems = selectedItems.some((item) => !item.suppressed);
+  const hasInProgressOrSuccessItems = selectedItems.some(
+    (item) => item.remediationStatus === 'IN_PROGRESS' || item.remediationStatus === 'SUCCESS',
   );
 
   const dropdownItems = [
     {
       id: 'remediate',
       text: 'Remediate',
-      disabled: isDisabled || hasInProgressOrSuccessItems
+      disabled: isDisabled || hasInProgressOrSuccessItems,
     },
     {
       id: 'remediate-ticket',
       text: 'Remediate & Generate Ticket',
-      disabled: isDisabled || hasInProgressOrSuccessItems || !ticketingEnabled
+      disabled: isDisabled || hasInProgressOrSuccessItems || !ticketingEnabled,
     },
     {
       id: 'suppress',
       text: 'Suppress',
-      disabled: isDisabled || !hasUnsuppressedItems || hasInProgressOrSuccessItems
+      disabled: isDisabled || !hasUnsuppressedItems || hasInProgressOrSuccessItems,
     },
     {
       id: 'unsuppress',
       text: 'Unsuppress',
-      disabled: isDisabled || !hasSuppressedItems || hasInProgressOrSuccessItems
-    }
+      disabled: isDisabled || !hasSuppressedItems || hasInProgressOrSuccessItems,
+    },
   ];
 
   const handleItemClick = ({ detail }: { detail: { id: string } }) => {
@@ -73,7 +73,7 @@ export const ActionsDropdown = ({
       <ButtonDropdown
         items={dropdownItems}
         onItemClick={handleItemClick}
-        variant={isDisabled ? "normal" : "primary"}
+        variant={isDisabled ? 'normal' : 'primary'}
         disabled={isDisabled}
       >
         Actions

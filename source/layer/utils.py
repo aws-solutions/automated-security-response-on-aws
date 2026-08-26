@@ -3,7 +3,7 @@
 import json
 import os
 import re
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 import boto3
 from botocore.exceptions import UnknownRegionError
@@ -38,12 +38,63 @@ properties = [
     "workflow_data",
     "executionaccount",
     "executionregion",
+    "backup_s3_key",
 ]
+
+
+class StepFunctionLambdaAnswerDict(TypedDict):
+    """Typed shape of the dict returned by StepFunctionLambdaAnswer.json().
+
+    Required fields are always set in __init__. NotRequired fields are
+    populated conditionally by individual orchestrator Lambdas via update().
+    """
+
+    # Always set in __init__
+    status: str
+    message: str
+    remediation_status: str
+    logdata: list[Any]
+
+    # Set conditionally via update() by specific Lambdas
+    # resolve_ssm_doc_for_finding
+    securitystandard: NotRequired[str]
+    securitystandardversion: NotRequired[str]
+    playbookenabled: NotRequired[str]
+    controlid: NotRequired[str]
+    accountid: NotRequired[str]
+    automationdocid: NotRequired[str]
+    remediationrole: NotRequired[str]
+    resourceregion: NotRequired[str]
+
+    # exec_ssm_doc
+    executionid: NotRequired[str]
+    executionaccount: NotRequired[str]
+    executionregion: NotRequired[str]
+    remediation_output: NotRequired[str]
+
+    # check_ssm_execution
+    affected_object: NotRequired[str]
+    backup_s3_key: NotRequired[str]
+
+    # get_approval_requirement
+    workflowdoc: NotRequired[str]
+    workflowaccount: NotRequired[str]
+    workflowrole: NotRequired[str]
+    workflow_data: NotRequired[dict[str, str]]
+    eventtype: NotRequired[str]
 
 
 class StepFunctionLambdaAnswer:
     """
-    Maintains a hash of AWS API Client connections by region and service
+    Structured response envelope for Orchestrator Step Function Lambda tasks.
+
+    Each orchestrator Lambda creates an instance, populates fields via update(),
+    and returns json() as the Lambda response. The Step Function reads specific
+    fields from the response via resultSelector (e.g. $.Payload.status,
+    $.Payload.automationdocid).
+
+    update() only sets properties from the allowlist to prevent unexpected fields
+    from leaking into the Step Function state.
     """
 
     status = "init"
@@ -79,8 +130,12 @@ class StepFunctionLambdaAnswer:
     def __str__(self):
         return json.dumps(self.__dict__)
 
-    def json(self):
-        return self.__dict__
+    def json(self) -> StepFunctionLambdaAnswerDict:
+        # __dict__ returns dict[str, Any] which mypy can't reconcile with TypedDict.
+        # The shape is guaranteed by the class attributes and update() allowlist.
+        # A TypedDict can't be used as a base class for a mutable stateful object,
+        # so this structural mismatch is inherent and unavoidable.
+        return self.__dict__  # type: ignore[return-value]
 
     def update(self, answer_data):
         for property, value in answer_data.items():

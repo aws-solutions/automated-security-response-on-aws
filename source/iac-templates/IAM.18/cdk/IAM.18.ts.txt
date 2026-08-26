@@ -1,0 +1,16 @@
+// IAM.18 — Ensure a support role has been created to manage incidents with AWS Support
+//
+// ASR remediation creates an IAM role named aws_incident_support_role with the
+// AWSSupportAccess managed policy attached, allowing authorized users to manage
+// incidents through AWS Support.
+// To apply this fix, add an IAM role construct with the AWSSupportAccess managed
+// policy and an assume role policy trusting your account root as shown below.
+
+new iam.Role(this, '{supportRole}', {
+  roleName: 'aws_incident_support_role',
+  description: 'Created by ASR security hub remediation 1.20 rule',
+  assumedBy: new iam.AccountRootPrincipal(),
+  managedPolicies: [
+    iam.ManagedPolicy.fromAwsManagedPolicyName('AWSSupportAccess'),
+  ],
+});

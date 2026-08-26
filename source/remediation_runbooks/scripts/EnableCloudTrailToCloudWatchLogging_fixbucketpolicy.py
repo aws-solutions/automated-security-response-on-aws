@@ -89,7 +89,12 @@ def fix_cloudtrail_bucket_policy_for_logging(event, _):
 
         existing_policy = None
         try:
-            policy_response = s3.get_bucket_policy(Bucket=bucket)
+            # ExpectedBucketOwner asserts the trail's log bucket is still owned by
+            # this account, so a sniped/re-created bucket in another account cannot
+            # have its policy read or overwritten by ASR (CWE-283).
+            policy_response = s3.get_bucket_policy(
+                Bucket=bucket, ExpectedBucketOwner=aws_account
+            )
             existing_policy = json.loads(policy_response["Policy"])
         except ClientError as e:
             if e.response["Error"]["Code"] != "NoSuchBucketPolicy":
@@ -106,7 +111,11 @@ def fix_cloudtrail_bucket_policy_for_logging(event, _):
 
         for attempt in range(3):
             try:
-                s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(final_policy))
+                s3.put_bucket_policy(
+                    Bucket=bucket,
+                    Policy=json.dumps(final_policy),
+                    ExpectedBucketOwner=aws_account,
+                )
                 break
             except ClientError as e:
                 if attempt < 2 and e.response["Error"]["Code"] in [

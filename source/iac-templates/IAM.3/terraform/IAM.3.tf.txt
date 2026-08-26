@@ -1,0 +1,6 @@
+# IAM.3 — IAM users' access keys should be rotated every 90 days or less
+#
+# ASR remediation deactivates IAM user access keys that have not been rotated
+# within the configured maximum credential age (default 90 days).
+# No IaC change is needed. Access key rotation is an operational activity that
+# cannot be represented as an infrastructure-as-code resource property.

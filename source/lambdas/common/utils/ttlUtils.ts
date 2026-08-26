@@ -23,10 +23,10 @@ function calculateTtlTimestampGeneric(
   defaultDays: number,
   ttlDays?: number,
 ): number {
-  const days = ttlDays ?? parseInt(process.env[envVarName] || defaultDays.toString(), 10);
+  const days = ttlDays ?? Number.parseInt(process.env[envVarName] || defaultDays.toString(), 10);
 
   // Ensure days is a valid positive number, fallback to default if invalid
-  const validDays = isNaN(days) || days <= 0 ? defaultDays : days;
+  const validDays = Number.isNaN(days) || days <= 0 ? defaultDays : days;
 
   const updatedAtDate = new Date(lastUpdatedTime);
   const ttlDate = new Date(updatedAtDate.getTime() + validDays * 24 * 60 * 60 * 1000);

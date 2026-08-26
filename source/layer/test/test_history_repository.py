@@ -82,7 +82,7 @@ def test_build_history_create_item_basic():
         account_id="123456789012",
         severity="HIGH",
         region="us-east-1",
-        lastUpdatedBy="Automated",
+        last_updated_by="Automated",
     )
 
     # ACT
@@ -118,7 +118,7 @@ def test_build_history_create_item_with_error():
         account_id="123456789012",
         severity="MEDIUM",
         region="us-west-2",
-        lastUpdatedBy="Automated",
+        last_updated_by="Automated",
         error="Test error message",
     )
 
@@ -174,7 +174,7 @@ def test_build_history_update_item():
         "exec-123",
         "FAILED",
         "S3.1",
-        "Test error message",
+        error="Test error message",
     )
 
     # ASSERT
@@ -274,7 +274,7 @@ def test_transact_create_history_and_update_finding():
         account_id="123456789012",
         severity="HIGH",
         region="us-east-1",
-        lastUpdatedBy="Automated",
+        last_updated_by="Automated",
     )
 
     # ACT

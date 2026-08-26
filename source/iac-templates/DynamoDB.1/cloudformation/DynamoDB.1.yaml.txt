@@ -1,0 +1,47 @@
+# DynamoDB.1 — DynamoDB tables should automatically scale capacity with demand
+#
+# ASR remediation registers the DynamoDB table with Application Auto Scaling
+# and creates target tracking scaling policies for read and write capacity.
+# To apply this fix, add scalable targets and scaling policies for your
+# DynamoDB table's read and write capacity.
+
+Resources:
+  TableWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: dynamodb
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ResourceId: "table/{tableName}"
+      MinCapacity: 5
+      MaxCapacity: 10
+
+  TableReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: dynamodb
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ResourceId: "table/{tableName}"
+      MinCapacity: 5
+      MaxCapacity: 10
+
+  TableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: WriteCapacityScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref TableWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70
+
+  TableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ReadCapacityScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref TableReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70

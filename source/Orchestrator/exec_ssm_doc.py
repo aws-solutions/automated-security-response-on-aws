@@ -3,13 +3,14 @@
 import json
 import os
 import re
-from typing import Any, Dict
+from typing import Any
 
 from botocore.exceptions import ClientError
 from layer import utils
 from layer.awsapi_cached_client import BotoSession
 from layer.powertools_logger import get_logger
 from layer.tracer_utils import init_tracer
+from layer.utils import StepFunctionLambdaAnswerDict
 
 AWS_PARTITION = os.getenv("AWS_PARTITION")
 AWS_REGION = os.getenv("AWS_REGION")
@@ -38,6 +39,31 @@ def _get_iam_client(accountid, role):
     return BotoSession(accountid, role).client("iam")
 
 
+def _validate_doc_parameters(event: dict[str, Any]) -> dict[str, list[str]]:
+    """Validate and return extra SSM document parameters from event.docParameters.
+
+    Only allowlisted parameter names are accepted to prevent overriding
+    critical SSM parameters like Finding or AutomationAssumeRole.
+    Raises ValueError if validation fails.
+    """
+    ALLOWED_DOC_PARAMETERS: frozenset[str] = frozenset({"Action", "BackupS3KeyName"})
+    raw_doc_parameters = event.get("Detail", {}).get("docParameters", {})
+    if not isinstance(raw_doc_parameters, dict):
+        raise ValueError(
+            f"docParameters must be a dict, got {type(raw_doc_parameters).__name__}"
+        )
+    validated: dict[str, list[str]] = {}
+    for param_name, param_value in raw_doc_parameters.items():
+        if not isinstance(param_name, str) or not isinstance(param_value, str):
+            raise ValueError("docParameters keys and values must be strings")
+        if param_name not in ALLOWED_DOC_PARAMETERS:
+            raise ValueError(
+                f"Unsupported docParameter: {param_name!r}. Allowed: {sorted(ALLOWED_DOC_PARAMETERS)}"
+            )
+        validated[param_name] = [param_value]
+    return validated
+
+
 def lambda_role_exists(account: str, rolename: str) -> bool:
     iam = _get_iam_client(account, SOLUTION_ID + "-ASR-Orchestrator-Member")
     try:
@@ -47,14 +73,13 @@ def lambda_role_exists(account: str, rolename: str) -> bool:
         exception_type = ex.response["Error"]["Code"]
         if exception_type == "NoSuchEntity":
             return False
-        else:
-            exit("An unhandled client error occurred: " + exception_type)
+        exit("An unhandled client error occurred: " + exception_type)
     except Exception as e:
         exit("An unhandled error occurred: " + str(e))
 
 
-@tracer.capture_lambda_handler  # type: ignore[misc]
-def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
+@tracer.capture_lambda_handler  # type: ignore[untyped-decorator]
+def lambda_handler(event: dict[str, Any], _: Any) -> StepFunctionLambdaAnswerDict:
     # Expected:
     # {
     #   Finding: {
@@ -78,7 +103,7 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             {"status": "ERROR", "message": "Missing required data in request"}
         )
         logger.error(answer.message)
-        return answer.json()  # type: ignore[no-any-return]
+        return answer.json()
 
     automation_doc = event["AutomationDocument"]
     alt_workflow_doc = event.get("Workflow", {}).get("WorkflowDocument", None)
@@ -111,7 +136,7 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             }
         )
         logger.error(answer.message)
-        return answer.json()  # type: ignore[no-any-return]
+        return answer.json()
 
     # Execution role will be, in order of precedence
     # 1) remote_workflow_role
@@ -141,6 +166,15 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         "Finding": [json.dumps(event["Finding"])],
         "AutomationAssumeRole": [remediation_role_arn],
     }
+
+    # Merge any extra document parameters passed via Detail.docParameters
+    # (e.g. Action=Restore for GuardDuty rollback triggered from the API).
+    try:
+        ssm_parameters.update(_validate_doc_parameters(event))
+    except ValueError as e:
+        answer.update({"status": "ERROR", "message": str(e)})
+        logger.error(answer.message)
+        return answer.json()
     if remote_workflow_doc != automation_doc["AutomationDocId"]:
         ssm_parameters["RemediationDoc"] = [automation_doc["AutomationDocId"]]
         ssm_parameters["Workflow"] = [json.dumps(event.get("Workflow", {}))]
@@ -150,6 +184,9 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
     if "security_hub" in workflow_data:
         if workflow_data["security_hub"] == "false":
+            # Non-Security-Hub workflow findings use a stripped-down parameter set.
+            # docParameters (e.g. Action=Restore for rollback) are not applicable here
+            # because rollback is only triggered via the ASR API for Security Hub findings.
             ssm_parameters = {
                 "Finding": [json.dumps(event["Finding"])],
                 "AutomationAssumeRole": [remediation_role_arn],
@@ -174,4 +211,4 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
     logger.info(answer.message)
 
-    return answer.json()  # type: ignore[no-any-return]
+    return answer.json()

@@ -4,12 +4,15 @@
 import { CfnCondition, CustomResource, Duration, Fn, Stack } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
-import { getLambdaCode } from '../cdk-helper/lambda-code-manifest';
+import { createLogGroup } from '../cdk-helper/log-group';
+import { getLambdaCode, getWebUIManifestHash } from '../cdk-helper/lambda-code-manifest';
+import { DeployWebUIEnvironmentConfig } from '@asr/data-models';
 
 export interface UICustomResourceConstructProps {
   readonly apiEndpoint: string;
@@ -18,6 +21,7 @@ export interface UICustomResourceConstructProps {
   readonly userPoolClientId: string;
   readonly oauthDomain: string;
   readonly distributionDomainName: string;
+  readonly distributionId: string;
   readonly solutionTMN: string;
   readonly sourceCodeBucket: s3.IBucket;
   readonly destinationCodeBucket: IBucket;
@@ -62,6 +66,7 @@ export class WebUIDeploymentConstruct extends Construct {
         },
       },
       ticketingEnabled: Fn.conditionIf(ticketingEnabledCondition.logicalId, 'true', 'false').toString(),
+      solutionVersion: props.solutionVersion,
     };
     const webUiDeploymentConfig = {
       SrcBucket: props.sourceCodeBucket.bucketName,
@@ -71,7 +76,7 @@ export class WebUIDeploymentConstruct extends Construct {
     };
 
     const uiCopyAssetsFn = new lambda.Function(this, 'DeployWebUI', {
-      runtime: Runtime.NODEJS_22_X,
+      runtime: Runtime.NODEJS_24_X,
       code: getLambdaCode(props.sourceCodeBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       handler: 'api/handlers/deployWebui.lambdaHandler',
       timeout: Duration.minutes(4),
@@ -82,10 +87,22 @@ export class WebUIDeploymentConstruct extends Construct {
         SOLUTION_VERSION: props.solutionVersion,
         STACK_ID: props.stackId,
         AWS_ACCOUNT_ID: stack.account,
-      },
+        CLOUDFRONT_DISTRIBUTION_ID: props.distributionId,
+      } satisfies DeployWebUIEnvironmentConfig,
+      logGroup: createLogGroup(this, 'DeployWebUILogGroup'),
     });
     props.sourceCodeBucket.grantRead(uiCopyAssetsFn);
     props.uiBucket.grantPut(uiCopyAssetsFn);
+
+    // Allow the deploy lambda to invalidate the non-content-hashed CloudFront
+    // paths (index.html, aws-exports.json) after copying new assets, so a
+    // redeploy is served immediately instead of stale until the edge TTL.
+    uiCopyAssetsFn.addToRolePolicy(
+      new PolicyStatement({
+        actions: ['cloudfront:CreateInvalidation'],
+        resources: [`arn:${stack.partition}:cloudfront::${stack.account}:distribution/${props.distributionId}`],
+      }),
+    );
 
     addCfnGuardSuppression(uiCopyAssetsFn, 'LAMBDA_INSIDE_VPC');
     addCfnGuardSuppression(uiCopyAssetsFn, 'LAMBDA_CONCURRENCY_CHECK');
@@ -94,9 +111,9 @@ export class WebUIDeploymentConstruct extends Construct {
       serviceToken: uiCopyAssetsFn.functionArn,
       properties: {
         SolutionVersion: props.solutionVersion,
-        // Force CustomResource to update when UI code changes
-        DeploymentTimestamp: Date.now().toString(),
+        DeploymentTimestamp: Date.now().toString(), // Force update for CDK build
         TicketingGenFunction: props.ticketingGenFunction,
+        UIManifestHash: getWebUIManifestHash(), // Force update if the web changes
       },
       // if custom resource didn't respond after 4 minutes, something went wrong. no need to wait 60 minutes
       serviceTimeout: Duration.minutes(5),

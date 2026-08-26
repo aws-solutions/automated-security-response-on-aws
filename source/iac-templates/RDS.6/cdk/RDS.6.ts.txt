@@ -1,0 +1,12 @@
+// RDS.6 — Enhanced monitoring should be configured for RDS DB instances
+//
+// ASR remediation enables Enhanced Monitoring on the RDS DB instance by calling
+// ModifyDBInstance with a monitoring interval of 60 seconds and a monitoring role.
+// To apply this fix, set monitoringInterval and monitoringRole on your
+// DatabaseInstance construct.
+// NOTE: Update the role name if your monitoring role isn't named rds-monitoring-role.
+
+new rds.DatabaseInstance(this, '{dbInstance}', {
+  monitoringInterval: cdk.Duration.seconds(60),
+  monitoringRole: iam.Role.fromRoleArn(this, 'MonitoringRole', `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/rds-monitoring-role`),
+});

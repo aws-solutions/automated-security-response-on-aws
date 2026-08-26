@@ -1,20 +1,19 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-from typing import Dict
+import re
 
 import boto3
-import botocore.session
 import CreateLogMetricFilterAndAlarm as logMetricAlarm
 import CreateLogMetricFilterAndAlarm_createtopic as topicutil
 import pytest
-from botocore.config import Config
-from botocore.stub import Stubber
+from moto import mock_aws
 
 my_session = boto3.session.Session()
-my_region = my_session.region_name
+my_region = my_session.region_name or "us-east-1"
 
 
-def test_verify(mocker):
+@mock_aws
+def test_verify():
     event = {
         "FilterName": "test_filter",
         "FilterPattern": "test_pattern",
@@ -23,35 +22,36 @@ def test_verify(mocker):
         "MetricValue": "test_metric_value",
         "AlarmName": "test_alarm",
         "AlarmDesc": "alarm_desc",
-        "AlarmThreshold": "alarm_threshold",
+        "AlarmThreshold": 1,
         "LogGroupName": "test_log",
         "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
     }
-    context: Dict[str, str] = {}
-    mocker.patch("CreateLogMetricFilterAndAlarm.put_metric_filter")
-    mocker.patch("CreateLogMetricFilterAndAlarm.put_metric_alarm")
-    metric_filter_spy = mocker.spy(logMetricAlarm, "put_metric_filter")
-    metric_alarm_spy = mocker.spy(logMetricAlarm, "put_metric_alarm")
+    context = {}
+
+    # Create log group
+    logs = boto3.client("logs", region_name=my_region)
+    logs.create_log_group(logGroupName=event["LogGroupName"])
+
+    # Create SNS topic
+    sns = boto3.client("sns", region_name=my_region)
+    sns.create_topic(Name="test-topic-name")
+
     logMetricAlarm.verify(event, context)
-    metric_filter_spy.assert_called_once_with(
-        "test_log",
-        "test_filter",
-        "test_pattern",
-        "test_metric",
-        "test_metricnamespace",
-        "test_metric_value",
-    )
-    metric_alarm_spy.assert_called_once_with(
-        "test_alarm",
-        "alarm_desc",
-        "alarm_threshold",
-        "test_metric",
-        "test_metricnamespace",
-        "arn:aws:sns:us-east-1:111111111111:test-topic-name",
-    )
+
+    # Verify metric filter was created
+    filters = logs.describe_metric_filters(logGroupName=event["LogGroupName"])
+    assert len(filters["metricFilters"]) == 1
+    assert filters["metricFilters"][0]["filterName"] == event["FilterName"]
+
+    # Verify alarm was created
+    cloudwatch = boto3.client("cloudwatch", region_name=my_region)
+    alarms = cloudwatch.describe_alarms(AlarmNames=[event["AlarmName"]])
+    assert len(alarms["MetricAlarms"]) == 1
+    assert alarms["MetricAlarms"][0]["AlarmName"] == event["AlarmName"]
 
 
-def test_put_metric_filter_pass(mocker):
+@mock_aws
+def test_put_metric_filter_pass():
     event = {
         "FilterName": "test_filter",
         "FilterPattern": "test_pattern",
@@ -65,46 +65,9 @@ def test_put_metric_filter_pass(mocker):
         "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
     }
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
+    logs = boto3.client("logs", region_name=my_region)
+    logs.create_log_group(logGroupName=event["LogGroupName"])
 
-    logs_stubber.add_response(
-        "describe_log_groups",
-        {
-            "logGroups": [
-                {
-                    "logGroupName": event["LogGroupName"],
-                    "creationTime": 1234567890,
-                    "retentionInDays": 14,
-                    "metricFilterCount": 0,
-                    "arn": f"arn:aws:logs:us-east-1:111111111111:log-group:{event['LogGroupName']}:*",
-                    "storedBytes": 0,
-                }
-            ]
-        },
-        {"logGroupNamePrefix": event["LogGroupName"]},
-    )
-
-    logs_stubber.add_response(
-        "put_metric_filter",
-        {},
-        {
-            "logGroupName": event["LogGroupName"],
-            "filterName": event["FilterName"],
-            "filterPattern": event["FilterPattern"],
-            "metricTransformations": [
-                {
-                    "metricName": event["MetricName"],
-                    "metricNamespace": event["MetricNamespace"],
-                    "metricValue": str(event["MetricValue"]),
-                    "unit": "Count",
-                }
-            ],
-        },
-    )
-    logs_stubber.activate()
-    mocker.patch("CreateLogMetricFilterAndAlarm.get_service_client", return_value=logs)
     logMetricAlarm.put_metric_filter(
         event["LogGroupName"],
         event["FilterName"],
@@ -114,11 +77,15 @@ def test_put_metric_filter_pass(mocker):
         event["MetricValue"],
     )
 
-    logs_stubber.assert_no_pending_responses()
-    logs_stubber.deactivate()
+    # Verify metric filter was created
+    filters = logs.describe_metric_filters(logGroupName=event["LogGroupName"])
+    assert len(filters["metricFilters"]) == 1
+    assert filters["metricFilters"][0]["filterName"] == event["FilterName"]
+    assert filters["metricFilters"][0]["filterPattern"] == event["FilterPattern"]
 
 
-def test_put_metric_filter_error(mocker):
+@mock_aws
+def test_put_metric_filter_error():
     event = {
         "FilterName": "test_filter",
         "FilterPattern": "test_pattern",
@@ -127,42 +94,20 @@ def test_put_metric_filter_error(mocker):
         "MetricValue": "test_metric_value",
         "AlarmName": "test_alarm",
         "AlarmDesc": "alarm_desc",
-        "AlarmThreshold": "alarm_threshold",
+        "AlarmThreshold": 1,
         "LogGroupName": "test_log",
         "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
     }
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
-
-    logs_stubber.add_response(
-        "describe_log_groups",
-        {
-            "logGroups": [
-                {
-                    "logGroupName": event["LogGroupName"],
-                    "creationTime": 1234567890,
-                    "retentionInDays": 14,
-                    "metricFilterCount": 0,
-                    "arn": f"arn:aws:logs:us-east-1:111111111111:log-group:{event['LogGroupName']}:*",
-                    "storedBytes": 0,
-                }
-            ]
-        },
-        {"logGroupNamePrefix": event["LogGroupName"]},
-    )
-
-    logs_stubber.add_client_error("put_metric_filter", "CannotAddFilter")
-
-    logs_stubber.activate()
-    mocker.patch("CreateLogMetricFilterAndAlarm.get_service_client", return_value=logs)
+    # Test with invalid filter pattern to trigger error
+    # Use a pattern that will cause moto to fail
     with pytest.raises(
         logMetricAlarm.MetricFilterCreationError
     ) as pytest_wrapped_exception:
+        # Pass an invalid metric transformation that moto will reject
         logMetricAlarm.put_metric_filter(
             event["LogGroupName"],
-            event["FilterName"],
+            "",  # Empty filter name should trigger error
             event["FilterPattern"],
             event["MetricName"],
             event["MetricNamespace"],
@@ -171,7 +116,8 @@ def test_put_metric_filter_error(mocker):
     assert "Failed to create metric filter" in str(pytest_wrapped_exception.value)
 
 
-def test_put_metric_alarm(mocker):
+@mock_aws
+def test_put_metric_alarm():
     event = {
         "FilterName": "test_filter",
         "FilterPattern": "test_pattern",
@@ -185,37 +131,12 @@ def test_put_metric_alarm(mocker):
         "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
     }
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    cloudwatch = botocore.session.get_session().create_client(
-        "cloudwatch", config=BOTO_CONFIG
-    )
-    cloudwatch_stubber = Stubber(cloudwatch)
+    # Create SNS topic
+    sns = boto3.client("sns", region_name=my_region)
+    sns.create_topic(Name="test-topic-name")
 
-    cloudwatch_stubber.add_response(
-        "put_metric_alarm",
-        {},
-        {
-            "AlarmName": event["AlarmName"],
-            "AlarmDescription": event["AlarmDesc"],
-            "ActionsEnabled": True,
-            "OKActions": ["arn:aws:sns:us-east-1:111111111111:test-topic-name"],
-            "AlarmActions": ["arn:aws:sns:us-east-1:111111111111:test-topic-name"],
-            "MetricName": event["MetricName"],
-            "Namespace": event["MetricNamespace"],
-            "Statistic": "Sum",
-            "Period": 300,
-            "Unit": "Count",
-            "EvaluationPeriods": 12,
-            "DatapointsToAlarm": 1,
-            "Threshold": (event["AlarmThreshold"]),
-            "ComparisonOperator": "GreaterThanOrEqualToThreshold",
-            "TreatMissingData": "notBreaching",
-        },
-    )
-    cloudwatch_stubber.activate()
-    mocker.patch(
-        "CreateLogMetricFilterAndAlarm.get_service_client", return_value=cloudwatch
-    )
+    cloudwatch = boto3.client("cloudwatch", region_name=my_region)
+
     logMetricAlarm.put_metric_alarm(
         event["AlarmName"],
         event["AlarmDesc"],
@@ -224,11 +145,19 @@ def test_put_metric_alarm(mocker):
         event["MetricNamespace"],
         event["TopicArn"],
     )
-    cloudwatch_stubber.assert_no_pending_responses()
-    cloudwatch_stubber.deactivate()
+
+    # Verify alarm was created
+    alarms = cloudwatch.describe_alarms(AlarmNames=[event["AlarmName"]])
+    assert len(alarms["MetricAlarms"]) == 1
+    alarm = alarms["MetricAlarms"][0]
+    assert alarm["AlarmName"] == event["AlarmName"]
+    assert alarm["AlarmDescription"] == event["AlarmDesc"]
+    assert alarm["MetricName"] == event["MetricName"]
+    assert alarm["Namespace"] == event["MetricNamespace"]
 
 
-def test_put_metric_alarm_error(mocker):
+@mock_aws
+def test_put_metric_alarm_error():
     event = {
         "FilterName": "test_filter",
         "FilterPattern": "test_pattern",
@@ -242,23 +171,13 @@ def test_put_metric_alarm_error(mocker):
         "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
     }
 
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    cloudwatch = botocore.session.get_session().create_client(
-        "cloudwatch", config=BOTO_CONFIG
-    )
-    cloudwatch_stubber = Stubber(cloudwatch)
-
-    cloudwatch_stubber.add_client_error("put_metric_alarm", "CannotAddAlarm")
-    cloudwatch_stubber.activate()
-    mocker.patch(
-        "CreateLogMetricFilterAndAlarm.get_service_client", return_value=cloudwatch
-    )
-
+    # Test with invalid threshold to trigger error
+    # Moto doesn't validate all alarm parameters, so we'll test with an invalid metric name
     with pytest.raises(
         logMetricAlarm.MetricAlarmCreationError
     ) as pytest_wrapped_exception:
         logMetricAlarm.put_metric_alarm(
-            event["AlarmName"],
+            "",  # Empty alarm name should trigger error
             event["AlarmDesc"],
             event["AlarmThreshold"],
             event["MetricName"],
@@ -266,174 +185,234 @@ def test_put_metric_alarm_error(mocker):
             event["TopicArn"],
         )
     assert "Failed to create CloudWatch alarm" in str(pytest_wrapped_exception.value)
-    cloudwatch_stubber.deactivate()
 
 
 def topic_event():
     return {
-        "topic_name": "sharr-test-topic",
-        "kms_key_arn": "arn:aws:kms:ap-northeast-1:111122223333:key/foobarbaz",
+        "TopicName": "sharr-test-topic",
+        "KmsKeyArn": "arn:aws:kms:ap-northeast-1:111122223333:key/foobarbaz",
+        "Region": "us-east-1",
+        "AccountId": "111122223333",
     }
 
 
-def test_create_new_topic(mocker):
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    ssm_client = botocore.session.get_session().create_client("ssm", config=BOTO_CONFIG)
-    ssm_stubber = Stubber(ssm_client)
-    ssm_stubber.add_response(
-        "put_parameter",
-        {},
-        {
-            "Name": "/Solutions/SO0111/SNS_Topic_CIS3.x",
-            "Description": "SNS Topic for AWS Config updates",
-            "Type": "String",
-            "Overwrite": True,
-            "Value": "arn:aws:sns:us-east-1:111111111111:sharr-test-topic",
-        },
-    )
-    ssm_stubber.activate()
+@mock_aws
+def test_create_new_topic():
+    sns_client = boto3.client("sns", region_name=my_region)
+    ssm_client = boto3.client("ssm", region_name=my_region)
 
-    sns_client = botocore.session.get_session().create_client("sns", config=BOTO_CONFIG)
-    sns_stubber = Stubber(sns_client)
-    sns_stubber.add_response(
-        "create_topic",
-        {"TopicArn": "arn:aws:sns:us-east-1:111111111111:sharr-test-topic"},
-    )
-    sns_stubber.add_response("set_topic_attributes", {})
-    sns_stubber.activate()
-    mocker.patch(
-        "CreateLogMetricFilterAndAlarm_createtopic.connect_to_ssm",
-        return_value=ssm_client,
-    )
-    mocker.patch(
-        "CreateLogMetricFilterAndAlarm_createtopic.connect_to_sns",
-        return_value=sns_client,
-    )
-
-    assert topicutil.create_encrypted_topic(topic_event(), {}) == {
-        "topic_arn": "arn:aws:sns:us-east-1:111111111111:sharr-test-topic"
+    event = {
+        "TopicName": "sharr-test-topic",
+        "KmsKeyArn": "arn:aws:kms:ap-northeast-1:111122223333:key/foobarbaz",
+        "Region": my_region,
+        "AccountId": "111122223333",
     }
 
+    result = topicutil.create_encrypted_topic(event, {})
 
-def test_ensure_log_group_exists_already_exists(mocker):
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
-
-    logs_stubber.add_response(
-        "describe_log_groups",
-        {
-            "logGroups": [
-                {
-                    "logGroupName": "test_log",
-                    "creationTime": 1234567890,
-                    "retentionInDays": 14,
-                    "metricFilterCount": 0,
-                    "arn": "arn:aws:logs:us-east-1:111111111111:log-group:test_log:*",
-                    "storedBytes": 0,
-                }
-            ]
-        },
-        {"logGroupNamePrefix": "test_log"},
+    # Verify topic was created
+    topics = sns_client.list_topics()
+    topic_arns = [t["TopicArn"] for t in topics["Topics"]]
+    assert any(
+        re.match(r"arn:aws:sns:[a-z0-9-]+:\d{12}:sharr-test-topic", arn)
+        for arn in topic_arns
     )
-    logs_stubber.activate()
+
+    # Verify SSM parameter was created
+    param = ssm_client.get_parameter(Name="/Solutions/SO0111/SNS_Topic_CIS3.x")
+    assert re.match(
+        r"arn:aws:sns:[a-z0-9-]+:\d{12}:sharr-test-topic",
+        param["Parameter"]["Value"],
+    )
+
+    # Verify result structure
+    assert "TopicArn" in result
+    assert "ResourceArn" in result
+    assert "ParameterArn" in result
+    assert result["ResourceArn"] == result["TopicArn"]
+    assert re.match(
+        r"arn:aws:sns:[a-z0-9-]+:\d{12}:sharr-test-topic", result["TopicArn"]
+    )
+
+    # Verify parameter ARN format
+    assert re.match(
+        r"arn:aws:ssm:[a-z0-9-]+:\d{12}:parameter/Solutions/SO0111/SNS_Topic_CIS3\.x",
+        result["ParameterArn"],
+    )
+
+
+@mock_aws
+def test_ensure_log_group_exists_already_exists():
+    logs = boto3.client("logs", region_name=my_region)
+    logs.create_log_group(logGroupName="test_log")
 
     result = logMetricAlarm.ensure_log_group_exists(logs, "test_log")
     assert result == {"exists": True, "created": False}
-    logs_stubber.assert_no_pending_responses()
-    logs_stubber.deactivate()
 
 
-def test_ensure_log_group_exists_creates_new(mocker):
+@mock_aws
+def test_ensure_log_group_exists_creates_new():
     """Test ensure_log_group_exists when log group needs to be created"""
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
-
-    # First call returns empty (log group doesn't exist)
-    logs_stubber.add_response(
-        "describe_log_groups", {"logGroups": []}, {"logGroupNamePrefix": "test_log"}
-    )
-
-    # Second call creates the log group
-    logs_stubber.add_response("create_log_group", {}, {"logGroupName": "test_log"})
-
-    logs_stubber.activate()
+    logs = boto3.client("logs", region_name=my_region)
 
     result = logMetricAlarm.ensure_log_group_exists(logs, "test_log")
     assert result == {"exists": True, "created": True}
-    logs_stubber.assert_no_pending_responses()
-    logs_stubber.deactivate()
+
+    # Verify log group was created
+    log_groups = logs.describe_log_groups(logGroupNamePrefix="test_log")
+    assert len(log_groups["logGroups"]) == 1
+    assert log_groups["logGroups"][0]["logGroupName"] == "test_log"
 
 
-def test_ensure_log_group_exists_handles_access_denied(mocker):
+def test_ensure_log_group_exists_handles_access_denied():
     """Test ensure_log_group_exists handles AccessDeniedException gracefully"""
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
+    from botocore.stub import Stubber
 
-    # First call fails with AccessDeniedException that contains "DescribeLogGroups"
-    logs_stubber.add_client_error(
+    logs = boto3.client("logs", region_name=my_region)
+    stubber = Stubber(logs)
+
+    # Simulate AccessDeniedException on describe_log_groups
+    stubber.add_client_error(
         "describe_log_groups",
-        "AccessDeniedException",
-        "User is not authorized to perform: logs:DescribeLogGroups",
+        service_error_code="AccessDeniedException",
+        service_message="User is not authorized to perform: logs:DescribeLogGroups",
     )
 
-    # Code will then try to create the log group, which also fails with AccessDeniedException
-    logs_stubber.add_client_error("create_log_group", "AccessDeniedException")
-
-    logs_stubber.activate()
-
-    # This should raise a LogGroupCreationError because create_log_group fails
-    with pytest.raises(logMetricAlarm.LogGroupCreationError) as exc_info:
-        logMetricAlarm.ensure_log_group_exists(logs, "test_log")
-
-    assert "Cannot create log group test_log" in str(exc_info.value)
-    logs_stubber.assert_no_pending_responses()
-    logs_stubber.deactivate()
-
-
-def test_ensure_log_group_exists_describe_fails_create_succeeds(mocker):
-    """Test ensure_log_group_exists when describe fails but create succeeds"""
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
-
-    # First call fails with AccessDeniedException that contains "DescribeLogGroups"
-    logs_stubber.add_client_error(
-        "describe_log_groups",
-        "AccessDeniedException",
-        "User is not authorized to perform: logs:DescribeLogGroups",
+    # Simulate successful create_log_group
+    stubber.add_response(
+        "create_log_group",
+        {},
+        expected_params={"logGroupName": "test_log"},
     )
 
-    # Code will then try to create the log group, which succeeds
-    logs_stubber.add_response("create_log_group", {}, {"logGroupName": "test_log"})
-
-    logs_stubber.activate()
-
-    result = logMetricAlarm.ensure_log_group_exists(logs, "test_log")
-    assert result == {"exists": True, "created": True}
-    logs_stubber.assert_no_pending_responses()
-    logs_stubber.deactivate()
+    with stubber:
+        result = logMetricAlarm.ensure_log_group_exists(logs, "test_log")
+        assert result == {"exists": True, "created": True}
 
 
-def test_ensure_log_group_exists_already_exists_during_creation(mocker):
+def test_ensure_log_group_exists_describe_fails_create_succeeds():
+    """Test ensure_log_group_exists when describe fails with throttling but create succeeds"""
+    from botocore.stub import Stubber
+
+    logs = boto3.client("logs", region_name=my_region)
+    stubber = Stubber(logs)
+
+    # Simulate ThrottlingException on describe_log_groups (different from AccessDenied)
+    stubber.add_client_error(
+        "describe_log_groups",
+        service_error_code="ThrottlingException",
+        service_message="Rate exceeded",
+    )
+
+    with stubber:
+        # This should raise LogGroupVerificationError since it's not AccessDeniedException
+        with pytest.raises(logMetricAlarm.LogGroupVerificationError) as exc_info:
+            logMetricAlarm.ensure_log_group_exists(logs, "test_log")
+        assert "Cannot create or verify log group" in str(exc_info.value)
+
+
+@mock_aws
+def test_ensure_log_group_exists_already_exists_during_creation():
     """Test ensure_log_group_exists when log group is created by another process"""
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=my_region)
-    logs = botocore.session.get_session().create_client("logs", config=BOTO_CONFIG)
-    logs_stubber = Stubber(logs)
+    logs = boto3.client("logs", region_name=my_region)
 
-    # First call returns empty (log group doesn't exist)
-    logs_stubber.add_response(
-        "describe_log_groups", {"logGroups": []}, {"logGroupNamePrefix": "test_log"}
-    )
-
-    # Creation fails because it already exists (created by another process)
-    logs_stubber.add_client_error("create_log_group", "ResourceAlreadyExistsException")
-
-    logs_stubber.activate()
+    # Pre-create the log group to simulate it being created by another process
+    logs.create_log_group(logGroupName="test_log")
 
     result = logMetricAlarm.ensure_log_group_exists(logs, "test_log")
     assert result == {"exists": True, "created": False}
-    logs_stubber.assert_no_pending_responses()
-    logs_stubber.deactivate()
+
+
+@mock_aws
+def test_create_topic_returns_resource_arn():
+    """Test that create_encrypted_topic returns ResourceArn in correct format"""
+    event = {
+        "TopicName": "test-topic",
+        "KmsKeyArn": "arn:aws:kms:us-east-1:111111111111:key/test-key-id",
+        "Region": my_region,
+        "AccountId": "111111111111",
+    }
+
+    result = topicutil.create_encrypted_topic(event, {})
+
+    # Verify ResourceArn is present and matches TopicArn
+    assert "ResourceArn" in result
+    assert result["ResourceArn"] == result["TopicArn"]
+    assert re.match(r"arn:aws:sns:[a-z0-9-]+:\d{12}:test-topic", result["ResourceArn"])
+
+    # Verify ParameterArn is present
+    assert "ParameterArn" in result
+    assert re.match(
+        r"arn:aws:ssm:[a-z0-9-]+:\d{12}:parameter/Solutions/SO0111/SNS_Topic_CIS3\.x",
+        result["ParameterArn"],
+    )
+
+
+@mock_aws
+def test_verify_returns_log_group_and_alarm_arns():
+    """Test that verify returns LogGroupArn and AlarmArn"""
+    event = {
+        "FilterName": "test_filter",
+        "FilterPattern": "test_pattern",
+        "MetricName": "test_metric",
+        "MetricNamespace": "test_metricnamespace",
+        "MetricValue": "test_metric_value",
+        "AlarmName": "test_alarm",
+        "AlarmDesc": "alarm_desc",
+        "AlarmThreshold": 1,
+        "LogGroupName": "test_log",
+        "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
+    }
+
+    # Create log group
+    logs = boto3.client("logs", region_name=my_region)
+    logs.create_log_group(logGroupName=event["LogGroupName"])
+
+    # Create SNS topic
+    sns = boto3.client("sns", region_name=my_region)
+    sns.create_topic(Name="test-topic-name")
+
+    result = logMetricAlarm.verify(event, {})
+
+    # Verify ARNs are present
+    assert "LogGroupArn" in result
+    assert "AlarmArn" in result
+
+    # Verify log group ARN format
+    assert re.match(
+        r"arn:aws:logs:[a-z0-9-]+:\d{12}:log-group:test_log", result["LogGroupArn"]
+    )
+
+    # Verify alarm ARN format
+    assert re.match(
+        r"arn:aws:cloudwatch:[a-z0-9-]+:\d{12}:alarm:test_alarm", result["AlarmArn"]
+    )
+
+
+@mock_aws
+def test_put_metric_alarm_returns_arn():
+    """Test that put_metric_alarm returns alarm ARN"""
+    event = {
+        "AlarmName": "test_alarm",
+        "AlarmDesc": "alarm_desc",
+        "AlarmThreshold": 1,
+        "MetricName": "test_metric",
+        "MetricNamespace": "test_metricnamespace",
+        "TopicArn": "arn:aws:sns:us-east-1:111111111111:test-topic-name",
+    }
+
+    # Create SNS topic
+    sns = boto3.client("sns", region_name=my_region)
+    sns.create_topic(Name="test-topic-name")
+
+    alarm_arn = logMetricAlarm.put_metric_alarm(
+        event["AlarmName"],
+        event["AlarmDesc"],
+        event["AlarmThreshold"],
+        event["MetricName"],
+        event["MetricNamespace"],
+        event["TopicArn"],
+    )
+
+    # Verify ARN format
+    assert re.match(r"arn:aws:cloudwatch:[a-z0-9-]+:\d{12}:alarm:test_alarm", alarm_arn)

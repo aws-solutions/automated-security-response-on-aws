@@ -1,0 +1,15 @@
+# ECS.5 — ECS containers should be limited to read-only access to root filesystems
+#
+# ASR remediation creates a new task definition revision with readonlyRootFilesystem
+# set to true on all container definitions.
+# To apply this fix, set ReadonlyRootFilesystem to true in each ContainerDefinition
+# of your ECS task definition.
+# NOTE: <CONTAINER_IMAGE> — your actual container image URI.
+
+Resources:
+  {taskDefinition}:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Image: <CONTAINER_IMAGE>
+          ReadonlyRootFilesystem: true

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 from layer.findings_repository import build_update_item as build_finding_update_item
@@ -10,10 +10,14 @@ from layer.powertools_logger import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.client import DynamoDBClient
-    from mypy_boto3_dynamodb.type_defs import TransactWriteItemTypeDef
+    from mypy_boto3_dynamodb.type_defs import (
+        AttributeValueTypeDef,
+        TransactWriteItemTypeDef,
+    )
 else:
     DynamoDBClient = object
     TransactWriteItemTypeDef = dict[str, Any]
+    AttributeValueTypeDef = dict[str, Any]
 
 logger = get_logger("history_repository")
 
@@ -30,10 +34,22 @@ class RemediationUpdateRequest:
     error: Optional[str] = None
     resource_id: Optional[str] = None
     resource_type: Optional[str] = None
+    # The account that owns the resource this finding reports on (where the
+    # resource resides / remediation runs). NOT always the ASFF AwsAccountId:
+    # for IAM Access Analyzer organization-analyzer findings AwsAccountId is the
+    # delegated-administrator account, so callers pass ProductFields.
+    # ResourceOwnerAccount instead (see resolve_finding_account_id). Written to
+    # the DynamoDB `accountId` attribute (the findings/history GSI partition key)
+    # for backwards compatibility.
     account_id: Optional[str] = None
     severity: Optional[str] = None
     region: Optional[str] = None
-    lastUpdatedBy: Optional[str] = "Automated"
+    last_updated_by: Optional[str] = "Automated"
+    finding_json: Optional[bytes] = None
+    # S3 object key of the IAM config backup written by a successful GuardDuty
+    # Contain. Persisted so a later rollback (Restore) can supply it back to
+    # AWSSupport-ContainIAMPrincipal, which cannot derive it. Empty otherwise.
+    backup_s3_key: Optional[str] = None
 
     def validate(self) -> bool:
         if not self.finding_id or not self.execution_id or not self.finding_type:
@@ -61,10 +77,10 @@ def build_create_item(
     request: RemediationUpdateRequest,
     extra_fields: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     sort_key = f"{request.finding_id}#{request.execution_id}"
 
-    item = {
+    item: dict[str, AttributeValueTypeDef] = {
         "findingType": {"S": request.finding_type},
         "findingId": {"S": request.finding_id},
         FINDING_ID_EXECUTION_ID_KEY: {"S": sort_key},
@@ -73,7 +89,7 @@ def build_create_item(
         "lastUpdatedTime": {"S": timestamp},
         "lastUpdatedTime#findingId": {"S": f"{timestamp}#{request.finding_id}"},
         "REMEDIATION_CONSTANT": {"S": "remediation"},
-        "lastUpdatedBy": {"S": request.lastUpdatedBy or "Automated"},
+        "lastUpdatedBy": {"S": request.last_updated_by or "Automated"},
         "expireAt": {"N": str(calculate_ttl_timestamp(timestamp))},
     }
 
@@ -91,6 +107,12 @@ def build_create_item(
 
     if request.error:
         item["error"] = {"S": request.error}
+
+    if request.finding_json:
+        item["findingJSON"] = {"B": request.finding_json}
+
+    if request.backup_s3_key:
+        item["rollbackBackupKey"] = {"S": request.backup_s3_key}
 
     if extra_fields:
         for field, value in extra_fields.items():
@@ -113,10 +135,13 @@ def build_update_item(
     execution_id: str,
     remediation_status: str,
     finding_type: str,
+    *,
     error: Optional[str] = None,
+    finding_json: Optional[bytes] = None,
+    backup_s3_key: Optional[str] = None,
 ) -> dict[str, Any]:
     update_expression = "SET remediationStatus = :rs"
-    expression_values = {
+    expression_values: dict[str, Any] = {
         ":rs": {"S": remediation_status},
     }
     expression_names = {}
@@ -125,6 +150,17 @@ def build_update_item(
         update_expression += ", #err = :err"
         expression_names["#err"] = "error"
         expression_values[":err"] = {"S": error}
+
+    if finding_json:
+        # Compressed ASFF blob for IaC template placeholder rendering after
+        # the source finding is archived.
+        update_expression += ", findingJSON = :fj"
+        expression_values[":fj"] = {"B": finding_json}
+
+    if backup_s3_key:
+        # S3 key of the Contain backup, needed by a later rollback (Restore).
+        update_expression += ", rollbackBackupKey = :bk"
+        expression_values[":bk"] = {"S": backup_s3_key}
 
     sort_key = f"{finding_id}#{execution_id}"
 
@@ -157,7 +193,10 @@ def transact_update_finding_and_history(
     finding_id: str,
     execution_id: str,
     remediation_status: str,
+    *,
     error: Optional[str] = None,
+    finding_json: Optional[bytes] = None,
+    backup_s3_key: Optional[str] = None,
 ) -> None:
     transact_items = [
         build_finding_update_item(
@@ -172,7 +211,9 @@ def transact_update_finding_and_history(
             execution_id,
             remediation_status,
             finding_type,
-            error,
+            error=error,
+            finding_json=finding_json,
+            backup_s3_key=backup_s3_key,
         ),
     ]
 

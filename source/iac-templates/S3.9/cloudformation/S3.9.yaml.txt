@@ -1,0 +1,14 @@
+# S3.9 — S3 general purpose buckets should have server access logging enabled
+#
+# ASR remediation enables server access logging on the S3 bucket.
+# To apply this fix, add a LoggingConfiguration with a destination bucket
+# for access logs on your S3 bucket.
+# NOTE: <ACCESS_LOGGING_BUCKET> — your S3 bucket for access logs.
+
+Resources:
+  {bucketName}:
+    Type: AWS::S3::Bucket
+    Properties:
+      LoggingConfiguration:
+        DestinationBucketName: <ACCESS_LOGGING_BUCKET>
+        LogFilePrefix: {bucketName}/

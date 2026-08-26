@@ -32,7 +32,20 @@ describe('calculateTtlTimestamp', () => {
 });
 
 describe('calculateHistoryTtlTimestamp', () => {
+  const originalHistoryTtlDays = process.env.HISTORY_TTL_DAYS;
+
+  afterEach(() => {
+    // Restore original value after each test
+    if (originalHistoryTtlDays !== undefined) {
+      process.env.HISTORY_TTL_DAYS = originalHistoryTtlDays;
+    } else {
+      delete process.env.HISTORY_TTL_DAYS;
+    }
+  });
+
   it('should calculate history TTL timestamp correctly with default 365 days', () => {
+    delete process.env.HISTORY_TTL_DAYS;
+
     const lastUpdatedTime = '2023-01-01T12:00:00.000Z';
     const result = calculateHistoryTtlTimestamp(lastUpdatedTime);
 

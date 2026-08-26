@@ -22,6 +22,20 @@ export function mapRemediationStatus(status: string | undefined): remediationSta
     return 'IN_PROGRESS';
   }
 
+  if (statusUpper === 'ROLLBACK_IN_PROGRESS') {
+    return 'ROLLBACK_IN_PROGRESS';
+  }
+
+  if (statusUpper === 'ROLLBACK_SUCCESS') {
+    return 'ROLLBACK_SUCCESS';
+  }
+
+  if (statusUpper === 'ROLLBACK_FAILED') {
+    return 'ROLLBACK_FAILED';
+  }
+
+  // Known failure states — listed explicitly so the warn below only fires for
+  // genuinely unexpected values from new upstream sources.
   if (
     statusUpper === 'FAILED' ||
     statusUpper === 'ASSUME_ROLE_FAILURE' ||
@@ -30,11 +44,15 @@ export function mapRemediationStatus(status: string | undefined): remediationSta
     statusUpper === 'NO_RUNBOOK' ||
     statusUpper === 'PLAYBOOK_NOT_ENABLED' ||
     statusUpper === 'TIMEOUT' ||
+    statusUpper === 'TIMEDOUT' ||
+    statusUpper === 'TIMED_OUT' ||
     statusUpper === 'CANCELLED' ||
+    statusUpper === 'CANCELLING' ||
     statusUpper === 'ABORTED'
   ) {
     return 'FAILED';
   }
 
+  console.warn('Unknown remediation status, defaulting to FAILED', { status });
   return 'FAILED';
 }

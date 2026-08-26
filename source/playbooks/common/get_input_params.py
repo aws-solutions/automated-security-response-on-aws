@@ -4,7 +4,7 @@ import re
 
 
 def parse_non_string_types(param):
-    if re.match("^\d+$", str(param)):
+    if re.match(r"^\d+$", str(param)):
         param = int(param)
         return param
     if str(param).lower() == "true":

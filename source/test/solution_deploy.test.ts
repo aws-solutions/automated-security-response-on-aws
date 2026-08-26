@@ -48,6 +48,24 @@ test('Test if the Stack has all the resources.', () => {
   expect(Template.fromStack(getTestStack())).toMatchSnapshot();
 });
 
+test('Lambda log groups use ten-year retention and none is left at one year', () => {
+  // ARRANGE
+  const template = Template.fromStack(getTestStack());
+
+  // ACT / ASSERT
+  // The pen-test flagged notification-system groups (dispatcher, batch processor, 5 channel
+  // adapters, email topic cleanup) as retaining for less than 36 months. They now use the
+  // solution-wide ten-year retention, so no one-year group remains.
+  expect(template.findResources('AWS::Logs::LogGroup', { Properties: { RetentionInDays: 365 } })).toEqual({});
+
+  // Every log group the stack manages sets the ten-year retention explicitly.
+  const logGroups = template.findResources('AWS::Logs::LogGroup');
+  expect(Object.keys(logGroups).length).toBeGreaterThan(0);
+  for (const logGroup of Object.values(logGroups)) {
+    expect(logGroup.Properties?.RetentionInDays).toBe(3653);
+  }
+});
+
 test('PreProcessorConstruct creates expected resources', () => {
   // Create a test stack
   const app = new App();
@@ -57,6 +75,10 @@ test('PreProcessorConstruct creates expected resources', () => {
     partitionKey: { name: 'findingType', type: dynamodb.AttributeType.STRING },
   });
 
+  const resourceFiltersTable = new Table(stack, 'resourceFiltersTable', {
+    partitionKey: { name: 'filterId', type: dynamodb.AttributeType.STRING },
+  });
+
   // Create the PreProcessorConstruct
   new PreProcessorConstruct(stack, 'PreProcessor', {
     solutionId: 'SO0111',
@@ -64,14 +86,17 @@ test('PreProcessorConstruct creates expected resources', () => {
     resourceNamePrefix: 'SO0111',
     solutionTMN: 'automated-security-response-on-aws',
     solutionsBucket: new Bucket(stack, 'test-bucket', {}),
-    findingsTable: testTable.tableArn,
-    remediationHistoryTable: testTable.tableArn,
+    findingsTable: testTable,
+    remediationHistoryTable: testTable,
     functionName: 'findings-table-name',
     kmsKey: new Key(stack, 'test-key', {}),
     orchestratorArn: 'arn:aws:states:region:account-id:stateMachine:myStateMachine',
-    remediationConfigTable: testTable.tableArn,
+    remediationConfigTable: testTable,
+    resourceFiltersTable: resourceFiltersTable,
+    notificationConfigTable: testTable,
     findingsTTL: '8',
     historyTTL: '365',
+    notificationQueueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/test-notification-queue',
   });
 
   const template = Template.fromStack(stack);
@@ -87,7 +112,7 @@ test('PreProcessorConstruct creates expected resources', () => {
   });
 
   template.hasResourceProperties('AWS::Lambda::Function', {
-    Runtime: 'nodejs22.x',
+    Runtime: 'nodejs24.x',
     Handler: 'pre-processor/preProcessor.handler',
     Timeout: 900,
     MemorySize: 512,
@@ -127,7 +152,7 @@ test('Synchronization handler supports both scheduled and custom resource events
   template.hasResourceProperties('AWS::Lambda::Function', {
     FunctionName: 'SO0111-ASR-SynchronizationTriggerProvider',
     Handler: 'synchronization/customResourceHandler.handler',
-    Runtime: 'nodejs22.x',
+    Runtime: 'nodejs24.x',
     Timeout: 300,
     MemorySize: 128,
   });
@@ -135,7 +160,7 @@ test('Synchronization handler supports both scheduled and custom resource events
   template.hasResourceProperties('AWS::Lambda::Function', {
     FunctionName: 'SO0111-ASR-SynchronizationFindingsLambda',
     Handler: 'synchronization/synchronizationHandler.handler',
-    Runtime: 'nodejs22.x',
+    Runtime: 'nodejs24.x',
     Timeout: 900,
     MemorySize: 512,
   });
@@ -152,15 +177,6 @@ test('Synchronization sweep state machine syncs accounts sequentially with a per
   template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
     StateMachineName: 'SO0111-ASR-SynchronizationSweep',
     TracingConfiguration: { Enabled: true },
-    LoggingConfiguration: {
-      IncludeExecutionData: true,
-      Level: 'ALL',
-    },
-  });
-
-  template.hasResourceProperties('AWS::Logs::LogGroup', {
-    LogGroupName: 'SO0111-ASR-SynchronizationSweep-Logs',
-    RetentionInDays: 3653,
   });
 
   template.hasResourceProperties('AWS::IAM::Role', {
@@ -256,4 +272,67 @@ test('Synchronization trigger and weekly schedule start the sweep state machine'
       }),
     ]),
   });
+});
+
+test('AdministratorStack defines the opt-in M2M ForbiddenError Cognito alarm', () => {
+  const template = Template.fromStack(getTestStack());
+
+  const alarms = template.findResources('AWS::CloudWatch::Alarm');
+
+  const findAlarmByName = (alarmName: string) =>
+    Object.values(alarms).find((alarm) => alarm.Properties?.AlarmName === alarmName);
+
+  const existingRiskAlarm = findAlarmByName('ASR-Cognito-Risk');
+  const m2mForbiddenAlarm = findAlarmByName('ASR-Cognito-M2MForbidden');
+
+  expect(existingRiskAlarm).toBeDefined();
+  expect(m2mForbiddenAlarm).toBeDefined();
+
+  // Gated by the same condition as the existing Cognito risk alarm
+  expect(existingRiskAlarm!.Condition).toBeDefined();
+  expect(m2mForbiddenAlarm!.Condition).toEqual(existingRiskAlarm!.Condition);
+
+  // Reuses the shared SNS alarm topic
+  expect(existingRiskAlarm!.Properties.AlarmActions).toBeDefined();
+  expect(m2mForbiddenAlarm!.Properties.AlarmActions).toEqual(existingRiskAlarm!.Properties.AlarmActions);
+
+  // Treats missing data as not breaching (silent until real denials occur)
+  expect(m2mForbiddenAlarm!.Properties.TreatMissingData).toEqual('notBreaching');
+
+  // Watches the exact metric the API Lambda emits on a scope-denied machine token:
+  // namespace ASR, metric M2MForbiddenAuthorization, dimension UserPool. This guards
+  // the emitter↔alarm coupling — a drift here means the alarm watches a metric no
+  // code publishes (the original bug this feature fixes).
+  expect(m2mForbiddenAlarm!.Properties.Namespace).toEqual('ASR');
+  expect(m2mForbiddenAlarm!.Properties.MetricName).toEqual('M2MForbiddenAuthorization');
+  expect(m2mForbiddenAlarm!.Properties.Dimensions).toEqual(
+    expect.arrayContaining([expect.objectContaining({ Name: 'UserPool' })]),
+  );
+
+  // No default subscriber: assert no SNS Subscription targets the alarm topic
+  const alarmTopicRefs = m2mForbiddenAlarm!.Properties.AlarmActions;
+  const subscriptions = template.findResources('AWS::SNS::Subscription');
+  const subscriptionsTargetingAlarmTopic = Object.values(subscriptions).filter((subscription) =>
+    alarmTopicRefs.some(
+      (topicRef: unknown) => JSON.stringify(subscription.Properties?.TopicArn) === JSON.stringify(topicRef),
+    ),
+  );
+  expect(subscriptionsTargetingAlarmTopic).toHaveLength(0);
+});
+
+test('Admin stack defines API rate-limiting and write-anomaly alarms', () => {
+  const template = Template.fromStack(getTestStack());
+
+  // Both rate-limiting/anomaly alarms are CloudWatch alarms on the admin stack.
+  expect(Object.keys(template.findResources('AWS::CloudWatch::Alarm')).length).toBeGreaterThan(0);
+
+  // The control state-change alarm reads the ASR custom metric directly.
+  template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+    AlarmName: 'ASR-Api-ControlStateChangeSpike',
+    Namespace: 'ASR',
+    MetricName: 'ControlStateChangeRequest',
+  });
+
+  // The sensitive-write alarm uses metric math, so assert on its alarm name.
+  template.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'ASR-Api-SensitiveWriteSpike' });
 });

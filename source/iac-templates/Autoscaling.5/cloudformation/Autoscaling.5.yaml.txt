@@ -1,0 +1,12 @@
+# Autoscaling.5 — Launch configurations should not assign a public IP address to instances
+#
+# ASR remediation creates a new launch configuration with public IP address
+# assignment disabled and updates the Auto Scaling group to use it.
+# To apply this fix, set AssociatePublicIpAddress to false on your
+# launch configuration.
+
+Resources:
+  {launchConfiguration}:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: false

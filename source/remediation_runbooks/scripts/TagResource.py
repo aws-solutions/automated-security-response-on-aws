@@ -47,7 +47,7 @@ def lambda_handler(event, _):
 
 def tag_guardduty_resource(tags: List[str], resource_arn: str):
     guardduty_client = get_guardduty_client()
-    tags_dict = {tag: "" for tag in tags}
+    tags_dict = dict.fromkeys(tags, "")
     guardduty_client.tag_resource(ResourceArn=resource_arn, Tags=tags_dict)
 
 

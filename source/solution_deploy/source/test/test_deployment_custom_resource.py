@@ -22,13 +22,12 @@ def get_event(resource_type, request_type, stack_parameters):
 @patch("cfnresponse.send")
 @patch("layer.metrics.Metrics.send_metrics")
 @patch(
-    "deployment_metrics_custom_resource.boto3.client"
+    "deployment_metrics_custom_resource.SECURITY_HUB_CLIENT"
 )  # The boto Stubber does not yet support describe_security_hub_v2, this can be replaced by the Stubber once this action is supported
 def test_send_metrics(
-    mock_boto3_client, mock_send_metrics, mock_cfnresponse, request_type
+    mock_securityhub, mock_send_metrics, mock_cfnresponse, request_type
 ):
     # ARRANGE
-    mock_securityhub = mock_boto3_client.return_value
     mock_securityhub.describe_security_hub_v2.return_value = {
         "HubV2Arn": "arn:aws:securityhub:us-east-1:123456789012:hub/default"
     }
@@ -57,12 +56,11 @@ def test_send_metrics(
 @pytest.mark.parametrize("request_type", ["Create", "Update", "Delete"])
 @patch("cfnresponse.send")
 @patch("layer.metrics.Metrics.send_metrics")
-@patch("deployment_metrics_custom_resource.boto3.client")
+@patch("deployment_metrics_custom_resource.SECURITY_HUB_CLIENT")
 def test_send_metrics_securityhub_v2_disabled(
-    mock_boto3_client, mock_send_metrics, mock_cfnresponse, request_type
+    mock_securityhub, mock_send_metrics, mock_cfnresponse, request_type
 ):
     # ARRANGE
-    mock_securityhub = mock_boto3_client.return_value
     mock_securityhub.describe_security_hub_v2.return_value = {}
 
     stack_parameters = {
@@ -89,12 +87,11 @@ def test_send_metrics_securityhub_v2_disabled(
 @pytest.mark.parametrize("request_type", ["Create", "Update", "Delete"])
 @patch("cfnresponse.send")
 @patch("layer.metrics.Metrics.send_metrics")
-@patch("deployment_metrics_custom_resource.boto3.client")
+@patch("deployment_metrics_custom_resource.SECURITY_HUB_CLIENT")
 def test_send_metrics_securityhub_not_found(
-    mock_boto3_client, mock_send_metrics, mock_cfnresponse, request_type
+    mock_securityhub, mock_send_metrics, mock_cfnresponse, request_type
 ):
     # ARRANGE
-    mock_securityhub = mock_boto3_client.return_value
     mock_securityhub.describe_security_hub_v2.side_effect = ClientError(
         {"Error": {"Code": "ResourceNotFoundException"}}, "describe_security_hub_v2"
     )

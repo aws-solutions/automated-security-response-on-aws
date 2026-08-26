@@ -1,145 +1,153 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { DynamoDBDocumentClient, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
-import { mockClient } from 'aws-sdk-client-mock';
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { RemediationHistoryRepository } from '../remediationHistoryRepository';
 import { FindingTableItem } from '@asr/data-models';
+import { DynamoDBTestSetup } from '../../__tests__/dynamodbSetup';
+import { findingsTableName, remediationHistoryTableName } from '../../__tests__/envSetup';
+import { asFindingId } from '../../__tests__/utils';
+import { Clock } from '../../utils/clock';
 
-const dynamoDBMock = mockClient(DynamoDBDocumentClient);
+const principal = 'test-user';
+const fakeClock: Clock = { now: () => new Date('2024-06-15T12:00:00.000Z') };
+
+const createStampedFinding = (overrides: Partial<FindingTableItem> = {}): FindingTableItem => ({
+  findingType: 'security-control/Lambda.3',
+  findingId: asFindingId('arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345'),
+  findingDescription: 'Test finding',
+  accountId: '123456789012',
+  resourceId: 'arn:aws:lambda:us-east-1:123456789012:function:test-function',
+  resourceType: 'AwsLambdaFunction',
+  resourceTypeNormalized: 'awslambdafunction',
+  severity: 'HIGH',
+  severityNormalized: 3,
+  region: 'us-east-1',
+  remediationStatus: 'NOT_STARTED',
+  securityHubUpdatedAtTime: '2024-01-01T00:00:00.000Z',
+  lastUpdatedTime: '2024-01-01T00:00:00.000Z',
+  suppressed: false,
+  creationTime: '2024-01-01T00:00:00.000Z',
+  'securityHubUpdatedAtTime#findingId':
+    '2024-01-01T00:00:00.000Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
+  'severityNormalized#securityHubUpdatedAtTime#findingId':
+    '3#2024-01-01T00:00:00.000Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
+  findingJSON: new Uint8Array(),
+  findingIdControl: 'Lambda.3',
+  FINDING_CONSTANT: 'finding',
+  expireAt: 1234567890,
+  executionId: 'test-execution-789',
+  remediationDueBy: '2024-02-01T00:00:00.000Z',
+  enforcementConfigIds: new Set(['config-1', 'config-2']),
+  ...overrides,
+});
 
 describe('RemediationHistoryRepository', () => {
   let repository: RemediationHistoryRepository;
-  const mockTableName = 'testRemediationHistoryTable';
-  const mockFindingsTableName = 'testFindingsTable';
-  const mockPrincipal = 'test-user';
+  let dynamoDBDocumentClient: DynamoDBDocumentClient;
 
-  beforeEach(() => {
-    dynamoDBMock.reset();
+  const getFinding = (findingType: string, findingId: string) =>
+    dynamoDBDocumentClient.send(new GetCommand({ TableName: findingsTableName, Key: { findingType, findingId } }));
+
+  const getRemediationHistory = (findingType: string, findingIdExecutionId: string) =>
+    dynamoDBDocumentClient.send(
+      new GetCommand({
+        TableName: remediationHistoryTableName,
+        Key: { findingType, 'findingId#executionId': findingIdExecutionId },
+      }),
+    );
+
+  beforeAll(async () => {
+    dynamoDBDocumentClient = DynamoDBTestSetup.getDocClient();
+    await DynamoDBTestSetup.createFindingsTable(findingsTableName);
+    await DynamoDBTestSetup.createRemediationHistoryTable(remediationHistoryTableName);
+  });
+
+  afterAll(async () => {
+    await DynamoDBTestSetup.deleteTable(findingsTableName);
+    await DynamoDBTestSetup.deleteTable(remediationHistoryTableName);
+  });
+
+  beforeEach(async () => {
+    await DynamoDBTestSetup.clearTable(findingsTableName, 'findings');
+    await DynamoDBTestSetup.clearTable(remediationHistoryTableName, 'remediationHistory');
     repository = new RemediationHistoryRepository(
-      mockPrincipal,
-      mockTableName,
-      dynamoDBMock as any,
-      mockFindingsTableName,
+      principal,
+      remediationHistoryTableName,
+      dynamoDBDocumentClient,
+      findingsTableName,
+      fakeClock,
     );
   });
 
   describe('createRemediationHistoryWithFindingUpdate', () => {
     it('should create remediation history and update finding atomically', async () => {
-      const mockFinding: FindingTableItem = {
-        findingType: 'security-control/Lambda.3',
-        findingId: 'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
-        findingDescription: 'Test finding',
-        accountId: '123456789012',
-        resourceId: 'arn:aws:lambda:us-east-1:123456789012:function:test-function',
-        resourceType: 'AwsLambdaFunction',
-        resourceTypeNormalized: 'awslambdafunction',
-        severity: 'HIGH',
-        severityNormalized: 3,
-        region: 'us-east-1',
-        remediationStatus: 'NOT_STARTED',
-        securityHubUpdatedAtTime: '2024-01-01T00:00:00.000Z',
-        lastUpdatedTime: '2024-01-01T00:00:00.000Z',
-        suppressed: false,
-        creationTime: '2024-01-01T00:00:00.000Z',
-        'securityHubUpdatedAtTime#findingId':
-          '2024-01-01T00:00:00.000Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
-        'severityNormalized#securityHubUpdatedAtTime#findingId':
-          '3#2023-01-01T00:00:00.000Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
-        findingJSON: new Uint8Array(),
-        findingIdControl: 'Lambda.3',
-        FINDING_CONSTANT: 'finding',
-        expireAt: 1234567890,
+      // ARRANGE
+      const finding = createStampedFinding({
+        remediationDueBy: undefined,
+        enforcementConfigIds: undefined,
         executionId: 'test-execution-123',
-      };
+      });
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: findingsTableName, Item: finding }));
 
-      dynamoDBMock.on(TransactWriteCommand).resolves({});
+      const findingWithStatus = { ...finding, remediationStatus: 'IN_PROGRESS' as const, lastUpdatedBy: principal };
 
-      const findingWithStatus = {
-        ...mockFinding,
-        remediationStatus: 'IN_PROGRESS' as const,
-        lastUpdatedBy: 'test-user',
-      };
-
+      // ACT
       await repository.createRemediationHistoryWithFindingUpdate(findingWithStatus, 'test-execution-123');
 
-      expect(dynamoDBMock.commandCalls(TransactWriteCommand)).toHaveLength(1);
+      // ASSERT: finding was updated in DDB
+      const result = await getFinding(finding.findingType, finding.findingId);
+      expect(result.Item).toBeDefined();
+      expect(result.Item!.remediationStatus).toBe('IN_PROGRESS');
+      expect(result.Item!.lastUpdatedBy).toBe(principal);
+      expect(result.Item!.lastUpdatedTime).toBe('2024-06-15T12:00:00.000Z');
+      expect(result.Item!.remediationDueBy).toBeUndefined();
+      expect(result.Item!.enforcementConfigIds).toBeUndefined();
 
-      const transactCall = dynamoDBMock.commandCalls(TransactWriteCommand)[0];
-      const transactItems = transactCall.args[0].input.TransactItems;
-
-      // Verify remediation history item
-      expect(transactItems).toBeDefined();
-      expect(transactItems!.length).toBe(2);
-
-      const remediationHistoryItem = transactItems![0].Put?.Item;
-      expect(remediationHistoryItem).toBeDefined();
-      expect(remediationHistoryItem!.findingType).toBe(mockFinding.findingType);
-      expect(remediationHistoryItem!.findingId).toBe(mockFinding.findingId);
-      expect(remediationHistoryItem!.accountId).toBe(mockFinding.accountId);
-      expect(remediationHistoryItem!.resourceId).toBe(mockFinding.resourceId);
-      expect(remediationHistoryItem!.resourceType).toBe(mockFinding.resourceType);
-      expect(remediationHistoryItem!.severity).toBe(mockFinding.severity);
-      expect(remediationHistoryItem!.region).toBe(mockFinding.region);
-      expect(remediationHistoryItem!.remediationStatus).toBe('IN_PROGRESS');
-      expect(remediationHistoryItem!.REMEDIATION_CONSTANT).toBe('remediation');
-      expect(remediationHistoryItem!.lastUpdatedBy).toBe('test-user');
-      expect(remediationHistoryItem!.lastUpdatedTime).toBeDefined();
-      expect(remediationHistoryItem!['lastUpdatedTime#findingId']).toContain(mockFinding.findingId);
-      expect(remediationHistoryItem!['findingId#executionId']).toContain(mockFinding.findingId);
-      expect(remediationHistoryItem!['findingId#executionId']).toContain('#');
-      expect(remediationHistoryItem!.expireAt).toBeDefined();
-      expect(typeof remediationHistoryItem!.expireAt).toBe('number');
-
-      // Verify finding update
-      const updatedFinding = transactItems![1].Put?.Item;
-      expect(updatedFinding).toBeDefined();
-      expect(updatedFinding!.findingId).toBe(mockFinding.findingId);
-      expect(updatedFinding!.remediationStatus).toBe('IN_PROGRESS');
-      expect(updatedFinding!.lastUpdatedBy).toBe('test-user');
-      expect(updatedFinding!.lastUpdatedTime).toBeDefined();
+      // ASSERT: remediation history record was written in the same transaction
+      const history = await getRemediationHistory(finding.findingType, `${finding.findingId}#test-execution-123`);
+      expect(history.Item).toBeDefined();
+      expect(history.Item!.remediationStatus).toBe('IN_PROGRESS');
+      expect(history.Item!.executionId).toBe('test-execution-123');
+      expect(history.Item!.lastUpdatedBy).toBe(principal);
+      expect(history.Item!.lastUpdatedTime).toBe('2024-06-15T12:00:00.000Z');
+      expect(history.Item!.REMEDIATION_CONSTANT).toBe('remediation');
     });
 
-    it('should handle transaction failures', async () => {
-      const mockFinding: FindingTableItem = {
-        findingType: 'security-control/Lambda.3',
-        findingId: 'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
-        findingDescription: 'Test finding',
-        accountId: '123456789012',
-        resourceId: 'arn:aws:lambda:us-east-1:123456789012:function:test-function',
-        resourceType: 'AwsLambdaFunction',
-        resourceTypeNormalized: 'awslambdafunction',
-        severity: 'HIGH',
-        severityNormalized: 3,
-        region: 'us-east-1',
-        remediationStatus: 'NOT_STARTED',
-        securityHubUpdatedAtTime: '2024-01-01T00:00:00.000Z',
-        lastUpdatedTime: '2024-01-01T00:00:00.000Z',
-        suppressed: false,
-        creationTime: '2024-01-01T00:00:00.000Z',
-        'securityHubUpdatedAtTime#findingId':
-          '2024-01-01T00:00:00.000Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
-        'severityNormalized#securityHubUpdatedAtTime#findingId':
-          '3#2024-01-01T00:00:00.000Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345',
-        findingJSON: new Uint8Array(),
-        findingIdControl: 'Lambda.3',
-        FINDING_CONSTANT: 'finding',
-        expireAt: 1234567890,
-        executionId: 'test-execution-456',
-      };
+    it('should clear remediationDueBy and enforcementConfigIds on the updated finding', async () => {
+      // ARRANGE: seed a finding that carries an enforcement stamp
+      const finding = createStampedFinding();
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: findingsTableName, Item: finding }));
 
-      const error = new Error('Transaction failed');
-      dynamoDBMock.on(TransactWriteCommand).rejects(error);
+      const findingWithStatus = { ...finding, remediationStatus: 'IN_PROGRESS' as const, lastUpdatedBy: principal };
 
-      const findingWithStatus = {
-        ...mockFinding,
-        remediationStatus: 'IN_PROGRESS' as const,
-        lastUpdatedBy: 'test-user',
-      };
+      // ACT
+      await repository.createRemediationHistoryWithFindingUpdate(findingWithStatus, 'test-execution-789');
 
+      // ASSERT: the enforcement stamp fields are absent from the persisted finding
+      const result = await getFinding(finding.findingType, finding.findingId);
+      expect(result.Item).toBeDefined();
+      expect(result.Item!.remediationStatus).toBe('IN_PROGRESS');
+      expect(result.Item!.remediationDueBy).toBeUndefined();
+      expect(result.Item!.enforcementConfigIds).toBeUndefined();
+    });
+
+    it('should throw on transaction failure', async () => {
+      // ARRANGE: target a non-existent table to force a transaction failure
+      const brokenRepository = new RemediationHistoryRepository(
+        principal,
+        remediationHistoryTableName,
+        dynamoDBDocumentClient,
+        'nonexistent-findings-table',
+        fakeClock,
+      );
+      const finding = createStampedFinding({ executionId: 'test-execution-456' });
+      const findingWithStatus = { ...finding, remediationStatus: 'IN_PROGRESS' as const, lastUpdatedBy: principal };
+
+      // ACT & ASSERT
       await expect(
-        repository.createRemediationHistoryWithFindingUpdate(findingWithStatus, 'test-execution-456'),
-      ).rejects.toThrow('Transaction failed');
+        brokenRepository.createRemediationHistoryWithFindingUpdate(findingWithStatus, 'test-execution-456'),
+      ).rejects.toThrow(/Cannot do operations on a non-existent table/);
     });
   });
 });

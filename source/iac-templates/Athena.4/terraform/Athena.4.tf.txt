@@ -1,0 +1,13 @@
+# Athena.4 — Athena workgroups should have CloudWatch metrics enabled
+#
+# ASR remediation enables PublishCloudWatchMetricsEnabled on the workgroup.
+# To apply this fix, set publish_cloudwatch_metrics_enabled to true in your
+# workgroup configuration.
+
+resource "aws_athena_workgroup" "{AthenaWorkGroup}" {
+  name = "{AthenaWorkGroup}"
+
+  configuration {
+    publish_cloudwatch_metrics_enabled = true
+  }
+}

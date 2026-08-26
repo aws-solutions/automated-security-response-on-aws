@@ -188,3 +188,27 @@ def test_validate_policy_statement():
 
     validate_policy._validate_policy_statement(acl_stmt, TRAIL_ARN, checks)
     assert checks["acl_check"] is True
+
+
+@patch("EnableCloudTrailToCloudWatchLogging_validatepolicy.boto3.client")
+def test_validate_cloudtrail_bucket_policy_malformed_arn(mock_boto_client):
+    mock_cloudtrail = Mock()
+    mock_s3 = Mock()
+    mock_boto_client.side_effect = [mock_s3, mock_cloudtrail]
+
+    # ARN with a non-numeric account segment must be rejected before it is used
+    # as ExpectedBucketOwner, and the bucket policy must never be read.
+    mock_cloudtrail.get_trail.return_value = {
+        "Trail": {
+            "S3BucketName": BUCKET_NAME,
+            "TrailARN": "arn:aws:cloudtrail:us-east-1:not-an-account:trail/test-trail",
+        }
+    }
+
+    result = validate_policy.validate_cloudtrail_bucket_policy(
+        {"trail_name": "test-trail"}, {}
+    )
+
+    assert result["output"]["Valid"] is False
+    assert "malformed ARN" in result["output"]["Error"]
+    mock_s3.get_bucket_policy.assert_not_called()

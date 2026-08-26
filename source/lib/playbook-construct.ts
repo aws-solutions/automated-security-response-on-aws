@@ -20,6 +20,17 @@ export interface IControl {
   control: string;
   versionAdded: string;
   executes?: string;
+  runbookPending?: boolean;
+  /**
+   * Marks a control whose underlying Security Hub security control has been
+   * deprecated/retired (Security Hub no longer generates findings for it).
+   *
+   * Deprecated controls intentionally still create their runbook SSM document
+   * resource so that stack updates do not delete a previously-deployed document
+   * (which could break the update path). However, they are excluded from
+   * "active remediation" surfaces such as CloudWatch failure-rate alarms.
+   */
+  deprecated?: boolean;
 }
 export interface PlaybookProps extends StackProps {
   solutionId: string;
@@ -150,7 +161,9 @@ export class PlaybookMemberStack extends cdk.Stack {
   }
 
   private processRemediation(controlSpec: IControl): void {
-    // Create the ssm automation document only if this is not a remapped control
+    // Create the ssm automation document only if this is not a remapped control.
+    // Note: deprecated controls intentionally still create their runbook document
+    // so a stack update does not delete a previously-deployed SSM document.
     if (!(controlSpec.executes && controlSpec.control != controlSpec.executes)) {
       RunbookFactory.createControlRunbook(this.stack, `${this.securityStandard} ${controlSpec.control}`, {
         securityStandard: this.securityStandard,

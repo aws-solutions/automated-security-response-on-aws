@@ -1,0 +1,7 @@
+// Lambda.1 — Lambda function policies should prohibit public access
+//
+// ASR remediation removes resource-based policy statements that grant public
+// access (principal "*" or "AWS": "*") from the Lambda function.
+// To apply this fix, remove any Lambda permission in your code that uses a
+// wildcard principal. If you need to grant access, scope the principal to a
+// specific account or service.

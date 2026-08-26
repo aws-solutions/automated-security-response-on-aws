@@ -1,0 +1,8 @@
+// S3.14 — S3 general purpose buckets should have versioning enabled
+//
+// ASR remediation enables versioning on the bucket.
+// To apply this fix, set versioned to true on your S3 bucket definition.
+
+new s3.Bucket(this, '{bucketName}', {
+  versioned: true,
+});

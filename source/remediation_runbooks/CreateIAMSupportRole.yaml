@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 ---
-schemaVersion: "0.3"
+schemaVersion: '0.3'
 description: |
   ### Document Name - ASR-CreateIAMSupportRole
 
@@ -14,7 +14,7 @@ description: |
   ## Output Parameters
   * CreateIAMRole.Output
 
-assumeRole: "{{ AutomationAssumeRole }}"
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -22,17 +22,18 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 outputs:
   - CreateIAMSupportRole.Output
+  - TagRole.Output
 mainSteps:
   - name: CreateIAMSupportRole
     action: aws:executeScript
     timeoutSeconds: 300
-    isEnd: true
     description: |
       ## CreateIAMSupportRole
 
-      This step deactivates IAM user access keys that have not been rotated in more than MaxCredentialUsageAge days
+      This step creates an IAM role to allow AWS Support access
       ## Outputs
       * Output: Success message or failure Exception.
+      * ResourceArn: ARN of the created IAM role
     inputs:
       Runtime: python3.11
       Handler: create_iam_role
@@ -43,3 +44,29 @@ mainSteps:
       - Name: Output
         Selector: $.Payload
         Type: StringMap
+      - Name: ResourceArn
+        Selector: $.Payload.ResourceArn
+        Type: String
+
+  - name: TagRole
+    action: aws:executeScript
+    onFailure: Continue
+    timeoutSeconds: 60
+    description: |
+      ## TagRole
+
+      This step tags the IAM role with the solution identifier
+      ## Outputs
+      * Output: Success message or failure exception
+    inputs:
+      Runtime: python3.11
+      Handler: tag_resource
+      InputPayload:
+        ResourceArn: '{{CreateIAMSupportRole.ResourceArn}}'
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    isEnd: true

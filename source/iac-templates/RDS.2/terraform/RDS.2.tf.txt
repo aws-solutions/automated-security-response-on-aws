@@ -1,0 +1,8 @@
+# RDS.2 — RDS DB instances should prohibit public access
+#
+# ASR remediation disables public accessibility on the RDS DB instance.
+# To apply this fix, set publicly_accessible to false on your DB instance.
+
+resource "aws_db_instance" "{dbInstance}" {
+  publicly_accessible = false
+}

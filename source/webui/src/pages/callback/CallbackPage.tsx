@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useContext, useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Container, Header, Alert, Spinner, Button, SpaceBetween, Box } from '@cloudscape-design/components';
 import { UserContext } from '../../contexts/UserContext.tsx';
+import { isValidInternalPath } from '../../utils/validation.ts';
+import { AUTH_REDIRECT_DESTINATION_KEY } from '../../utils/constants.ts';
 
 const SolutionHeader = () => <Header variant="h1">Automated Security Response on AWS</Header>;
 
@@ -24,15 +26,17 @@ export const CallbackPage = () => {
       const timer = setTimeout(() => {
         checkUser();
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [checkUser, error, errorDescription]);
 
   useEffect(() => {
-    // If user is authenticated and no error, redirect to home
     if (user && !error) {
-      navigate('/');
+      const storedDestination = sessionStorage.getItem(AUTH_REDIRECT_DESTINATION_KEY);
+      sessionStorage.removeItem(AUTH_REDIRECT_DESTINATION_KEY);
+      const destination = isValidInternalPath(storedDestination) ? storedDestination : '/';
+      navigate(destination);
     }
   }, [user, error, navigate]);
 

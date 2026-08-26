@@ -1,0 +1,10 @@
+# EC2.7 — EBS default encryption should be enabled
+#
+# ASR remediation enables EBS encryption by default for the AWS account in the
+# current region by calling the EC2 EnableEbsEncryptionByDefault API.
+# To apply this fix, add an ebs_encryption_by_default resource to enable EBS
+# default encryption in your account.
+
+resource "aws_ebs_encryption_by_default" "{ebsEncryption}" {
+  enabled = true
+}

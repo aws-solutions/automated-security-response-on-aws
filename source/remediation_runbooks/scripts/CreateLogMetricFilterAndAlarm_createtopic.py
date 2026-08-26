@@ -1,27 +1,63 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
+from typing import TYPE_CHECKING, TypedDict
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
+if TYPE_CHECKING:
+    from aws_lambda_powertools.utilities.typing import LambdaContext
+    from mypy_boto3_sns.client import SNSClient
+    from mypy_boto3_ssm.client import SSMClient
+else:
+    LambdaContext = object
+    SNSClient = object
+    SSMClient = object
+
 boto_config = Config(retries={"mode": "standard"})
 
 
-def connect_to_sns():
+class Event(TypedDict):
+    KmsKeyArn: str
+    TopicName: str
+    Region: str
+    AccountId: str
+
+
+class Output(TypedDict):
+    TopicArn: str
+    ResourceArn: str
+    ParameterArn: str
+
+
+def connect_to_sns() -> SNSClient:
     return boto3.client("sns", config=boto_config)
 
 
-def connect_to_ssm():
+def connect_to_ssm() -> SSMClient:
     return boto3.client("ssm", config=boto_config)
 
 
-def create_encrypted_topic(event, _):
-    kms_key_arn = event["kms_key_arn"]
+def get_partition_from_region(region: str) -> str:
+    """Derive AWS partition from region name."""
+    if region.startswith("cn-"):
+        return "aws-cn"
+    elif region.startswith("us-gov"):
+        return "aws-us-gov"
+    else:
+        return "aws"
+
+
+def create_encrypted_topic(event: Event, _: LambdaContext) -> Output:
+    kms_key_arn = event["KmsKeyArn"]
     new_topic = False
     topic_arn = ""
-    topic_name = event["topic_name"]
+    topic_name = event["TopicName"]
+    region = event["Region"]
+    account_id = event["AccountId"]
+    partition = get_partition_from_region(region)
 
     try:
         sns = connect_to_sns()
@@ -44,25 +80,34 @@ def create_encrypted_topic(event, _):
     except Exception as e:
         exit(f"ERROR: could not create SNS Topic {topic_name}: {str(e)}")
 
+    parameter_name = "/Solutions/SO0111/SNS_Topic_CIS3.x"
     if new_topic:
         try:
             ssm = connect_to_ssm()
             ssm.put_parameter(
-                Name="/Solutions/SO0111/SNS_Topic_CIS3.x",
+                Name=parameter_name,
                 Description="SNS Topic for AWS Config updates",
                 Type="String",
                 Overwrite=True,
                 Value=topic_arn,
             )
         except Exception as e:
-            exit(f"ERROR: could not create SNS Topic {topic_name}: {str(e)}")
+            exit(f"ERROR: could not create SSM parameter {parameter_name}: {str(e)}")
 
     create_topic_policy(topic_arn)
 
-    return {"topic_arn": topic_arn}
+    parameter_arn = (
+        f"arn:{partition}:ssm:{region}:{account_id}:parameter{parameter_name}"
+    )
+
+    return {
+        "TopicArn": topic_arn,
+        "ResourceArn": topic_arn,
+        "ParameterArn": parameter_arn,
+    }
 
 
-def create_topic_policy(topic_arn):
+def create_topic_policy(topic_arn: str) -> None:
     sns = connect_to_sns()
     try:
         topic_policy = {

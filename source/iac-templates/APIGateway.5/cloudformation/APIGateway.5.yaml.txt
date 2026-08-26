@@ -1,0 +1,16 @@
+# APIGateway.5 — API Gateway REST API cache data should be encrypted at rest
+#
+# ASR remediation enables cache data encryption on all method settings.
+# To apply this fix, set CacheDataEncrypted to true in your stage's
+# MethodSettings.
+
+Resources:
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: prod
+      RestApiId: !Ref RestApi
+      MethodSettings:
+        - HttpMethod: '*'
+          ResourcePath: '/*'
+          CacheDataEncrypted: true

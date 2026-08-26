@@ -2,47 +2,82 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  ActionResult,
-  RemediationResult,
+  FindingId,
   SuppressionResult,
   FindingsActionRequest,
   FindingsRequest,
   ExportRequest,
   SearchCriteria,
+  ACTION_TYPE_TO_ASR_ACTION_NAME,
+  ROLLBACK_ELIGIBLE_FINDING_TYPE,
+  ROLLBACK_TIMEOUT_MS,
+  normalizeSeverity,
+  isResourceTypeSupportedForRemediation,
+  getSupportedResourceTypes,
 } from '@asr/data-models';
 import { Logger } from '@aws-lambda-powertools/logger';
-import crypto from 'crypto';
-import { inflate } from 'pako';
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
 import { FindingRepository } from '../../common/repositories/findingRepository';
 import { RemediationHistoryRepository } from '../../common/repositories/remediationHistoryRepository';
-import type { ASFFFinding, FindingApiResponse, FindingTableItem } from '@asr/data-models';
+import type {
+  ASFFFinding,
+  FindingApiResponse,
+  FindingKey,
+  FindingTableItem,
+  RemediationHistoryBaseData,
+} from '@asr/data-models';
 import { ErrorUtils } from '../../common/utils/errorUtils';
-import { getSecurityHubConsoleUrl } from '../../common/utils/findingUtils';
+import { extractASFFFinding, buildOrchestratorInput } from '../../common/utils/findingExtraction';
+import { toCsv, FINDING_CSV_COLUMNS } from '../../common/utils/csvExport';
+import { getSecurityHubConsoleUrl, tryFindingKeyFromFindingId } from '../../common/utils/findingUtils';
 import { BadRequestError } from '../../common/utils/httpErrors';
 import { sendMetrics } from '../../common/utils/metricsUtils';
-import { executeOrchestrator } from '../../common/utils/orchestrator';
-import { mapRemediationStatus } from '../../common/utils/remediationStatusMapper';
+import { triggerRemediationForFinding } from '../../common/utils/remediationTrigger';
+import { calculateTtlTimestamp } from '../../common/utils/ttlUtils';
+import { Clock, getClock } from '../../common/utils/clock';
+import { IdGenerator, getIdGenerator } from '../../common/utils/idGenerator';
 import { AuthenticatedUser } from './authorization';
 import { BaseSearchService } from './baseSearchService';
 import { ASRS3Client } from '../clients/ASRS3Client';
+import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
+
+interface FetchFindingsResult {
+  findings: FindingTableItem[];
+  unresolvedIds: FindingId[];
+}
+
+type PersistHistoryFn = (finding: FindingTableItem, executionId: string) => Promise<void>;
 
 export class FindingsService extends BaseSearchService {
   private readonly findingRepository: FindingRepository;
   private readonly remediationHistoryRepository: RemediationHistoryRepository;
   private readonly s3Client: ASRS3Client;
+  private readonly idGenerator: IdGenerator;
+  private readonly clock: Clock;
 
-  constructor(logger: Logger) {
+  constructor(
+    logger: Logger,
+    idGenerator: IdGenerator = getIdGenerator(),
+    clock: Clock = getClock(),
+    findingRepository?: FindingRepository,
+    remediationHistoryRepository?: RemediationHistoryRepository,
+  ) {
     super(logger);
+    this.idGenerator = idGenerator;
+    this.clock = clock;
 
-    this.findingRepository = new FindingRepository(SCOPE_NAME, process.env.FINDINGS_TABLE_NAME!, this.dynamoDBClient);
+    const env = apiLambdaEnvironment();
+    this.findingRepository =
+      findingRepository ?? new FindingRepository(SCOPE_NAME, env.FINDINGS_TABLE_NAME, this.dynamoDBClient);
 
-    this.remediationHistoryRepository = new RemediationHistoryRepository(
-      SCOPE_NAME,
-      process.env.REMEDIATION_HISTORY_TABLE_NAME!,
-      this.dynamoDBClient,
-      process.env.FINDINGS_TABLE_NAME!,
-    );
+    this.remediationHistoryRepository =
+      remediationHistoryRepository ??
+      new RemediationHistoryRepository(
+        SCOPE_NAME,
+        env.REMEDIATION_HISTORY_TABLE_NAME,
+        this.dynamoDBClient,
+        env.FINDINGS_TABLE_NAME,
+      );
 
     this.s3Client = new ASRS3Client();
   }
@@ -73,26 +108,50 @@ export class FindingsService extends BaseSearchService {
     }
   }
 
-  async executeAction(request: FindingsActionRequest, principal: string): Promise<void> {
-    try {
-      const findings = await this.findingRepository.findByFindingIds(request.findingIds);
+  /**
+   * Reads the findings targeted by an action from DynamoDB. This is read-only:
+   * Rollback reconstructs from remediation history (falling back to the
+   * findings table), key-based requests use explicit (findingType, findingId)
+   * keys, and everything else derives the partition key from the finding-id
+   * ARN. The returned records carry the authoritative `accountId` used for
+   * account-scoped authorization; callers pass them straight to
+   * {@link executeActionOnFindings} so the findings are fetched only once.
+   */
+  async fetchFindingsForAction(request: FindingsActionRequest): Promise<FetchFindingsResult> {
+    if (request.actionType === 'Rollback') {
+      return this.findingsForRollback(request.findingIds, request.findingKeys);
+    }
+    if (request.findingKeys?.length) {
+      return { findings: await this.findingRepository.findByKeys(request.findingKeys), unresolvedIds: [] };
+    }
+    const { findings, nonDerivableIds } = await this.findingRepository.findByFindingIds(request.findingIds);
+    return { findings, unresolvedIds: nonDerivableIds };
+  }
 
+  async executeAction(request: FindingsActionRequest, principal: string): Promise<{ unresolvedIds?: FindingId[] }> {
+    const { findings, unresolvedIds } = await this.fetchFindingsForAction(request);
+    const skippedIds = await this.executeActionOnFindings(request, findings, principal);
+    const allSkipped = [...unresolvedIds, ...skippedIds];
+    return { unresolvedIds: allSkipped.length > 0 ? allSkipped : undefined };
+  }
+
+  /**
+   * Executes an action against findings already fetched via
+   * {@link fetchFindingsForAction}. Kept separate from the fetch so the API
+   * handler can authorize against the fetched records before mutating state
+   * (e.g. Rollback acquires its optimistic lock here, after authorization).
+   */
+  async executeActionOnFindings(
+    request: FindingsActionRequest,
+    findings: FindingTableItem[],
+    principal: string,
+  ): Promise<FindingId[]> {
+    try {
       if (findings.length === 0) {
         throw new BadRequestError('No findings found for the provided IDs');
       }
 
-      const fieldUpdates = await this.getFieldUpdatesForAction(request.actionType, findings);
-
-      if (request.actionType === 'Remediate' || request.actionType === 'RemediateAndGenerateTicket') {
-        await this.executeRemediationWithHistory(findings, fieldUpdates, principal);
-      } else {
-        if (this.isSuppressionResult(fieldUpdates)) {
-          const updatedFindings = this.prepareUpdatedFindings(principal, findings, fieldUpdates);
-          await this.findingRepository.putAll(...updatedFindings);
-        } else {
-          throw new Error('Invalid field updates for suppression action');
-        }
-      }
+      return await this.dispatchAction(request, findings, principal);
     } catch (error) {
       this.logger.error('Error executing action', {
         actionType: request.actionType,
@@ -104,24 +163,123 @@ export class FindingsService extends BaseSearchService {
     }
   }
 
-  private async executeRemediationWithHistory(
+  private async dispatchAction(
+    request: FindingsActionRequest,
     findings: FindingTableItem[],
-    fieldUpdates: ActionResult,
     principal: string,
-  ): Promise<void> {
-    const { remediationStatus, executionIdsByFindingId = new Map() } = fieldUpdates as RemediationResult;
+  ): Promise<FindingId[]> {
+    switch (request.actionType) {
+      case 'Remediate':
+      case 'RemediateAndGenerateTicket':
+        return this.executeRemediation(
+          request.actionType,
+          findings,
+          principal,
+          this.remediationHistoryRepository.createRemediationHistoryWithFindingUpdate.bind(
+            this.remediationHistoryRepository,
+          ),
+        );
+      case 'Rollback': {
+        const lockedFindings = await this.acquireRollbackLocks(findings);
+        return this.executeRemediation(
+          'Rollback',
+          lockedFindings,
+          principal,
+          this.remediationHistoryRepository.createRemediationHistory.bind(this.remediationHistoryRepository),
+        );
+      }
+      case 'Suppress':
+      case 'Unsuppress':
+        await this.applySuppression(request.actionType, findings, principal);
+        return [];
+      default:
+        throw new Error(`Unsupported action type: ${request.actionType}`);
+    }
+  }
+
+  /**
+   * Invokes the Orchestrator for each finding and persists its remediation-history record inline, as
+   * soon as that finding's execution starts. History is written per finding (not in a deferred second
+   * pass), so if a finding's orchestrator invocation throws, findings already processed keep their
+   * history and IN_PROGRESS status, and the error propagates to the caller. A finding whose
+   * invocation returns no execution id is skipped (no history row) and processing continues.
+   */
+  private async executeRemediation(
+    actionType: keyof typeof ACTION_TYPE_TO_ASR_ACTION_NAME,
+    findings: FindingTableItem[],
+    principal: string,
+    persistHistory: PersistHistoryFn,
+  ): Promise<FindingId[]> {
+    let persistedCount = 0;
+    const skippedFindingIds: FindingId[] = [];
 
     for (const finding of findings) {
-      const executionId = executionIdsByFindingId.get(finding.findingId);
-      const updatedFinding = {
-        ...finding,
-        remediationStatus: mapRemediationStatus(remediationStatus),
-        ...(executionId && { executionId }),
-        lastUpdatedBy: principal,
-      };
+      // Resource-type guard (shared source of truth in @asr/data-models). A
+      // multi-service remediation can only act on specific resource types (for
+      // example Inspector.InstanceVulnerability supports EC2 instances only, not
+      // Lambda functions or ECR images). Findings stored under an earlier build
+      // that predated this guard could otherwise be manually remediated here and
+      // fail deep in the runbook. Skip them with a clear message instead of
+      // starting a doomed execution; skipped ids surface to the caller as
+      // unresolvedIds.
+      if (!isResourceTypeSupportedForRemediation(finding.findingType, finding.resourceType)) {
+        const supportedResourceTypes = getSupportedResourceTypes(finding.findingType) ?? [];
+        this.logger.warn('Skipping remediation: resource type not supported for this remediation', {
+          findingId: finding.findingId,
+          remediationId: finding.findingType,
+          resourceType: finding.resourceType,
+          supportedResourceTypes,
+          actionType,
+        });
+        skippedFindingIds.push(finding.findingId);
+        continue;
+      }
 
-      await this.remediationHistoryRepository.createRemediationHistoryWithFindingUpdate(updatedFinding, executionId);
+      const asffFinding = extractASFFFinding(finding);
+      const orchestratorInput = this.buildOrchestratorInput(
+        finding.findingType,
+        asffFinding,
+        actionType,
+        finding.rollbackBackupKey,
+      );
+      const executionId = await triggerRemediationForFinding({
+        orchestratorInput,
+        logger: this.logger,
+        persistHistory: (execId) =>
+          persistHistory(
+            { ...finding, remediationStatus: 'IN_PROGRESS', executionId: execId, lastUpdatedBy: principal },
+            execId,
+          ),
+      });
+
+      // A missing executionId means the orchestrator did not start; skip history for this finding
+      // rather than writing a record with a malformed `findingId#` composite key.
+      if (!executionId) {
+        this.logger.warn('Failed to get execution ID for finding', { findingId: finding.findingId, actionType });
+        skippedFindingIds.push(finding.findingId);
+        continue;
+      }
+      persistedCount++;
     }
+
+    if (findings.length > 0 && persistedCount === 0) {
+      this.logger.warn('No remediation history persisted — orchestrator returned no executionId for any finding', {
+        findingCount: findings.length,
+      });
+    }
+    return skippedFindingIds;
+  }
+
+  private async applySuppression(
+    actionType: 'Suppress' | 'Unsuppress',
+    findings: FindingTableItem[],
+    principal: string,
+  ): Promise<void> {
+    if (actionType === 'Suppress') {
+      await sendMetrics({ finding_suppressed: 1 });
+    }
+    const updatedFindings = this.prepareUpdatedFindings(principal, findings, { suppressed: actionType === 'Suppress' });
+    await this.findingRepository.putAll(...updatedFindings);
   }
 
   private prepareUpdatedFindings(
@@ -137,108 +295,204 @@ export class FindingsService extends BaseSearchService {
     }));
   }
 
-  private isSuppressionResult(result: ActionResult): result is SuppressionResult {
-    return 'suppressed' in result;
-  }
+  /**
+   * For rollback: reconstruct from history first (history carries the findingJSON needed for
+   * rollback), then fall back to the findings table on a per-finding basis for any IDs without a
+   * usable history entry. The fallback is per-finding rather than all-or-nothing so findings that
+   * only exist in the table aren't silently dropped just because others were reconstructed.
+   *
+   * Prefers caller-supplied `findingKeys` for the table leg. Deriving the partition key from a
+   * finding id only works for Security Hub ARNs, so a finding whose id is not an ARN (for example
+   * Macie's bare-hash FindingInfoUid) would be silently dropped by findByFindingIds. No
+   * rollback-eligible control has such ids today, so this is hardening rather than a fix, and it
+   * removes a correctness dependency on which controls happen to be rollback-eligible. See ADR 0010.
+   */
+  private async findingsForRollback(findingIds: FindingId[], findingKeys?: FindingKey[]): Promise<FetchFindingsResult> {
+    const fromHistory = await this.reconstructFindingsFromHistory(findingIds);
+    const reconstructedIds = new Set(fromHistory.map((finding) => finding.findingId));
+    const missingIds = findingIds.filter((findingId) => !reconstructedIds.has(findingId));
 
-  private async getFieldUpdatesForAction(actionType: string, findings: FindingTableItem[]): Promise<ActionResult> {
-    switch (actionType) {
-      case 'Suppress':
-        await sendMetrics({ finding_suppressed: 1 });
-        return { suppressed: true };
-      case 'Unsuppress':
-        return { suppressed: false };
-      case 'Remediate':
-        return await this.executeRemediationWithTracking('Remediate', findings);
-      case 'RemediateAndGenerateTicket':
-        return await this.executeRemediationWithTracking('RemediateAndGenerateTicket', findings);
-      default:
-        throw new Error(`Unsupported action type: ${actionType}`);
+    if (missingIds.length === 0) {
+      return { findings: fromHistory, unresolvedIds: [] };
     }
-  }
 
-  private static extractASFFFinding(findingTableItem: FindingTableItem): ASFFFinding {
-    try {
-      if (!findingTableItem.findingJSON) {
-        throw new Error('No findingJSON data available');
+    // One key per missing finding: the caller's explicit key when supplied, otherwise derived from
+    // the id. Deduplicated because BatchGetItem rejects repeated keys and a client may legitimately
+    // repeat a findingId. A finding with neither an explicit nor a derivable key cannot be looked up
+    // at all, so it is reported. See ADR 0010.
+    const suppliedKeys = new Map((findingKeys ?? []).map((key) => [key.findingId, key]));
+    const keys: FindingKey[] = [];
+    const nonDerivableIds: FindingId[] = [];
+
+    for (const findingId of new Set(missingIds)) {
+      const key = suppliedKeys.get(findingId) ?? tryFindingKeyFromFindingId(findingId);
+      if (key) {
+        keys.push(key);
+      } else {
+        nonDerivableIds.push(findingId);
       }
-      const decompressed = inflate(findingTableItem.findingJSON, { to: 'string' });
-      return JSON.parse(decompressed);
-    } catch (error) {
-      throw new Error(`Failed to extract ASFF finding: ${ErrorUtils.formatErrorMessage(error)}`);
     }
-  }
 
-  private static buildOrchestratorInput(asffFinding: ASFFFinding, actionType: string): string {
-    const actionName = actionType === 'RemediateAndGenerateTicket' ? 'ASR:Remediate&Ticket' : 'Remediate with ASR';
+    const fromTable = await this.findingRepository.findByKeys(keys);
 
-    return JSON.stringify({
-      version: '0',
-      id: crypto.randomUUID(),
-      'detail-type': 'Security Hub Findings - API Action',
-      source: 'aws.securityhub',
-      account: asffFinding.AwsAccountId,
-      region: asffFinding.Region,
-      time: new Date().toISOString(),
-      resources: [
-        `arn:aws:securityhub:${asffFinding.Region}:${asffFinding.AwsAccountId}:action/custom/api-${actionType.toLowerCase()}`,
-      ],
-      detail: {
-        findings: [asffFinding],
-        actionName,
-        actionDescription: `API-triggered ${actionType}`,
-      },
-    });
+    const foundInTable = new Set(fromTable.map((f) => f.findingId));
+    const unresolvedIds = missingIds.filter((id) => !foundInTable.has(id));
+    if (unresolvedIds.length > 0) {
+      this.logger.warn(
+        'Findings excluded from rollback: not found in history or the findings table. nonDerivableIds is the subset that was never queried and needs an explicit findingKeys entry',
+        { unresolvedIds, nonDerivableIds },
+      );
+    }
+
+    return { findings: [...fromHistory, ...fromTable], unresolvedIds };
   }
 
   /**
-   * Common method for executing remediation actions
+   * Reconstruct minimal FindingTableItems from history entries that have findingJSON.
+   * Used for rollback when the finding is not available in the findings table.
    */
-  private async executeRemediationWithTracking(
-    actionType: string,
-    findings: FindingTableItem[],
-  ): Promise<RemediationResult> {
-    const findingCount = findings.length || 0;
+  private async reconstructFindingsFromHistory(findingIds: FindingId[]): Promise<FindingTableItem[]> {
+    const CONCURRENCY_LIMIT = 25;
+    const results: FindingTableItem[] = [];
 
-    this.logger.debug(`Starting ${actionType} async process`, {
-      findingCount,
-    });
-
-    try {
-      const executionIdsByFindingId = new Map<string, string>();
-
-      for (const findingTableItem of findings) {
-        const asffFinding = FindingsService.extractASFFFinding(findingTableItem);
-        const orchestratorInput = FindingsService.buildOrchestratorInput(asffFinding, actionType);
-        const executionId = await executeOrchestrator(orchestratorInput, this.logger);
-
-        if (executionId) {
-          executionIdsByFindingId.set(findingTableItem.findingId, executionId);
+    for (let i = 0; i < findingIds.length; i += CONCURRENCY_LIMIT) {
+      const chunk = findingIds.slice(i, i + CONCURRENCY_LIMIT);
+      const chunkResults = await Promise.all(
+        chunk.map((findingId) => this.remediationHistoryRepository.findLatestSuccessWithFindingJSON(findingId)),
+      );
+      for (let j = 0; j < chunk.length; j++) {
+        const entry = chunkResults[j];
+        if (entry?.findingJSON?.length) {
+          results.push(this.buildFindingTableItemFromHistoryEntry({ ...entry, findingJSON: entry.findingJSON }));
         } else {
-          this.logger.warn('Failed to get execution ID for finding', {
-            findingId: findingTableItem.findingId,
-            actionType,
+          this.logger.warn('Could not reconstruct finding from history — no SUCCESS entry with findingJSON', {
+            findingId: chunk[j],
           });
         }
       }
-
-      return {
-        remediationStatus: 'IN_PROGRESS',
-        executionIdsByFindingId,
-      };
-    } catch (error) {
-      const errorMessage = ErrorUtils.formatErrorMessage(error);
-
-      this.logger.error(`Failed to execute ${actionType} orchestrator`, {
-        error: errorMessage,
-        findingCount,
-      });
-
-      return {
-        remediationStatus: 'FAILED',
-        error: errorMessage,
-      };
     }
+    return results;
+  }
+
+  /**
+   * Maps a history entry (which carries the preserved findingJSON) onto a minimal
+   * FindingTableItem suitable for rollback execution.
+   *
+   * `findingDescription` and `suppressed` are intentionally hardcoded: the history record
+   * does not persist these fields, and the rollback path only needs the identifying fields
+   * plus findingJSON to invoke the runbook. They are not read by downstream rollback logic.
+   */
+  private buildFindingTableItemFromHistoryEntry(
+    entry: RemediationHistoryBaseData & { findingJSON: Uint8Array },
+  ): FindingTableItem {
+    const severityNormalized = normalizeSeverity(entry.severity);
+    return {
+      findingType: entry.findingType,
+      findingId: entry.findingId,
+      accountId: entry.accountId,
+      resourceId: entry.resourceId,
+      resourceType: entry.resourceType,
+      resourceTypeNormalized: entry.resourceTypeNormalized,
+      severity: entry.severity,
+      region: entry.region,
+      remediationStatus: entry.remediationStatus,
+      lastUpdatedTime: entry.lastUpdatedTime,
+      findingJSON: entry.findingJSON,
+      findingDescription: '',
+      securityHubUpdatedAtTime: entry.lastUpdatedTime,
+      'securityHubUpdatedAtTime#findingId': `${entry.lastUpdatedTime}#${entry.findingId}`,
+      'severityNormalized#securityHubUpdatedAtTime#findingId': `${severityNormalized}#${entry.lastUpdatedTime}#${entry.findingId}`,
+      findingIdControl: `${entry.findingId}#${entry.findingType}`,
+      severityNormalized,
+      suppressed: false,
+      creationTime: entry.lastUpdatedTime,
+      lastUpdatedBy: entry.lastUpdatedBy,
+      FINDING_CONSTANT: 'finding',
+      expireAt: calculateTtlTimestamp(entry.lastUpdatedTime),
+      // Carry the Contain backup key (if the history entry has it) so the
+      // rollback can pass it to the runbook as BackupS3KeyName.
+      ...(entry.rollbackBackupKey ? { rollbackBackupKey: entry.rollbackBackupKey } : {}),
+    };
+  }
+
+  /**
+   * Acquires the rollback lock for each GuardDuty.IAMUser finding and returns the
+   * findings that the caller may roll back.
+   *
+   * Validates the finding type, then per finding transitions its status to
+   * ROLLBACK_IN_PROGRESS via a conditional write. That write is both the
+   * eligibility gate and the double-rollback guard: it only succeeds from
+   * SUCCESS / ROLLBACK_FAILED (or a stale in-progress lock). Rejects the whole
+   * request if any finding is already rolling back or is not in an initiable
+   * state, so a partial rollback is never started.
+   */
+  private async acquireRollbackLocks(findings: FindingTableItem[]): Promise<FindingTableItem[]> {
+    const wrongType = findings.filter((f) => !f.findingType.endsWith(ROLLBACK_ELIGIBLE_FINDING_TYPE));
+    if (wrongType.length > 0) {
+      const wrongTypeIds = wrongType.map((f) => f.findingId).join(', ');
+      throw new BadRequestError(
+        `Rollback is only supported for ${ROLLBACK_ELIGIBLE_FINDING_TYPE} findings. Non-eligible finding IDs: ${wrongTypeIds}`,
+      );
+    }
+
+    const now = this.clock.now();
+    const nowIso = now.toISOString();
+    const staleBefore = new Date(now.getTime() - ROLLBACK_TIMEOUT_MS).toISOString();
+
+    const lockedFindings: FindingTableItem[] = [];
+    const alreadyInProgress: FindingId[] = [];
+    const ineligible: FindingId[] = [];
+
+    for (const finding of findings) {
+      // History-reconstructed findings may not have a live findings-table row
+      // (the original row can TTL-expire). The lock lives on that row, so
+      // re-materialise it before acquiring. createIfNotExists is a no-op when
+      // the row already exists.
+      await this.findingRepository.createIfNotExists(finding);
+
+      const lockResult = await this.findingRepository.tryAcquireRollbackLock(
+        finding.findingType,
+        finding.findingId,
+        nowIso,
+        staleBefore,
+      );
+
+      if (lockResult === 'ACQUIRED') {
+        lockedFindings.push({ ...finding, remediationStatus: 'ROLLBACK_IN_PROGRESS' });
+      } else if (lockResult === 'IN_PROGRESS') {
+        alreadyInProgress.push(finding.findingId);
+      } else {
+        ineligible.push(finding.findingId);
+      }
+    }
+
+    if (alreadyInProgress.length > 0) {
+      throw new BadRequestError(`Rollback already in progress for finding(s): ${alreadyInProgress.join(', ')}`);
+    }
+
+    if (ineligible.length > 0) {
+      throw new BadRequestError(
+        `Rollback requires a successful remediation (or a previously failed rollback). Non-eligible finding IDs: ${ineligible.join(', ')}`,
+      );
+    }
+
+    return lockedFindings;
+  }
+
+  private buildOrchestratorInput(
+    remediationId: string,
+    asffFinding: ASFFFinding,
+    actionType: keyof typeof ACTION_TYPE_TO_ASR_ACTION_NAME,
+    rollbackBackupKey?: string,
+  ): string {
+    return buildOrchestratorInput(
+      remediationId,
+      asffFinding,
+      actionType,
+      this.idGenerator,
+      this.clock,
+      rollbackBackupKey,
+    );
   }
 
   async exportFindings(
@@ -319,8 +573,8 @@ export class FindingsService extends BaseSearchService {
     let batchCount = 0;
 
     const startTime = Date.now();
-    const MAX_TIME = Number(process.env.EXPORT_MAX_TIME_MS) || 26000;
-    const MAX_RECORDS = Number(process.env.EXPORT_MAX_RECORDS) || 50000;
+    const MAX_TIME = Number(apiLambdaEnvironment().EXPORT_MAX_TIME_MS) || 26000;
+    const MAX_RECORDS = Number(apiLambdaEnvironment().EXPORT_MAX_RECORDS) || 50000;
 
     this.logger.debug('Starting export data fetch with safety limits', {
       totalFilters: searchCriteria.filters.length,
@@ -387,69 +641,18 @@ export class FindingsService extends BaseSearchService {
   }
 
   private convertFindingsToCSV(findings: FindingTableItem[]): string {
-    const displayHeaders = [
-      'Finding ID',
-      'Finding Type',
-      'Finding Title',
-      'Account',
-      'Resource ID',
-      'Resource Type',
-      'Severity',
-      'Region',
-      'Remediation Status',
-      'Security Hub Updated Time',
-      'Suppressed',
-    ];
-
-    const fieldNames = [
-      'findingId',
-      'findingType',
-      'findingDescription',
-      'accountId',
-      'resourceId',
-      'resourceTypeNormalized',
-      'severity',
-      'region',
-      'remediationStatus',
-      'securityHubUpdatedAtTime',
-      'suppressed',
-    ];
-
-    const csvRows = [displayHeaders.join(',')];
-
-    if (findings.length === 0) {
-      this.logger.info('No findings data found for export - returning empty CSV with headers only');
-      return csvRows.join('\n');
-    }
-
-    for (const finding of findings) {
-      const row = fieldNames.map((fieldName) => {
-        const value = finding[fieldName as keyof FindingTableItem];
-        if (value === null || value === undefined) {
-          return '';
-        }
-        const stringValue = String(value);
-        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-          return `"${stringValue.replace(/"/g, '""')}"`;
-        }
-        return stringValue;
-      });
-      csvRows.push(row.join(','));
-    }
+    const csv = toCsv(findings, FINDING_CSV_COLUMNS);
 
     this.logger.debug('CSV conversion completed', {
-      totalRows: csvRows.length - 1, // Exclude header row
-      totalColumns: displayHeaders.length,
+      totalRows: findings.length,
+      totalColumns: FINDING_CSV_COLUMNS.length,
     });
 
-    return csvRows.join('\n');
+    return csv;
   }
 
   private async uploadToS3AndGenerateUrl(csvContent: string): Promise<string> {
-    const bucketName = process.env.CSV_EXPORT_BUCKET_NAME;
-    if (!bucketName) {
-      throw new Error('CSV_EXPORT_BUCKET_NAME environment variable not set');
-    }
+    const bucketName = apiLambdaEnvironment().CSV_EXPORT_BUCKET_NAME;
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `findings-export-${timestamp}.csv`;
@@ -474,6 +677,9 @@ export class FindingsService extends BaseSearchService {
       FINDING_CONSTANT: _findingConstant,
       lastUpdatedBy: _lastUpdatedBy,
       expireAt: _expireAt,
+      firstDetectedTime: _firstDetectedTime,
+      hasFindingNotificationsEnabled: _hasFindingNotificationsEnabled,
+      hasFindingRemediationDeadlineConfigured: _hasFindingRemediationDeadlineConfigured,
       ...baseApiResponse
     } = item;
 

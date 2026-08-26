@@ -5,6 +5,7 @@ import { CopyObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from 
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { MAX_PRESIGNED_URL_EXPIRY_SECONDS } from '../../common/constants/apiConstant';
+import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
 
 export class ASRS3Client {
   private s3Client: S3Client;
@@ -118,7 +119,7 @@ export class ASRS3Client {
         Key: fileName,
       });
 
-      const ttlDays = Number(process.env.PRESIGNED_URL_TTL_DAYS) || 1;
+      const ttlDays = Number(apiLambdaEnvironment().PRESIGNED_URL_TTL_DAYS) || 1;
       const expiresInSeconds = Math.min(ttlDays * 24 * 60 * 60, MAX_PRESIGNED_URL_EXPIRY_SECONDS);
       const presignedUrl = await getSignedUrl(this.s3Client, getCommand, {
         expiresIn: expiresInSeconds,

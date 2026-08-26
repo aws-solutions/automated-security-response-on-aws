@@ -5,12 +5,14 @@ from layer.event_transformers import (
     add_optional_finding_fields,
     extract_account_id,
     extract_region,
+    extract_resource_owner_account,
     extract_resources,
     extract_severity,
     extract_stepfunctions_execution_id,
     is_notified_workflow,
     is_resolved_item,
     parse_orchestrator_input,
+    resolve_finding_account_id,
     transform_stepfunctions_failure_event,
 )
 
@@ -302,6 +304,110 @@ def test_extract_account_id_empty():
 
     # ASSERT
     assert result == ""
+
+
+def test_extract_resource_owner_account_present():
+    # ARRANGE: IAM Access Analyzer finding carrying the resource-owner account
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "Finding": {
+            "Id": "test-id",
+            "ProductFields": {"ResourceOwnerAccount": "222222222222"},
+        },
+    }
+
+    # ACT
+    result = extract_resource_owner_account(event)
+
+    # ASSERT
+    assert result == "222222222222"
+
+
+def test_extract_resource_owner_account_absent():
+    # ARRANGE: no ProductFields at all
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "Finding": {"Id": "test-id"},
+    }
+
+    # ACT
+    result = extract_resource_owner_account(event)
+
+    # ASSERT
+    assert result == ""
+
+
+def test_resolve_finding_account_id_prefers_resource_owner_account():
+    # ARRANGE: org-analyzer IAA finding (native access-analyzer ARN) where
+    # AccountId/AwsAccountId (admin) differs from the resource owner
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "AccountId": "111111111111",
+        "Finding": {
+            "Id": "arn:aws:access-analyzer:us-east-1:111111111111:analyzer/org/arn:aws:kms:us-east-1:222222222222:key/abc",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {"ResourceOwnerAccount": "222222222222"},
+        },
+    }
+
+    # ACT
+    result = resolve_finding_account_id(event)
+
+    # ASSERT: the resource-owner account wins over the administrator account
+    assert result == "222222222222"
+
+
+def test_resolve_finding_account_id_ignores_resource_owner_account_for_non_access_analyzer():
+    # ARRANGE: a non-Access-Analyzer finding that nonetheless carries
+    # ProductFields.ResourceOwnerAccount must not have its account overridden
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "Finding": {
+            "Id": "arn:aws:securityhub:us-east-1:987654321098:security-control/S3.1/finding/abc",
+            "AwsAccountId": "987654321098",
+            "ProductFields": {"ResourceOwnerAccount": "222222222222"},
+        },
+    }
+
+    # ACT
+    result = resolve_finding_account_id(event)
+
+    # ASSERT: falls back to AwsAccountId, ignoring ResourceOwnerAccount
+    assert result == "987654321098"
+
+
+def test_resolve_finding_account_id_falls_back_to_account_id():
+    # ARRANGE: no ResourceOwnerAccount, so the standard account resolution applies
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "Finding": {"Id": "test-id", "AwsAccountId": "987654321098"},
+    }
+
+    # ACT
+    result = resolve_finding_account_id(event)
+
+    # ASSERT
+    assert result == "987654321098"
+
+
+def test_resolve_finding_account_id_falls_back_for_non_12_digit_resource_owner_account():
+    # ARRANGE: an Access Analyzer finding whose ResourceOwnerAccount is crafted/malformed.
+    # The history-write path falls back to AwsAccountId (unlike the findings-table
+    # write, which fails closed) since the remediation has already run.
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "Finding": {
+            "Id": "arn:aws:access-analyzer:us-east-1:111111111111:analyzer/org/arn:aws:kms:us-east-1:222222222222:key/abc",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {"ResourceOwnerAccount": "not-an-account"},
+        },
+    }
+
+    # ACT
+    result = resolve_finding_account_id(event)
+
+    # ASSERT: the malformed value is rejected and AwsAccountId is used
+    assert result == "111111111111"
 
 
 def test_extract_region_from_root():

@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
+import re
 import time
 from typing import Any, Dict
 
@@ -71,6 +72,21 @@ def validate_cloudtrail_policy_statements(
     return result
 
 
+def _extract_expected_bucket_owner(trail_arn: str, trail_name: str) -> str:
+    """Extract and validate the account id from the trail ARN.
+
+    The trail ARN's account (arn:<partition>:cloudtrail:<region>:<account>:trail/...)
+    owns the trail and, for account-level trails, its log bucket. Asserting it as
+    ExpectedBucketOwner prevents reading a sniped/re-created bucket in another
+    account (CWE-283). Validating the ARN shape ensures a malformed ARN cannot
+    silently yield a wrong owner.
+    """
+    arn_parts = trail_arn.split(":")
+    if len(arn_parts) < 5 or not re.fullmatch(r"\d{12}", arn_parts[4]):
+        raise ValueError(f"Trail {trail_name} has malformed ARN: {trail_arn}")
+    return arn_parts[4]
+
+
 def validate_cloudtrail_bucket_policy(event, _):
     boto_config = Config(retries={"mode": "standard", "max_attempts": 3})
     s3 = boto3.client("s3", config=boto_config)
@@ -87,10 +103,14 @@ def validate_cloudtrail_bucket_policy(event, _):
         if not bucket or not trail_arn:
             raise ValueError(f"Trail {trail_name} missing S3 bucket or ARN")
 
+        bucket_owner = _extract_expected_bucket_owner(trail_arn, trail_name)
+
         current_policy = None
         for attempt in range(3):
             try:
-                policy_response = s3.get_bucket_policy(Bucket=bucket)
+                policy_response = s3.get_bucket_policy(
+                    Bucket=bucket, ExpectedBucketOwner=bucket_owner
+                )
                 current_policy = json.loads(policy_response["Policy"])
                 break
             except ClientError as e:

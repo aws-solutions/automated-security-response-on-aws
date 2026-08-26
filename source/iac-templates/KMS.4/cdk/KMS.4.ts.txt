@@ -1,0 +1,8 @@
+// KMS.4 — KMS key rotation should be enabled
+//
+// ASR remediation enables automatic key rotation for the customer-managed symmetric KMS key.
+// To apply this fix, add or update the enableKeyRotation property on your Key construct.
+
+new kms.Key(this, '{kmsKey}', {
+  enableKeyRotation: true,
+});

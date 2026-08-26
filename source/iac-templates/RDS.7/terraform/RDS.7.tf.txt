@@ -1,0 +1,9 @@
+# RDS.7 — RDS clusters should have deletion protection enabled
+#
+# ASR remediation enables deletion protection on the RDS DB cluster by calling
+# ModifyDBCluster with DeletionProtection set to true.
+# To apply this fix, set deletion_protection to true on your aws_rds_cluster resource.
+
+resource "aws_rds_cluster" "{dbCluster}" {
+  deletion_protection = true
+}

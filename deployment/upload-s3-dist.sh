@@ -25,19 +25,20 @@ function do_replace {
     do_cmd sed -i -e $replace $file
 }
 
-# Optional -y as the first argument auto-confirms the upload prompt (for non-interactive
-# callers such as deploy-dev.sh); the region follows.
-assume_yes="no"
-if [ "${1:-}" = "-y" ]; then
-    assume_yes="yes"
-    shift
-fi
+# Parse arguments — accepts a region and optional -y to skip confirmation
+# Usage: ./upload-s3-dist.sh [-y] <region>
+SKIP_CONFIRM=false
+region=""
+for arg in "$@"; do
+    case "$arg" in
+        -y) SKIP_CONFIRM=true ;;
+        *)  region="$arg" ;;
+    esac
+done
 
-if [ -z "${1:-}" ]; then
-    echo "You must specify a region to deploy to. Ex. us-east-1"
+if [ -z "$region" ]; then
+    echo "You must specify a region to deploy to. Ex. ./upload-s3-dist.sh us-east-1"
     exit 1
-else
-    region=$1
 fi
 
 if [ -e "./setenv.sh" ]; then
@@ -56,9 +57,7 @@ solution_name=$DIST_SOLUTION_NAME
 version=$DIST_VERSION
 
 # Test the AWS CLI
-# Use --query/--output text so this does not depend on the CLI's default output format
-# (a yaml/table default breaks a jq pipe here); no jq dependency either.
-account=`aws sts get-caller-identity --query Account --output text`
+account=$(aws sts get-caller-identity --query Account --output text)
 status=$?
 if [ $status != 0 ]; then
     echo "The AWS CLI is not present or not configured."
@@ -67,7 +66,7 @@ fi
 echo Running in account id ${account}
 
 # Validate region
-region_check=`aws ec2 describe-regions --region $region --output text | grep ec2.$region.amazonaws.com | wc -l`
+region_check=`aws ec2 describe-regions --region $region | grep ec2.$region.amazonaws.com | wc -l`
 status=$?
 if [ $status != 0 ] | [ $region_check != 1 ]; then
     echo "$region is not a valid AWS region name."
@@ -88,18 +87,16 @@ if [ $status != 0 ]; then
     exit 1
 fi
 
-echo "*******************************************************************************"
-echo "*******************************************************************************"
-echo "**********                    I M P O R T A N T                      **********"
-echo "*******************************************************************************"
-echo "** You are about to upload templates and code to S3. Please confirm that     **"
-echo "** buckets ${bucket}-reference and ${bucket}-${region} are appropriately     **"
-echo "** secured (not world-writeable, public access blocked) before continuing.   **"
-echo "*******************************************************************************"
-echo "*******************************************************************************"
-if [ "$assume_yes" = "yes" ]; then
-    echo "PROCEED WITH UPLOAD? (y/n) [n]: y (auto-confirmed via -y)"
-else
+if [ "$SKIP_CONFIRM" != true ]; then
+    echo "*******************************************************************************"
+    echo "*******************************************************************************"
+    echo "**********                    I M P O R T A N T                      **********"
+    echo "*******************************************************************************"
+    echo "** You are about to upload templates and code to S3. Please confirm that     **"
+    echo "** buckets ${bucket}-reference and ${bucket}-${region} are appropriately     **"
+    echo "** secured (not world-writeable, public access blocked) before continuing.   **"
+    echo "*******************************************************************************"
+    echo "*******************************************************************************"
     echo "PROCEED WITH UPLOAD? (y/n) [n]: "
     read input
     if [ "$input" != "y" ] ; then

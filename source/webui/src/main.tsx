@@ -7,13 +7,15 @@ import { sessionStorage } from 'aws-amplify/utils';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import { AppComponent } from './App.tsx';
 import { ConfigContextProvider } from './contexts/ConfigContext.tsx';
 import { NotificationContextProvider } from './contexts/NotificationContext.tsx';
 import { UserContextProvider } from './contexts/UserContext.tsx';
+import { MockUserContextProvider } from './contexts/MockUserContext.tsx';
 import { startMockServer } from './mocks/browser.ts';
 import { setupStore } from './store/store.ts';
+import { SplitPanelProvider } from './contexts/SplitPanelContext.tsx';
 import './styles.css';
 
 /**
@@ -62,7 +64,7 @@ getRuntimeConfig().then((json) => {
   };
   console.log(awsconfig);
   Amplify.configure(awsconfig);
-  
+
   // Configure session storage for auth tokens
   cognitoUserPoolsTokenProvider.setKeyValueStorage(sessionStorage);
 
@@ -75,7 +77,8 @@ getRuntimeConfig().then((json) => {
 
   // Extract configuration for the app
   const appConfig = {
-    ticketingEnabled: json.ticketingEnabled === 'true'
+    ticketingEnabled: json.ticketingEnabled === 'true',
+    solutionVersion: json.solutionVersion,
   };
 
   root.render(
@@ -84,13 +87,17 @@ getRuntimeConfig().then((json) => {
         <Provider store={store}>
           <ConfigContextProvider config={appConfig}>
             <NotificationContextProvider>
-              {isAuthConfigured ? (
-                <UserContextProvider>
-                  <AppComponent />
-                </UserContextProvider>
-              ) : (
-                <AppComponent />
-              )}
+              <SplitPanelProvider>
+                {isAuthConfigured ? (
+                  <UserContextProvider>
+                    <AppComponent />
+                  </UserContextProvider>
+                ) : (
+                  <MockUserContextProvider>
+                    <AppComponent />
+                  </MockUserContextProvider>
+                )}
+              </SplitPanelProvider>
             </NotificationContextProvider>
           </ConfigContextProvider>
         </Provider>

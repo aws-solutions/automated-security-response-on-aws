@@ -5,11 +5,12 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { ASRS3Client } from '../clients/ASRS3Client';
 import { RemediationHistoryRepository } from '../../common/repositories/remediationHistoryRepository';
 import type { RemediationHistoryApiResponse, RemediationHistoryTableItem } from '@asr/data-models';
-import { RemediationsRequest, ExportRequest, SearchCriteria } from '@asr/data-models';
+import { RemediationsRequest, ExportRequest, SearchCriteria, ROLLBACK_ELIGIBLE_FINDING_TYPE } from '@asr/data-models';
 import { AuthenticatedUser } from './authorization';
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
 import { BaseSearchService } from './baseSearchService';
 import { getStepFunctionsConsoleUrl } from '../../common/utils/findingUtils';
+import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
 
 export class RemediationService extends BaseSearchService {
   private readonly remediationHistoryRepository: RemediationHistoryRepository;
@@ -18,11 +19,12 @@ export class RemediationService extends BaseSearchService {
   constructor(logger: Logger) {
     super(logger);
 
+    const env = apiLambdaEnvironment();
     this.remediationHistoryRepository = new RemediationHistoryRepository(
       SCOPE_NAME,
-      process.env.REMEDIATION_HISTORY_TABLE_NAME!,
+      env.REMEDIATION_HISTORY_TABLE_NAME,
       this.dynamoDBClient,
-      process.env.FINDINGS_TABLE_NAME!,
+      env.FINDINGS_TABLE_NAME,
     );
 
     this.s3Client = new ASRS3Client();
@@ -53,7 +55,7 @@ export class RemediationService extends BaseSearchService {
       });
 
       return {
-        Remediations: searchResult.items.map((item) => this.convertToApiResponse(item)),
+        Remediations: this.markRollbackEligibility(searchResult.items.map((item) => this.convertToApiResponse(item))),
         NextToken: searchResult.nextToken,
       };
     } catch (error) {
@@ -70,12 +72,12 @@ export class RemediationService extends BaseSearchService {
   }
 
   private convertToApiResponse(item: RemediationHistoryTableItem): RemediationHistoryApiResponse {
-    // Remove internal fields and return only API-relevant data
     const {
       'findingId#executionId': _compositeKey,
       'lastUpdatedTime#findingId': _lsiSortKey,
       REMEDIATION_CONSTANT: _remediationConstant,
       expireAt: _expireAt,
+      findingJSON,
       ...baseApiResponse
     } = item;
 
@@ -84,7 +86,48 @@ export class RemediationService extends BaseSearchService {
     return {
       ...baseApiResponse,
       consoleLink,
+      // Rollback is offered for the original successful containment (SUCCESS) and
+      // to retry a previously failed rollback (ROLLBACK_FAILED). It is never
+      // offered for a failed remediation, an in-progress run, or a rollback that
+      // already succeeded. markRollbackEligibility further narrows to the newest
+      // such entry per finding.
+      isRollbackEligible:
+        !!(findingJSON && findingJSON.length > 0) &&
+        (baseApiResponse.remediationStatus === 'SUCCESS' || baseApiResponse.remediationStatus === 'ROLLBACK_FAILED') &&
+        baseApiResponse.findingType.endsWith(ROLLBACK_ELIGIBLE_FINDING_TYPE),
     };
+  }
+
+  /**
+   * Rollback is offered on at most one row per finding: the single most recent
+   * remediation entry, and only when that entry is itself rollback-eligible
+   * (SUCCESS or a prior ROLLBACK_FAILED on a GuardDuty.IAMUser).
+   *
+   * Keying off the newest row *overall* — rather than the newest eligible row —
+   * is deliberate: if a finding has already been rolled back (its newest row is
+   * ROLLBACK_SUCCESS / ROLLBACK_IN_PROGRESS), no button should appear at all.
+   * The older eligible SUCCESS row must NOT keep the button alive.
+   *
+   * Uses in-page timestamp comparison — cross-page duplicates are harmless
+   * because the server re-validates eligibility (via the optimistic lock) on
+   * rollback execution.
+   */
+  private markRollbackEligibility(items: RemediationHistoryApiResponse[]): RemediationHistoryApiResponse[] {
+    // Newest row per finding, regardless of status.
+    const newestPerFinding = new Map<string, string>();
+    for (const item of items) {
+      const existing = newestPerFinding.get(item.findingId);
+      if (!existing || item.lastUpdatedTime > existing) {
+        newestPerFinding.set(item.findingId, item.lastUpdatedTime);
+      }
+    }
+    return items.map((item) => {
+      if (!item.isRollbackEligible) return item;
+      // Only the newest row for the finding keeps eligibility; any older row
+      // (including an older SUCCESS shadowed by a newer ROLLBACK_* row) loses it.
+      if (item.lastUpdatedTime === newestPerFinding.get(item.findingId)) return item;
+      return { ...item, isRollbackEligible: false };
+    });
   }
 
   async exportRemediationHistory(
@@ -165,8 +208,8 @@ export class RemediationService extends BaseSearchService {
     let batchCount = 0;
 
     const startTime = Date.now();
-    const MAX_TIME = Number(process.env.EXPORT_MAX_TIME_MS) || 26000;
-    const MAX_RECORDS = Number(process.env.EXPORT_MAX_RECORDS) || 50000;
+    const MAX_TIME = Number(apiLambdaEnvironment().EXPORT_MAX_TIME_MS) || 26000;
+    const MAX_RECORDS = Number(apiLambdaEnvironment().EXPORT_MAX_RECORDS) || 50000;
 
     this.logger.debug('Starting export data fetch with safety limits', {
       totalFilters: searchCriteria.filters.length,
@@ -278,7 +321,7 @@ export class RemediationService extends BaseSearchService {
         }
         const stringValue = String(value);
         if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-          return `"${stringValue.replace(/"/g, '""')}"`;
+          return `"${stringValue.replaceAll('"', '""')}"`;
         }
         return stringValue;
       });
@@ -294,10 +337,7 @@ export class RemediationService extends BaseSearchService {
   }
 
   private async uploadToS3AndGenerateUrl(csvContent: string): Promise<string> {
-    const bucketName = process.env.CSV_EXPORT_BUCKET_NAME;
-    if (!bucketName) {
-      throw new Error('CSV_EXPORT_BUCKET_NAME environment variable not set');
-    }
+    const bucketName = apiLambdaEnvironment().CSV_EXPORT_BUCKET_NAME;
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `remediation-history-export-${timestamp}.csv`;

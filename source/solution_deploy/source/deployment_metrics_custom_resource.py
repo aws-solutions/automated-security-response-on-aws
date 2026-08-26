@@ -8,6 +8,7 @@ from os import getenv
 
 import boto3
 import cfnresponse
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from layer.metrics import Metrics
 
@@ -16,11 +17,18 @@ basicConfig(level=getLevelName(getenv("LOG_LEVEL", "INFO")))  # NOSONAR This con
 # fmt: on
 logger = getLogger(__name__)
 
+# Explicit timeouts bound each network call so a hung endpoint cannot stall the
+# custom-resource Lambda for its full timeout; standard retries add headroom.
+BOTO_CONFIG = Config(retries={"mode": "standard"}, connect_timeout=5, read_timeout=10)
+
+# Reusable client initialized at module load (construction time of the Lambda) so
+# it is shared across invocations of the warm execution environment.
+SECURITY_HUB_CLIENT = boto3.client("securityhub", config=BOTO_CONFIG)
+
 
 def is_securityhub_v2_enabled() -> bool:
-    securityhub_client = boto3.client("securityhub")
     try:
-        response = securityhub_client.describe_security_hub_v2()
+        response = SECURITY_HUB_CLIENT.describe_security_hub_v2()
         return "HubV2Arn" in response
     except ClientError as error:
         if error.response["Error"]["Code"] == "ResourceNotFoundException":

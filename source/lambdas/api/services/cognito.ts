@@ -18,6 +18,7 @@ import { UserAccountMappingRepository } from '../../common/repositories/userAcco
 import { createDynamoDBClient } from '../../common/utils/dynamodb';
 import { AccountOperatorUser, AdminUser, DelegatedAdminUser, User } from '@asr/data-models';
 import { BadRequestError, NotFoundError } from '../../common/utils/httpErrors';
+import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
 
 export class CognitoService {
   private readonly cognitoClient: CognitoIdentityProviderClient;
@@ -29,11 +30,12 @@ export class CognitoService {
     private readonly logger: Logger,
     userPoolId?: string,
   ) {
+    const env = apiLambdaEnvironment();
     this.cognitoClient = new CognitoIdentityProviderClient({});
-    this.userPoolId = userPoolId ?? process.env.USER_POOL_ID!;
+    this.userPoolId = userPoolId ?? env.USER_POOL_ID;
     this.userAccountMappingRepository = new UserAccountMappingRepository(
       'UsersAPI',
-      process.env.USER_ACCOUNT_MAPPING_TABLE_NAME!,
+      env.USER_ACCOUNT_MAPPING_TABLE_NAME,
       createDynamoDBClient({}),
     );
   }
@@ -246,7 +248,12 @@ export class CognitoService {
     }
   }
 
-  async updateAccountOperatorUser(userId: string, userData: Partial<AccountOperatorUser>): Promise<void> {
+  /**
+   * Updates an account operator's account assignments and returns the account IDs the operator held
+   * *before* the update. Callers use the returned previous assignment to reconcile downstream state
+   * (e.g. notification configurations) for any accounts the operator no longer owns.
+   */
+  async updateAccountOperatorUser(userId: string, userData: Partial<AccountOperatorUser>): Promise<string[]> {
     const existingUser = await this.getUserById(userId);
     if (!existingUser) {
       throw new NotFoundError(`User ${userId} not found.`);
@@ -265,6 +272,7 @@ export class CognitoService {
     }
 
     const existingMapping = await this.userAccountMappingRepository.findById(userId, '');
+    const previousAccountIds = existingMapping?.accountIds ?? [];
     if (existingMapping) {
       await this.userAccountMappingRepository.put({
         ...existingMapping,
@@ -279,6 +287,7 @@ export class CognitoService {
       });
     }
     this.userCache.delete(userId);
+    return previousAccountIds;
   }
 
   async deleteUser(userId: string): Promise<void> {

@@ -1,0 +1,8 @@
+# Redshift.6 — Amazon Redshift should have automatic upgrades to major versions enabled
+#
+# ASR remediation enables automatic version upgrade on the Redshift cluster.
+# To apply this fix, set allow_version_upgrade to true on your Redshift cluster.
+
+resource "aws_redshift_cluster" "{redshiftCluster}" {
+  allow_version_upgrade = true
+}

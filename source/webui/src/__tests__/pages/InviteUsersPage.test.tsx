@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { render } from '@testing-library/react';
 import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { configureStore } from '@reduxjs/toolkit';
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 

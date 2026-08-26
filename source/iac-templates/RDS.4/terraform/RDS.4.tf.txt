@@ -1,0 +1,10 @@
+# RDS.4 — RDS cluster snapshots and database snapshots should be encrypted at rest
+#
+# ASR remediation copies the unencrypted snapshot to a new encrypted snapshot
+# using a KMS key, then deletes the original unencrypted snapshot.
+# To apply this fix, enable storage_encrypted on your DB instance or cluster so
+# that future snapshots are automatically encrypted.
+
+resource "aws_db_instance" "{dbInstance}" {
+  storage_encrypted = true
+}

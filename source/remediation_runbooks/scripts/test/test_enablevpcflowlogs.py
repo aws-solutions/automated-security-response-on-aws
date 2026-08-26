@@ -23,15 +23,17 @@ def patch_wait_for_seconds(mocker):
 # =====================================================================================
 def test_EnableVPCFlowLogs_success(mocker):
     event = {
-        "vpc": "vpc-123412341234abcde",
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
-        "remediation_role": "remediation-role-name",
-        "region": my_region,
-        "retries": 1,
-        "wait": 1,  # for testing, so not waiting 60 seconds for a stub
+        "Vpc": "vpc-123412341234abcde",
+        "KmsKeyArn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "RemediationRole": "remediation-role-name",
+        "Region": my_region,
+        "AccountId": "111111111111",
+        "Retries": 1,
+        "Wait": 1,  # for testing, so not waiting 60 seconds for a stub
     }
 
-    log_group_name = "VPCFlowLogs/" + event["vpc"]  # type: ignore[operator]
+    log_group_name = "VPCFlowLogs/" + event["Vpc"]  # type: ignore[operator]
+    flow_log_id = "fl-0a3f6513bef12ff9a"
 
     describe_log_groups_simulated_response = {
         "logGroups": [
@@ -48,7 +50,7 @@ def test_EnableVPCFlowLogs_success(mocker):
         "FlowLogs": [
             {
                 "CreationTime": "2020-10-27T19:37:52.871000+00:00",
-                "DeliverLogsPermissionArn": f'arn:aws:iam::111111111111:role/{event["remediation_role"]}_{my_region}',
+                "DeliverLogsPermissionArn": f'arn:aws:iam::111111111111:role/{event["RemediationRole"]}_{my_region}',
                 "DeliverLogsStatus": "SUCCESS",
                 "FlowLogId": "fl-0a3f6513bef12ff9a",
                 "FlowLogStatus": "ACTIVE",
@@ -94,12 +96,12 @@ def test_EnableVPCFlowLogs_success(mocker):
 
     ec2_stubber.add_response(
         "create_flow_logs",
-        {},
+        {"FlowLogIds": [flow_log_id]},
         {
             "DryRun": False,
-            "DeliverLogsPermissionArn": event["remediation_role"],
-            "LogGroupName": "VPCFlowLogs/" + event["vpc"],  # type: ignore[operator]
-            "ResourceIds": [event["vpc"]],
+            "DeliverLogsPermissionArn": event["RemediationRole"],
+            "LogGroupName": "VPCFlowLogs/" + event["Vpc"],  # type: ignore[operator]
+            "ResourceIds": [event["Vpc"]],
             "ResourceType": "VPC",
             "TrafficType": "REJECT",
             "LogDestinationType": "cloud-watch-logs",
@@ -111,7 +113,7 @@ def test_EnableVPCFlowLogs_success(mocker):
         {
             "DryRun": False,
             "Filters": [
-                {"Name": "log-group-name", "Values": ["VPCFlowLogs/" + event["vpc"]]}  # type: ignore[operator]
+                {"Name": "log-group-name", "Values": ["VPCFlowLogs/" + event["Vpc"]]}  # type: ignore[operator]
             ],
         },
     )
@@ -121,12 +123,30 @@ def test_EnableVPCFlowLogs_success(mocker):
     mocker.patch("EnableVPCFlowLogs.connect_to_logs", return_value=logs_client)
     mocker.patch("EnableVPCFlowLogs.connect_to_ec2", return_value=ec2_client)
 
-    assert validate.enable_flow_logs(event, {}) == {
-        "response": {
-            "message": f'VPC Flow Logs enabled for {event["vpc"]} to VPCFlowLogs/{event["vpc"]}',
-            "status": "Success",
-        }
+    result = validate.enable_flow_logs(event, {})
+
+    import re
+
+    FLOW_LOG_ARN_PATTERN = r"^arn:(aws|aws-cn|aws-us-gov):ec2:[a-z0-9-]+:\d{12}:vpc-flow-log/fl-[a-f0-9]{17}$"
+
+    assert result == {
+        "Response": {
+            "Message": f'VPC Flow Logs enabled for {event["Vpc"]} to VPCFlowLogs/{event["Vpc"]}',
+            "Status": "Success",
+        },
+        "IamRoleArn": event["RemediationRole"],
+        "FlowLogArn": f'arn:aws:ec2:{my_region}:{event["AccountId"]}:vpc-flow-log/{flow_log_id}',
     }
+
+    # Verify IAM role ARN is returned
+    assert "IamRoleArn" in result
+    assert result["IamRoleArn"] == event["RemediationRole"]
+
+    # Verify flow log ARN is returned and matches expected format
+    assert "FlowLogArn" in result
+    assert re.match(
+        FLOW_LOG_ARN_PATTERN, result["FlowLogArn"]
+    ), f"ARN format invalid: {result['FlowLogArn']}"
 
     logs_stubber.deactivate()
     ec2_stubber.deactivate()
@@ -137,15 +157,17 @@ def test_EnableVPCFlowLogs_success(mocker):
 # =====================================================================================
 def test_EnableVPCFlowLogs_loggroup_exists(mocker):
     event = {
-        "vpc": "vpc-123412341234abcde",
-        "remediation_role": "remediation-role-name",
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
-        "region": my_region,
-        "retries": 1,
-        "wait": 1,  # for testing, so not waiting 60 seconds for a stub
+        "Vpc": "vpc-123412341234abcde",
+        "RemediationRole": "remediation-role-name",
+        "KmsKeyArn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "Region": my_region,
+        "AccountId": "111111111111",
+        "Retries": 1,
+        "Wait": 1,  # for testing, so not waiting 60 seconds for a stub
     }
 
-    log_group_name = "VPCFlowLogs/" + event["vpc"]  # type: ignore[operator]
+    log_group_name = "VPCFlowLogs/" + event["Vpc"]  # type: ignore[operator]
+    flow_log_id = "fl-0a3f6513bef12ff9a"
 
     describe_log_groups_simulated_response = {
         "logGroups": [
@@ -162,7 +184,7 @@ def test_EnableVPCFlowLogs_loggroup_exists(mocker):
         "FlowLogs": [
             {
                 "CreationTime": "2020-10-27T19:37:52.871000+00:00",
-                "DeliverLogsPermissionArn": f'arn:aws:iam::111111111111:role/{event["remediation_role"]}_{my_region}',
+                "DeliverLogsPermissionArn": f'arn:aws:iam::111111111111:role/{event["RemediationRole"]}_{my_region}',
                 "DeliverLogsStatus": "SUCCESS",
                 "FlowLogId": "fl-0a3f6513bef12ff9a",
                 "FlowLogStatus": "ACTIVE",
@@ -199,27 +221,16 @@ def test_EnableVPCFlowLogs_loggroup_exists(mocker):
     ec2_client = botocore.session.get_session().create_client("ec2", config=BOTO_CONFIG)
     ec2_stubber = Stubber(ec2_client)
 
-    ec2_stubber.add_response(
-        "create_flow_logs",
-        {},
-        {
-            "DryRun": False,
-            "DeliverLogsPermissionArn": event["remediation_role"],
-            "LogGroupName": "VPCFlowLogs/" + event["vpc"],  # type: ignore[operator]
-            "ResourceIds": [event["vpc"]],
-            "ResourceType": "VPC",
-            "TrafficType": "REJECT",
-            "LogDestinationType": "cloud-watch-logs",
-        },
-    )
+    ec2_stubber.add_client_error("create_flow_logs", "FlowLogAlreadyExists")
+
     ec2_stubber.add_response(
         "describe_flow_logs",
         describe_flow_logs_simulated_response,
         {
-            "DryRun": False,
             "Filters": [
-                {"Name": "log-group-name", "Values": ["VPCFlowLogs/" + event["vpc"]]}  # type: ignore[operator]
-            ],
+                {"Name": "log-group-name", "Values": [log_group_name]},
+                {"Name": "resource-id", "Values": [event["Vpc"]]},
+            ]
         },
     )
 
@@ -228,12 +239,30 @@ def test_EnableVPCFlowLogs_loggroup_exists(mocker):
     mocker.patch("EnableVPCFlowLogs.connect_to_logs", return_value=logs_client)
     mocker.patch("EnableVPCFlowLogs.connect_to_ec2", return_value=ec2_client)
 
-    assert validate.enable_flow_logs(event, {}) == {
-        "response": {
-            "message": f'VPC Flow Logs enabled for {event["vpc"]} to VPCFlowLogs/{event["vpc"]}',
-            "status": "Success",
-        }
+    result = validate.enable_flow_logs(event, {})
+
+    import re
+
+    FLOW_LOG_ARN_PATTERN = r"^arn:(aws|aws-cn|aws-us-gov):ec2:[a-z0-9-]+:\d{12}:vpc-flow-log/fl-[a-f0-9]{17}$"
+
+    assert result == {
+        "Response": {
+            "Message": f'VPC Flow Logs for {event["Vpc"]} already enabled',
+            "Status": "Success",
+        },
+        "IamRoleArn": event["RemediationRole"],
+        "FlowLogArn": f'arn:aws:ec2:{my_region}:{event["AccountId"]}:vpc-flow-log/{flow_log_id}',
     }
+
+    # Verify IAM role ARN is returned when log group already exists
+    assert "IamRoleArn" in result
+    assert result["IamRoleArn"] == event["RemediationRole"]
+
+    # Verify flow log ARN is returned when flow log already exists
+    assert "FlowLogArn" in result
+    assert re.match(
+        FLOW_LOG_ARN_PATTERN, result["FlowLogArn"]
+    ), f"ARN format invalid: {result['FlowLogArn']}"
 
     logs_stubber.deactivate()
     ec2_stubber.deactivate()
@@ -245,15 +274,16 @@ def test_EnableVPCFlowLogs_loggroup_exists(mocker):
 def test_EnableVPCFlowLogs_loggroup_fails(mocker):
     retries = 3
     event = {
-        "vpc": "vpc-123412341234abcde",
-        "remediation_role": "remediation-role-name",
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
-        "region": my_region,
-        "retries": retries,
-        "wait": 1,  # for testing, so not waiting 60 seconds for a stub
+        "Vpc": "vpc-123412341234abcde",
+        "RemediationRole": "remediation-role-name",
+        "KmsKeyArn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "Region": my_region,
+        "AccountId": "111111111111",
+        "Retries": retries,
+        "Wait": 1,  # for testing, so not waiting 60 seconds for a stub
     }
 
-    log_group_name = "VPCFlowLogs/" + event["vpc"]  # type: ignore[operator]
+    log_group_name = "VPCFlowLogs/" + event["Vpc"]  # type: ignore[operator]
 
     describe_log_groups_simulated_response: Dict[str, List[str]] = {"logGroups": []}
 
@@ -300,15 +330,16 @@ def test_EnableVPCFlowLogs_loggroup_fails(mocker):
 def test_EnableVPCFlowLogs_flowlogs_failed(mocker):
     retries = 3
     event = {
-        "vpc": "vpc-123412341234abcde",
-        "remediation_role": "remediation-role-name",
-        "kms_key_arn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
-        "region": my_region,
-        "retries": retries,
-        "wait": 1,  # for testing, so not waiting 60 seconds for a stub
+        "Vpc": "vpc-123412341234abcde",
+        "RemediationRole": "remediation-role-name",
+        "KmsKeyArn": "arn:aws:kms:us-west-2:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+        "Region": my_region,
+        "AccountId": "111111111111",
+        "Retries": retries,
+        "Wait": 1,  # for testing, so not waiting 60 seconds for a stub
     }
 
-    log_group_name = "VPCFlowLogs/" + event["vpc"]  # type: ignore[operator]
+    log_group_name = "VPCFlowLogs/" + event["Vpc"]  # type: ignore[operator]
 
     describe_log_groups_simulated_response = {
         "logGroups": [
@@ -354,12 +385,12 @@ def test_EnableVPCFlowLogs_flowlogs_failed(mocker):
 
     ec2_stubber.add_response(
         "create_flow_logs",
-        {},
+        {"FlowLogIds": ["fl-test123456789"]},
         {
             "DryRun": False,
-            "DeliverLogsPermissionArn": event["remediation_role"],
-            "LogGroupName": "VPCFlowLogs/" + event["vpc"],  # type: ignore[operator]
-            "ResourceIds": [event["vpc"]],
+            "DeliverLogsPermissionArn": event["RemediationRole"],
+            "LogGroupName": "VPCFlowLogs/" + event["Vpc"],  # type: ignore[operator]
+            "ResourceIds": [event["Vpc"]],
             "ResourceType": "VPC",
             "TrafficType": "REJECT",
             "LogDestinationType": "cloud-watch-logs",
@@ -375,7 +406,7 @@ def test_EnableVPCFlowLogs_flowlogs_failed(mocker):
                 "Filters": [
                     {
                         "Name": "log-group-name",
-                        "Values": ["VPCFlowLogs/" + event["vpc"]],  # type: ignore[operator]
+                        "Values": ["VPCFlowLogs/" + event["Vpc"]],  # type: ignore[operator]
                     }
                 ],
             },

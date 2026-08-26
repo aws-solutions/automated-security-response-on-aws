@@ -53,20 +53,27 @@ describe('KMS Data Key Reuse Configuration', () => {
       partitionKey: { name: 'findingType', type: dynamodb.AttributeType.STRING },
     });
 
+    const resourceFiltersTable = new Table(stack, 'resourceFiltersTable', {
+      partitionKey: { name: 'filterId', type: dynamodb.AttributeType.STRING },
+    });
+
     new PreProcessorConstruct(stack, 'PreProcessor', {
       solutionId: 'SO0111',
       solutionVersion: 'v3.1.0',
       resourceNamePrefix: 'SO0111',
       solutionTMN: 'automated-security-response-on-aws',
       solutionsBucket: new Bucket(stack, 'test-bucket', {}),
-      findingsTable: testTable.tableArn,
-      remediationHistoryTable: testTable.tableArn,
+      findingsTable: testTable,
+      remediationHistoryTable: testTable,
       functionName: 'test-function',
       kmsKey: new Key(stack, 'test-key', {}),
       orchestratorArn: 'arn:aws:states:us-east-1:111111111111:stateMachine:test',
-      remediationConfigTable: testTable.tableArn,
+      remediationConfigTable: testTable,
+      resourceFiltersTable: resourceFiltersTable,
+      notificationConfigTable: testTable,
       findingsTTL: '8',
       historyTTL: '365',
+      notificationQueueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/test-notification-queue',
     });
 
     const template = Template.fromStack(stack);

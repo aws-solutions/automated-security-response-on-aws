@@ -4,6 +4,9 @@
 import { APIGatewayProxyEvent, Context } from 'aws-lambda';
 import { FindingTableItem, ASFFFinding } from '@asr/data-models';
 import { deflate } from 'pako';
+import { asFindingId } from '../../common/__tests__/utils';
+
+export { asFindingId };
 
 export const TEST_REQUEST_CONTEXT = {
   accountId: '123456789012',
@@ -70,10 +73,24 @@ export const createMockContext = (): Context => ({
   succeed: () => {},
 });
 
+/**
+ * Build a Security Hub finding ARN that matches a given findingType. Service
+ * code derives the controlId from the ARN, so tests that override findingType
+ * must keep the findingId consistent with it (otherwise extractControlIdFromArn
+ * returns the wrong value).
+ */
+export function buildFindingIdForType(findingType: string, uuid = '11111111-2222-3333-4444-555555555555'): string {
+  return `arn:aws:securityhub:us-east-1:123456789012:${findingType}/finding/${uuid}`;
+}
+
 export const createMockFinding = (overrides: Partial<FindingTableItem> = {}): FindingTableItem => {
+  const findingType = overrides.findingType ?? 'security-control/Lambda.3';
+  // Default findingId is a valid Security Hub finding ARN so service code
+  // that extracts the controlId from the ARN (rather than the findingType
+  // column) sees a parseable input. Caller-supplied `findingId` overrides win.
   const defaultFinding = {
-    findingType: 'security-control/Lambda.3',
-    findingId: 'test-finding-id',
+    findingType,
+    findingId: asFindingId(buildFindingIdForType(findingType)),
     findingDescription: 'Test finding description',
     accountId: '123456789012',
     resourceId: 'arn:aws:s3:::test-bucket',

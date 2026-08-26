@@ -1,0 +1,8 @@
+// CloudFront.1 — CloudFront distributions should have a default root object configured
+//
+// ASR remediation configures a default root object on the CloudFront distribution.
+// To apply this fix, set defaultRootObject on your CloudFront distribution.
+
+const distribution = new cloudfront.Distribution(this, '{distribution}', {
+  defaultRootObject: 'index.html',
+});

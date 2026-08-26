@@ -1,0 +1,9 @@
+// S3.5 — S3 buckets should require requests to use SSL
+//
+// ASR remediation adds a bucket policy statement that denies all S3 actions
+// when aws:SecureTransport is false, requiring HTTPS-only access.
+// To apply this fix, set enforceSSL to true on your S3 bucket definition.
+
+new s3.Bucket(this, '{bucketName}', {
+  enforceSSL: true,
+});

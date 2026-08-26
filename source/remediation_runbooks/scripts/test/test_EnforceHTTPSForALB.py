@@ -96,10 +96,18 @@ def test_handler_multiple_http_listeners():
         ],
     )
 
-    event = Event(ResourceARN=alb_arn)
+    event = Event(ResourceARN=alb_arn, Region=REGION, AccountId="123456789012")
     result = handler(event, None)
 
-    assert result["Status"] == "success"
+    assert result["Response"]["Status"] == "success"
+    assert "ResourceArn" in result
+
+    import re
+
+    LISTENER_ARN_PATTERN = r"^arn:(aws|aws-cn|aws-us-gov):elasticloadbalancing:[a-z0-9-]+:\d{12}:listener/app/.+$"
+    assert re.match(
+        LISTENER_ARN_PATTERN, result["ResourceArn"]
+    ), f"ARN format invalid: {result['resource_arn']}"
 
     listeners = elbv2_client.describe_listeners(LoadBalancerArn=alb_arn)["Listeners"]
     port_80_listener = next(
@@ -121,7 +129,9 @@ def test_handler_multiple_http_listeners():
 
 @mock_aws
 def test_handler_malformed_arn():
-    event = Event(ResourceARN="invalid:arn:format")
+    event = Event(
+        ResourceARN="invalid:arn:format", region=REGION, account_id="123456789012"
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
         handler(event, None)
@@ -143,10 +153,11 @@ def test_handler_no_listeners():
     )
     alb_arn = alb["LoadBalancers"][0]["LoadBalancerArn"]
 
-    event = Event(ResourceARN=alb_arn)
+    event = Event(ResourceARN=alb_arn, Region=REGION, AccountId="123456789012")
     result = handler(event, None)
 
-    assert result["Status"] == "success"
+    assert result["Response"]["Status"] == "success"
+    assert "ResourceArn" in result
     listeners = elbv2_client.describe_listeners(LoadBalancerArn=alb_arn)["Listeners"]
     new_listener = next(
         (listener for listener in listeners if listener["Protocol"] == "HTTP"),
@@ -170,13 +181,13 @@ def test_handler_empty_listeners_list():
     )
     alb_arn = alb["LoadBalancers"][0]["LoadBalancerArn"]
 
-    event = Event(ResourceARN=alb_arn)
+    event = Event(ResourceARN=alb_arn, Region=REGION, AccountId="123456789012")
     result = handler(event, None)
 
-    assert result["Status"] == "success"
+    assert result["Response"]["Status"] == "success"
     assert (
         f"Successfully configured HTTPS listener rule for ALB {alb_arn}"
-        in result["Message"]
+        in result["Response"]["Message"]
     )
 
 
@@ -217,10 +228,10 @@ def test_handler_with_non_default_rule():
         ],
     )
 
-    event = Event(ResourceARN=alb_arn)
+    event = Event(ResourceARN=alb_arn, Region=REGION, AccountId="123456789012")
     result = handler(event, None)
 
-    assert result["Status"] == "success"
+    assert result["Response"]["Status"] == "success"
 
     listeners = elbv2_client.describe_listeners(LoadBalancerArn=alb_arn)["Listeners"]
     http_listener = next(
@@ -266,10 +277,10 @@ def test_handler_multiple_http_listeners_various_ports():
             ],
         )
 
-    event = Event(ResourceARN=alb_arn)
+    event = Event(ResourceARN=alb_arn, Region=REGION, AccountId="123456789012")
     result = handler(event, None)
 
-    assert result["Status"] == "success"
+    assert result["Response"]["Status"] == "success"
 
     listeners = elbv2_client.describe_listeners(LoadBalancerArn=alb_arn)["Listeners"]
 
@@ -316,10 +327,10 @@ def test_handler_mixed_http_https_listeners():
         ],
     )
 
-    event = Event(ResourceARN=alb_arn)
+    event = Event(ResourceARN=alb_arn, Region=REGION, AccountId="123456789012")
     result = handler(event, None)
 
-    assert result["Status"] == "success"
+    assert result["Response"]["Status"] == "success"
 
     listeners = elbv2_client.describe_listeners(LoadBalancerArn=alb_arn)["Listeners"]
     http_listener = next(

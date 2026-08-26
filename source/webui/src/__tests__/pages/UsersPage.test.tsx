@@ -5,7 +5,7 @@ import { screen, within, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http } from 'msw';
 import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { configureStore } from '@reduxjs/toolkit';
 
 import { MOCK_SERVER_URL, server } from '../server.ts';
@@ -56,7 +56,7 @@ describe('UsersOverviewPage', () => {
 
     // ASSERT
     const withinMain = within(screen.getByTestId('main-content'));
-    expect(withinMain.getByRole('heading', { name: 'Users (0)' })).toBeInTheDocument();
+    expect(withinMain.getByRole('heading', { name: 'Users(0)' })).toBeInTheDocument();
     expect(await withinMain.findByText(/no users to display/i)).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe('UsersOverviewPage', () => {
 
     // ASSERT
     const withinMain = within(screen.getByTestId('main-content'));
-    const heading = await withinMain.findByRole('heading', { name: `Users (3)` });
+    const heading = await withinMain.findByRole('heading', { name: `Users(3)` });
     expect(heading).toBeInTheDocument();
 
     const table = await withinMain.findByRole('table');
@@ -91,7 +91,7 @@ describe('UsersOverviewPage', () => {
 
     // ASSERT
     const withinMain = within(screen.getByTestId('main-content'));
-    expect(await withinMain.findByRole('heading', { name: 'Users (1)' })).toBeInTheDocument();
+    expect(await withinMain.findByRole('heading', { name: 'Users(1)' })).toBeInTheDocument();
   });
 
   it('filters users by email', async () => {
@@ -103,7 +103,7 @@ describe('UsersOverviewPage', () => {
     renderUsersPage();
 
     const withinMain = within(screen.getByTestId('main-content'));
-    await withinMain.findByRole('heading', { name: 'Users (5)' });
+    await withinMain.findByRole('heading', { name: 'Users(5)' });
 
     const searchInput = await withinMain.findByPlaceholderText('Search by User ID...');
     await userEvent.type(searchInput, 'user0');
@@ -124,7 +124,7 @@ describe('UsersOverviewPage', () => {
     renderUsersPage();
 
     const withinMain = within(screen.getByTestId('main-content'));
-    await withinMain.findByRole('heading', { name: 'Users (3)' });
+    await withinMain.findByRole('heading', { name: 'Users(3)' });
 
     const searchInput = await withinMain.findByPlaceholderText('Search by User ID...');
     await userEvent.type(searchInput, 'nonexistent');
@@ -152,7 +152,7 @@ describe('UsersOverviewPage', () => {
     renderUsersPage();
 
     const withinMain = within(screen.getByTestId('main-content'));
-    expect(await withinMain.findByRole('heading', { name: 'Users (1)' })).toBeInTheDocument();
+    expect(await withinMain.findByRole('heading', { name: 'Users(1)' })).toBeInTheDocument();
 
     const refreshButton = withinMain
       .getAllByRole('button')
@@ -161,7 +161,7 @@ describe('UsersOverviewPage', () => {
     await userEvent.click(refreshButton!);
 
     // ASSERT
-    expect(await withinMain.findByRole('heading', { name: 'Users (2)' })).toBeInTheDocument();
+    expect(await withinMain.findByRole('heading', { name: 'Users(2)' })).toBeInTheDocument();
     expect(callCount).toBe(2);
   });
 
@@ -189,7 +189,7 @@ describe('UsersOverviewPage', () => {
     renderUsersPage();
 
     const withinMain = within(screen.getByTestId('main-content'));
-    await withinMain.findByRole('heading', { name: 'Users (2)' });
+    await withinMain.findByRole('heading', { name: 'Users(2)' });
 
     // ASSERT
     const table = await withinMain.findByRole('table');
@@ -215,7 +215,7 @@ describe('UsersOverviewPage', () => {
     renderUsersPage();
 
     const withinMain = within(screen.getByTestId('main-content'));
-    await withinMain.findByRole('heading', { name: 'Users (1)' });
+    await withinMain.findByRole('heading', { name: 'Users(1)' });
 
     // ASSERT
     const table = await withinMain.findByRole('table');

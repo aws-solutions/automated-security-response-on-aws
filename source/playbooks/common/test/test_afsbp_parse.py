@@ -5,6 +5,7 @@ import pytest
 from botocore.config import Config
 from botocore.stub import Stubber
 from parse_input import parse_event
+from pytest_mock import MockerFixture
 
 
 def event():
@@ -231,13 +232,51 @@ def test_bad_account_id(mocker):
     )
 
 
-def test_bad_productarn(mocker):
+def test_bad_finding_id_and_product_arn(mocker: MockerFixture) -> None:
     test_event = event()
     test_event["Finding"]["ProductArn"] = "badvalue"
+    test_event["Finding"]["Id"] = "badvalue"
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         parse_event(test_event, {})
     assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == "ERROR: ProductArn is invalid: badvalue"
+    assert pytest_wrapped_e.value.code == "ERROR: Finding Id is invalid: badvalue"
+
+
+def test_bad_product_arn_rejects_when_derivation_fails(mocker: MockerFixture) -> None:
+    test_event = event()
+    test_event["Finding"]["ProductArn"] = "badvalue"
+    test_event["Finding"]["Id"] = "not-a-valid-arn"
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        parse_event(test_event, {})
+    assert pytest_wrapped_e.type == SystemExit
+    assert (
+        pytest_wrapped_e.value.code == "ERROR: Finding Id is invalid: not-a-valid-arn"
+    )
+
+
+def test_empty_product_arn_derived_from_finding_id(mocker: MockerFixture) -> None:
+    test_event = event()
+    test_event["Finding"]["ProductArn"] = ""
+    parsed_event = parse_event(test_event, {})
+    assert (
+        parsed_event["finding"]["ProductArn"]
+        == "arn:aws:securityhub:us-east-1::product/aws/securityhub"
+    )
+    assert (
+        parsed_event["product_arn"]
+        == "arn:aws:securityhub:us-east-1::product/aws/securityhub"
+    )
+
+
+def test_derivation_does_not_mutate_caller_finding(mocker: MockerFixture) -> None:
+    # Guards against re-introducing the side-effect where FindingEvent
+    # mutated the caller's finding dict when deriving ProductArn.
+    test_event = event()
+    test_event["Finding"]["ProductArn"] = ""
+
+    parse_event(test_event, {})
+
+    assert test_event["Finding"]["ProductArn"] == ""
 
 
 def test_bad_resource_match(mocker):
@@ -280,3 +319,15 @@ def test_no_resource_pattern_no_resource_id(mocker):
         pytest_wrapped_e.value.code
         == "ERROR: Resource Id is missing from the finding json Resources (Id)"
     )
+
+
+def test_config_rule_type_without_name(mocker: MockerFixture) -> None:
+    test_event = event()
+    del test_event["Finding"]["ProductFields"]["RelatedAWSResources:0/name"]
+    expected_result = expected()
+    expected_result["finding"] = test_event["Finding"]
+    expected_result["aws_config_rule"] = {}
+
+    parsed_event = parse_event(test_event, {})
+
+    assert parsed_event == expected_result

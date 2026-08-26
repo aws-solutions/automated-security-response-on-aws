@@ -3,12 +3,13 @@
 import json
 import re
 from json.decoder import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from layer import utils
 from layer.awsapi_cached_client import BotoSession
 from layer.powertools_logger import get_logger
 from layer.tracer_utils import init_tracer
+from layer.utils import StepFunctionLambdaAnswerDict
 
 if TYPE_CHECKING:
     from mypy_boto3_ssm.client import SSMClient
@@ -157,15 +158,6 @@ def get_remediation_message(response_data, remediation_status):
     return message
 
 
-def get_remediation_output(response_data: Dict[str, str]) -> str:
-    message_key = next((key for key in response_data if key.lower() == "message"), "")
-    if message_key:
-        response_data.pop(
-            message_key, ""
-        )  # Delete 'message' if it is present, since it will be included in the remediation message
-    return str(response_data)
-
-
 def get_remediation_response(remediation_response_raw):
     remediation_response = {}
     if isinstance(remediation_response_raw, list):
@@ -183,8 +175,92 @@ def get_remediation_response(remediation_response_raw):
     return remediation_response
 
 
-@tracer.capture_lambda_handler  # type: ignore[misc]
-def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
+def get_remediation_runbook_output(ssm_outputs: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract the output from the child remediation runbook execution.
+    This is captured by the control runbook's GetRemediationDetails step.
+
+    SSM Automation Outputs are returned as Map<String, List<String>>, so we
+    extract the first element from the list.
+    """
+    output_key = "GetRemediationDetails.Output"
+    output_list = ssm_outputs.get(output_key, [])
+    return output_list[0] if output_list else None
+
+
+def get_remediation_runbook_failure_message(
+    ssm_outputs: Dict[str, Any],
+) -> Optional[str]:
+    """
+    Extract the failure message from the child remediation runbook execution.
+    This is captured by the control runbook's GetRemediationDetails step.
+
+    SSM Automation Outputs are returned as Map<String, List<String>>, so we
+    extract the first element from the list.
+    """
+    failure_message_key = "GetRemediationDetails.FailureMessage"
+    failure_message_list = ssm_outputs.get(failure_message_key, [])
+    return failure_message_list[0] if failure_message_list else None
+
+
+def get_backup_s3_key(ssm_outputs: Dict[str, Any]) -> str:
+    """
+    Extract the backup S3 object key emitted by the GuardDuty control runbook's
+    ParseInput step on a successful Contain. Empty for other controls/actions.
+
+    A later GuardDuty rollback (Restore) must pass this exact key back to
+    AWSSupport-ContainIAMPrincipal, which cannot derive it. Threaded through the
+    Orchestrator so send_notifications can persist it on the remediation record.
+    """
+    output_list = ssm_outputs.get("ParseInput.BackupS3Key", [])
+    return output_list[0] if output_list else ""
+
+
+def determine_remediation_output(
+    remediation_runbook_output: Optional[str],
+    remediation_runbook_failure_message: Optional[str],
+    control_runbook_failure_message: Optional[str],
+    ssm_outputs: Dict[str, Any],
+    remediation_logdata: List[str],
+) -> str:
+    """
+    Determine the appropriate remediation output based on priority:
+    1. Remediation runbook failure message (highest priority)
+    2. Control runbook failure message
+    3. Remediation runbook output
+    4. Full control runbook output
+    5. Default message if none available
+
+    Also updates remediation_logdata with the failure message if present.
+
+    Args:
+        remediation_runbook_output: Output from the remediation runbook execution
+        remediation_runbook_failure_message: Failure message from remediation runbook
+        control_runbook_failure_message: Failure message from control runbook
+        ssm_outputs: Full SSM automation outputs from control runbook
+        remediation_logdata: List to append failure messages to (modified in place)
+
+    Returns:
+        The determined remediation output string
+    """
+    if remediation_runbook_failure_message:
+        remediation_logdata.append(remediation_runbook_failure_message)
+        return remediation_runbook_failure_message
+    elif control_runbook_failure_message:
+        remediation_logdata.append(control_runbook_failure_message)
+        return control_runbook_failure_message
+    elif remediation_runbook_output:
+        return remediation_runbook_output
+    elif ssm_outputs:
+        return json.dumps(ssm_outputs)
+    else:
+        return (
+            "No output available - check the Step Function execution logs for details."
+        )
+
+
+@tracer.capture_lambda_handler  # type: ignore[untyped-decorator]
+def lambda_handler(event: Dict[str, Any], _: Any) -> StepFunctionLambdaAnswerDict:
     answer = utils.StepFunctionLambdaAnswer()
     automation_doc = event["AutomationDocument"]
 
@@ -197,7 +273,7 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             }
         )
         logger.error(answer.message)
-        return answer.json()  # type: ignore[no-any-return]
+        return answer.json()
 
     SSM_EXEC_ID = event["SSMExecution"]["SSMExecutionId"]
     SSM_ACCOUNT = event["SSMExecution"].get("Account")
@@ -263,13 +339,24 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             remediation_response, status_for_message
         )
 
-        remediation_output = get_remediation_output(remediation_response)
-
         remediation_logdata = get_execution_log(remediation_response)
 
-        # FailureMessage is only set when the remediation was another SSM doc, not
         if automation_exec_info.failure_message:
             remediation_logdata.append(automation_exec_info.failure_message)
+
+        # Extract output and failure message from child remediation runbook
+        remediation_runbook_output = get_remediation_runbook_output(ssm_outputs)
+        remediation_runbook_failure_message = get_remediation_runbook_failure_message(
+            ssm_outputs
+        )
+
+        remediation_output = determine_remediation_output(
+            remediation_runbook_output=remediation_runbook_output,
+            remediation_runbook_failure_message=remediation_runbook_failure_message,
+            control_runbook_failure_message=automation_exec_info.failure_message,
+            ssm_outputs=ssm_outputs,
+            remediation_logdata=remediation_logdata,
+        )
 
         answer.update(
             {
@@ -279,6 +366,7 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
                 "remediation_output": remediation_output,
                 "executionid": SSM_EXEC_ID,
                 "affected_object": affected_object,
+                "backup_s3_key": get_backup_s3_key(ssm_outputs),
                 "logdata": json.dumps(remediation_logdata, default=str),
             }
         )
@@ -291,8 +379,9 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
                 "remediation_output": "",
                 "executionid": SSM_EXEC_ID,
                 "affected_object": "",
+                "backup_s3_key": "",
                 "logdata": [],
             }
         )
 
-    return answer.json()  # type: ignore[no-any-return]
+    return answer.json()

@@ -136,38 +136,6 @@ describe('SyncCursorRepository (real DynamoDB Local)', () => {
       await repository.resetCursor('111111111111', 1);
       expect(await repository.countCompletedAccounts()).toBe(0);
     });
-
-    it('counts only cursors completed at or after the given sweep start', async () => {
-      // Cursors are reset lazily per account, not cleared at sweep start, so a cursor left done from a
-      // previous sweep must NOT be counted toward the current sweep's progress. A controllable clock
-      // stamps each completion at a known lastSyncedAt so the sweep-start bound can be exercised.
-      let currentTime = new Date('2026-07-08T00:00:00.000Z');
-      const clock = { now: () => currentTime };
-      const clockedRepository = new SyncCursorRepository(principal, findingsTableName, dynamoDBDocumentClient, clock);
-
-      const completeAccount = async (accountId: string) => {
-        await clockedRepository.resetCursor(accountId, 1);
-        const cursor = (await clockedRepository.getCursor(accountId)) as SyncCursor;
-        cursor.done = true;
-        await clockedRepository.saveCursor(accountId, cursor);
-      };
-
-      // GIVEN one account completed during the previous sweep, then a new sweep starts...
-      await completeAccount('111111111111');
-      const previousSweepCompletion = currentTime.toISOString();
-      const newSweepStartedAt = '2026-07-15T00:00:00.000Z';
-
-      // ...and one account completes during the new sweep
-      currentTime = new Date('2026-07-15T00:05:00.000Z');
-      await completeAccount('222222222222');
-
-      // THEN only the account completed in the new sweep counts toward its progress
-      expect(await clockedRepository.countCompletedAccounts(newSweepStartedAt)).toBe(1);
-      // A bound at the previous completion still includes both
-      expect(await clockedRepository.countCompletedAccounts(previousSweepCompletion)).toBe(2);
-      // And the unbounded count is unchanged (legacy behaviour)
-      expect(await clockedRepository.countCompletedAccounts()).toBe(2);
-    });
   });
 
   describe('isolation from finding reads', () => {

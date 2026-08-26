@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { PreSignUpTriggerEvent, Context, Callback } from 'aws-lambda';
+import { PreSignUpTriggerEvent } from 'aws-lambda';
 import { preSignUpHandler } from '../../handlers/preSignUp';
 import { mockClient } from 'aws-sdk-client-mock';
 import {
@@ -19,15 +19,9 @@ import 'aws-sdk-client-mock-jest';
 const mockCognitoClient = mockClient(CognitoIdentityProviderClient);
 
 describe('preSignUpHandler', () => {
-  let mockCallback: jest.MockedFunction<Callback>;
-  let mockContext: Context;
-
   beforeEach(async () => {
     mockCognitoClient.reset();
     jest.clearAllMocks();
-
-    mockCallback = jest.fn();
-    mockContext = {} as Context;
   });
 
   const createEvent = (
@@ -77,7 +71,7 @@ describe('preSignUpHandler', () => {
       mockCognitoClient.on(AdminLinkProviderForUserCommand).resolves({});
 
       // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
+      const result = await preSignUpHandler(event);
 
       // ASSERT
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
@@ -96,7 +90,7 @@ describe('preSignUpHandler', () => {
           ProviderAttributeValue: 'test@example.com',
         },
       });
-      expect(mockCallback).toHaveBeenCalledWith(null, event);
+      expect(result).toEqual(event);
     });
 
     it('should reject external provider sign-up when user not found', async () => {
@@ -104,19 +98,13 @@ describe('preSignUpHandler', () => {
       const event = createEvent('PreSignUp_ExternalProvider', { email: 'nonexistent@example.com' }, 'SAML_testuser');
       mockCognitoClient.on(AdminGetUserCommand).rejects(new Error('User not found'));
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow('User not found in local user pool');
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
         UserPoolId: userPoolId,
         Username: 'nonexistent@example.com',
       });
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminLinkProviderForUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'User not found in local user pool' }),
-        event,
-      );
     });
 
     it('should reject external provider sign-up when provider name cannot be extracted', async () => {
@@ -132,12 +120,9 @@ describe('preSignUpHandler', () => {
       });
       mockCognitoClient.on(AdminListGroupsForUserCommand).resolves({ Groups: [{ GroupName: 'AdminGroup' }] });
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow('No provider name found');
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminLinkProviderForUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(expect.objectContaining({ message: 'No provider name found' }), event);
     });
 
     it('should reject external provider sign-up when provider name is empty', async () => {
@@ -153,12 +138,9 @@ describe('preSignUpHandler', () => {
       });
       mockCognitoClient.on(AdminListGroupsForUserCommand).resolves({ Groups: [{ GroupName: 'AdminGroup' }] });
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow('No provider name found');
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminLinkProviderForUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(expect.objectContaining({ message: 'No provider name found' }), event);
     });
 
     it('should handle linkFederatedUser failure', async () => {
@@ -181,16 +163,13 @@ describe('preSignUpHandler', () => {
       const linkError = new Error('Link failed');
       mockCognitoClient.on(AdminLinkProviderForUserCommand).rejects(linkError);
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow('Link failed');
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
         UserPoolId: userPoolId,
         Username: 'test1@example.com',
       });
       expect(mockCognitoClient).toHaveReceivedCommand(AdminLinkProviderForUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(linkError, event);
     });
   });
 
@@ -200,12 +179,12 @@ describe('preSignUpHandler', () => {
       const event = createEvent('PreSignUp_AdminCreateUser', { email: 'admin@example.com' });
 
       // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
+      const result = await preSignUpHandler(event);
 
       // ASSERT
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminLinkProviderForUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(null, event);
+      expect(result).toEqual(event);
     });
   });
 
@@ -215,14 +194,7 @@ describe('preSignUpHandler', () => {
       const event = createEvent('PreSignUp_ExternalProvider', { email: 'invalid-email' });
 
       // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
-      expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'No valid email address found' }),
-        event,
-      );
+      await expect(preSignUpHandler(event)).rejects.toThrow('No valid email address found');
     });
 
     it('should reject sign-up with missing email attribute', async () => {
@@ -231,18 +203,11 @@ describe('preSignUpHandler', () => {
         someAttribute: 'someAttributeValue',
       });
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
-      expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message:
-            '"email" attribute not found in attribute mapping, please ensure you have setup an attribute mapping for "email" in your custom Cognito identity provider',
-        }),
-        event,
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow(
+        '"email" attribute not found in attribute mapping, please ensure you have setup an attribute mapping for "email" in your custom Cognito identity provider',
       );
+      expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
     });
 
     it('should reject sign-up with undefined email', async () => {
@@ -250,14 +215,7 @@ describe('preSignUpHandler', () => {
       const event = createEvent('PreSignUp_ExternalProvider', { email: undefined as any });
 
       // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
-      expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'No valid email address found' }),
-        event,
-      );
+      await expect(preSignUpHandler(event)).rejects.toThrow('No valid email address found');
     });
 
     it('should reject sign-up with empty string email', async () => {
@@ -265,14 +223,7 @@ describe('preSignUpHandler', () => {
       const event = createEvent('PreSignUp_ExternalProvider', { email: '' });
 
       // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
-      expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'No valid email address found' }),
-        event,
-      );
+      await expect(preSignUpHandler(event)).rejects.toThrow('No valid email address found');
     });
   });
 
@@ -282,14 +233,7 @@ describe('preSignUpHandler', () => {
       const event = createEvent('PreSignUp_SignUp', { email: 'test@example.com' });
 
       // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
-      expect(mockCognitoClient).not.toHaveReceivedCommand(AdminGetUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Sign-up not allowed from this source' }),
-        event,
-      );
+      await expect(preSignUpHandler(event)).rejects.toThrow('Sign-up not allowed from this source');
     });
   });
 
@@ -300,16 +244,13 @@ describe('preSignUpHandler', () => {
       const getUserError = new Error('Database error');
       mockCognitoClient.on(AdminGetUserCommand).rejects(getUserError);
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow('User not found in local user pool');
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
         UserPoolId: userPoolId,
         Username: 'test2@example.com',
       });
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminLinkProviderForUserCommand);
-      expect(mockCallback).toHaveBeenCalledWith(new Error('User not found in local user pool'), event);
     });
 
     it('should handle non-Error exceptions', async () => {
@@ -318,15 +259,12 @@ describe('preSignUpHandler', () => {
       const stringError = 'String error';
       mockCognitoClient.on(AdminGetUserCommand).rejects(stringError);
 
-      // ACT
-      await preSignUpHandler(event, mockContext, mockCallback);
-
-      // ASSERT
+      // ACT & ASSERT
+      await expect(preSignUpHandler(event)).rejects.toThrow('User not found in local user pool');
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
         UserPoolId: userPoolId,
         Username: 'test3@example.com',
       });
-      expect(mockCallback).toHaveBeenCalledWith(new Error('User not found in local user pool'), event);
     });
   });
 });

@@ -4,7 +4,7 @@ import inspect
 import json
 import os
 import re
-from typing import Any, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, Required, TypedDict, TypeGuard, Union
 
 from botocore.exceptions import ClientError
 from layer.awsapi_cached_client import AWSCachedClient
@@ -19,7 +19,10 @@ logger = get_logger("sechub_findings_layer")
 
 SOLUTION_BASE_PATH = "/Solutions/SO0111"
 
-ASFF_TO_OCSF_STATUS = {
+# The four ASFF Workflow.Status values ASR sets on a finding.
+WorkflowStatus = Literal["NEW", "NOTIFIED", "SUPPRESSED", "RESOLVED"]
+
+ASFF_TO_OCSF_STATUS: dict[WorkflowStatus, int] = {
     "NEW": 1,
     "NOTIFIED": 2,
     "SUPPRESSED": 3,
@@ -53,6 +56,24 @@ class InvalidFindingJson(Exception):
     pass
 
 
+class _OcsfFindingRecord(TypedDict, total=False):
+    """Subset of OCSF finding fields read by Finding._init_from_ocsf.
+
+    finding_info is Required because its presence is the dispatch condition
+    in __init__ — this path is only entered when 'finding_info' is in the record.
+    """
+
+    finding_info: Required[dict[str, Any]]  # Always present when this path is entered
+    class_name: str
+    cloud: dict[str, Any]
+    resources: list[dict[str, Any]]
+
+
+def _is_ocsf_finding(rec: dict[str, Any]) -> TypeGuard[_OcsfFindingRecord]:
+    """Return True when rec is an OCSF finding (has finding_info, no ASFF Id)."""
+    return "finding_info" in rec and "Id" not in rec
+
+
 class Finding(object):
     """
     Security Hub Finding class
@@ -74,13 +95,19 @@ class Finding(object):
     arn = ""
     uuid = ""
 
-    def __init__(self, finding_rec):
+    def __init__(self, finding_rec: dict[str, Any]) -> None:
         self.region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
         self.aws_api_client = AWSCachedClient(self.region)
-
         self.details = finding_rec
+
+        # Detect OCSF format: OCSF findings have finding_info.uid instead of Id
+        if _is_ocsf_finding(finding_rec):
+            self._init_from_ocsf(finding_rec)
+            return
+
         self.arn = self.details.get("Id", "error")
-        self.uuid = self.arn.split("/finding/")[1]
+        _uuid_parts = self.arn.split("/finding/")
+        self.uuid = _uuid_parts[1] if len(_uuid_parts) > 1 else self.arn
         self.generator_id = self.details.get("GeneratorId", "error")
         self.account_id = self.details.get("AwsAccountId", "error")
         resource = self.details.get("Resources", [])[0]
@@ -95,15 +122,13 @@ class Finding(object):
             self.details.get("Remediation", {}).get("Recommendation", {}).get("Url", "")
         )
 
-        if (
-            self.details.get("ProductFields").get("StandardsControlArn", None)
-            is not None
-        ):
-            self._get_security_standard_fields_from_arn(
-                self.details.get("ProductFields").get("StandardsControlArn")
-            )
+        standards_control_arn = self.details.get("ProductFields", {}).get(
+            "StandardsControlArn"
+        )
+        if standards_control_arn is not None:
+            self._get_security_standard_fields_from_arn(standards_control_arn)
         else:
-            self.standard_control = self.details.get("Compliance").get(
+            self.standard_control = self.details.get("Compliance", {}).get(
                 "SecurityControlId"
             )
             self.standard_version = "2.0.0"
@@ -112,6 +137,42 @@ class Finding(object):
         self._get_security_standard_abbreviation_from_ssm()
         self._get_control_remap()
         self._set_playbook_enabled()
+
+    def _init_from_ocsf(self, finding_rec: _OcsfFindingRecord) -> None:
+        """Initialize Finding fields from an OCSF-format finding.
+
+        OCSF findings (Inspector, GuardDuty, Macie) use different field names
+        than ASFF. They don't participate in Security Hub standard/playbook
+        config lookups — those are handled by the multi-service runbooks directly.
+        """
+        finding_info = finding_rec.get("finding_info", {})
+        self.arn = finding_info.get("uid", "")
+        # OCSF finding UIDs contain /finding/ — extract uuid safely
+        parts = self.arn.split("/finding/")
+        self.uuid = parts[1] if len(parts) > 1 else self.arn
+        self.generator_id = finding_rec.get("class_name", "")
+        cloud = finding_rec.get("cloud", {})
+        self.account_id = cloud.get("account", {}).get("uid", "error")
+        resources = finding_rec.get("resources", [])
+        self.resource_region = (
+            resources[0].get("region", "error") if resources else "error"
+        )
+        self.title = finding_info.get("title", "")
+        self.description = finding_info.get("desc", "")
+        self.remediation_url = ""
+        self.standard_control = ""
+        self.standard_version = ""
+        self.standard_name = ""
+        self.standard_shortname = ""
+        self.remediation_control = ""
+        # Skip SSM lookups — OCSF findings don't use standard/playbook config
+        # Validate minimum required OCSF fields — consistent with is_valid_finding_json() on the ASFF path
+        if not self.arn:
+            raise InvalidFindingJson
+        if not self.account_id or self.account_id == "error":
+            raise InvalidFindingJson
+        if not resources:
+            raise InvalidFindingJson
 
     def is_valid_finding_json(self):
         if self.generator_id == "error":
@@ -144,10 +205,19 @@ class Finding(object):
         """
         self.update_text_and_status(message, status="NOTIFIED")
 
-    def update_text_and_status(self, message, status=None):
+    def update_text_and_status(
+        self, message: str, status: WorkflowStatus | None = None
+    ) -> None:
         """
         Update the finding_id text and status
         """
+
+        # Security Hub caps BatchUpdateFindingsV2 Comment and BatchUpdateFindings
+        # Note.Text at 512 characters; truncate so verbose remediation messages
+        # are not rejected, which would otherwise leave the finding unupdated.
+        max_note_length = 512
+        if len(message) > max_note_length:
+            message = message[: max_note_length - 3] + "..."
 
         workflow_status = {}
         securityhub_v2_enabled = (
@@ -159,39 +229,36 @@ class Finding(object):
         errors = []
 
         product_arn = self.details.get("ProductArn", "")
+        # OCSF findings (Inspector/GuardDuty/Macie V2) carry neither a
+        # top-level "Id" nor "ProductArn": the canonical id is
+        # finding_info.uid (already resolved into self.arn by
+        # _init_from_ocsf) and the product ARN is metadata.product.uid.
+        # Reading self.details["Id"]/["ProductArn"] here yields None/"" for
+        # OCSF, so both update calls below no-op and the finding is never
+        # resolved. Use the format-agnostic values instead.
+        finding_id = self.arn or self.details.get("Id", "")
+        if not product_arn:
+            product_arn = (
+                self.details.get("metadata", {}).get("product", {}).get("uid", "")
+            )
         product_arn_v1 = product_arn.replace("::productv2/", "::product/")
         product_arn_v2 = product_arn.replace("::product/", "::productv2/")
 
         if securityhub_v2_enabled:
-            try:
-                response = get_securityhub().batch_update_findings_v2(
-                    FindingIdentifiers=[
-                        {
-                            "FindingInfoUid": self.details.get("Id"),
-                            "MetadataProductUid": product_arn_v2,
-                            "CloudAccountUid": self.account_id,
-                        }
-                    ],
-                    Comment=message,
-                    StatusId=ASFF_TO_OCSF_STATUS.get(status, 1),
+            errors.extend(
+                self._batch_update_findings_v2(
+                    finding_id=finding_id,
+                    product_arn_v2=product_arn_v2,
+                    message=message,
+                    status=status,
                 )
-                if response["UnprocessedFindings"]:
-                    for unprocessed in response["UnprocessedFindings"]:
-                        error_code = unprocessed.get("ErrorCode", "Unknown")
-                        error_message = unprocessed.get(
-                            "ErrorMessage", "No error message"
-                        )
-                        errors.append(
-                            f"Security Hub v2 API: {error_code} - {error_message}"
-                        )
-            except Exception as e:
-                errors.append(f"Security Hub v2 API: {e}")
+            )
 
         try:
             get_securityhub().batch_update_findings(
                 FindingIdentifiers=[
                     {
-                        "Id": self.details.get("Id"),
+                        "Id": finding_id,
                         "ProductArn": product_arn_v1,
                     }
                 ],
@@ -205,6 +272,40 @@ class Finding(object):
             logger.warning(
                 f"Failed to update Security Hub finding - {'; '.join(errors)}"
             )
+
+    def _batch_update_findings_v2(
+        self,
+        *,
+        finding_id: str,
+        product_arn_v2: str,
+        message: str,
+        status: WorkflowStatus | None,
+    ) -> list[str]:
+        """Update the finding via the Security Hub v2 BatchUpdateFindingsV2 API.
+
+        Returns a list of human-readable error strings (empty on success) so the
+        caller can aggregate v1 and v2 failures into a single warning.
+        """
+        errors: list[str] = []
+        try:
+            response = get_securityhub().batch_update_findings_v2(
+                FindingIdentifiers=[
+                    {
+                        "FindingInfoUid": finding_id,
+                        "MetadataProductUid": product_arn_v2,
+                        "CloudAccountUid": self.account_id,
+                    }
+                ],
+                Comment=message,
+                StatusId=ASFF_TO_OCSF_STATUS.get(status, 1) if status else 1,
+            )
+            for unprocessed in response.get("UnprocessedFindings", []):
+                error_code = unprocessed.get("ErrorCode", "Unknown")
+                error_message = unprocessed.get("ErrorMessage", "No error message")
+                errors.append(f"Security Hub v2 API: {error_code} - {error_message}")
+        except Exception as e:
+            errors.append(f"Security Hub v2 API: {e}")
+        return errors
 
     def _get_security_standard_fields_from_arn(self, arn):
         standards_arn_parts = arn.split(":")[5].split("/")
@@ -323,6 +424,23 @@ class FindingInfo(TypedDict):
     finding_arn: str
 
 
+# Native (non-Security-Hub) finding ARN service prefix → multi-service
+# remediation id under which findings from that source are persisted at write
+# time (see findingTypeMapper.ts and findingUtils.ts on the TypeScript side).
+# Read-side callers reverse this mapping to derive the partition key from a
+# native ARN. There is exactly one multi-service remediation per source
+# service today, so the prefix is sufficient.
+NATIVE_ARN_FINDING_TYPES: tuple[tuple[str, str], ...] = (
+    (r"^arn:(?:aws|aws-cn|aws-us-gov):guardduty:", "GuardDuty.IAMUser"),
+    (r"^arn:(?:aws|aws-cn|aws-us-gov):inspector2:", "Inspector.InstanceVulnerability"),
+    (r"^arn:(?:aws|aws-cn|aws-us-gov):macie2:", "Macie.SensitiveDataS3Object"),
+    (
+        r"^arn:(?:aws|aws-cn|aws-us-gov):access-analyzer:",
+        "IAMAccessAnalyzer.ExternalAccess",
+    ),
+)
+
+
 def get_control_id_from_finding_id(finding_id: str) -> Optional[str]:
     # Finding ID structure depends on consolidation settings
     # https://aws.amazon.com/blogs/security/consolidating-controls-in-security-hub-the-new-controls-view-and-consolidated-findings/
@@ -340,6 +458,13 @@ def get_control_id_from_finding_id(finding_id: str) -> Optional[str]:
     consolidated_match = re.match(consolidated_pattern, finding_id)
     if consolidated_match:
         return consolidated_match.group(1)  # example: 'security-control/Lambda.3'
+
+    # Native ARNs from multi-service ingestion (GuardDuty / Inspector / Macie)
+    # — the control id is not in the ARN, so map the ARN service prefix to
+    # the multi-service remediation id used at write time.
+    for prefix, finding_type in NATIVE_ARN_FINDING_TYPES:
+        if re.match(prefix, finding_id):
+            return finding_type
 
     return None
 
@@ -362,6 +487,14 @@ def get_finding_type(event: dict[str, Any]) -> str:
     control_id = extract_security_control_id(event)
     if control_id:
         return sanitize_control_id(control_id)
+
+    # Multi-service OCSF findings carry no ASFF control id, and Macie's
+    # finding_info.uid is a bare id (not a native ARN) so it cannot be mapped
+    # by get_control_id_from_finding_id. The orchestrator-selected control id
+    # is authoritative, so fall back to it.
+    event_control_id = event.get("ControlId", "")
+    if event_control_id:
+        return sanitize_control_id(event_control_id)
 
     return ""
 
@@ -392,15 +525,32 @@ def extract_finding_id(event: dict[str, Any]) -> str:
     if "Finding" not in event:
         return ""
 
-    finding_id = event["Finding"].get("Id", "")
+    if not isinstance(event["Finding"], dict):
+        logger.warning(
+            "Finding is not a dict; cannot extract finding id",
+            extra={"finding_type": type(event["Finding"]).__name__},
+        )
+        return ""
+    finding = event["Finding"]
+
+    # ASFF: Finding.Id (Security Hub finding ARN)
+    finding_id = finding.get("Id", "")
 
     if not finding_id:
-        product_fields = event["Finding"].get("ProductFields", {})
+        product_fields = finding.get("ProductFields", {})
         finding_id = (
             product_fields.get("aws/securityhub/FindingId", "")
             if isinstance(product_fields, dict)
             else ""
         )
+
+    # OCSF: Finding.finding_info.uid carries the underlying ARN (Security Hub
+    # ARN for ASFF-bridged findings, native service ARN for findings ingested
+    # via the OCSF Detection / Vulnerability paths).
+    if not finding_id:
+        finding_info = finding.get("finding_info", {})
+        if isinstance(finding_info, dict):
+            finding_id = finding_info.get("uid", "")
 
     return str(finding_id)
 
@@ -447,7 +597,7 @@ class ASRNotification(object):
 
     severity = "INFO"
     message = ""
-    remediation_output = ""
+    remediation_output: Union[dict[str, Any], str] = ""
     remediation_status = ""
     remediation_account_alias = ""
     finding_link = ""

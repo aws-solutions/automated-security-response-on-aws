@@ -1,0 +1,12 @@
+# CodeBuild.5 — CodeBuild project environments should not have privileged mode enabled
+#
+# ASR remediation disables privileged mode on the CodeBuild project environment,
+# removing the build container's access to all host devices.
+# To apply this fix, set PrivilegedMode to false in the Environment configuration.
+
+Resources:
+  {codeBuildProject}:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Environment:
+        PrivilegedMode: false

@@ -1,0 +1,27 @@
+// S3.6 — S3 permissions granted to other AWS accounts in bucket policies should be restricted
+//
+// ASR remediation adds an explicit Deny statement to the bucket policy that
+// blocks cross-account principals from performing sensitive S3 actions.
+// To apply this fix, add a policy statement to your bucket that denies
+// cross-account principals access to sensitive actions such as
+// s3:DeleteBucketPolicy, s3:PutBucketAcl, s3:PutBucketPolicy,
+// s3:PutEncryptionConfiguration, and s3:PutObjectAcl.
+// NOTE: <CROSS_ACCOUNT_ID> — the AWS account ID you want to restrict.
+
+const bucket = new s3.Bucket(this, '{bucketName}');
+
+bucket.addToResourcePolicy(
+  new iam.PolicyStatement({
+    sid: 'DenyCrossAccountSensitiveActions',
+    effect: iam.Effect.DENY,
+    principals: [new iam.AccountPrincipal('<CROSS_ACCOUNT_ID>')],
+    actions: [
+      's3:DeleteBucketPolicy',
+      's3:PutBucketAcl',
+      's3:PutBucketPolicy',
+      's3:PutEncryptionConfiguration',
+      's3:PutObjectAcl',
+    ],
+    resources: [bucket.bucketArn, `${bucket.bucketArn}/*`],
+  }),
+);

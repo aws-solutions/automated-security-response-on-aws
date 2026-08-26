@@ -75,7 +75,10 @@ export interface SecurityControlsPlaybookMemberStackProps extends StackProps {
 
 export class SecurityControlsPlaybookMemberStack extends Stack {
   constructor(scope: App, id: string, props: SecurityControlsPlaybookMemberStackProps) {
-    super(scope, id, props);
+    super(scope, id, {
+      ...props,
+      suppressTemplateIndentation: true,
+    });
 
     // Not used, but required by top-level member stack
     new AdminAccountParam(this, 'AdminAccountParameter');
@@ -111,7 +114,9 @@ export class SecurityControlsPlaybookMemberStack extends Stack {
         continue;
       }
 
+      // Skip controls whose runbooks are not yet implemented (e.g. multi-service controls pending tasks 2.3, 3.1, 4.1, 5.1)
       if (!controlRunbooks.has(remediation.control)) {
+        if (remediation.runbookPending) continue;
         throw new Error(`No control runbook implemented for ${remediation.control}`);
       }
     }

@@ -1,0 +1,9 @@
+# RDS.13 — RDS automatic minor version upgrades should be enabled
+#
+# ASR remediation enables automatic minor version upgrades on the RDS DB instance
+# by calling ModifyDBInstance with AutoMinorVersionUpgrade set to true.
+# To apply this fix, set auto_minor_version_upgrade to true on your aws_db_instance resource.
+
+resource "aws_db_instance" "{dbInstance}" {
+  auto_minor_version_upgrade = true
+}

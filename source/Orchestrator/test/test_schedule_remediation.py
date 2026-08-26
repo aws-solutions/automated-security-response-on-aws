@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Iterator
 from unittest.mock import patch
 
 import boto3
@@ -20,6 +22,26 @@ timestampFormat = "%Y-%m-%dT%H:%M:%SZ"
 client = "boto3.client"
 
 BOTO_CONFIG = Config(retries={"mode": "standard", "max_attempts": 10})
+
+
+@contextmanager
+def freeze_lambda_time(current_timestamp: int) -> Iterator[None]:
+    """
+    Freezes ``datetime.now()`` inside ``schedule_remediation`` to the given
+    Unix timestamp so tests can reliably compare against ``current_timestamp``.
+
+    The lambda calls ``datetime.now(timezone.utc)`` once on entry. When tests
+    capture their own ``current_timestamp`` and the wall clock advances by a
+    second between the two reads, the stubbed Step Functions output mismatches.
+    Freezing time eliminates the 1-second race.
+    """
+    frozen_now = datetime.fromtimestamp(current_timestamp, timezone.utc)
+    with patch("schedule_remediation.datetime") as mock_dt:
+        mock_dt.now.return_value = frozen_now
+        mock_dt.fromtimestamp = datetime.fromtimestamp
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+        yield
+
 
 event = {
     "Records": [
@@ -91,7 +113,9 @@ def test_new_account_remediation(mocker):
     )
 
     sfn_stub.activate()
-    with patch(client, side_effect=lambda service, **_: clients[service]):
+    with patch(
+        client, side_effect=lambda service, **_: clients[service]
+    ), freeze_lambda_time(current_timestamp):
         response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
@@ -144,7 +168,9 @@ def test_no_recent_remediation(mocker):
 
     sfn_stub.activate()
 
-    with patch(client, side_effect=lambda service, **_: clients[service]):
+    with patch(
+        client, side_effect=lambda service, **_: clients[service]
+    ), freeze_lambda_time(current_timestamp):
         response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
@@ -239,7 +265,9 @@ def test_account_missing_last_executed(mocker):
     )
 
     sfn_stub.activate()
-    with patch(client, side_effect=lambda service, **_: clients[service]):
+    with patch(
+        client, side_effect=lambda service, **_: clients[service]
+    ), freeze_lambda_time(current_timestamp):
         response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
@@ -295,7 +323,9 @@ def test_past_timestamp_uses_current_time(mocker):
 
     sfn_stub.activate()
 
-    with patch(client, side_effect=lambda service, **_: clients[service]):
+    with patch(
+        client, side_effect=lambda service, **_: clients[service]
+    ), freeze_lambda_time(current_timestamp):
         response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
@@ -349,7 +379,9 @@ def test_expired_ttl_treated_as_new(mocker):
 
     sfn_stub.activate()
 
-    with patch(client, side_effect=lambda service, **_: clients[service]):
+    with patch(
+        client, side_effect=lambda service, **_: clients[service]
+    ), freeze_lambda_time(current_timestamp):
         response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}
@@ -402,7 +434,9 @@ def test_missing_ttl_treated_as_new(mocker):
 
     sfn_stub.activate()
 
-    with patch(client, side_effect=lambda service, **_: clients[service]):
+    with patch(
+        client, side_effect=lambda service, **_: clients[service]
+    ), freeze_lambda_time(current_timestamp):
         response = lambda_handler(event, create_lambda_context())
         final_item = dynamodb_client.get_item(
             TableName=table_name, Key={"AccountID-Region": {"S": table_key}}

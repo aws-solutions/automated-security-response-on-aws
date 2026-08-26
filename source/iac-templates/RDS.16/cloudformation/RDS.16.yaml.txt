@@ -1,0 +1,11 @@
+# RDS.16 — RDS DB clusters should be configured to copy tags to snapshots
+#
+# ASR remediation enables CopyTagsToSnapshot on the RDS DB cluster by calling
+# ModifyDBCluster with CopyTagsToSnapshot set to true.
+# To apply this fix, set CopyTagsToSnapshot to true on your DB cluster.
+
+Resources:
+  {dbCluster}:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      CopyTagsToSnapshot: true

@@ -1,0 +1,30 @@
+// DynamoDB.1 — DynamoDB tables should automatically scale capacity with demand
+//
+// ASR remediation registers the DynamoDB table with Application Auto Scaling
+// and creates target tracking scaling policies for read and write capacity.
+// To apply this fix, enable auto scaling on your DynamoDB table's read and
+// write capacity.
+
+const table = new dynamodb.Table(this, '{tableName}', {
+  billingMode: dynamodb.BillingMode.PROVISIONED,
+  readCapacity: 5,
+  writeCapacity: 5,
+});
+
+const readScaling = table.autoScaleReadCapacity({
+  minCapacity: 5,
+  maxCapacity: 10,
+});
+
+readScaling.scaleOnUtilization({
+  targetUtilizationPercent: 70,
+});
+
+const writeScaling = table.autoScaleWriteCapacity({
+  minCapacity: 5,
+  maxCapacity: 10,
+});
+
+writeScaling.scaleOnUtilization({
+  targetUtilizationPercent: 70,
+});

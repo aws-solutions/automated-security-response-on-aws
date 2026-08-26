@@ -5,6 +5,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 
 interface ConfigContextType {
   ticketingEnabled: boolean;
+  solutionVersion: string;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -15,11 +16,7 @@ interface ConfigContextProviderProps {
 }
 
 export const ConfigContextProvider: React.FC<ConfigContextProviderProps> = ({ children, config }) => {
-  return (
-    <ConfigContext.Provider value={config}>
-      {children}
-    </ConfigContext.Provider>
-  );
+  return <ConfigContext.Provider value={config}>{children}</ConfigContext.Provider>;
 };
 
 export const useConfig = (): ConfigContextType => {

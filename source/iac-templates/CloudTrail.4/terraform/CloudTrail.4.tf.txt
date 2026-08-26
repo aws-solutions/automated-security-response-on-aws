@@ -1,0 +1,8 @@
+# CloudTrail.4 — CloudTrail log file validation should be enabled
+#
+# ASR remediation enables log file validation on the CloudTrail trail.
+# To apply this fix, add or update the enable_log_file_validation argument on your CloudTrail resource.
+
+resource "aws_cloudtrail" "{trailName}" {
+  enable_log_file_validation = true
+}

@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node bin/afsbp.ts",
+  "app": "npx tsx bin/afsbp.ts",
   "versionReporting": false,
   "context": {
     "aws-cdk:enableDiffNoFail": "true"

@@ -1,0 +1,11 @@
+# S3.14 — S3 general purpose buckets should have versioning enabled
+#
+# ASR remediation enables versioning on the bucket.
+# To apply this fix, add VersioningConfiguration with Status: Enabled.
+
+Resources:
+  {bucketName}:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled

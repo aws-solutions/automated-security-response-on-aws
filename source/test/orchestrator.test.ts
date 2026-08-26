@@ -336,3 +336,27 @@ describe('Orchestrator Ticketing Integration', () => {
     expect(definitionString).toContain('ASR:Remediate&Ticket');
   });
 });
+
+describe('Multi-Service Remediation Support', () => {
+  let template: Template;
+
+  beforeEach(() => {
+    const testStack = createTestStack();
+    template = Template.fromStack(testStack.stack);
+  });
+
+  test('state machine should pass Detail to each finding iteration and route multi-service findings', () => {
+    const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
+    const stateMachineKeys = Object.keys(stateMachines);
+    const stateMachine = stateMachines[stateMachineKeys[0]];
+    const definitionString = JSON.stringify(stateMachine.Properties.DefinitionString);
+
+    // extractFindings Pass state maps full detail object as Detail.$
+    expect(definitionString).toContain('Detail.$');
+
+    // checkWorkflowNew Choice state routes multi-service findings via Detail.findingType
+    expect(definitionString).toContain('$.Detail.findingType');
+    expect(definitionString).toContain('multiService');
+    expect(definitionString).toContain('IsPresent');
+  });
+});

@@ -1,0 +1,12 @@
+// EC2.2 — VPC default security groups should not allow inbound or outbound traffic
+//
+// ASR remediation removes all inbound and outbound rules from the VPC default
+// security group so that it restricts all traffic.
+// To apply this fix, ensure your default security group has no ingress or egress
+// rules defined.
+
+new ec2.CfnSecurityGroup(this, '{defaultSecurityGroup}', {
+  groupDescription: 'Default security group with no rules',
+  securityGroupIngress: [],
+  securityGroupEgress: [],
+});

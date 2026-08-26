@@ -1,0 +1,6 @@
+# RDS.1 — RDS snapshots should be private
+#
+# ASR remediation removes public access from RDS DB snapshots and cluster
+# snapshots by revoking the "all" restore permission.
+# No CloudFormation change is needed. Snapshot sharing attributes are not
+# configurable via CloudFormation resource properties.

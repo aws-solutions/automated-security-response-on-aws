@@ -1,0 +1,10 @@
+// CloudTrail.5 — CloudTrail trails should be integrated with Amazon CloudWatch Logs
+//
+// ASR remediation configures the CloudTrail trail to send logs to a CloudWatch Logs log group.
+// To apply this fix, add or update the sendToCloudWatchLogs property on your Trail construct.
+// NOTE: <LOG_GROUP> — your CloudWatch Logs log group for CloudTrail.
+
+const trail = new cloudtrail.Trail(this, '{trailName}', {
+  sendToCloudWatchLogs: true,
+  cloudWatchLogGroup: <LOG_GROUP>,
+});

@@ -17,8 +17,8 @@ description: |
   * CIS v1.2.0:     2.7
   * PCI:            CloudTrail.1
 
-schemaVersion: "0.3"
-assumeRole: "{{ AutomationAssumeRole }}"
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -41,23 +41,62 @@ parameters:
 
 outputs:
   - Remediation.Output
+  - TagIAMRole.Output
+  - TagFlowLog.Output
 
 mainSteps:
-  -
-    name: Remediation
+  - name: Remediation
     action: 'aws:executeScript'
     outputs:
       - Name: Output
-        Selector: $.Payload.response
+        Selector: $.Payload.Response
         Type: StringMap
+      - Name: IamRoleArn
+        Selector: $.Payload.IamRoleArn
+        Type: String
+      - Name: FlowLogArn
+        Selector: $.Payload.FlowLogArn
+        Type: String
     inputs:
       InputPayload:
-        vpc: '{{VPC}}'
-        remediation_role: '{{RemediationRole}}'
-        kms_key_arn: '{{KMSKeyArn}}'
+        Vpc: '{{VPC}}'
+        RemediationRole: '{{RemediationRole}}'
+        KmsKeyArn: '{{KMSKeyArn}}'
+        Region: '{{global:REGION}}'
+        AccountId: '{{global:ACCOUNT_ID}}'
       Runtime: python3.11
       Handler: enable_flow_logs
       Script: |-
         %%SCRIPT=EnableVPCFlowLogs.py%%
+
+  - name: TagIAMRole
+    action: 'aws:executeScript'
+    onFailure: Continue
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    inputs:
+      InputPayload:
+        ResourceArn: '{{Remediation.IamRoleArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+
+  - name: TagFlowLog
+    action: 'aws:executeScript'
+    onFailure: Continue
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    inputs:
+      InputPayload:
+        ResourceArn: '{{Remediation.FlowLogArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
 
     isEnd: true

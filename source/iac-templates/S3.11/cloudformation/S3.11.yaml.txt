@@ -1,0 +1,50 @@
+# S3.11 — S3 buckets should have event notifications enabled
+#
+# ASR remediation creates an SNS topic and configures event notifications
+# on the S3 bucket to publish to that topic for key event types.
+# To apply this fix, add an SNS topic and a NotificationConfiguration
+# to your S3 bucket with the desired event types.
+
+Resources:
+  BucketNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: SO0111-ASR-S3BucketNotifications
+
+  BucketNotificationTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref BucketNotificationTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowS3Publish
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref BucketNotificationTopic
+            Condition:
+              ArnLike:
+                aws:SourceArn: !GetAtt {bucketName}.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  {bucketName}:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Topic: !Ref BucketNotificationTopic
+            Events:
+              - "s3:ReducedRedundancyLostObject"
+              - "s3:ObjectCreated:*"
+              - "s3:ObjectRemoved:*"
+              - "s3:ObjectRestore:*"
+              - "s3:Replication:*"
+              - "s3:LifecycleExpiration:*"
+              - "s3:LifecycleTransition"
+              - "s3:IntelligentTiering"
+              - "s3:ObjectTagging:*"
+              - "s3:ObjectAcl:Put"

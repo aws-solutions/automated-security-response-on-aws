@@ -27,6 +27,22 @@ export class UserAccountMappingRepository extends AbstractRepository<UserAccount
     await this.put(userAccountMapping);
   }
 
+  /** Scans the table and returns all userId values (email addresses). */
+  async findAllUserIds(): Promise<string[]> {
+    return this.findAllWithTransform(
+      (item) => {
+        const userId = item.userId;
+        if (typeof userId !== 'string') {
+          throw new TypeError(`Expected userId to be a string, got ${typeof userId}`);
+        }
+        return userId;
+      },
+      {
+        ProjectionExpression: 'userId',
+      },
+    );
+  }
+
   async deleteIfExists(userId: string, _: string): Promise<void> {
     try {
       await this.dynamoDBClient.send(

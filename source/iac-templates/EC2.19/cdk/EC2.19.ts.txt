@@ -1,0 +1,24 @@
+// EC2.19 — Security groups should not allow unrestricted access to high-risk ports
+//
+// ASR remediation revokes ingress rules that allow unrestricted access (0.0.0.0/0
+// or ::/0) to high-risk ports such as SSH (22), RDP (3389), and database ports.
+// To apply this fix, replace any open CIDR ingress rules on high-risk ports with
+// rules that restrict access to specific trusted CIDR ranges.
+
+new ec2.CfnSecurityGroup(this, '{securityGroup}', {
+  groupDescription: 'Security group with restricted high-risk port access',
+  securityGroupIngress: [
+    {
+      ipProtocol: 'tcp',
+      fromPort: 22,
+      toPort: 22,
+      cidrIp: '10.0.0.0/8',
+    },
+    {
+      ipProtocol: 'tcp',
+      fromPort: 3389,
+      toPort: 3389,
+      cidrIp: '10.0.0.0/8',
+    },
+  ],
+});

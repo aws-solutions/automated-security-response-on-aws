@@ -1,0 +1,48 @@
+// IAM.7 — Password policies for IAM users should have strong configurations
+//
+// ASR remediation sets the account password policy to require a minimum length
+// of 14 characters, uppercase, lowercase, numbers, and symbols, with a maximum
+// age of 90 days and prevention of reusing the last 24 passwords.
+// To apply this fix, add an AwsCustomResource that calls the IAM
+// UpdateAccountPasswordPolicy API with the properties shown below.
+
+new cr.AwsCustomResource(this, '{accountPasswordPolicy}', {
+  onCreate: {
+    service: 'IAM',
+    action: 'UpdateAccountPasswordPolicy',
+    parameters: {
+      AllowUsersToChangePassword: true,
+      HardExpiry: true,
+      MaxPasswordAge: 90,
+      MinimumPasswordLength: 14,
+      PasswordReusePrevention: 24,
+      RequireLowercaseCharacters: true,
+      RequireNumbers: true,
+      RequireSymbols: true,
+      RequireUppercaseCharacters: true,
+    },
+    physicalResourceId: cr.PhysicalResourceId.of('AccountPasswordPolicy'),
+  },
+  onUpdate: {
+    service: 'IAM',
+    action: 'UpdateAccountPasswordPolicy',
+    parameters: {
+      AllowUsersToChangePassword: true,
+      HardExpiry: true,
+      MaxPasswordAge: 90,
+      MinimumPasswordLength: 14,
+      PasswordReusePrevention: 24,
+      RequireLowercaseCharacters: true,
+      RequireNumbers: true,
+      RequireSymbols: true,
+      RequireUppercaseCharacters: true,
+    },
+    physicalResourceId: cr.PhysicalResourceId.of('AccountPasswordPolicy'),
+  },
+  policy: cr.AwsCustomResourcePolicy.fromStatements([
+    new iam.PolicyStatement({
+      actions: ['iam:UpdateAccountPasswordPolicy'],
+      resources: ['*'],
+    }),
+  ]),
+});

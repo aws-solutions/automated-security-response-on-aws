@@ -1,0 +1,8 @@
+// CloudFormation.3 — CloudFormation stacks should have termination protection enabled
+//
+// ASR remediation enables termination protection on the stack.
+// To apply this fix, set terminationProtection to true on your Stack.
+
+new cdk.Stack(app, '{stack}', {
+  terminationProtection: true,
+});

@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
+import re
 from json.decoder import JSONDecodeError
 from typing import Any, NotRequired, TypedDict, Union, cast
 
@@ -132,6 +133,80 @@ def extract_account_id(event: Event) -> str:
         or event.get("Finding", {}).get("AwsAccountId", "")
         or event.get("SSMExecution", {}).get("Account", "")
     )
+
+
+_ACCESS_ANALYZER_FINDING_ID_PREFIX = re.compile(
+    r"^arn:(?:aws|aws-cn|aws-us-gov):access-analyzer:"
+)
+
+# Matches a 12-digit AWS account id.
+_AWS_ACCOUNT_ID_PATTERN = re.compile(r"^\d{12}$")
+
+
+def _is_access_analyzer_finding(event: Event) -> bool:
+    """True when the finding is an IAM Access Analyzer finding.
+
+    Identified by the native access-analyzer ARN used as the finding id — the
+    same signal the backend uses (getControlIdFromFindingId maps this prefix to
+    IAMAccessAnalyzer.ExternalAccess). Only these findings carry the resource
+    owner in ProductFields.ResourceOwnerAccount.
+    """
+    finding = event.get("Finding", {})
+    if not isinstance(finding, dict):
+        return False
+    finding_id = finding.get("Id", "")
+    return isinstance(finding_id, str) and bool(
+        _ACCESS_ANALYZER_FINDING_ID_PREFIX.match(finding_id)
+    )
+
+
+def extract_resource_owner_account(event: Event) -> str:
+    """Extract ProductFields.ResourceOwnerAccount from the finding, if present.
+
+    IAM Access Analyzer organization-analyzer findings set
+    ProductFields.ResourceOwnerAccount to the account that owns the resource,
+    which differs from AwsAccountId (the administrator account). The field is
+    IAM Access Analyzer-specific, so its presence identifies such a finding.
+    Returns "" when the finding, ProductFields, or the field is absent.
+    """
+    finding = event.get("Finding", {})
+    if not isinstance(finding, dict):
+        return ""
+    product_fields = finding.get("ProductFields", {})
+    if not isinstance(product_fields, dict):
+        return ""
+    return str(product_fields.get("ResourceOwnerAccount", "") or "")
+
+
+def resolve_finding_account_id(event: Event) -> str:
+    """Resolve the account that owns the resource a finding reports on.
+
+    For IAM Access Analyzer organization-analyzer findings, ASFF AwsAccountId is
+    the administrator account while the resource lives in the account named by
+    ProductFields.ResourceOwnerAccount, so that field is preferred — but only
+    for Access Analyzer findings, matching the backend
+    FindingDataService.resolveAccountId. Every other finding (and Access
+    Analyzer findings without the field) uses extract_account_id, so findings
+    that merely happen to carry ResourceOwnerAccount are unaffected.
+    """
+    if _is_access_analyzer_finding(event):
+        resource_owner_account = extract_resource_owner_account(event)
+        # Only trust ResourceOwnerAccount when it is a 12-digit account id: it is
+        # a free-form ProductFields entry that becomes the accountId used for
+        # account-scoped authorization, so a malformed/crafted value must not be
+        # used. Fall back to AwsAccountId otherwise (matching the runbook parse
+        # script's ^\d{12}$ check).
+        if _AWS_ACCOUNT_ID_PATTERN.match(resource_owner_account):
+            return resource_owner_account
+        if resource_owner_account:
+            logger.warning(
+                "Ignoring malformed ResourceOwnerAccount on Access Analyzer finding; falling back to AwsAccountId",
+                extra={
+                    "findingId": extract_finding_id(cast(dict[str, Any], event)),
+                    "resourceOwnerAccount": resource_owner_account,
+                },
+            )
+    return extract_account_id(event)
 
 
 def extract_region(event: Event) -> str:

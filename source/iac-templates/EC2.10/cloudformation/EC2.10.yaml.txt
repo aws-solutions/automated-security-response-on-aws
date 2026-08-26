@@ -1,0 +1,17 @@
+# EC2.10 — Amazon EC2 should be configured to use VPC endpoints
+#
+# ASR remediation creates and attaches an interface VPC endpoint for the
+# specified AWS service to the VPC.
+# To apply this fix, add a VPCEndpoint resource with the service name and
+# VPC ID in your CloudFormation template.
+# NOTE: <SUBNET_ID> — your subnet ID(s) for the VPC endpoint.
+
+Resources:
+  {vpcEndpoint}:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: {vpcId}
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2"
+      SubnetIds:
+        - <SUBNET_ID>

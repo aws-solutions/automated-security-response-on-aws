@@ -1,0 +1,19 @@
+// CloudFront.12 — CloudFront distributions should not point to non-existent S3 origins
+//
+// ASR remediation sets the origin domain to a safe placeholder value and disables the distribution
+// to prevent a potential malicious takeover of an orphaned S3 origin.
+// To apply this fix, update the origin to a valid origin and set enabled to false on your
+// CloudFront distribution.
+// NOTE: <ORIGIN_DOMAIN> — your actual origin domain.
+
+const distribution = new cloudfront.Distribution(this, '{distribution}', {
+  enabled: false,
+  defaultBehavior: {
+    origin: new origins.HttpOrigin('<ORIGIN_DOMAIN>', {
+      httpPort: 80,
+      httpsPort: 443,
+      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+      originSslProtocols: [cloudfront.OriginSslPolicy.TLS_V1_2],
+    }),
+  },
+});

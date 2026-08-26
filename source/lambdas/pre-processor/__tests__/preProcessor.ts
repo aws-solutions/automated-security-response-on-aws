@@ -36,30 +36,54 @@ jest.mock('../../common/utils/tracer', () => ({
   })),
 }));
 
-import { ASFFFinding, ASFFSeverity, OCSFComplianceFinding } from '@asr/data-models';
+import { ASFFFinding, ASFFSeverity, OCSFComplianceFinding, NotificationConfigurationItem } from '@asr/data-models';
+import type { NormalizedFinding } from '@asr/data-models';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { Context, SQSBatchResponse, SQSEvent, SQSRecord } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 import nock from 'nock';
-import { configTableName, findingsTableName, remediationHistoryTableName } from '../../common/__tests__/envSetup';
+import {
+  remediationConfigTableName,
+  findingsTableName,
+  remediationHistoryTableName,
+  notificationConfigTableName,
+  resourceFiltersTableName,
+} from '../../common/__tests__/envSetup';
 import { FINDING_PRINCIPAL } from '../../common/constants/apiConstant';
+
 import { FindingRepository } from '../../common/repositories/findingRepository';
+import { NotificationConfigurationRepository } from '../../common/repositories/notificationConfigurationRepository';
 import { normalizeResourceType } from '../../common/services/findingDataService';
 import { executeOrchestrator } from '../../common/utils/orchestrator';
 import { calculateTtlTimestamp } from '../../common/utils/ttlUtils';
-import { PreProcessor, handler } from '../preProcessor';
+import {
+  PreProcessor,
+  handler,
+  convertToMinimalFindingForHistory,
+  __findingNotificationConfigEvaluator,
+} from '../preProcessor';
+import {
+  mockVulnerabilityFinding,
+  mockIamAccessAnalyzerAsffFinding,
+  mockDetectionFinding,
+  mockSpoofedGuardDutyDetectionFinding,
+  mockSpoofedIamAccessAnalyzerAsffFinding,
+  mockSpoofedIamAccessAnalyzerAsffFindingWithControlId,
+  mockSpoofedGuardDutyAsffFindingWithControlId,
+} from './fixtures/multiServiceFixtures';
+import { asFindingId, asConfigId, asResolvedFindingType } from '../../common/__tests__/utils';
 
 describe('PreProcessor Lambda', () => {
   let context: Context;
   let docClient: DynamoDBDocumentClient;
   let sfnMock = mockClient(SFNClient);
   const ssmMock = mockClient(SSMClient);
-  const ASFFFindingId =
-    'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/asff-finding-id';
-  const OCSFFindingId =
-    'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/ocsf-test';
+  const securityHubFindingArn = (suffix: string) =>
+    `arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/${suffix}`;
+  const ASFFFindingId = securityHubFindingArn('asff-finding-id');
+  const OCSFFindingId = securityHubFindingArn('ocsf-test');
 
   const createMockFinding = (overrides: Partial<ASFFFinding> = {}): ASFFFinding => ({
     SchemaVersion: '2018-10-08',
@@ -121,6 +145,29 @@ describe('PreProcessor Lambda', () => {
     ...overrides,
   });
 
+  const createMockNormalizedFinding = (overrides: Partial<NormalizedFinding> = {}): NormalizedFinding => {
+    const mockFinding = createMockFinding();
+    return {
+      id: ASFFFindingId,
+      productArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+      findingTypeIdentifier: { type: 'securityControl', value: 'S3.1' },
+      accountId: '123456789012',
+      region: 'us-east-1',
+      severity: 'HIGH',
+      complianceStatus: 'FAILED',
+      recordState: 'ACTIVE',
+      workflowStatus: 'NEW',
+      resources: [{ type: 'AwsS3Bucket', id: 'arn:aws:s3:::test-bucket', region: 'us-east-1', tags: undefined }],
+      title: 'S3 bucket should prohibit public read access',
+      description: 'This control checks whether your S3 buckets allow public read access.',
+      createdAt: '2023-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      format: 'ASFF',
+      raw: mockFinding as unknown as Record<string, unknown>,
+      ...overrides,
+    };
+  };
+
   const createSQSRecord = (
     finding: ASFFFinding | OCSFComplianceFinding,
     additionalPayload = {},
@@ -166,23 +213,19 @@ describe('PreProcessor Lambda', () => {
       return Promise.resolve({});
     });
 
-    ssmMock
-      .on(GetParameterCommand, { Name: expect.stringContaining('Filters') })
-      .resolves({ Parameter: { Value: 'Disabled' } });
-
     return setupMetricsMocks();
   };
 
   beforeAll(async () => {
     docClient = DynamoDBTestSetup.getDocClient();
     await DynamoDBTestSetup.createFindingsTable(findingsTableName);
-    await DynamoDBTestSetup.createConfigTable(configTableName);
+    await DynamoDBTestSetup.createConfigTable(remediationConfigTableName);
     await DynamoDBTestSetup.createRemediationHistoryTable(remediationHistoryTableName);
   });
 
   afterAll(async () => {
     await DynamoDBTestSetup.deleteTable(findingsTableName);
-    await DynamoDBTestSetup.deleteTable(configTableName);
+    await DynamoDBTestSetup.deleteTable(remediationConfigTableName);
     await DynamoDBTestSetup.deleteTable(remediationHistoryTableName);
   });
 
@@ -246,14 +289,14 @@ describe('PreProcessor Lambda', () => {
 
     // Clear tables
     await DynamoDBTestSetup.clearTable(findingsTableName, 'findings');
-    await DynamoDBTestSetup.clearTable(configTableName, 'config');
+    await DynamoDBTestSetup.clearTable(remediationConfigTableName, 'config');
     await DynamoDBTestSetup.clearTable(remediationHistoryTableName, 'remediationHistory');
   });
 
   const setupControlConfig = async (controlId: string, enabled: boolean) => {
     await docClient.send(
       new PutCommand({
-        TableName: configTableName,
+        TableName: remediationConfigTableName,
         Item: { controlId, automatedRemediationEnabled: enabled },
       }),
     );
@@ -274,7 +317,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -306,7 +352,10 @@ describe('PreProcessor Lambda', () => {
       const findingResult = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -348,7 +397,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -368,7 +420,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -401,7 +453,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -420,7 +475,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -452,7 +507,10 @@ describe('PreProcessor Lambda', () => {
       const findingResult = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -486,7 +544,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -515,7 +573,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -538,7 +599,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -567,7 +628,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -578,8 +642,7 @@ describe('PreProcessor Lambda', () => {
   describe('History Creation Error Handling', () => {
     it('should continue orchestrator execution even if history creation fails', async () => {
       await DynamoDBTestSetup.createRemediationHistoryTable('test-history-table-fail');
-      process.env.REMEDIATION_HISTORY_TABLE_ARN =
-        'arn:aws:dynamodb:us-east-1:123456789012:table/test-history-table-fail';
+      process.env.REMEDIATION_HISTORY_TABLE_NAME = 'test-history-table-fail';
 
       const finding = createMockFinding({
         Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/history-fail-finding',
@@ -609,7 +672,10 @@ describe('PreProcessor Lambda', () => {
       const findingResult = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -619,7 +685,7 @@ describe('PreProcessor Lambda', () => {
       expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
 
       await DynamoDBTestSetup.deleteTable('test-history-table-fail');
-      delete process.env.REMEDIATION_HISTORY_TABLE_ARN;
+      delete process.env.REMEDIATION_HISTORY_TABLE_NAME;
       jest.clearAllMocks();
     });
   });
@@ -688,7 +754,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/UNSUPPORTED.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/UNSUPPORTED.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -764,7 +833,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: thisFindingWillSucceed.Id,
+            findingId: asFindingId(thisFindingWillSucceed.Id),
           },
         }),
       );
@@ -804,7 +873,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -817,22 +886,25 @@ describe('PreProcessor Lambda', () => {
 
   describe('Utility Methods', () => {
     it('should build orchestrator input correctly', () => {
-      const finding = createMockFinding();
+      const normalized = createMockNormalizedFinding();
       const payload = { source: 'aws.securityhub', account: '123456789012', region: 'us-east-1' };
 
-      const result = PreProcessor.buildOrchestratorInput(payload, finding);
+      const result = PreProcessor.buildOrchestratorInput(normalized, payload);
       const parsed = JSON.parse(result);
 
       expect(parsed.detail.findings).toHaveLength(1);
-      expect(parsed.detail.findings[0]).toEqual(finding);
+      expect(parsed.detail.findings[0]).toEqual(normalized.raw);
+      expect(parsed.detail.findingFormat).toBe('ASFF');
       expect(parsed.source).toBe('aws.securityhub');
       expect(parsed.account).toBe('123456789012');
       expect(parsed.region).toBe('us-east-1');
     });
 
     it('should convert ASFF finding to minimal FindingTableItem for history', () => {
+      // ARRANGE — a consolidated Security Hub ARN, so the partition key is derived from the id
+      const findingId = 'arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/minimal-history';
       const finding = createMockFinding({
-        Id: 'test-finding-id',
+        Id: findingId,
         AwsAccountId: '123456789012',
         Resources: [{ Type: 'AwsS3Bucket', Id: 'arn:aws:s3:::test-bucket', Region: 'us-east-1' }],
         Severity: { Label: 'HIGH' },
@@ -840,10 +912,12 @@ describe('PreProcessor Lambda', () => {
         Compliance: { Status: 'FAILED', SecurityControlId: 'S3.1' },
       });
 
-      const result = (PreProcessor as any).convertToMinimalFindingForHistory(finding);
+      // ACT
+      const result = convertToMinimalFindingForHistory(finding, asResolvedFindingType('security-control/S3.1'));
 
-      expect(result.findingType).toBe('S3.1');
-      expect(result.findingId).toBe('test-finding-id');
+      // ASSERT — the prefixed ARN form, not the bare Compliance.SecurityControlId
+      expect(result.findingType).toBe('security-control/S3.1');
+      expect(result.findingId).toBe(findingId);
       expect(result.accountId).toBe('123456789012');
       expect(result.resourceId).toBe('arn:aws:s3:::test-bucket');
       expect(result.resourceType).toBe('AwsS3Bucket');
@@ -861,9 +935,27 @@ describe('PreProcessor Lambda', () => {
       expect(result.findingJSON).toEqual(new Uint8Array(0));
     });
 
-    it('should handle missing optional fields in ASFF finding conversion', () => {
+    it('should use the supplied findingType for a multi-service finding whose id encodes nothing', () => {
+      // ARRANGE — Macie's Security Hub V2 FindingInfoUid is a bare hash, so the key can only come
+      // from the caller, who resolved it upstream via resolveFindingType
       const finding = createMockFinding({
-        Id: 'test-finding-id-2',
+        Id: '9f8e7d6c5b4a39281706',
+        Compliance: { Status: 'FAILED', SecurityControlId: 'Macie.SensitiveDataS3Object' },
+      });
+
+      // ACT
+      const result = convertToMinimalFindingForHistory(finding, asResolvedFindingType('Macie.SensitiveDataS3Object'));
+
+      // ASSERT
+      expect(result.findingType).toBe('Macie.SensitiveDataS3Object');
+      expect(result.findingId).toBe('9f8e7d6c5b4a39281706');
+    });
+
+    it('should handle missing optional fields in ASFF finding conversion', () => {
+      // ARRANGE
+      const findingId = 'arn:aws:securityhub:us-east-1:123456789012:security-control/EC2.1/finding/minimal-history-2';
+      const finding = createMockFinding({
+        Id: findingId,
         AwsAccountId: '123456789012',
         Resources: [{ Type: 'AwsEc2Instance', Id: 'i-1234567890abcdef0' }],
         Severity: {}, // No Label
@@ -871,10 +963,12 @@ describe('PreProcessor Lambda', () => {
         Compliance: { Status: 'FAILED', SecurityControlId: 'EC2.1' },
       });
 
-      const result = (PreProcessor as any).convertToMinimalFindingForHistory(finding);
+      // ACT
+      const result = convertToMinimalFindingForHistory(finding, asResolvedFindingType('security-control/EC2.1'));
 
-      expect(result.findingType).toBe('EC2.1');
-      expect(result.findingId).toBe('test-finding-id-2');
+      // ASSERT
+      expect(result.findingType).toBe('security-control/EC2.1');
+      expect(result.findingId).toBe(findingId);
       expect(result.resourceId).toBe('i-1234567890abcdef0');
       expect(result.resourceType).toBe('AwsEc2Instance');
       expect(result.severity).toBe('MEDIUM');
@@ -906,9 +1000,13 @@ describe('PreProcessor Lambda', () => {
     });
 
     it('should map notified finding for orchestrator correctly', () => {
-      const finding = createMockFinding({
-        Id: 'test-finding-id',
-        Workflow: { Status: 'NOTIFIED' },
+      const normalized = createMockNormalizedFinding({
+        id: 'test-finding-id',
+        workflowStatus: 'NOTIFIED',
+        raw: createMockFinding({ Id: 'test-finding-id', Workflow: { Status: 'NOTIFIED' } }) as unknown as Record<
+          string,
+          unknown
+        >,
       });
 
       const orchestratorInput = JSON.stringify({
@@ -916,16 +1014,16 @@ describe('PreProcessor Lambda', () => {
         account: '123456789012',
         region: 'us-east-1',
         detail: {
-          findings: [finding],
+          findings: [normalized.raw],
           actionName: 'None',
         },
       });
 
-      const result = (PreProcessor as any).mapNotifiedFindingForOrchestrator(finding, orchestratorInput);
+      const result = PreProcessor.mapNotifiedFindingForOrchestrator(normalized, orchestratorInput);
       const parsedOutput = JSON.parse(result.orchestratorInput);
 
-      expect(result.finding.Workflow.Status).toBe('NEW');
-      expect(result.finding.Id).toBe('test-finding-id');
+      expect(result.normalized.workflowStatus).toBe('NEW');
+      expect(result.normalized.id).toBe('test-finding-id');
       expect(parsedOutput.detail.findings).toHaveLength(1);
       expect(parsedOutput.detail.findings[0].Workflow.Status).toBe('NEW');
       expect(parsedOutput.detail.findings[0].Id).toBe('test-finding-id');
@@ -954,7 +1052,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/EC2.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/EC2.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -982,7 +1083,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1010,7 +1114,10 @@ describe('PreProcessor Lambda', () => {
         const result = await docClient.send(
           new GetCommand({
             TableName: findingsTableName,
-            Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
           }),
         );
 
@@ -1032,7 +1139,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1054,7 +1164,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/MISSING.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/MISSING.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1074,7 +1187,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Original description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -1103,7 +1216,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1129,7 +1245,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1170,7 +1286,7 @@ describe('PreProcessor Lambda', () => {
             TableName: findingsTableName,
             Key: {
               findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-              findingId: ocsfFinding.finding_info.uid,
+              findingId: asFindingId(ocsfFinding.finding_info.uid),
             },
           }),
         );
@@ -1199,7 +1315,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: ocsfFinding.finding_info.uid,
+        findingId: asFindingId(ocsfFinding.finding_info.uid),
         findingDescription: 'Old OCSF description',
         accountId: '123456789012',
         resourceId: 'arn:aws:s3:::test-bucket',
@@ -1234,7 +1350,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1245,7 +1361,9 @@ describe('PreProcessor Lambda', () => {
       expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
     });
 
-    it('should handle OCSF finding with missing control ID and send metrics', async () => {
+    it('skips OCSF findings that resolve to no control id', async () => {
+      // ARRANGE: an empty compliance.control resolves to no control id, so the
+      // finding is unsupported and must be skipped cleanly rather than erroring.
       const invalidOcsfFinding = createMockOCSFFinding({
         compliance: {
           status: 'fail',
@@ -1253,16 +1371,11 @@ describe('PreProcessor Lambda', () => {
           standards: ['aws-foundational-security-best-practices'],
         },
       });
-
-      const metricsScope = setupMetricsMocks();
       const record = createSQSRecord(invalidOcsfFinding);
 
-      await expect(PreProcessor.recordHandler(record)).rejects.toThrow(
-        'One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: controlId',
-      );
-
-      await new Promise((resolve) => setImmediate(resolve));
-      expect(metricsScope.isDone()).toBe(true);
+      // ACT / ASSERT: ingestion resolves without error and starts no remediation
+      await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
     });
 
     it('should process OCSF finding with uid fallback when uid_alt is undefined', async () => {
@@ -1299,7 +1412,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/CloudFormation.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1350,7 +1463,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1374,7 +1487,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Existing finding',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -1403,7 +1516,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item).toBeUndefined();
@@ -1424,7 +1540,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item).toBeUndefined();
@@ -1445,7 +1564,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: ocsfFinding.finding_info.uid,
+        findingId: asFindingId(ocsfFinding.finding_info.uid),
         findingDescription: 'Existing OCSF finding',
         accountId: '123456789012',
         resourceId: 'arn:aws:s3:::test-bucket',
@@ -1477,7 +1596,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1499,7 +1618,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: ocsfFinding.finding_info.uid,
+        findingId: asFindingId(ocsfFinding.finding_info.uid),
         findingDescription: 'Existing OCSF finding',
         accountId: '123456789012',
         resourceId: 'arn:aws:s3:::test-bucket',
@@ -1531,7 +1650,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1558,7 +1677,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1569,7 +1688,7 @@ describe('PreProcessor Lambda', () => {
 
   describe('Filtering Metrics', () => {
     it('should send filtering metric with "none" when all filters disabled', async () => {
-      const finding = createMockFinding({ Id: 'metrics-test-finding' });
+      const finding = createMockFinding({ Id: securityHubFindingArn('metrics-test-finding') });
       await setupControlConfig('S3.1', true);
       sfnMock.on(StartExecutionCommand).resolves({
         executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:metrics-execution-id',
@@ -1586,18 +1705,21 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
     });
 
     it('should send filtering metric even when finding processing fails', async () => {
-      const finding = createMockFinding({ Id: 'metrics-error-finding' });
+      const finding = createMockFinding({ Id: securityHubFindingArn('metrics-error-finding') });
       await setupControlConfig('S3.1', true);
 
       const ddbMock = mockClient(DynamoDBDocumentClient);
-      ddbMock.on(GetCommand, { TableName: configTableName }).resolves({
+      ddbMock.on(GetCommand, { TableName: remediationConfigTableName }).resolves({
         Item: { controlId: 'S3.1', automatedRemediationEnabled: true },
       });
       ddbMock.on(PutCommand).rejects(new Error('DynamoDB error'));
@@ -1640,7 +1762,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1648,7 +1770,7 @@ describe('PreProcessor Lambda', () => {
     });
 
     it('should send filtering metric when auto-remediation is disabled', async () => {
-      const finding = createMockFinding({ Id: 'metrics-disabled-finding' });
+      const finding = createMockFinding({ Id: securityHubFindingArn('metrics-disabled-finding') });
       await setupControlConfig('S3.1', false);
 
       const metricsScope = setupFilterMetricsMocks();
@@ -1662,20 +1784,23 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item?.remediationStatus).toBe('NOT_STARTED');
     });
 
     it('should send filtering metric for existing finding updates', async () => {
-      const finding = createMockFinding({ Id: 'metrics-existing-finding' });
+      const finding = createMockFinding({ Id: securityHubFindingArn('metrics-existing-finding') });
       await setupControlConfig('S3.1', true);
 
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
-        findingType: 'S3.1',
-        findingId: finding.Id,
+        findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Existing finding',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -1690,7 +1815,7 @@ describe('PreProcessor Lambda', () => {
         'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00.000Z#' + finding.Id,
         'severityNormalized#securityHubUpdatedAtTime#findingId': '2#2023-01-01T00:00:00.000Z#' + finding.Id,
         findingJSON: new Uint8Array(),
-        findingIdControl: finding.Id + '#S3.1',
+        findingIdControl: finding.Id + '#aws-foundational-security-best-practices/v/1.0.0/S3.1',
         FINDING_CONSTANT: 'finding',
         suppressed: false,
         creationTime: finding.CreatedAt,
@@ -1711,7 +1836,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
@@ -1731,7 +1859,10 @@ describe('PreProcessor Lambda', () => {
       let result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item?.remediationStatus).toBe('NOT_STARTED');
@@ -1754,7 +1885,10 @@ describe('PreProcessor Lambda', () => {
       result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
       expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
@@ -1776,7 +1910,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1784,20 +1921,17 @@ describe('PreProcessor Lambda', () => {
       expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
     });
 
-    it('should handle finding with empty string SecurityControlId and send metrics', async () => {
+    it('skips findings with an empty SecurityControlId', async () => {
+      // ARRANGE: an empty SecurityControlId resolves to no control id, so the
+      // finding is unsupported and must be skipped cleanly rather than erroring.
       const finding = createMockFinding({
         Compliance: { Status: 'FAILED', SecurityControlId: '' },
       });
       const record = createSQSRecord(finding);
 
-      const metricsScope = setupMetricsMocks();
-
-      await expect(PreProcessor.recordHandler(record)).rejects.toThrow(
-        'One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: controlId',
-      );
-
-      await new Promise((resolve) => setImmediate(resolve));
-      expect(metricsScope.isDone()).toBe(true);
+      // ACT / ASSERT: ingestion resolves without error and starts no remediation
+      await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
     });
 
     it('should handle null record parameter', async () => {
@@ -1841,7 +1975,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1885,7 +2022,7 @@ describe('PreProcessor Lambda', () => {
           TableName: findingsTableName,
           Key: {
             findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-            findingId: ocsfFinding.finding_info.uid,
+            findingId: asFindingId(ocsfFinding.finding_info.uid),
           },
         }),
       );
@@ -1911,7 +2048,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -1939,7 +2076,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -1957,7 +2097,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -1989,7 +2129,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2007,7 +2150,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -2039,7 +2182,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2057,7 +2203,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -2086,7 +2232,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2104,7 +2253,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -2136,7 +2285,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2161,7 +2313,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2192,7 +2347,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2224,7 +2382,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -2254,7 +2412,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2276,7 +2437,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -2308,7 +2469,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2337,7 +2501,10 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
@@ -2358,7 +2525,7 @@ describe('PreProcessor Lambda', () => {
       const findingRepo = new FindingRepository('test', findingsTableName, docClient);
       await findingRepo.put({
         findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
-        findingId: finding.Id,
+        findingId: asFindingId(finding.Id),
         findingDescription: 'Old description',
         accountId: finding.AwsAccountId,
         resourceId: finding.Resources[0].Id,
@@ -2388,13 +2555,1172 @@ describe('PreProcessor Lambda', () => {
       const result = await docClient.send(
         new GetCommand({
           TableName: findingsTableName,
-          Key: { findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1', findingId: finding.Id },
+          Key: {
+            findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+            findingId: asFindingId(finding.Id),
+          },
         }),
       );
 
       expect(result.Item?.findingDescription).toBe('Updated title'); // Data updated
       expect(result.Item?.remediationStatus).toBe('NOT_STARTED'); // Status preserved
       expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0); // No orchestrator invocation
+    });
+  });
+
+  describe('Multi-Service Finding Processing', () => {
+    describe('buildOrchestratorInput', () => {
+      it('should build orchestrator input with native finding, remediationId, and findingFormat', () => {
+        const payload = {
+          detail: { findings: [{ old: 'finding' }], source: 'aws.securityhub' },
+          'detail-type': 'Imported Finding',
+        };
+        const nativeFinding = { class_uid: 2002, finding_info: { uid: 'test' } };
+        const normalized = createMockNormalizedFinding({
+          id: 'test',
+          findingTypeIdentifier: { type: 'multiService', value: 'Inspector.InstanceVulnerability' },
+          format: 'OCSF',
+          raw: nativeFinding as unknown as Record<string, unknown>,
+        });
+        const result = JSON.parse(PreProcessor.buildOrchestratorInput(normalized, payload));
+        expect(result.detail.findings).toEqual([nativeFinding]);
+        expect(result.detail.remediationId).toBe('Inspector.InstanceVulnerability');
+        expect(result.detail.findingFormat).toBe('OCSF');
+        expect(result.detail.actionName).toBe('None');
+        expect(result['detail-type']).toBe('Imported Finding');
+      });
+
+      it('should default to ASFF findingFormat for securityControl findings', () => {
+        const payload = {
+          detail: { findings: [{ old: 'finding' }] },
+          'detail-type': 'Imported Finding',
+        };
+        const normalized = createMockNormalizedFinding();
+        const result = JSON.parse(PreProcessor.buildOrchestratorInput(normalized, payload));
+        expect(result.detail.findingFormat).toBe('ASFF');
+        expect(result.detail.remediationId).toBe('S3.1');
+        expect(result.detail.findingType).toBe('securityControl');
+      });
+
+      it('should handle payload with missing detail gracefully', () => {
+        const payload = { 'detail-type': 'Imported Finding' };
+        const nativeFinding = { class_uid: 2004 };
+        const normalized = createMockNormalizedFinding({
+          findingTypeIdentifier: { type: 'multiService', value: 'GuardDuty.IAMUser' },
+          format: 'OCSF',
+          raw: nativeFinding as unknown as Record<string, unknown>,
+        });
+        const result = JSON.parse(PreProcessor.buildOrchestratorInput(normalized, payload));
+        expect(result.detail.findings).toEqual([nativeFinding]);
+        expect(result.detail.remediationId).toBe('GuardDuty.IAMUser');
+      });
+    });
+
+    const createMultiServiceSQSRecord = (finding: Record<string, unknown>, messageId?: string): SQSRecord => ({
+      messageId: messageId ?? 'multi-service-msg-id',
+      receiptHandle: 'test-receipt-handle',
+      body: JSON.stringify({
+        detail: { findings: [finding] },
+        'detail-type': 'Imported Finding',
+        source: 'aws.securityhub',
+        account: '123456789012',
+      }),
+      attributes: {
+        ApproximateReceiveCount: '1',
+        SentTimestamp: '1234567890000',
+        SenderId: 'test-sender',
+        ApproximateFirstReceiveTimestamp: '1234567890000',
+      },
+      messageAttributes: {},
+      md5OfBody: 'test-md5',
+      eventSource: 'aws:sqs',
+      eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test-queue',
+      awsRegion: 'us-east-1',
+    });
+
+    it('should trigger orchestrator and persist finding for multi-service finding with auto-remediation enabled', async () => {
+      await setupControlConfig('Inspector.InstanceVulnerability', true);
+      setupFilterMetricsMocks();
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:multi-service-exec',
+      });
+
+      const record = createMultiServiceSQSRecord(mockVulnerabilityFinding);
+      await PreProcessor.recordHandler(record);
+
+      // Verify orchestrator was called with correct input
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      const rawInput = sfnMock.commandCalls(StartExecutionCommand)[0].args[0].input.input;
+      if (!rawInput) throw new Error('Expected rawInput to be defined');
+      const input = JSON.parse(rawInput);
+      expect(input.detail.remediationId).toBe('Inspector.InstanceVulnerability');
+      expect(input.detail.findingFormat).toBe('OCSF');
+      expect(input.detail.findings[0].class_uid).toBe(2002);
+
+      // Verify finding was persisted in DynamoDB
+      const findingResult = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: {
+            findingType: 'Inspector.InstanceVulnerability',
+            findingId: asFindingId('inspector-finding-1'),
+          },
+        }),
+      );
+      expect(findingResult.Item).toBeDefined();
+      expect(findingResult.Item?.remediationStatus).toBe('IN_PROGRESS');
+      expect(findingResult.Item?.accountId).toBe('123456789012');
+
+      // Verify remediation history was created
+      const historyResult = await docClient.send(
+        new GetCommand({
+          TableName: remediationHistoryTableName,
+          Key: {
+            findingType: 'Inspector.InstanceVulnerability',
+            'findingId#executionId': `inspector-finding-1#arn:aws:states:us-east-1:123456789012:execution:test:multi-service-exec`,
+          },
+        }),
+      );
+      expect(historyResult.Item).toBeDefined();
+      expect(historyResult.Item?.remediationStatus).toBe('IN_PROGRESS');
+    });
+
+    it('should persist finding but not trigger orchestrator for multi-service finding with auto-remediation disabled', async () => {
+      await setupControlConfig('Inspector.InstanceVulnerability', false);
+      setupFilterMetricsMocks();
+
+      const record = createMultiServiceSQSRecord(mockVulnerabilityFinding);
+      await PreProcessor.recordHandler(record);
+
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+
+      // Verify finding was persisted with NOT_STARTED status
+      const findingResult = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: {
+            findingType: 'Inspector.InstanceVulnerability',
+            findingId: asFindingId('inspector-finding-1'),
+          },
+        }),
+      );
+      expect(findingResult.Item).toBeDefined();
+      expect(findingResult.Item?.remediationStatus).toBe('NOT_STARTED');
+    });
+
+    it('should return early for unsupported multi-service finding type', async () => {
+      // Don't set up config for Inspector.InstanceVulnerability — it won't be in the table
+      const record = createMultiServiceSQSRecord(mockVulnerabilityFinding);
+      await PreProcessor.recordHandler(record);
+
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('should trigger orchestrator for IAA ASFF finding with no Compliance block (complianceStatus forced to FAILED)', async () => {
+      // Raw IAA findings reach ASR without a Compliance block, so asffToNormalized
+      // defaults complianceStatus to NOT_AVAILABLE. The multi-service ASFF branch
+      // must override to FAILED so shouldTriggerRemediation's gate passes — matches
+      // the OCSF multi-service mappers (Inspector/GuardDuty/Macie).
+      await setupControlConfig('IAMAccessAnalyzer.ExternalAccess', true);
+      setupFilterMetricsMocks();
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:iaa-exec',
+      });
+
+      const record = createMultiServiceSQSRecord(mockIamAccessAnalyzerAsffFinding);
+      await PreProcessor.recordHandler(record);
+
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      const rawInput = sfnMock.commandCalls(StartExecutionCommand)[0].args[0].input.input;
+      if (!rawInput) throw new Error('Expected rawInput to be defined');
+      const input = JSON.parse(rawInput);
+      expect(input.detail.remediationId).toBe('IAMAccessAnalyzer.ExternalAccess');
+      expect(input.detail.findingFormat).toBe('ASFF');
+
+      const findingResult = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: {
+            findingType: 'IAMAccessAnalyzer.ExternalAccess',
+            findingId: asFindingId(mockIamAccessAnalyzerAsffFinding.Id),
+          },
+        }),
+      );
+      expect(findingResult.Item).toBeDefined();
+      expect(findingResult.Item?.remediationStatus).toBe('IN_PROGRESS');
+    });
+
+    describe('source authenticity — unverified ProductArn is dropped, not routed', () => {
+      // A finding that matches a multi-service rule by ProductName/Types/resource but whose
+      // ProductArn is not the reserved AWS service ARN must be dropped: not persisted, no
+      // orchestrator execution, and crucially not allowed to fall through to standard
+      // SecurityControlId-based routing.
+
+      it('drops a spoofed IAA ASFF finding carrying a crafted SecurityControlId (closes the standard-path bypass)', async () => {
+        // ARRANGE — enable the control so a regressed drop WOULD record + start the orchestrator
+        // via the standard SecurityControlId path. The empty StartExecution assertion is then a
+        // key-independent proof that the finding never reached that path.
+        await setupControlConfig('IAMAccessAnalyzer.ExternalAccess', true);
+        setupFilterMetricsMocks();
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:should-not-run',
+        });
+
+        // ACT
+        const record = createMultiServiceSQSRecord(mockSpoofedIamAccessAnalyzerAsffFindingWithControlId);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT — no orchestrator, no findings-table row under the multi-service control id
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        const findingResult = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'IAMAccessAnalyzer.ExternalAccess',
+              findingId: asFindingId(mockSpoofedIamAccessAnalyzerAsffFindingWithControlId.Id),
+            },
+          }),
+        );
+        expect(findingResult.Item).toBeUndefined();
+      });
+
+      it('drops a spoofed GuardDuty ASFF finding carrying a crafted SecurityControlId', async () => {
+        // ARRANGE
+        await setupControlConfig('GuardDuty.IAMUser', true);
+        setupFilterMetricsMocks();
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:should-not-run',
+        });
+
+        // ACT
+        const record = createMultiServiceSQSRecord(mockSpoofedGuardDutyAsffFindingWithControlId);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        const findingResult = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'GuardDuty.IAMUser',
+              findingId: asFindingId(mockSpoofedGuardDutyAsffFindingWithControlId.Id),
+            },
+          }),
+        );
+        expect(findingResult.Item).toBeUndefined();
+      });
+
+      it('drops a spoofed IAA ASFF finding (no Compliance block) cleanly, without throwing', async () => {
+        // ARRANGE
+        await setupControlConfig('IAMAccessAnalyzer.ExternalAccess', true);
+        setupFilterMetricsMocks();
+
+        // ACT / ASSERT — resolves (dropped), not rejected (would mean retry/DLQ)
+        const record = createMultiServiceSQSRecord(mockSpoofedIamAccessAnalyzerAsffFinding);
+        await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        const findingResult = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'IAMAccessAnalyzer.ExternalAccess',
+              findingId: asFindingId(mockSpoofedIamAccessAnalyzerAsffFinding.Id),
+            },
+          }),
+        );
+        expect(findingResult.Item).toBeUndefined();
+      });
+
+      it('drops a spoofed GuardDuty OCSF finding whose product uid is the default product ARN', async () => {
+        // ARRANGE
+        await setupControlConfig('GuardDuty.IAMUser', true);
+        setupFilterMetricsMocks();
+
+        // ACT
+        const record = createMultiServiceSQSRecord(mockSpoofedGuardDutyDetectionFinding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        const findingResult = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: { findingType: 'GuardDuty.IAMUser', findingId: asFindingId('guardduty-spoof-1') },
+          }),
+        );
+        expect(findingResult.Item).toBeUndefined();
+      });
+
+      it('does not add a dropped spoofed finding to batchItemFailures (no retry/DLQ)', async () => {
+        // ARRANGE
+        await setupControlConfig('IAMAccessAnalyzer.ExternalAccess', true);
+        setupFilterMetricsMocks();
+
+        // ACT
+        const sqsEvent: SQSEvent = {
+          Records: [
+            createMultiServiceSQSRecord(mockSpoofedIamAccessAnalyzerAsffFindingWithControlId, 'spoof-batch-msg'),
+          ],
+        };
+        const result = (await handler(sqsEvent, context, () => {})) as SQSBatchResponse;
+
+        // ASSERT — the message is treated as successfully processed (dropped), not failed
+        expect(result.batchItemFailures).toHaveLength(0);
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('still routes a genuine finding with the reserved ARN (gate is specific, not a blanket block)', async () => {
+        // ARRANGE — genuine GuardDuty OCSF finding with the reserved guardduty product ARN
+        await setupControlConfig('GuardDuty.IAMUser', true);
+        setupFilterMetricsMocks();
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:genuine-exec',
+        });
+
+        // ACT
+        const record = createMultiServiceSQSRecord(mockDetectionFinding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT — routed and persisted IN_PROGRESS
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+        const findingResult = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: { findingType: 'GuardDuty.IAMUser', findingId: asFindingId('guardduty-finding-1') },
+          }),
+        );
+        expect(findingResult.Item).toBeDefined();
+        expect(findingResult.Item?.remediationStatus).toBe('IN_PROGRESS');
+      });
+    });
+  });
+
+  // Feature: automated-remediation-controls, Property 14.1: Filter evaluation integration tests
+  // Validates: Section 4.2: Filter Evaluation Logic
+  describe('Resource Filter Evaluation Integration', () => {
+    const resourceFiltersTableName = process.env.RESOURCE_FILTERS_TABLE_NAME ?? 'test-resource-filters';
+
+    const setupControlConfigWithFilters = async (
+      controlId: string,
+      enabled: boolean,
+      filters: string[],
+      filterMode: 'include' | 'exclude' = 'include',
+    ) => {
+      await docClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId,
+            automatedRemediationEnabled: enabled,
+            filters: filters.length > 0 ? new Set(filters) : undefined,
+            filterMode,
+          },
+        }),
+      );
+    };
+
+    const setupResourceFilter = async (
+      filterId: string,
+      options: {
+        name?: string;
+        accountIds?: string[];
+        organizationalUnits?: string[];
+        tags?: Array<{ key: string; value: string }>;
+        arnPatterns?: string[];
+      } = {},
+    ) => {
+      await docClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: options.name ?? `Filter ${filterId}`,
+            accountIds: options.accountIds?.length ? new Set(options.accountIds) : undefined,
+            organizationalUnits: options.organizationalUnits?.length ? new Set(options.organizationalUnits) : undefined,
+            tags: options.tags ?? [],
+            arnPatterns: options.arnPatterns?.length ? new Set(options.arnPatterns) : undefined,
+          },
+        }),
+      );
+    };
+
+    beforeAll(async () => {
+      await DynamoDBTestSetup.createResourceFiltersTable(resourceFiltersTableName);
+    });
+
+    afterAll(async () => {
+      await DynamoDBTestSetup.deleteTable(resourceFiltersTableName);
+    });
+
+    beforeEach(async () => {
+      await DynamoDBTestSetup.clearTable(resourceFiltersTableName, 'resourceFilters');
+    });
+
+    describe('Include Mode Filter Evaluation', () => {
+      it('should allow remediation when finding matches filter criteria in include mode', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/include-match-finding',
+          AwsAccountId: '111111111111',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-production-bucket',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-include-1', {
+          accountIds: ['111111111111'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-include-1'], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:include-match-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeDefined();
+        expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      });
+
+      it('should block remediation when finding does not match filter criteria in include mode', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:222222222222:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/include-no-match-finding',
+          AwsAccountId: '222222222222',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-dev-bucket',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-include-2', {
+          accountIds: ['111111111111'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-include-2'], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:include-no-match-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeUndefined();
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('should require all filters to match in include mode (logical AND)', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/include-multi-filter-finding',
+          AwsAccountId: '111111111111',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-bucket',
+              Region: 'us-east-1',
+              Partition: 'aws',
+              Tags: { Environment: 'production' },
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-account', {
+          accountIds: ['111111111111'],
+        });
+        await setupResourceFilter('filter-arn', {
+          arnPatterns: ['arn:aws:s3:::other-bucket-*'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-account', 'filter-arn'], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn:
+            'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:include-multi-filter-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeUndefined();
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+    });
+
+    describe('Exclude Mode Filter Evaluation', () => {
+      it('should allow remediation when finding does not match filter criteria in exclude mode', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:333333333333:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/exclude-no-match-finding',
+          AwsAccountId: '333333333333',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-dev-bucket',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-exclude-1', {
+          accountIds: ['111111111111', '222222222222'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-exclude-1'], 'exclude');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:exclude-no-match-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeDefined();
+        expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      });
+
+      it('should block remediation when finding matches filter criteria in exclude mode', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/exclude-match-finding',
+          AwsAccountId: '111111111111',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-production-bucket',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-exclude-2', {
+          accountIds: ['111111111111'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-exclude-2'], 'exclude');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:exclude-match-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeUndefined();
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('should block remediation when any filter matches in exclude mode (any match)', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/exclude-any-match-finding',
+          AwsAccountId: '111111111111',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-bucket',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-exclude-account', {
+          accountIds: ['111111111111'],
+        });
+        await setupResourceFilter('filter-exclude-arn', {
+          arnPatterns: ['arn:aws:s3:::other-bucket-*'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-exclude-account', 'filter-exclude-arn'], 'exclude');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn:
+            'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:exclude-any-match-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeUndefined();
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+    });
+
+    describe('Edge Cases', () => {
+      it('should allow remediation when no filters are configured', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/no-filters-finding',
+        });
+
+        await setupControlConfigWithFilters('S3.1', true, [], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:no-filters-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeDefined();
+        expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      });
+
+      it('should block remediation when filter ID does not exist in filters table', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/missing-filter-finding',
+        });
+
+        await setupControlConfigWithFilters('S3.1', true, ['non-existent-filter-id'], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:missing-filter-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('should match ARN patterns with wildcards', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/arn-wildcard-finding',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::my-production-bucket-2024',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-arn-wildcard', {
+          arnPatterns: ['arn:aws:s3:::my-production-*'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-arn-wildcard'], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:arn-wildcard-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeDefined();
+        expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      });
+
+      it('should not trigger remediation when auto-remediation is disabled even if filters match', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/disabled-with-filters-finding',
+          AwsAccountId: '111111111111',
+        });
+
+        await setupResourceFilter('filter-disabled', {
+          accountIds: ['111111111111'],
+        });
+        await setupControlConfigWithFilters('S3.1', false, ['filter-disabled'], 'include');
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeDefined();
+        expect(result.Item?.remediationStatus).toBe('NOT_STARTED');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('should handle filter with multiple criteria types (account + ARN pattern)', async () => {
+        // ARRANGE
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/multi-criteria-finding',
+          AwsAccountId: '111111111111',
+          Resources: [
+            {
+              Type: 'AwsS3Bucket',
+              Id: 'arn:aws:s3:::prod-bucket-123',
+              Region: 'us-east-1',
+              Partition: 'aws',
+            },
+          ],
+        });
+
+        await setupResourceFilter('filter-multi-criteria', {
+          accountIds: ['111111111111'],
+          arnPatterns: ['arn:aws:s3:::prod-*'],
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-multi-criteria'], 'include');
+
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:multi-criteria-execution',
+        });
+
+        // ACT
+        const record = createSQSRecord(finding);
+        await PreProcessor.recordHandler(record);
+
+        // ASSERT
+        const result = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'aws-foundational-security-best-practices/v/1.0.0/S3.1',
+              findingId: asFindingId(finding.Id),
+            },
+          }),
+        );
+
+        expect(result.Item).toBeDefined();
+        expect(result.Item?.remediationStatus).toBe('IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      });
+    });
+  });
+
+  describe('Deadline Enforcement Eligibility Stamping', () => {
+    let notificationConfigRepository: NotificationConfigurationRepository;
+    const enforcementConfigId = asConfigId('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+    const findingTypeKey = 'aws-foundational-security-best-practices/v/1.0.0/S3.1';
+
+    const createEnforcementConfig = (
+      overrides: Partial<NotificationConfigurationItem> = {},
+    ): NotificationConfigurationItem => ({
+      configId: enforcementConfigId,
+      name: 'S3.1 Deadline Enforcement',
+      enabled: true,
+      notificationType: 'finding',
+      severityFilter: ['All'],
+      controlIds: ['S3.1'],
+      resourceFilterIds: [],
+      deliveryChannels: [
+        {
+          type: 'email',
+          enabled: true,
+          recipients: [{ recipientType: 'custom', emailAddresses: ['test@example.com'] }],
+        },
+      ],
+      batchWindow: { enabled: false },
+      contentOptions: {
+        includeManualRemediationLink: false,
+        includeRemediationDeadline: true,
+        remediationDeadlineDays: 5,
+        enforceDeadline: true,
+        includeIaCSnippet: false,
+        includeEnableAutomationLink: false,
+      },
+      version: 1,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      createdBy: 'admin@example.com',
+      ...overrides,
+    });
+
+    const getStoredFinding = async (finding: ASFFFinding) => {
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: findingTypeKey, findingId: asFindingId(finding.Id) },
+        }),
+      );
+      return result.Item;
+    };
+
+    beforeAll(async () => {
+      await DynamoDBTestSetup.createNotificationConfigTable(notificationConfigTableName);
+      await DynamoDBTestSetup.createResourceFiltersTable(resourceFiltersTableName);
+    });
+
+    afterAll(async () => {
+      await DynamoDBTestSetup.deleteTable(notificationConfigTableName);
+      await DynamoDBTestSetup.deleteTable(resourceFiltersTableName);
+    });
+
+    beforeEach(async () => {
+      await DynamoDBTestSetup.clearTable(notificationConfigTableName, 'notificationConfig');
+      await DynamoDBTestSetup.clearTable(resourceFiltersTableName, 'resourceFilters');
+      // The module-scope evaluator caches enforcement configs for 30s; reset it
+      // so each case sees the configs it seeds.
+      __findingNotificationConfigEvaluator.clearCache();
+      notificationConfigRepository = new NotificationConfigurationRepository(notificationConfigTableName, docClient);
+    });
+
+    it('stamps remediationDueBy and enforcementConfigIds when a finding matches an enforcement config', async () => {
+      // ARRANGE: enforcement config matches S3.1, auto-remediation disabled so status stays
+      // NOT_STARTED. A recently-created finding keeps the creation-time deadline above the
+      // 24-hour grace floor, so the stamp is deadline-based and deterministic.
+      const dayMs = 24 * 60 * 60 * 1000;
+      const recentCreatedAt = new Date(Date.now() - 60 * 1000).toISOString();
+      await notificationConfigRepository.create(createEnforcementConfig(), FINDING_PRINCIPAL);
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding({ CreatedAt: recentCreatedAt });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT: due date is creationTime + 5 days and the config id is recorded
+      const stored = await getStoredFinding(finding);
+      expect(stored?.remediationStatus).toBe('NOT_STARTED');
+      expect(stored?.remediationDueBy).toBe(new Date(Date.parse(recentCreatedAt) + 5 * dayMs).toISOString());
+      const configIds =
+        stored?.enforcementConfigIds instanceof Set
+          ? Array.from(stored.enforcementConfigIds)
+          : stored?.enforcementConfigIds;
+      expect(configIds).toEqual([enforcementConfigId]);
+    });
+
+    it('emits a failure metric and still ingests when deadline eligibility evaluation throws', async () => {
+      // ARRANGE: a matching enforcement config so the stamp path is reached, but the
+      // eligibility evaluation throws. Ingestion must still succeed (finding persisted,
+      // no stamp) and a DeadlineEnforcementStampFailure metric must be emitted.
+      await notificationConfigRepository.create(createEnforcementConfig(), FINDING_PRINCIPAL);
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding();
+
+      // The evaluator is a module-scoped singleton constructed at import time with
+      // its own repository bound to the config table, so a genuine boundary
+      // failure cannot be injected without rebuilding the module. Spy on the
+      // evaluator instead to simulate any downstream failure (DDB error, config
+      // parse error, etc.) surfacing from evaluateFindingConfigs; the test asserts
+      // the handler's failure contract (still ingest, emit metric) regardless of
+      // the underlying cause.
+      const evaluateSpy = jest
+        .spyOn(__findingNotificationConfigEvaluator, 'evaluateFindingConfigs')
+        .mockRejectedValueOnce(new Error('evaluator boom'));
+      const stdoutSpy = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT: ingestion succeeded without an enforcement stamp
+      const stored = await getStoredFinding(finding);
+      expect(stored?.remediationStatus).toBe('NOT_STARTED');
+      expect(stored?.remediationDueBy).toBeUndefined();
+      expect(stored?.enforcementConfigIds).toBeUndefined();
+
+      // ASSERT: the failure metric was emitted to the EMF (stdout) channel
+      const emittedMetric = stdoutSpy.mock.calls.some((call) =>
+        String(call[0]).includes('DeadlineEnforcementStampFailure'),
+      );
+      expect(emittedMetric).toBe(true);
+
+      stdoutSpy.mockRestore();
+      evaluateSpy.mockRestore();
+    });
+
+    it('persists metric-enrichment flags as true when an enabled finding config matches', async () => {
+      // ARRANGE: a matching finding config that both notifies and configures a remediation deadline
+      await notificationConfigRepository.create(createEnforcementConfig(), FINDING_PRINCIPAL);
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding();
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      const stored = await getStoredFinding(finding);
+      expect(stored?.hasFindingNotificationsEnabled).toBe(true);
+      expect(stored?.hasFindingRemediationDeadlineConfigured).toBe(true);
+    });
+
+    it('persists metric-enrichment flags as false when no finding config matches', async () => {
+      // ARRANGE: no notification configs seeded
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding();
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      const stored = await getStoredFinding(finding);
+      expect(stored?.hasFindingNotificationsEnabled).toBe(false);
+      expect(stored?.hasFindingRemediationDeadlineConfigured).toBe(false);
+    });
+
+    it('does not stamp when no enforcement config matches the finding control id', async () => {
+      // ARRANGE: config targets a different control
+      await notificationConfigRepository.create(createEnforcementConfig({ controlIds: ['IAM.1'] }), FINDING_PRINCIPAL);
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding();
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      const stored = await getStoredFinding(finding);
+      expect(stored?.remediationStatus).toBe('NOT_STARTED');
+      expect(stored?.remediationDueBy).toBeUndefined();
+      expect(stored?.enforcementConfigIds).toBeUndefined();
+    });
+
+    it('does not stamp when the finding does not match the config resource filters', async () => {
+      // ARRANGE: config references a resource filter scoped to a different account
+      const filterId = '99999999-9999-9999-9999-999999999999';
+      await docClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'Other account only',
+            accountIds: new Set(['999999999999']),
+            organizationalUnits: [],
+            tags: [],
+            arnPatterns: [],
+          },
+        }),
+      );
+      await notificationConfigRepository.create(
+        createEnforcementConfig({ resourceFilterIds: [filterId] }),
+        FINDING_PRINCIPAL,
+      );
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding();
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      const stored = await getStoredFinding(finding);
+      expect(stored?.remediationStatus).toBe('NOT_STARTED');
+      expect(stored?.remediationDueBy).toBeUndefined();
+      expect(stored?.enforcementConfigIds).toBeUndefined();
+    });
+
+    it('does not stamp an auto-remediated finding that is written as IN_PROGRESS', async () => {
+      // ARRANGE: matching config, but auto-remediation enabled so the finding is IN_PROGRESS
+      await notificationConfigRepository.create(createEnforcementConfig(), FINDING_PRINCIPAL);
+      await setupControlConfig('S3.1', true);
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:enforcement-skip',
+      });
+      const finding = createMockFinding();
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT: finding is being remediated, so it must not be stamped
+      const stored = await getStoredFinding(finding);
+      expect(stored?.remediationStatus).toBe('IN_PROGRESS');
+      expect(stored?.remediationDueBy).toBeUndefined();
+      expect(stored?.enforcementConfigIds).toBeUndefined();
+    });
+
+    it('re-stamps an existing finding and tightens the deadline when a shorter-deadline config is added', async () => {
+      // ARRANGE: first ingestion stamps the finding via the longer (5-day) config. A recently-created
+      // finding keeps both the 5-day and 2-day deadlines above the 24-hour grace floor, so the stamp
+      // tracks the configured deadline (not the floor) and the tightening is deterministic.
+      const dayMs = 24 * 60 * 60 * 1000;
+      const recentCreatedAt = new Date(Date.now() - 60 * 1000).toISOString();
+      const shorterDeadlineConfigId = asConfigId('bbbbbbbb-cccc-dddd-eeee-ffffffffffff');
+      await notificationConfigRepository.create(createEnforcementConfig(), FINDING_PRINCIPAL);
+      await setupControlConfig('S3.1', false);
+      const finding = createMockFinding({ CreatedAt: recentCreatedAt });
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      const firstStamp = await getStoredFinding(finding);
+      expect(firstStamp?.remediationStatus).toBe('NOT_STARTED');
+      expect(firstStamp?.remediationDueBy).toBe(new Date(Date.parse(recentCreatedAt) + 5 * dayMs).toISOString());
+
+      // ARRANGE: add a second matching config with a shorter (2-day) deadline and
+      // reset the evaluator cache so the re-evaluation sees both configs
+      await notificationConfigRepository.create(
+        createEnforcementConfig({
+          configId: shorterDeadlineConfigId,
+          name: 'S3.1 Shorter Deadline',
+          contentOptions: {
+            includeManualRemediationLink: false,
+            includeRemediationDeadline: true,
+            remediationDeadlineDays: 2,
+            enforceDeadline: true,
+            includeIaCSnippet: false,
+            includeEnableAutomationLink: false,
+          },
+        }),
+        FINDING_PRINCIPAL,
+      );
+      __findingNotificationConfigEvaluator.clearCache();
+
+      // ACT: re-ingest the same finding with a newer UpdatedAt so the existing-finding
+      // path writes the update and re-evaluates eligibility
+      const updatedFinding = createMockFinding({ CreatedAt: recentCreatedAt, UpdatedAt: '2099-01-01T00:00:00.000Z' });
+      await PreProcessor.recordHandler(createSQSRecord(updatedFinding));
+
+      // ASSERT: the deadline tightens to creationTime + 2 days and both config ids are recorded
+      const stored = await getStoredFinding(finding);
+      expect(stored?.remediationStatus).toBe('NOT_STARTED');
+      expect(stored?.remediationDueBy).toBe(new Date(Date.parse(recentCreatedAt) + 2 * dayMs).toISOString());
+      const configIds =
+        stored?.enforcementConfigIds instanceof Set
+          ? Array.from(stored.enforcementConfigIds)
+          : stored?.enforcementConfigIds;
+      expect(configIds).toEqual(expect.arrayContaining([enforcementConfigId, shorterDeadlineConfigId]));
+      expect(configIds).toHaveLength(2);
+    });
+  });
+
+  describe('EventBridge envelope time threading', () => {
+    const findingTypeKey = 'aws-foundational-security-best-practices/v/1.0.0/S3.1';
+
+    const getStoredSecurityHubUpdatedAtTime = async (finding: ASFFFinding): Promise<string | undefined> => {
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: findingsTableName,
+          Key: { findingType: findingTypeKey, findingId: asFindingId(finding.Id) },
+        }),
+      );
+      return result.Item?.securityHubUpdatedAtTime as string | undefined;
+    };
+
+    it('uses a valid EventBridge envelope time as the ordering key over the ASFF UpdatedAt', async () => {
+      // ARRANGE: a valid envelope time that differs from the finding's ASFF UpdatedAt
+      await setupControlConfig('S3.1', false);
+      const eventBridgeTime = '2024-06-01T12:00:00.000Z';
+      const finding = createMockFinding({ UpdatedAt: '2023-01-01T00:00:00.000Z' });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding, { time: eventBridgeTime }));
+
+      // ASSERT: the persisted ordering key is the envelope time, not the ASFF UpdatedAt
+      expect(await getStoredSecurityHubUpdatedAtTime(finding)).toBe(eventBridgeTime);
+    });
+
+    it('falls back to the ASFF UpdatedAt when the EventBridge envelope time is malformed', async () => {
+      // ARRANGE: a malformed envelope time and a finding with a well-formed ASFF UpdatedAt
+      await setupControlConfig('S3.1', false);
+      const asffUpdatedAt = '2023-01-01T00:00:00.000Z';
+      const finding = createMockFinding({ UpdatedAt: asffUpdatedAt });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding, { time: 'not-a-date' }));
+
+      // ASSERT: the malformed time is ignored and the ASFF UpdatedAt drives ordering
+      expect(await getStoredSecurityHubUpdatedAtTime(finding)).toBe(asffUpdatedAt);
     });
   });
 });

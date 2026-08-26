@@ -1,0 +1,52 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document name - ASR-EnableCFNTerminationProtection
+
+  ## What does this document do?
+  This document enables termination protection for a CloudFormation stack.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * StackArn: (Required) The ARN of the CloudFormation stack.
+
+  ## Output Parameters
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0: CloudFormation.3
+
+  AIGenerated: "true"
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  StackArn:
+    type: String
+    description: (Required) The ARN of the CloudFormation stack.
+    allowedPattern: '^(arn:(?:aws|aws-us-gov|aws-cn):cloudformation:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:stack/[a-zA-Z][a-zA-Z0-9-]{0,127}/[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12})$'
+
+mainSteps:
+  - name: EnableTerminationProtection
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: cloudformation
+      Api: UpdateTerminationProtection
+      EnableTerminationProtection: true
+      StackName: '{{StackArn}}'
+
+  - name: VerifyRemediation
+    action: 'aws:assertAwsResourceProperty'
+    inputs:
+      Service: cloudformation
+      Api: DescribeStacks
+      StackName: '{{StackArn}}'
+      PropertySelector: '$.Stacks[0].EnableTerminationProtection'
+      DesiredValues:
+        - 'True'
+    isEnd: true
