@@ -1,0 +1,22 @@
+# GuardDuty.1 — GuardDuty should be enabled
+#
+# ASR remediation enables Amazon GuardDuty by creating a detector with S3 data event logs
+# and Kubernetes audit logs enabled.
+# To apply this fix, add an aws_guardduty_detector resource with enable set to true
+# and aws_guardduty_detector_feature resources for S3 and EKS protection.
+
+resource "aws_guardduty_detector" "{detector}" {
+  enable = true
+}
+
+resource "aws_guardduty_detector_feature" "s3_protection" {
+  detector_id = aws_guardduty_detector.{detector}.id
+  name        = "S3_DATA_EVENTS"
+  status      = "ENABLED"
+}
+
+resource "aws_guardduty_detector_feature" "eks_protection" {
+  detector_id = aws_guardduty_detector.{detector}.id
+  name        = "EKS_AUDIT_LOGS"
+  status      = "ENABLED"
+}

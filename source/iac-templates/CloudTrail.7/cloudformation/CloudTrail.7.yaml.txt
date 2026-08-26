@@ -1,0 +1,15 @@
+# CloudTrail.7 — S3 bucket access logging should be enabled on the CloudTrail S3 bucket
+#
+# ASR remediation enables server access logging on the CloudTrail S3 bucket,
+# directing logs to a dedicated access-logging bucket.
+# To apply this fix, add or update the LoggingConfiguration property on your
+# S3 bucket resource to specify a destination bucket and log file prefix.
+# NOTE: <ACCESS_LOGGING_BUCKET> — your S3 bucket for access logs.
+
+Resources:
+  {cloudTrailBucket}:
+    Type: AWS::S3::Bucket
+    Properties:
+      LoggingConfiguration:
+        DestinationBucketName: <ACCESS_LOGGING_BUCKET>
+        LogFilePrefix: {cloudTrailBucket}

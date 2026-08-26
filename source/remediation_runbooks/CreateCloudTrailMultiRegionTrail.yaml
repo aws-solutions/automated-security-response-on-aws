@@ -16,8 +16,8 @@ description: |
   * CIS v1.2.0:     2.1
   * PCI:            CloudTrail.2
 
-schemaVersion: "0.3"
-assumeRole: "{{ AutomationAssumeRole }}"
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -42,12 +42,17 @@ outputs:
   - Remediation.Output
 
 mainSteps:
-  -
-    name: CreateLoggingBucket
+  - name: CreateLoggingBucket
     action: 'aws:executeScript'
     outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
       - Name: LoggingBucketName
         Selector: $.Payload.logging_bucket
+        Type: String
+      - Name: ResourceArn
+        Selector: $.Payload.ResourceArn
         Type: String
     inputs:
       InputPayload:
@@ -61,12 +66,33 @@ mainSteps:
 
     isEnd: false
 
-  -
-    name: CreateCloudTrailBucket
+  - name: TagLoggingBucket
+    action: 'aws:executeScript'
+    onFailure: Continue
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateLoggingBucket.ResourceArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    isEnd: false
+
+  - name: CreateCloudTrailBucket
     action: 'aws:executeScript'
     outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
       - Name: CloudTrailBucketName
         Selector: $.Payload.cloudtrail_bucket
+        Type: String
+      - Name: ResourceArn
+        Selector: $.Payload.ResourceArn
         Type: String
     inputs:
       InputPayload:
@@ -81,8 +107,23 @@ mainSteps:
 
     isEnd: false
 
-  -
-    name: CreateCloudTrailBucketPolicy
+  - name: TagCloudTrailBucket
+    action: 'aws:executeScript'
+    onFailure: Continue
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateCloudTrailBucket.ResourceArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    isEnd: false
+
+  - name: CreateCloudTrailBucketPolicy
     action: 'aws:executeScript'
     inputs:
       InputPayload:
@@ -95,17 +136,20 @@ mainSteps:
         %%SCRIPT=CreateCloudTrailMultiRegionTrail_createcloudtrailbucketpolicy.py%%
     isEnd: false
 
-  -
-    name: EnableCloudTrail
+  - name: EnableCloudTrail
     action: 'aws:executeScript'
     outputs:
-      - Name: CloudTrailBucketName
-        Selector: $.Payload.cloudtrail_bucket
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap
+      - Name: ResourceArn
+        Selector: $.Payload.output.ResourceArn
         Type: String
     inputs:
       InputPayload:
         cloudtrail_bucket: '{{CreateCloudTrailBucket.CloudTrailBucketName}}'
         kms_key_arn: '{{KMSKeyArn}}'
+        account_id: '{{global:ACCOUNT_ID}}'
       Runtime: python3.11
       Handler: enable_cloudtrail
       Script: |-
@@ -113,8 +157,23 @@ mainSteps:
 
     isEnd: false
 
-  -
-    name: Remediation
+  - name: TagCloudTrail
+    action: 'aws:executeScript'
+    onFailure: Continue
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    inputs:
+      InputPayload:
+        ResourceArn: '{{EnableCloudTrail.ResourceArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    isEnd: false
+
+  - name: Remediation
     action: 'aws:executeScript'
     outputs:
       - Name: Output

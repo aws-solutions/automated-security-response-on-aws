@@ -1,0 +1,13 @@
+# EC2.8 — EC2 instances should use IMDSv2
+#
+# ASR remediation enables IMDSv2 on an EC2 instance by setting HttpTokens to
+# required and HttpEndpoint to enabled.
+# To apply this fix, add a metadata_options block to your EC2 instance resource
+# with http_tokens set to required.
+
+resource "aws_instance" "{instanceId}" {
+  metadata_options {
+    http_tokens   = "required"
+    http_endpoint = "enabled"
+  }
+}

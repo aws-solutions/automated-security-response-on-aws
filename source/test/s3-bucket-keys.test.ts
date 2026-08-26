@@ -110,8 +110,8 @@ describe('S3 Bucket Keys Configuration', () => {
           ],
         },
       },
-      1,
-    ); // Should be exactly 1 bucket (CSV Export only)
+      2,
+    ); // Should be exactly 2 buckets (CSV Export + IaC Templates)
   });
 
   test('WebUI Hosting Bucket uses S3-managed encryption without bucket keys', () => {
@@ -174,8 +174,8 @@ describe('S3 Bucket Keys Configuration', () => {
   test('Only consolidated KMS key buckets have bucket keys enabled', () => {
     const template = Template.fromStack(getAdministratorStack());
 
-    // Verify exactly 1 bucket has KMS encryption with bucket keys
-    // (This should be the CSV Export bucket that uses the consolidated KMS key)
+    // Verify exactly 2 buckets have KMS encryption with bucket keys
+    // (the CSV Export and IaC Templates buckets, both using the consolidated KMS key)
     template.resourcePropertiesCountIs(
       'AWS::S3::Bucket',
       {
@@ -190,7 +190,7 @@ describe('S3 Bucket Keys Configuration', () => {
           ],
         },
       },
-      1,
+      2,
     );
   });
 

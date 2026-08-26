@@ -1,0 +1,49 @@
+// CloudWatch.1 — A log metric filter and alarm should exist for usage of the "root" user
+//
+// ASR remediation creates a CloudWatch Logs metric filter and a CloudWatch alarm
+// with an encrypted SNS topic for notifications.
+// To apply this fix, add a metric filter on your log group, a CloudWatch alarm
+// for the metric, and an SNS topic to receive alarm notifications.
+// NOTE: <KMS_KEY> — your KMS key for SNS topic encryption.
+// NOTE: <LOG_GROUP> — your CloudWatch Logs log group.
+
+const topic = new sns.Topic(this, 'AlarmNotificationTopic', {
+  masterKey: <KMS_KEY>,
+});
+
+topic.addToResourcePolicy(
+  new iam.PolicyStatement({
+    sid: 'AWSCloudWatchSNSPolicy',
+    effect: iam.Effect.ALLOW,
+    principals: [new iam.ServicePrincipal('cloudwatch.amazonaws.com')],
+    actions: ['SNS:Publish'],
+    resources: [topic.topicArn],
+  }),
+);
+
+const metricFilter = <LOG_GROUP>.addMetricFilter('RootAccountUsageFilter', {
+  filterPattern: logs.FilterPattern.literal(
+    '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}',
+  ),
+  metricNamespace: 'LogMetrics',
+  metricName: 'RootAccountUsageCount',
+  metricValue: '1',
+  unit: cloudwatch.Unit.COUNT,
+});
+
+const alarm = new cloudwatch.Alarm(this, 'RootAccountUsageAlarm', {
+  metric: metricFilter.metric({
+    statistic: 'Sum',
+    period: cdk.Duration.minutes(5),
+  }),
+  evaluationPeriods: 12,
+  datapointsToAlarm: 1,
+  threshold: 1,
+  comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+  alarmDescription: 'Alarm for root account usage',
+  actionsEnabled: true,
+});
+
+alarm.addAlarmAction(new cloudwatch_actions.SnsAction(topic));
+alarm.addOkAction(new cloudwatch_actions.SnsAction(topic));

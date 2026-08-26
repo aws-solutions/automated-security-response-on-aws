@@ -2,9 +2,29 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
+from typing import TypedDict
 
 import boto3
 from botocore.config import Config
+
+
+class Event(TypedDict):
+    FilterName: str
+    FilterPattern: str
+    MetricName: str
+    MetricNamespace: str
+    MetricValue: str
+    AlarmName: str
+    AlarmDesc: str
+    AlarmThreshold: int
+    LogGroupName: str
+    TopicArn: str
+
+
+class Output(TypedDict):
+    Response: dict
+    LogGroupArn: str
+    AlarmArn: str
 
 
 class LogGroupCreationError(Exception):
@@ -42,6 +62,16 @@ def get_service_client(service_name):
     """
     log.debug("Getting the service client for service: {}".format(service_name))
     return boto3.client(service_name, config=boto_config)
+
+
+def get_partition_from_region(region: str) -> str:
+    """Derive AWS partition from region name."""
+    if region.startswith("cn-"):
+        return "aws-cn"
+    elif region.startswith("us-gov"):
+        return "aws-us-gov"
+    else:
+        return "aws"
 
 
 def _get_error_code(exception):
@@ -182,6 +212,7 @@ def put_metric_alarm(
     :param metric_name: Name of the metric
     :param metric_namespace: Namespace where metric is logged
     :param topic_arn: SNS topic ARN for alarm notifications
+    :return: ARN of the created alarm
     """
     cw_client = get_service_client("cloudwatch")
     log.info(
@@ -208,6 +239,17 @@ def put_metric_alarm(
             TreatMissingData="notBreaching",
         )
         log.info(f"Successfully created CloudWatch alarm '{alarm_name}'")
+
+        # Get region and account ID from the topic ARN (format: arn:partition:sns:region:account:topic-name)
+        region = topic_arn.split(":")[3]
+        account_id = topic_arn.split(":")[4]
+        partition = get_partition_from_region(region)
+
+        alarm_arn = (
+            f"arn:{partition}:cloudwatch:{region}:{account_id}:alarm:{alarm_name}"
+        )
+
+        return alarm_arn
 
     except Exception as e:
         error_msg = f"Failed to create CloudWatch alarm '{alarm_name}': {str(e)}"
@@ -258,8 +300,20 @@ def verify(event, _):
             metric_value,
         )
 
+        # Construct log group ARN
+        logs_client = get_service_client("logs")
+        region = logs_client.meta.region_name
+        partition = get_partition_from_region(region)
+
+        # Get account ID from the topic ARN (format: arn:partition:sns:region:account:topic-name)
+        account_id = topic_arn.split(":")[4]
+
+        log_group_arn = (
+            f"arn:{partition}:logs:{region}:{account_id}:log-group:{cw_log_group}"
+        )
+
         log.info("Step 2: Creating CloudWatch alarm")
-        put_metric_alarm(
+        alarm_arn = put_metric_alarm(
             alarm_name,
             alarm_desc,
             alarm_threshold,
@@ -272,14 +326,16 @@ def verify(event, _):
         log.info(success_message)
 
         return {
-            "response": {
-                "message": success_message,
-                "status": "Success",
-                "filterName": filter_name,
-                "alarmName": alarm_name,
-                "logGroupName": cw_log_group,
-                "metricName": metric_name,
-            }
+            "Response": {
+                "Message": success_message,
+                "Status": "Success",
+                "FilterName": filter_name,
+                "AlarmName": alarm_name,
+                "LogGroupName": cw_log_group,
+                "MetricName": metric_name,
+            },
+            "LogGroupArn": log_group_arn,
+            "AlarmArn": alarm_arn,
         }
 
     except Exception as e:

@@ -11,7 +11,7 @@ import { RemediationsRequestSchema, ExportRequestSchema } from '@asr/data-models
 import { RemediationService } from '../services/remediationService';
 import { createResponse, API_HEADERS } from './apiHandler';
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
-import { BaseHandler, CognitoClaims } from './baseHandler';
+import { BaseHandler, getClaims } from './baseHandler';
 
 const logger = new Logger({ serviceName: SCOPE_NAME });
 const tracer = new Tracer({ serviceName: SCOPE_NAME });
@@ -19,7 +19,7 @@ const remediationService = new RemediationService(logger);
 const baseHandler = new BaseHandler(logger);
 
 async function searchRemediationsHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const claims = event.requestContext?.authorizer?.claims as CognitoClaims;
+  const claims = getClaims(event);
   const remediationsRequest = baseHandler.extractValidatedBody(event, RemediationsRequestSchema);
 
   const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(remediationsRequest);
@@ -46,7 +46,7 @@ async function exportRemediationsHandler(event: APIGatewayProxyEvent): Promise<A
     hasBody: !!event.body,
   });
 
-  const claims = event.requestContext?.authorizer?.claims as CognitoClaims;
+  const claims = getClaims(event);
   const exportRequest = baseHandler.extractValidatedBody(event, ExportRequestSchema);
   const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(exportRequest);
   const authenticatedUser = await baseHandler.validateAccess(

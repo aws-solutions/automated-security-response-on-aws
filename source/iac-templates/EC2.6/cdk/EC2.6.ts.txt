@@ -1,0 +1,20 @@
+// EC2.6 — VPC flow logging should be enabled
+//
+// ASR remediation creates a CloudWatch Logs log group and enables VPC Flow Logs
+// to capture rejected traffic.
+// To apply this fix, add a CloudWatch Logs log group and a VPC Flow Log resource
+// to your VPC definition.
+// NOTE: <VPC> — your ec2.Vpc construct.
+// NOTE: <KMS_KEY> — your KMS key for log group encryption. The CDK FlowLog
+// construct auto-creates the IAM role for delivering logs to CloudWatch.
+
+const logGroup = new logs.LogGroup(this, '{flowLogGroup}', {
+  logGroupName: `VPCFlowLogs/${<VPC>.vpcId}`,
+  encryptionKey: <KMS_KEY>,
+});
+
+new ec2.FlowLog(this, '{flowLog}', {
+  resourceType: ec2.FlowLogResourceType.fromVpc(<VPC>),
+  trafficType: ec2.FlowLogTrafficType.REJECT,
+  destination: ec2.FlowLogDestination.toCloudWatchLogs(logGroup),
+});

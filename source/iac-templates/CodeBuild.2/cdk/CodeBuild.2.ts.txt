@@ -1,0 +1,19 @@
+// CodeBuild.2 — CodeBuild project environment variables should not contain clear text credentials
+//
+// ASR remediation replaces clear text credential environment variables with
+// references to SSM Parameter Store SecureString parameters.
+// To apply this fix, use BuildEnvironmentVariable with type PARAMETER_STORE
+// instead of PLAINTEXT for any credential environment variables.
+
+const project = new codebuild.Project(this, '{codeBuildProject}', {
+  environmentVariables: {
+    AWS_ACCESS_KEY_ID: {
+      type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+      value: '/CodeBuild/Project/env/AWS_ACCESS_KEY_ID',
+    },
+    AWS_SECRET_ACCESS_KEY: {
+      type: codebuild.BuildEnvironmentVariableType.PARAMETER_STORE,
+      value: '/CodeBuild/Project/env/AWS_SECRET_ACCESS_KEY',
+    },
+  },
+});

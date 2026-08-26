@@ -5,14 +5,31 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { dynamicImport } from 'tsimportlib';
 import { BadRequestError, HttpError, NotFoundError, UnauthorizedError } from '../../common/utils/httpErrors';
+import { bulkEditControls, getControls } from './controls';
+import { createFilter, deleteFilter, getFilters, updateFilter } from './filters';
 import { executeFindingAction, exportFindings, searchFindings } from './findings';
 import { exportRemediations, searchRemediations } from './remediations';
 import { deleteUser, getUsers, inviteUser, putUser } from './users';
+import {
+  createNotificationConfiguration,
+  deleteNotificationConfiguration,
+  getNotificationConfiguration,
+  getNotificationConfigurations,
+  toggleNotificationConfigurationStatus,
+  updateNotificationConfiguration,
+  getEmailSubscriptions,
+  resendEmailConfirmation,
+  testNotificationConfiguration,
+} from './notifications';
+import { getIaCTemplateContent } from './iacTemplateContent';
+import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
+import { recordApiWriteMetrics } from '../rateLimiting/writeMetrics';
 
+const env = apiLambdaEnvironment();
 const logger = new Logger({ serviceName: 'ApiRouter' });
 
 type ErrorWithStatusCode = Error & { statusCode?: number };
-const ALLOWED_ORIGINS = [process.env.WEB_UI_URL!, 'http://localhost:3000'].filter(Boolean);
+const ALLOWED_ORIGINS = [env.WEB_UI_URL, 'http://localhost:3000'].filter(Boolean);
 
 const BASE_CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
@@ -30,6 +47,22 @@ export const API_HEADERS = {
   USERS: {
     ...BASE_CORS_HEADERS,
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+  },
+  CONTROLS: {
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  },
+  FILTERS: {
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+  },
+  NOTIFICATIONS: {
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+  },
+  IAC: {
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Methods': 'GET,OPTIONS',
   },
 } as const;
 
@@ -57,7 +90,39 @@ function createErrorResponse(error: ErrorWithStatusCode, origin: string) {
   );
 }
 
-const routes = [
+// Exported so the rate-limit tier map test (rateLimiting/routeTiers.test.ts)
+// can assert every served route has a tier and vice versa. Keep exported.
+export const routes = [
+  {
+    method: 'GET',
+    path: '/controls',
+    handler: getControls,
+  },
+  {
+    method: 'POST',
+    path: '/controls/bulk-edit',
+    handler: bulkEditControls,
+  },
+  {
+    method: 'GET',
+    path: '/filters',
+    handler: getFilters,
+  },
+  {
+    method: 'POST',
+    path: '/filters',
+    handler: createFilter,
+  },
+  {
+    method: 'PUT',
+    path: '/filters/{filterId}',
+    handler: updateFilter,
+  },
+  {
+    method: 'DELETE',
+    path: '/filters/{filterId}',
+    handler: deleteFilter,
+  },
   {
     method: 'GET',
     path: '/users',
@@ -103,30 +168,91 @@ const routes = [
     path: '/export',
     handler: exportRemediations,
   },
+  {
+    method: 'GET',
+    path: '/notifications',
+    handler: getNotificationConfigurations,
+  },
+  {
+    method: 'GET',
+    path: '/notifications/{id}',
+    handler: getNotificationConfiguration,
+  },
+  {
+    method: 'POST',
+    path: '/notifications',
+    handler: createNotificationConfiguration,
+  },
+  {
+    method: 'DELETE',
+    path: '/notifications/{id}',
+    handler: deleteNotificationConfiguration,
+  },
+  {
+    method: 'PUT',
+    path: '/notifications/{id}',
+    handler: updateNotificationConfiguration,
+  },
+  {
+    method: 'PATCH',
+    path: '/notifications/{id}',
+    handler: toggleNotificationConfigurationStatus,
+  },
+  {
+    method: 'GET',
+    path: '/notifications/{id}/subscriptions',
+    handler: getEmailSubscriptions,
+  },
+  {
+    method: 'POST',
+    path: '/notifications/{id}/subscriptions/resend',
+    handler: resendEmailConfirmation,
+  },
+  {
+    method: 'POST',
+    path: '/notifications/{id}/test',
+    handler: testNotificationConfiguration,
+  },
+  {
+    method: 'GET',
+    path: '/iac/{findingId}',
+    handler: getIaCTemplateContent,
+  },
 ];
 
-export const handler = async (event: APIGatewayProxyEvent, context: Context) => {
-  const { default: middy } = (await dynamicImport('@middy/core', module)) as typeof import('@middy/core');
-  const { default: httpHeaderNormalizer } = (await dynamicImport(
-    '@middy/http-header-normalizer',
-    module,
-  )) as typeof import('@middy/http-header-normalizer');
-  const { default: httpRouterHandler } = (await dynamicImport(
-    '@middy/http-router',
-    module,
-  )) as typeof import('@middy/http-router');
-  const { default: cors } = (await dynamicImport('@middy/http-cors', module)) as typeof import('@middy/http-cors');
+/**
+ * middy middleware chain:
+ * applies custom or prepackaged middlewares to each request and response.
+ * - applies all applicable middlewares to the request from top to bottom,
+ * - routes to a handler function determined by httpRouterHandler
+ * - applies all applicable middlewares to the response from bottom to top
+ * each middleware is an object that can have a "before" function applied to the request,
+ * an "after" function applied to the response, and an "onError" function applied to the response.
+ *
+ * Lazily built once per Lambda container on the first request, then memoized.
+ * Lazy (not module-load) so that Jest's vm sandbox doesn't trigger dynamicImport at import time.
+ */
+type MiddyHandler = (event: APIGatewayProxyEvent, context: Context) => Promise<APIGatewayProxyResult>;
+let middlewareHandlerPromise: Promise<MiddyHandler> | undefined;
 
-  /**
-   * middy middleware chain:
-   * applies custom or prepackaged middlewares to each request and response.
-   * - applies all applicable middlewares to the request from top to bottom,
-   * - routes to a handler function determined by httpRouterHandler
-   * - applies all applicable middlewares to the response from bottom to top
-   * each middleware is an object that can have a "before" function applied to the request,
-   * an "after" function applied to the response, and an "onError" function applied to the response.
-   */
-  const middlewareHandler = middy()
+function getMiddlewareHandler(): Promise<MiddyHandler> {
+  middlewareHandlerPromise ??= buildMiddyChain().catch((error) => {
+    middlewareHandlerPromise = undefined;
+    throw error;
+  });
+  return middlewareHandlerPromise;
+}
+
+async function buildMiddyChain(): Promise<MiddyHandler> {
+  const [{ default: middy }, { default: httpHeaderNormalizer }, { default: httpRouterHandler }, { default: cors }] =
+    await Promise.all([
+      dynamicImport('@middy/core', module) as Promise<typeof import('@middy/core')>,
+      dynamicImport('@middy/http-header-normalizer', module) as Promise<typeof import('@middy/http-header-normalizer')>,
+      dynamicImport('@middy/http-router', module) as Promise<typeof import('@middy/http-router')>,
+      dynamicImport('@middy/http-cors', module) as Promise<typeof import('@middy/http-cors')>,
+    ]);
+
+  const middyfied = middy()
     .use(
       cors({
         headers: 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
@@ -152,13 +278,22 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context) => 
         const claims = event.requestContext?.authorizer?.claims;
         if (!claims) throw new UnauthorizedError('No authorization claims found');
 
-        const missingClaims = [];
-        if (!('cognito:groups' in claims)) missingClaims.push('cognito:groups');
-        if (!('username' in claims)) missingClaims.push('username');
+        // Machine (client_credentials) tokens carry neither `cognito:groups` nor
+        // `username` — their identity is the `client_id` (equal to `sub`). The
+        // human-claims guard below would reject every such token before the route
+        // authorizer's `tryResolveMachinePrincipal` ever runs, so skip it for them
+        // and let AuthorizationService classify the token (full-access scope → grant,
+        // otherwise fail closed). Mirrors the machine-token test in authorization.ts.
+        const isMachineToken = !!claims.client_id && claims.sub === claims.client_id;
+        if (!isMachineToken) {
+          const missingClaims = [];
+          if (!('cognito:groups' in claims)) missingClaims.push('cognito:groups');
+          if (!('username' in claims)) missingClaims.push('username');
 
-        if (missingClaims.length > 0) {
-          logger.warn(`Missing required claims: ${missingClaims.join(', ')}`);
-          throw new UnauthorizedError(`Could not read claims.`);
+          if (missingClaims.length > 0) {
+            logger.warn(`Missing required claims: ${missingClaims.join(', ')}`);
+            throw new UnauthorizedError(`Could not read claims.`);
+          }
         }
       },
       onError: (request) => {
@@ -180,6 +315,21 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context) => 
         return createErrorResponse(error, origin);
       },
     })
+    .use({
+      // Record write-volume metrics for successful requests (anomaly alarms).
+      // Runs only on the success path; failed requests take the onError path
+      // and are intentionally not counted here.
+      after: (request) => {
+        try {
+          const { event, response } = request;
+          recordApiWriteMetrics(event.httpMethod, event.path, response?.statusCode ?? 0);
+        } catch (error) {
+          // Metrics must never break the request path, but log at debug so a
+          // broken metrics pipeline is still observable to operators.
+          logger.debug('Write metrics emission failed', { error });
+        }
+      },
+    })
     .use(httpHeaderNormalizer())
     .handler(
       httpRouterHandler({
@@ -191,5 +341,10 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context) => 
       }),
     );
 
+  return (event: APIGatewayProxyEvent, context: Context) => middyfied(event, context);
+}
+
+export const handler = async (event: APIGatewayProxyEvent, context: Context) => {
+  const middlewareHandler = await getMiddlewareHandler();
   return middlewareHandler(event, context);
 };

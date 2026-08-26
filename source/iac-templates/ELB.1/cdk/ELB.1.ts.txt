@@ -1,0 +1,11 @@
+// ELB.1 — Application Load Balancer should be configured to redirect all HTTP requests to HTTPS
+//
+// ASR remediation creates or modifies an HTTP listener on port 80 to redirect traffic to HTTPS on port 443.
+// To apply this fix, call addRedirect on your Application Load Balancer construct
+// to create an HTTP listener that redirects to HTTPS.
+// NOTE: <APPLICATION_LOAD_BALANCER> — your elbv2.ApplicationLoadBalancer construct.
+
+<APPLICATION_LOAD_BALANCER>.addRedirect({
+  sourcePort: 80,
+  targetPort: 443,
+});

@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from cfnresponse import SUCCESS
 from enable_adaptive_concurrency import lambda_handler
@@ -18,11 +18,8 @@ def get_event(request_type):
 
 
 @patch("cfnresponse.send")
-@patch("enable_adaptive_concurrency.boto3.client")
-def test_create_enables_adaptive_concurrency(mock_boto3_client, mock_cfnresponse):
-    mock_ssm = MagicMock()
-    mock_boto3_client.return_value = mock_ssm
-
+@patch("enable_adaptive_concurrency.SSM_CLIENT")
+def test_create_enables_adaptive_concurrency(mock_ssm, mock_cfnresponse):
     event = get_event("Create")
     lambda_handler(event, {})
 
@@ -36,11 +33,8 @@ def test_create_enables_adaptive_concurrency(mock_boto3_client, mock_cfnresponse
 
 
 @patch("cfnresponse.send")
-@patch("enable_adaptive_concurrency.boto3.client")
-def test_update_does_nothing(mock_boto3_client, mock_cfnresponse):
-    mock_ssm = MagicMock()
-    mock_boto3_client.return_value = mock_ssm
-
+@patch("enable_adaptive_concurrency.SSM_CLIENT")
+def test_update_does_nothing(mock_ssm, mock_cfnresponse):
     event = get_event("Update")
     lambda_handler(event, {})
 
@@ -50,11 +44,8 @@ def test_update_does_nothing(mock_boto3_client, mock_cfnresponse):
 
 
 @patch("cfnresponse.send")
-@patch("enable_adaptive_concurrency.boto3.client")
-def test_delete_does_nothing(mock_boto3_client, mock_cfnresponse):
-    mock_ssm = MagicMock()
-    mock_boto3_client.return_value = mock_ssm
-
+@patch("enable_adaptive_concurrency.SSM_CLIENT")
+def test_delete_does_nothing(mock_ssm, mock_cfnresponse):
     event = get_event("Delete")
     lambda_handler(event, {})
 
@@ -64,13 +55,9 @@ def test_delete_does_nothing(mock_boto3_client, mock_cfnresponse):
 
 
 @patch("cfnresponse.send")
-@patch("enable_adaptive_concurrency.boto3.client")
-def test_exception_sends_success_with_error_message(
-    mock_boto3_client, mock_cfnresponse
-):
-    mock_ssm = MagicMock()
+@patch("enable_adaptive_concurrency.SSM_CLIENT")
+def test_exception_sends_success_with_error_message(mock_ssm, mock_cfnresponse):
     mock_ssm.update_service_setting.side_effect = Exception("Test error")
-    mock_boto3_client.return_value = mock_ssm
 
     event = get_event("Create")
     lambda_handler(event, {})

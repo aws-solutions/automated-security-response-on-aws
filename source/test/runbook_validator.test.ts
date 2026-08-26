@@ -368,7 +368,12 @@ test.each(runbooks)('%s takes AssumeRole as parameter', (runbook: RunbookTestHel
 });
 
 test.skip.each(controlRunbooks)('%s has correct outputs', (runbook: RunbookTestHelper) => {
-  expect(runbook.getObject().outputs).toStrictEqual(['Remediation.Output', 'ParseInput.AffectedObject']);
+  expect(runbook.getObject().outputs).toStrictEqual([
+    'Remediation.Output',
+    'ParseInput.AffectedObject',
+    'GetRemediationFailureDetails.FailureMessage',
+    'GetRemediationFailureDetails.Outputs',
+  ]);
 });
 
 test.skip.each(remediationRunbooks)('%s has outputs', (runbook: RunbookTestHelper) => {

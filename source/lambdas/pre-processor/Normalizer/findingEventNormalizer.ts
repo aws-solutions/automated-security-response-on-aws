@@ -4,6 +4,9 @@
 import {
   ASFFSchema,
   OCSFComplianceSchema,
+  OCSFVulnerabilityFindingSchema,
+  OCSFDetectionFindingSchema,
+  OCSFDataSecurityFindingSchema,
   ASFFFinding,
   OCSFComplianceFinding,
   ASFFComplianceStatus,
@@ -15,9 +18,12 @@ import {
 import { sendMetrics } from '../../common/utils/metricsUtils';
 import { Logger } from '@aws-lambda-powertools/logger';
 
-enum FindingSchema {
-  OCSF = 'OCSF', // Open Cybersecurity FindingSchema Framework
-  ASFF = 'ASFF', // AWS Security Finding Format
+export enum FindingSchema {
+  OCSF = 'OCSF', // OCSF Compliance Finding (class_uid 2003) — Security Hub CSPM
+  OCSF_VULNERABILITY = 'OCSF_VULNERABILITY', // OCSF Vulnerability Finding (class_uid 2002) — Inspector
+  OCSF_DETECTION = 'OCSF_DETECTION', // OCSF Detection Finding (class_uid 2004) — GuardDuty
+  OCSF_DATA_SECURITY = 'OCSF_DATA_SECURITY', // OCSF Data Security Finding (class_uid 2006) — Macie
+  ASFF = 'ASFF', // AWS Security Finding Format — Config, IAM Access Analyzer
   UNKNOWN = 'UNKNOWN',
 }
 
@@ -144,51 +150,82 @@ export class FindingEventNormalizer {
     }
   }
 
-  private async parseSchema(finding: Record<any, any>): Promise<FindingSchema> {
-    const ocsfResult = OCSFComplianceSchema.safeParse(finding);
-    const asffResult = ASFFSchema.safeParse(finding);
-    let schemaResult: FindingSchema;
-
-    if (ocsfResult.success) {
-      schemaResult = FindingSchema.OCSF;
-      await sendMetrics({ finding_schema: 'OCSF' });
-    } else if (asffResult.success) {
-      schemaResult = FindingSchema.ASFF;
-      await sendMetrics({ finding_schema: 'ASFF' });
-    } else {
-      this.logger.warn(
-        `FindingSchema type could not be resolved for finding. FindingSchema must be one of ${Object.values(
-          FindingSchema,
-        )
-          .filter((s) => s !== FindingSchema.UNKNOWN)
-          .join(' or ')}`,
-        {
-          finding: finding,
-          ocsfErrors: ocsfResult.error,
-          asffErrors: asffResult.error,
-        },
-      );
-      await sendMetrics({ finding_schema: 'unknown' });
-      throw new InvalidFindingSchemaError(Object.values(FindingSchema).filter((s) => s !== FindingSchema.UNKNOWN));
+  /** Validates the finding against known schemas and returns the detected schema type.
+   *  Order matters: specific OCSF schemas (with class_uid literals) are checked first
+   *  to prevent misclassification by the broader Compliance schema which uses .passthrough(). */
+  async detectFindingSchema(finding: Record<any, any>): Promise<FindingSchema> {
+    // Check specific OCSF schemas first — their class_uid literals (2002, 2004) discriminate precisely
+    const vulnResult = OCSFVulnerabilityFindingSchema.safeParse(finding);
+    if (vulnResult.success) {
+      await sendMetrics({ finding_schema: 'OCSF_VULNERABILITY' });
+      this.logger.debug('Finding FindingSchema: OCSF_VULNERABILITY');
+      return FindingSchema.OCSF_VULNERABILITY;
     }
-    this.logger.debug(`Finding FindingSchema: ${schemaResult}`);
-    return schemaResult;
+
+    const detectionResult = OCSFDetectionFindingSchema.safeParse(finding);
+    if (detectionResult.success) {
+      await sendMetrics({ finding_schema: 'OCSF_DETECTION' });
+      this.logger.debug('Finding FindingSchema: OCSF_DETECTION');
+      return FindingSchema.OCSF_DETECTION;
+    }
+
+    const dataSecurityResult = OCSFDataSecurityFindingSchema.safeParse(finding);
+    if (dataSecurityResult.success) {
+      await sendMetrics({ finding_schema: 'OCSF_DATA_SECURITY' });
+      this.logger.debug('Finding FindingSchema: OCSF_DATA_SECURITY');
+      return FindingSchema.OCSF_DATA_SECURITY;
+    }
+
+    // Then check OCSF Compliance (class_uid 2003) and ASFF
+    const ocsfResult = OCSFComplianceSchema.safeParse(finding);
+    if (ocsfResult.success) {
+      await sendMetrics({ finding_schema: 'OCSF' });
+      this.logger.debug('Finding FindingSchema: OCSF');
+      return FindingSchema.OCSF;
+    }
+
+    const asffResult = ASFFSchema.safeParse(finding);
+    if (asffResult.success) {
+      await sendMetrics({ finding_schema: 'ASFF' });
+      this.logger.debug('Finding FindingSchema: ASFF');
+      return FindingSchema.ASFF;
+    }
+
+    this.logger.warn(
+      `FindingSchema type could not be resolved for finding. FindingSchema must be one of ${Object.values(FindingSchema)
+        .filter((s) => s !== FindingSchema.UNKNOWN)
+        .join(' or ')}`,
+      {
+        finding: finding,
+        vulnErrors: vulnResult.error,
+        detectionErrors: detectionResult.error,
+        dataSecurityErrors: dataSecurityResult.error,
+        ocsfErrors: ocsfResult.error,
+        asffErrors: asffResult.error,
+      },
+    );
+    await sendMetrics({ finding_schema: 'unknown' });
+    throw new InvalidFindingSchemaError(Object.values(FindingSchema).filter((s) => s !== FindingSchema.UNKNOWN));
   }
 
-  /** Normalize finding to ASFF format */
+  /** Normalize finding to ASFF format. Multi-service OCSF findings must not be passed here. */
   async normalizeFinding(finding: Record<any, any>): Promise<ASFFFinding> {
-    const findingSchema = await this.parseSchema(finding);
+    const findingSchema = await this.detectFindingSchema(finding);
 
     if (findingSchema === FindingSchema.ASFF) {
       this.logger.debug('Finding is already in ASFF, skipping normalization...');
       return finding as ASFFFinding;
     } else if (findingSchema === FindingSchema.OCSF) {
       this.logger.debug('Finding is OCSF, starting normalization...');
-
       return this.normalizeOCSFFinding(finding as OCSFComplianceFinding);
-    } else {
-      throw new Error(`Finding FindingSchema is not OCSF or ASFF.`);
     }
+
+    // OCSF_VULNERABILITY, OCSF_DETECTION, and OCSF_DATA_SECURITY findings
+    // should be handled by the multi-service path in recordHandler, not
+    // normalized to ASFF.
+    throw new Error(
+      'Multi-service OCSF findings must be processed via the multi-service path, not normalized to ASFF.',
+    );
   }
 
   /** Convert OCSF finding to ASFF format */

@@ -8,10 +8,7 @@ import { NIST80053_REMEDIATIONS } from './NIST80053/lib/nist80053_remediations';
 import { PCI321_REMEDIATIONS } from './PCI321/lib/pci321_remediations';
 import { SC_REMEDIATIONS } from './SC/lib/sc_remediations';
 import { CIS300_remediations } from './CIS300/lib/cis300_remediations';
-
-const SC_MEMBER_STACK_LIMIT = Number(process.env['SC_MEMBER_STACK_LIMIT']);
-const NIST_MEMBER_STACK_LIMIT = Number(process.env['NIST_MEMBER_STACK_LIMIT']);
-const AFSBP_MEMBER_STACK_LIMIT = Number(process.env['AFSBP_MEMBER_STACK_LIMIT']);
+import { getMemberStackLimit } from '../lib/config/cdk-config';
 
 export interface PlaybookProps {
   name: string;
@@ -30,7 +27,7 @@ export const standardPlaybookProps: PlaybookProps[] = [
   {
     name: 'AFSBP',
     defaultParameterValue: 'no',
-    memberStackLimit: AFSBP_MEMBER_STACK_LIMIT,
+    memberStackLimit: getMemberStackLimit('AFSBP'),
     totalControls: AFSBP_REMEDIATIONS.length,
   },
   {
@@ -46,7 +43,7 @@ export const standardPlaybookProps: PlaybookProps[] = [
   {
     name: 'NIST80053',
     defaultParameterValue: 'no',
-    memberStackLimit: NIST_MEMBER_STACK_LIMIT,
+    memberStackLimit: getMemberStackLimit('NIST'),
     totalControls: NIST80053_REMEDIATIONS.length,
   },
   {
@@ -63,7 +60,7 @@ export const standardPlaybookProps: PlaybookProps[] = [
 
 export const scPlaybookProps: PlaybookProps = {
   name: 'SC',
-  memberStackLimit: SC_MEMBER_STACK_LIMIT,
+  memberStackLimit: getMemberStackLimit('SC'),
   totalControls: SC_REMEDIATIONS.length,
   defaultParameterValue: 'yes',
   description:

@@ -1,7 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { FindingApiResponse, RemediationHistoryApiResponse } from '@data-models';
+import {
+  FindingApiResponse,
+  RemediationHistoryApiResponse,
+  ResourceFilterInput,
+  UpdateFilterRequest,
+} from '@data-models';
 import { delay, http, HttpResponse } from 'msw';
 import { generateTestFindings, generateTestRemediations } from '../__tests__/test-data-factory';
 import { ApiEndpoints } from '../store/solutionApi.ts';
@@ -282,6 +287,54 @@ export const getUserByIdHandler = (apiUrl: string) =>
     return user ? ok(user) : badRequest({ error: 'User not found' });
   });
 
+export const getFiltersHandler = (apiUrl: string) =>
+  http.get(apiUrl + ApiEndpoints.FILTERS, () => {
+    return ok({ filters: [] });
+  });
+
+export const getControlsHandler = (apiUrl: string) =>
+  http.get(apiUrl + ApiEndpoints.CONTROLS, () => {
+    return ok({ controls: [] });
+  });
+
+export const postFiltersHandler = (apiUrl: string) =>
+  http.post(apiUrl + ApiEndpoints.FILTERS, async ({ request }) => {
+    const body = (await request.json()) as ResourceFilterInput;
+    return ok({
+      filterId: crypto.randomUUID(),
+      ...body,
+      version: 1,
+      createdAt: new Date().toISOString(),
+      createdBy: 'mock-user',
+      lastModified: new Date().toISOString(),
+      modifiedBy: 'mock-user',
+    });
+  });
+
+export const putFilterHandler = (apiUrl: string) =>
+  http.put(`${apiUrl}${ApiEndpoints.FILTERS}/:filterId`, async ({ request, params }) => {
+    const body = (await request.json()) as UpdateFilterRequest;
+    return ok({
+      filterId: params.filterId,
+      ...body,
+      version: 2,
+      createdAt: new Date().toISOString(),
+      createdBy: 'mock-user',
+      lastModified: new Date().toISOString(),
+      modifiedBy: 'mock-user',
+    });
+  });
+
+export const deleteFilterHandler = (apiUrl: string) =>
+  http.delete(`${apiUrl}${ApiEndpoints.FILTERS}/:filterId`, () => {
+    return ok({ message: 'Filter deleted' });
+  });
+
+export const postBulkEditHandler = (apiUrl: string) =>
+  http.post(apiUrl + ApiEndpoints.CONTROLS + '/bulk-edit', async () => {
+    return ok({ message: 'Controls updated successfully', updatedCount: 1 });
+  });
+
 /**
  * @param apiUrl the base url for http requests. only requests to this base url will be intercepted and handled by mock-service-worker.
  */
@@ -294,6 +347,12 @@ export const handlers = (apiUrl: string) => [
   postRemediationsSearchHandler(apiUrl),
   postFindingsHandler(apiUrl),
   putFindingsHandler(apiUrl),
+  getFiltersHandler(apiUrl),
+  getControlsHandler(apiUrl),
+  postFiltersHandler(apiUrl),
+  putFilterHandler(apiUrl),
+  deleteFilterHandler(apiUrl),
+  postBulkEditHandler(apiUrl),
 ];
 
 export const mockRemediations: RemediationHistoryApiResponse[] = generateTestRemediations(100);

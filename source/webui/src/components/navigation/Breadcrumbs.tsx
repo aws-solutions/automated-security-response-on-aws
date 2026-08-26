@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { BreadcrumbGroup, BreadcrumbGroupProps } from '@cloudscape-design/components';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { createBreadcrumbs } from './create-breadcrumbs.ts';
 
 export const Breadcrumbs = () => {

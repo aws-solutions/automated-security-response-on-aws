@@ -6,7 +6,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { Provider } from 'react-redux';
 import { NotificationContextProvider } from '../contexts/NotificationContext.tsx';
 import { ConfigContextProvider } from '../contexts/ConfigContext.tsx';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { AppRoutes } from '../AppRoutes.tsx';
 import { render } from '@testing-library/react';
 import { rootReducer, RootState } from '../store/store.ts';
@@ -24,15 +24,15 @@ import { solutionApi } from '../store/solutionApi.ts';
 export function renderAppContent(props?: {
   preloadedState?: Partial<RootState>;
   initialRoute: string;
-  config?: { ticketingEnabled: boolean };
+  config?: { ticketingEnabled: boolean; solutionVersion: string };
 }) {
   const store = configureStore({
     reducer: rootReducer,
     preloadedState: props?.preloadedState ?? {},
-    middleware: getDefaultMiddleware => getDefaultMiddleware().concat(solutionApi.middleware),
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(solutionApi.middleware),
   });
 
-  const defaultConfig = { ticketingEnabled: true };
+  const defaultConfig = { ticketingEnabled: true, solutionVersion: '4.0.0' };
   const config = props?.config ?? defaultConfig;
 
   const renderResult = render(

@@ -106,6 +106,8 @@ This document enables \`Enhanced Monitoring\` on a given Amazon RDS instance by 
                 "Runtime": "python3.11",
                 "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+# NOTE: Comments are kept minimal to reduce CloudFormation template size.
+# This script is embedded inline in every control runbook SSM document.
 import json
 import re
 from typing import Any
@@ -173,9 +175,8 @@ def get_config_rule(rule_name):
 
 
 class FindingEvent:
-    """
-    Finding object returns the parse fields from an input finding json object
-    """
+
+    product_arn: str | None
 
     def _get_resource_id(self, parse_id_pattern, resource_index):
         identifier_raw = self.finding_json["Resources"][0]["Id"]
@@ -207,7 +208,7 @@ class FindingEvent:
     def _get_standard_info(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
-            + "subscription/(.*?)/v/(\\d+\\.\\d+\\.\\d+)/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
+            + r"subscription/(.*?)/v/(\\d+\\.\\d+\\.\\d+)/(.*)/finding/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$",
             self.finding_json["Id"],
         )
         if match_finding_id:
@@ -222,17 +223,17 @@ class FindingEvent:
                     f'Finding Id is invalid: {self.finding_json["Id"]}'
                 )
 
-    def _get_aws_config_rule(self):
-        # config_rule_id refers to the AWS Config Rule that produced the finding
+    def _fetch_aws_config_rule(self) -> tuple[str | None, dict[str, Any]]:
+        product_fields = self.finding_json.get("ProductFields", {})
         if (
-            "RelatedAWSResources:0/type" in self.finding_json["ProductFields"]
-            and self.finding_json["ProductFields"]["RelatedAWSResources:0/type"]
-            == "AWS::Config::ConfigRule"
+            product_fields.get("RelatedAWSResources:0/type")
+            != "AWS::Config::ConfigRule"
         ):
-            self.aws_config_rule_id = self.finding_json["ProductFields"][
-                "RelatedAWSResources:0/name"
-            ]
-            self.aws_config_rule = get_config_rule(self.aws_config_rule_id)
+            return None, {}
+        rule_name = product_fields.get("RelatedAWSResources:0/name")
+        if not rule_name:
+            return None, {}
+        return rule_name, get_config_rule(rule_name)
 
     def _get_region_from_resource_id(self):
         check_for_region = re.match(
@@ -244,50 +245,53 @@ class FindingEvent:
         else:
             self.resource_region = self.finding_json["Resources"][0]["Region"]
 
+    def _resolve_product_arn(self) -> None:
+        if not self.valid_finding:
+            return
+        pa_pattern = r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::(?:product|productv2)/aws/securityhub$"
+        if re.match(pa_pattern, self.product_arn or ""):
+            return
+        id_match = re.match(
+            r"^arn:(aws|aws-cn|aws-us-gov):securityhub:([a-z]{2}(?:-gov)?-[a-z]+-\\d):",
+            self.finding_id or "",
+        )
+        if id_match:
+            self.product_arn = f"arn:{id_match.group(1)}:securityhub:{id_match.group(2)}::product/aws/securityhub"
+            self.finding_json["ProductArn"] = self.product_arn
+            return
+        self.valid_finding = False
+        self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
+
     def __init__(
-        self, finding_json, parse_id_pattern, expected_control_id, resource_index
-    ):
+        self,
+        finding_json: dict[str, Any],
+        parse_id_pattern: str,
+        expected_control_id: list[str],
+        resource_index: int,
+    ) -> None:
         self.valid_finding = True
         self.resource_region = None
         self.control_id = None
-        self.aws_config_rule_id = None
-        self.aws_config_rule = {}
+        self.aws_config_rule_id: str | None = None
+        self.aws_config_rule: dict[str, Any] = {}
         self.input_params = {}
 
-        """Populate fields"""
-        # v1.5
-        self.finding_json: Any = finding_json
-        self._get_resource_id(
-            parse_id_pattern, resource_index
-        )  # self.resource_id, self.resource_id_matches
-        self._get_standard_info()  # self.standard_id, self.standard_version, self.control_id
+        self.finding_json: Any = dict(finding_json)
+        self._get_resource_id(parse_id_pattern, resource_index)
+        self._get_standard_info()
 
-        # V1.4
-        self.account_id = self.finding_json.get(
-            "AwsAccountId", None
-        )  # deprecate - get Finding.AwsAccountId
-        if not re.match(r"^\\d{12}$", self.account_id) and self.valid_finding:
+        self.account_id = self.finding_json.get("AwsAccountId", None)
+        if not re.match(r"^\\d{12}$", self.account_id or "") and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = f"AwsAccountId is invalid: {self.account_id}"
-        self.finding_id = self.finding_json.get("Id", None)  # deprecate
+        self.finding_id = self.finding_json.get("Id", None)
         self.product_arn = self.finding_json.get("ProductArn", None)
-        if (
-            not re.match(
-                r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\\d::(?:product|productv2)/aws/securityhub$",
-                self.product_arn,
-            )
-            and self.valid_finding
-        ):
-            self.valid_finding = False
-            self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
+        self._resolve_product_arn()
         self.details = self.finding_json["Resources"][0].get("Details", {})
-        # Test mode is used with fabricated finding data to tell the
-        # remediation runbook to run in test more (where supported)
-        # Currently not widely-used and perhaps should be deprecated.
         self.testmode = bool("testmode" in self.finding_json)
         self.resource = self.finding_json["Resources"][0]
         self._get_region_from_resource_id()
-        self._get_aws_config_rule()
+        self.aws_config_rule_id, self.aws_config_rule = self._fetch_aws_config_rule()
 
         if "InputParameters" in self.aws_config_rule:
             self.input_params = json.loads(self.aws_config_rule["InputParameters"])
@@ -298,17 +302,13 @@ class FindingEvent:
             "OutputKey": "Remediation.Output",
         }
 
-        # Validate control_id
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
                 self.invalid_finding_reason = f'Finding Id is invalid: {self.finding_json["Id"]} - missing Control Id'
-        elif (
-            self.control_id not in expected_control_id
-        ):  # ControlId is the expected value
-            if self.valid_finding:
-                self.valid_finding = False
-                self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
+        elif self.control_id not in expected_control_id and self.valid_finding:
+            self.valid_finding = False
+            self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
 
         if not self.resource_id and self.valid_finding:
             self.valid_finding = False
@@ -317,17 +317,11 @@ class FindingEvent:
             )
 
         if not self.valid_finding:
-            # Error message and return error data
             msg = f"ERROR: {self.invalid_finding_reason}"
             exit(msg)
 
     def __str__(self):
         return json.dumps(self.__dict__)
-
-
-"""
-MAIN
-"""
 
 
 def parse_event(event, _):
@@ -344,13 +338,13 @@ def parse_event(event, _):
     return {
         "account_id": finding_event.account_id,
         "resource_id": finding_event.resource_id,
-        "finding_id": finding_event.finding_id,  # Deprecate v1.5.0+
+        "finding_id": finding_event.finding_id,
         "control_id": finding_event.control_id,
-        "product_arn": finding_event.product_arn,  # Deprecate v1.5.0+
+        "product_arn": finding_event.product_arn,
         "object": finding_event.affected_object,
         "matches": finding_event.resource_id_matches,
-        "details": finding_event.details,  # Deprecate v1.5.0+
-        "testmode": finding_event.testmode,  # Deprecate v1.5.0+
+        "details": finding_event.details,
+        "testmode": finding_event.testmode,
         "resource": finding_event.resource,
         "resource_region": finding_event.resource_region,
         "finding": finding_event.finding_json,

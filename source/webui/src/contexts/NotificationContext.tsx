@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createContext, ReactNode, useEffect, useState } from 'react';
+import { createContext, ReactNode, useEffect, useMemo, useState } from 'react';
 import { FlashbarProps } from '@cloudscape-design/components';
 import { useDispatch, useSelector } from 'react-redux';
 import { deleteNotification, selectNotifications } from '../store/notificationsSlice.ts';
@@ -18,9 +18,7 @@ export type NotificationContextType = {
   notifications: ReadonlyArray<FlashbarProps.MessageDefinition>;
 };
 
-export const NotificationContext = createContext<NotificationContextType>(
-  null as unknown as NotificationContextType,
-);
+export const NotificationContext = createContext<NotificationContextType>(null as unknown as NotificationContextType);
 export const NotificationContextProvider = (props: { children: ReactNode }) => {
   const storeNotifications = useSelector(selectNotifications);
   const dispatch = useDispatch();
@@ -30,7 +28,7 @@ export const NotificationContextProvider = (props: { children: ReactNode }) => {
 
   useEffect(() => {
     setNotifications(
-      storeNotifications.map(it => {
+      storeNotifications.map((it) => {
         return {
           dismissible: true,
           onDismiss: () => dispatch(deleteNotification({ id: it.id })),
@@ -40,11 +38,12 @@ export const NotificationContextProvider = (props: { children: ReactNode }) => {
     );
   }, [storeNotifications]);
 
+  // Memoize so the Context value identity only changes when notifications change.
+  const contextValue = useMemo<NotificationContextType>(() => ({ notifications }), [notifications]);
+
   return (
     <>
-      <NotificationContext.Provider value={{ notifications }}>
-        {props.children}
-      </NotificationContext.Provider>
+      <NotificationContext.Provider value={contextValue}>{props.children}</NotificationContext.Provider>
     </>
   );
 };

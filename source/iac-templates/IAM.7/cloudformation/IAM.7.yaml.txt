@@ -1,0 +1,26 @@
+# IAM.7 — Password policies for IAM users should have strong configurations
+#
+# ASR remediation sets the account password policy to require a minimum length
+# of 14 characters, uppercase, lowercase, numbers, and symbols, with a maximum
+# age of 90 days and prevention of reusing the last 24 passwords.
+# To apply this fix, add a custom resource backed by a Lambda function that
+# calls the IAM UpdateAccountPasswordPolicy API with the properties shown below.
+# NOTE: <PASSWORD_POLICY_FUNCTION> — a Lambda function that calls the IAM
+# UpdateAccountPasswordPolicy API. CloudFormation does not have a native
+# resource type for IAM account password policies. Alternatively, use the
+# CDK AwsCustomResource approach which handles the Lambda automatically.
+
+Resources:
+  {accountPasswordPolicy}:
+    Type: Custom::AccountPasswordPolicy
+    Properties:
+      ServiceToken: <PASSWORD_POLICY_FUNCTION>
+      AllowUsersToChangePassword: true
+      HardExpiry: true
+      MaxPasswordAge: 90
+      MinimumPasswordLength: 14
+      PasswordReusePrevention: 24
+      RequireLowercaseCharacters: true
+      RequireNumbers: true
+      RequireSymbols: true
+      RequireUppercaseCharacters: true

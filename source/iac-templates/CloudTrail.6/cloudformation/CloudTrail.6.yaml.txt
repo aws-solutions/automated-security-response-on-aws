@@ -1,0 +1,15 @@
+# CloudTrail.6 — Ensure the S3 bucket used to store CloudTrail logs is not publicly accessible
+#
+# ASR remediation enables all public access block settings on the CloudTrail S3 bucket.
+# To apply this fix, add or update the PublicAccessBlockConfiguration on your S3 bucket resource
+# to block all public access.
+
+Resources:
+  {cloudTrailBucket}:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true

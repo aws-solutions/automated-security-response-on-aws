@@ -1,0 +1,8 @@
+// DynamoDB.6 — DynamoDB tables should have deletion protection enabled
+//
+// ASR remediation enables deletion protection on the DynamoDB table.
+// To apply this fix, set deletionProtection to true on your DynamoDB table construct.
+
+const table = new dynamodb.Table(this, '{tableName}', {
+  deletionProtection: true,
+});

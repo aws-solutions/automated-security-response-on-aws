@@ -18,6 +18,7 @@ import {
   SingleValueWidget,
   TextWidget,
   TreatMissingData,
+  Alarm,
 } from 'aws-cdk-lib/aws-cloudwatch';
 import { Topic } from 'aws-cdk-lib/aws-sns';
 import { Key } from 'aws-cdk-lib/aws-kms';
@@ -26,6 +27,16 @@ import { ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
 import { IControl } from './playbook-construct';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { getConfig } from './config/cdk-config';
+import {
+  ASR_METRIC_NAMESPACE,
+  CONTROL_STATE_CHANGE_METRIC,
+  M2M_FORBIDDEN_AUTHORIZATION_METRIC,
+  SENSITIVE_WRITE_METRIC,
+  USER_POOL_DIMENSION,
+  WRITE_CATEGORY_DIMENSION,
+} from '../lambdas/common/utils/cloudWatchMetrics';
+import { RateLimitTierName } from '../lambdas/api/rateLimiting/routeTiers';
 
 export interface CloudWatchMetricsProps {
   solutionId: string;
@@ -48,6 +59,19 @@ export class CloudWatchMetrics {
   private readonly isUsingCloudWatchMetricsAlarms: CfnCondition;
   private readonly enhancedMetricsEnabled: CfnCondition;
   private readonly enhancedAlarmsEnabled: CfnCondition;
+  /**
+   * Operational alarm topic. Callers can route additional alerts (e.g. S3
+   * event notifications) to the same subscriber set that already receives
+   * remediation alarms. Dependents on this topic must also gate themselves
+   * on `alarmTopicCondition`; otherwise their resources will dangle when the
+   * customer disables alarms via `UseCloudWatchMetricsAlarms`.
+   */
+  public readonly alarmTopic: Topic;
+  /**
+   * Condition under which `alarmTopic` is provisioned. Dependents on the
+   * topic must mirror this condition on their own resources.
+   */
+  public readonly alarmTopicCondition: CfnCondition;
 
   constructor(scope: Construct, props: CloudWatchMetricsProps) {
     const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
@@ -197,12 +221,17 @@ export class CloudWatchMetrics {
     });
 
     /// CloudWatch Alarms
+    // alarmTopic is gated on isUsingCloudWatchMetricsAlarms because every
+    // alarm publishing to it carries the same condition. Dependents on
+    // alarmTopic must mirror this condition via alarmTopicCondition.
     const snsAlarmTopic = new Topic(scope, 'ASR-Alarm-Topic', {
       displayName: 'ASR Alarm Topic (' + RESOURCE_PREFIX + ')',
       topicName: RESOURCE_PREFIX + '-ASR_Alarm_Topic',
       masterKey: props.kmsKey,
     });
     setCondition(snsAlarmTopic, this.isUsingCloudWatchMetricsAlarms);
+    this.alarmTopic = snsAlarmTopic;
+    this.alarmTopicCondition = this.isUsingCloudWatchMetricsAlarms;
 
     const noRemediationErrorAlarm = noRemediationErrorMetric.createAlarm(scope, 'NoRemediationErrorAlarm', {
       alarmName: 'ASR-NoRunbook',
@@ -284,7 +313,11 @@ export class CloudWatchMetrics {
       addCfnGuardSuppression(synchronizationErrorAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
     }
 
-    const controlIds = SC_REMEDIATIONS.map((remediation: IControl) => remediation.control);
+    // Deprecated controls keep their runbook SSM document but produce no findings,
+    // so exclude them from per-control failure-rate alarms.
+    const controlIds = SC_REMEDIATIONS.filter((remediation: IControl) => !remediation.deprecated).map(
+      (remediation: IControl) => remediation.control,
+    );
     const failureRateMetricsByControlId: IMetric[] = this.createAlarmsByControlId(
       scope,
       remediationFailureAlarmThreshold.valueAsNumber,
@@ -468,6 +501,10 @@ The actions shown are based on CloudTrail management events in the member accoun
     if (props.userPoolId) {
       this.createCognitoThreatProtectionAlarms(scope, snsAlarmTopic, props.userPoolId, props.webUIEnabled);
     }
+
+    // API rate-limiting and write-anomaly alarms (gated on the WebUI being
+    // enabled, since the API Lambda that emits these metrics only exists then).
+    this.createApiRateLimitAlarms(scope, snsAlarmTopic, props.webUIEnabled);
   }
 
   private createAlarmsByControlId(
@@ -617,5 +654,117 @@ The actions shown are based on CloudTrail management events in the member accoun
     setCondition(signInThrottlesAlarm, cognitoAlarmsCondition);
     signInThrottlesAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
     addCfnGuardSuppression(signInThrottlesAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+
+    // M2M (machine-to-machine) Full Access denial alarm. Fires when a groupless
+    // M2M access token is denied Full Access for lacking the `asr-api/full-access`
+    // scope. A non-zero count signals a misconfigured M2M client or probing against
+    // the API. Watches the custom ASR/M2MForbiddenAuthorization metric the API
+    // Lambda emits on each denial (same name + UserPool dimension constants); treats
+    // missing data as NOT_BREACHING so it stays silent until denials occur.
+    const m2mForbiddenMetric = new Metric({
+      namespace: ASR_METRIC_NAMESPACE,
+      metricName: M2M_FORBIDDEN_AUTHORIZATION_METRIC,
+      statistic: 'Sum',
+      period: Duration.minutes(1),
+      dimensionsMap: { [USER_POOL_DIMENSION]: userPoolId },
+    });
+
+    const m2mForbiddenAlarm = m2mForbiddenMetric.createAlarm(scope, 'CognitoM2MForbiddenAlarm', {
+      alarmName: 'ASR-Cognito-M2MForbidden',
+      evaluationPeriods: 5,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Alarm for the Automated Security Response on AWS Cognito User Pool: a machine-to-machine (M2M) token was denied Full Access for lacking the asr-api/full-access scope. A non-zero count indicates a misconfigured M2M client or probing against the API.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    setCondition(m2mForbiddenAlarm, cognitoAlarmsCondition);
+    m2mForbiddenAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(m2mForbiddenAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+  }
+
+  /**
+   * Alarms on anomalous API write activity and rate-limit rejections, using the
+   * custom `ASR`-namespace metrics emitted by the API Lambda. Gated on the
+   * WebUI being enabled because the API only exists in that case. Thresholds are
+   * sourced from the rate-limiting config.
+   */
+  private createApiRateLimitAlarms(scope: Construct, snsAlarmTopic: Topic, webUIEnabled: CfnCondition): void {
+    const alarmsConfig = getConfig().rateLimiting.alarms;
+    const period = Duration.minutes(1);
+
+    const apiAlarmsCondition = new CfnCondition(scope, 'apiRateLimitAlarmsEnabled', {
+      expression: Fn.conditionAnd(this.isUsingCloudWatchMetricsAlarms, webUIEnabled),
+    });
+
+    const finalizeAlarm = (alarm: Alarm): void => {
+      setCondition(alarm, apiAlarmsCondition);
+      alarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+      addCfnGuardSuppression(alarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+    };
+
+    // Tier category dimension values, typed against the canonical tier union so
+    // they cannot drift from the route tiers the Lambda emits them under.
+    const criticalCategory: RateLimitTierName = 'critical';
+    const sensitiveWriteCategory: RateLimitTierName = 'sensitiveWrite';
+
+    // Anomalous volume of control state-change (bulk-edit) requests. This is the
+    // security finding's explicit ask. Counts requests, not controls, so a
+    // legitimate bulk operation over many controls registers as a single change.
+    const controlStateChangeAlarm = new Metric({
+      namespace: ASR_METRIC_NAMESPACE,
+      metricName: CONTROL_STATE_CHANGE_METRIC,
+      statistic: 'Sum',
+      period,
+    }).createAlarm(scope, 'ApiControlStateChangeAlarm', {
+      alarmName: 'ASR-Api-ControlStateChangeSpike',
+      evaluationPeriods: 1,
+      threshold: alarmsConfig.controlStateChangesPerMinute,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Automated Security Response on AWS: An unusually high number of control state-change (bulk-edit) requests occurred within one minute. This can indicate a compromised credential rapidly enabling or disabling automated remediation controls.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    finalizeAlarm(controlStateChangeAlarm);
+
+    // Spike in sensitive write requests across the critical and sensitive tiers
+    // (user, filter, notification, and finding-action mutations). FILL(...,0)
+    // keeps the sum well-defined when a category has no data in the period.
+    const sensitiveWriteAlarm = new MathExpression({
+      label: 'Sensitive write requests',
+      period,
+      expression: 'SUM([FILL(critical,0),FILL(sensitive,0)])',
+      usingMetrics: {
+        critical: new Metric({
+          namespace: ASR_METRIC_NAMESPACE,
+          metricName: SENSITIVE_WRITE_METRIC,
+          statistic: 'Sum',
+          period,
+          dimensionsMap: { [WRITE_CATEGORY_DIMENSION]: criticalCategory },
+        }),
+        sensitive: new Metric({
+          namespace: ASR_METRIC_NAMESPACE,
+          metricName: SENSITIVE_WRITE_METRIC,
+          statistic: 'Sum',
+          period,
+          dimensionsMap: { [WRITE_CATEGORY_DIMENSION]: sensitiveWriteCategory },
+        }),
+      },
+    }).createAlarm(scope, 'ApiSensitiveWriteAlarm', {
+      alarmName: 'ASR-Api-SensitiveWriteSpike',
+      evaluationPeriods: 1,
+      threshold: alarmsConfig.sensitiveWritesPerMinute,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Automated Security Response on AWS: An unusually high number of sensitive write requests (user, filter, notification, or finding-action changes) occurred within one minute.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    finalizeAlarm(sensitiveWriteAlarm);
   }
 }

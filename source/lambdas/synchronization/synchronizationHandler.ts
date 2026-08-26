@@ -5,13 +5,25 @@ import type { LambdaInterface } from '@aws-lambda-powertools/commons/types';
 import { Context } from 'aws-lambda';
 import { SecurityHubClient } from '@aws-sdk/client-securityhub';
 import { getLogger } from '../common/utils/logger';
+import { resolveControlId } from '../common/utils/findingUtils';
 import { getTracer } from '../common/utils/tracer';
 import { createDynamoDBClient } from '../common/utils/dynamodb';
 import { sendMetrics } from '../common/utils/metricsUtils';
 import { SecurityHubUtils } from '../common/utils/securityHub';
-import { FindingDataService } from '../common/services/findingDataService';
-import { ASFFFinding } from '@asr/data-models';
-import { applyFilters } from '../common/utils/filterUtils';
+import { FindingDataService, FindingMetricEnrichment } from '../common/services/findingDataService';
+import { FiltersRepository } from '../common/repositories/filtersRepository';
+import { FindingRepository } from '../common/repositories/findingRepository';
+import { NotificationConfigurationRepository } from '../common/repositories/notificationConfigurationRepository';
+import { ResourceFilterEvaluator } from '../pre-processor/ResourceFilterEvaluator';
+import {
+  FindingNotificationConfigEvaluator,
+  EligibilityResult,
+  FindingConfigEvaluation,
+  emptyFindingConfigEvaluation,
+} from '../pre-processor/findingNotificationConfigEvaluator';
+import { RemediationConfigChecker, ControlConfig } from '../pre-processor/RemediationConfigChecker';
+import { asffToNormalized } from '../pre-processor/Normalizer/findingMappers';
+import { ASFFFinding, FindingTableItem } from '@asr/data-models';
 import {
   getAutomatedRemediationEnabledControlIds,
   getSupportedControlIds,
@@ -19,22 +31,24 @@ import {
 import { SyncCursorRepository } from '../common/repositories/syncCursorRepository';
 import { runSyncSlice, SliceResult } from '../common/services/runSyncSlice';
 import { SecurityHubMemberAccountSource } from '../common/services/accountSource';
+import { synchronizationFindingsEnvironment } from './synchronizationFindingsEnvironment';
+import { Clock, getClock } from '../common/utils/clock';
+import { LambdaCache } from '../common/utils/lambdaCache';
 
 const BATCH_SIZE = 10;
+// five minutes is a reasonable time for a single lambda invocation which should take no more than 15 minutes.
+// if stale data becomes a problem, this can be further reduced.
+const CONTROL_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // Stop the slice this many ms before the Lambda hard-timeout so there is room to checkpoint and exit
 // cleanly. The remaining backlog resumes on the next invocation from the persisted cursor.
 const SLICE_SAFETY_MARGIN_MS = 30_000;
 
-// Identifies this run as the principal on writes.
-const SYNC_PRINCIPAL = 'synchronization';
-
 /**
  * Tasks the sweep state machine invokes the Lambda with. These use an explicit `task`
- * discriminator rather than the EventBridge `detail-type` shapes, so the state-machine-driven path is
- * unambiguous and fully separate from the schedule / custom-resource / self-invoke event paths. Each
- * task is one Step Functions state, and the state machine — not the Lambda — owns all orchestration
- * (fan-out across accounts and the resume loop within one account).
+ * discriminator: the state-machine-driven path is unambiguous, and the state machine — not the
+ * Lambda — owns all orchestration (fan-out across accounts and the resume loop within one account).
+ * Each task is one Step Functions state.
  */
 export interface EnumerateAccountsTask {
   task: 'enumerate-accounts';
@@ -96,23 +110,68 @@ interface BatchResult {
   filteredCount: number;
 }
 
+/** Running totals accumulated across all batches of a single account slice. */
+interface SyncCounts {
+  totalProcessed: number;
+  totalSuccessful: number;
+  totalFailed: number;
+  totalError: number;
+  totalFiltered: number;
+}
+
 type FindingProcessingStatus = 'SUCCESS' | 'FAILED' | 'ERROR' | 'FILTERED';
 
-const SOLUTION_TRADEMARKEDNAME = process.env.SOLUTION_TRADEMARKEDNAME ?? 'automated-security-response-on-aws';
-const FINDINGS_TABLE_ARN = process.env.FINDINGS_TABLE_ARN;
-const REMEDIATION_CONFIG_TABLE_ARN = process.env.REMEDIATION_CONFIG_TABLE_ARN;
-const FINDINGS_TABLE_NAME = FINDINGS_TABLE_ARN?.split('/')[1];
-const REMEDIATION_CONFIG_TABLE_NAME = REMEDIATION_CONFIG_TABLE_ARN?.split('/')[1];
+const env = synchronizationFindingsEnvironment();
 
-if (!FINDINGS_TABLE_ARN) throw new Error('FINDINGS_TABLE_ARN environment variable is required');
-if (!FINDINGS_TABLE_NAME) throw new Error('Unable to extract table name from FINDINGS_TABLE_ARN');
-if (!REMEDIATION_CONFIG_TABLE_ARN) throw new Error('REMEDIATION_CONFIG_TABLE_ARN environment variable is required');
-if (!REMEDIATION_CONFIG_TABLE_NAME) throw new Error('Unable to extract table name from REMEDIATION_CONFIG_TABLE_ARN');
+const findingsTableName = env.FINDINGS_TABLE_NAME;
+const remediationConfigTableName = env.REMEDIATION_CONFIG_TABLE_NAME;
+const resourceFiltersTableName = env.RESOURCE_FILTERS_TABLE_NAME;
+const notificationConfigTableName = env.NOTIFICATION_CONFIG_TABLE_NAME;
 
-const tracer = getTracer(SOLUTION_TRADEMARKEDNAME);
-const logger = getLogger(SOLUTION_TRADEMARKEDNAME);
+const tracer = getTracer(env.SOLUTION_TRADEMARKEDNAME);
+const logger = getLogger(env.SOLUTION_TRADEMARKEDNAME);
+
+// The Synchronization Lambda owns every write to the findings table under a single
+// principal so `lastUpdatedBy` stays consistent across the initial sync write and the
+// later deadline-stamp update.
+const SYNCHRONIZATION_PRINCIPAL = 'synchronization';
+
+const moduleDynamoDBClient = tracer.captureAWSv3Client(createDynamoDBClient({ maxAttempts: 10 }));
+const filtersRepository = new FiltersRepository(resourceFiltersTableName, moduleDynamoDBClient);
+const resourceFilterEvaluator = new ResourceFilterEvaluator(filtersRepository, logger);
+const findingRepository = new FindingRepository(SYNCHRONIZATION_PRINCIPAL, findingsTableName, moduleDynamoDBClient);
+const notificationConfigurationRepository = new NotificationConfigurationRepository(
+  notificationConfigTableName,
+  moduleDynamoDBClient,
+);
+const defaultFindingNotificationConfigEvaluator = new FindingNotificationConfigEvaluator(
+  notificationConfigurationRepository,
+  resourceFilterEvaluator,
+  getClock(),
+  logger,
+);
 
 export class Synchronization implements LambdaInterface {
+  private readonly controlConfigCache: LambdaCache<ControlConfig>;
+  private readonly clock: Clock;
+  private readonly findingNotificationConfigEvaluator: FindingNotificationConfigEvaluator;
+
+  constructor(
+    clock: Clock = getClock(),
+    findingNotificationConfigEvaluator: FindingNotificationConfigEvaluator = defaultFindingNotificationConfigEvaluator,
+  ) {
+    this.clock = clock;
+    this.findingNotificationConfigEvaluator = findingNotificationConfigEvaluator;
+    this.controlConfigCache = new LambdaCache<ControlConfig>({
+      ttlMs: CONTROL_CONFIG_CACHE_TTL_MS,
+      fetchFn: (controlId) => this.createConfigChecker(controlId).getControlConfig(),
+      onWarmUpError: (controlId, error) => {
+        logger.warn(`Failed to warm cache for controlId ${controlId}, will retry on next access`, { error });
+      },
+      clock: this.clock,
+    });
+  }
+
   @tracer.captureLambdaHandler()
   @logger.injectLambdaContext()
   async handler(task: SweepStateMachineTask, context: Context): Promise<SweepStateMachineTaskResult> {
@@ -203,14 +262,13 @@ export class Synchronization implements LambdaInterface {
   }
 
   private buildClients() {
-    const dynamoDBDocumentClient = tracer.captureAWSv3Client(createDynamoDBClient({ maxAttempts: 10 }));
     const securityHubClient = tracer.captureAWSv3Client(new SecurityHubClient({}));
     return {
-      dynamoDBDocumentClient,
+      dynamoDBDocumentClient: moduleDynamoDBClient,
       securityHubClient,
       securityHubUtils: new SecurityHubUtils(securityHubClient),
-      findingDataService: new FindingDataService(FINDINGS_TABLE_NAME!, dynamoDBDocumentClient, SYNC_PRINCIPAL),
-      cursorRepository: new SyncCursorRepository(SYNC_PRINCIPAL, FINDINGS_TABLE_NAME!, dynamoDBDocumentClient),
+      findingDataService: new FindingDataService(findingsTableName, moduleDynamoDBClient, SYNCHRONIZATION_PRINCIPAL),
+      cursorRepository: new SyncCursorRepository(SYNCHRONIZATION_PRINCIPAL, findingsTableName, moduleDynamoDBClient),
     };
   }
 
@@ -220,7 +278,7 @@ export class Synchronization implements LambdaInterface {
     clients: ReturnType<Synchronization['buildClients']>,
     context: Context,
   ): Promise<{ sliceResult: SliceResult }> {
-    const startTime = Date.now();
+    const startTime = this.clock.now().getTime();
     logger.info('Processing account synchronization slice', {
       accountId,
       startTime: new Date(startTime).toISOString(),
@@ -238,7 +296,7 @@ export class Synchronization implements LambdaInterface {
     try {
       const automatedRemediationEnabledControlIds = await getAutomatedRemediationEnabledControlIds(
         dynamoDBDocumentClient,
-        REMEDIATION_CONFIG_TABLE_NAME!,
+        remediationConfigTableName,
       );
 
       const sliceResult: SliceResult = await runSyncSlice(
@@ -246,7 +304,7 @@ export class Synchronization implements LambdaInterface {
           cursorRepository,
           securityHubUtils,
           accountId,
-          getAllControlIds: () => getSupportedControlIds(dynamoDBDocumentClient, REMEDIATION_CONFIG_TABLE_NAME!),
+          getAllControlIds: () => getSupportedControlIds(dynamoDBDocumentClient, remediationConfigTableName),
           isAutomatedRemediationEnabled: (controlId) => automatedRemediationEnabledControlIds.has(controlId),
           processBatch: async (findings) => {
             totalProcessed += findings.length;
@@ -266,24 +324,17 @@ export class Synchronization implements LambdaInterface {
       // Derive progress from the done cursors rather than a maintained counter: under parallel
       // fan-out several account slices finish at once, and a read-modify-write counter would lose
       // increments to write races. This slice has already checkpointed its own cursor above, so the
-      // count already reflects it when it just completed. Bound the count to cursors finished during
-      // THIS sweep (lastSyncedAt >= the sweep's startedAt): cursors are reset lazily per account, not
-      // cleared at sweep start, so an unbounded count would report last sweep's leftovers and sit near
-      // the total from the first slice instead of climbing from zero.
+      // count already reflects it when it just completed.
       const sweep = await cursorRepository.getSweep();
       const accountProgress: AccountProgress = {
         accountId,
-        completedAccounts: await cursorRepository.countCompletedAccounts(sweep?.startedAt),
+        completedAccounts: await cursorRepository.countCompletedAccounts(),
         totalAccounts: sweep?.totalAccounts ?? 0,
       };
 
       await this.handleSyncSuccess(
         startTime,
-        totalProcessed,
-        totalSuccessful,
-        totalFailed,
-        totalError,
-        totalFiltered,
+        { totalProcessed, totalSuccessful, totalFailed, totalError, totalFiltered },
         sliceResult,
         accountProgress,
       );
@@ -309,6 +360,9 @@ export class Synchronization implements LambdaInterface {
 
     for (let i = 0; i < findings.length; i += BATCH_SIZE) {
       const batch = findings.slice(i, i + BATCH_SIZE);
+
+      await this.warmControlConfigCache(batch);
+
       const batchPromises = batch.map((finding) => this.processSingleFinding(finding, findingDataService));
       const batchResults = await Promise.all(batchPromises);
 
@@ -324,50 +378,36 @@ export class Synchronization implements LambdaInterface {
     return { successCount, failedCount, errorCount, filteredCount };
   }
 
+  private createConfigChecker(controlId: string): RemediationConfigChecker {
+    return new RemediationConfigChecker(controlId, moduleDynamoDBClient, remediationConfigTableName, logger);
+  }
+
+  /**
+   * Pre-fetches control configurations for all distinct controlIds in a batch concurrently.
+   * Without this, each finding in a Promise.all batch would independently call the cache's get(),
+   * causing O(N) sequential or racing DynamoDB reads for the same controlId. By warming the cache
+   * before processing, we reduce this to O(distinct controlIds) reads per batch and avoid redundant
+   * network calls for findings that share a controlId.
+   */
+  private async warmControlConfigCache(findings: ASFFFinding[]): Promise<void> {
+    const controlIds = findings.map((f) => f.Compliance?.SecurityControlId).filter((id): id is string => !!id);
+
+    await this.controlConfigCache.warmKeys(controlIds);
+  }
+
   private async processSingleFinding(
     finding: ASFFFinding,
     findingDataService: FindingDataService,
   ): Promise<FindingProcessingStatus> {
     try {
-      const filterResult = await applyFilters(finding, logger);
+      const filtered = await this.isFilteredOut(finding);
+      if (filtered) return 'FILTERED';
 
-      if (!filterResult.passed) {
-        logger.debug(`Finding filtered out: ${finding.Id}`, {
-          appliedFilter: filterResult.appliedFilter,
-          findingId: finding.Id,
-        });
-        return 'FILTERED';
+      const evaluation = await this.evaluateFindingConfigsSafely(finding);
+      const result = await this.updateFindingData(finding, findingDataService, evaluation);
+      if (result.status === 'SUCCESS') {
+        await this.stampEnforcementDeadline(finding, result.findingTableItem, evaluation.enforcement);
       }
-
-      return await this.updateFindingData(finding, findingDataService);
-    } catch (filterError) {
-      return await this.handleFilterError(finding, findingDataService, filterError);
-    }
-  }
-
-  private async updateFindingData(
-    finding: ASFFFinding,
-    findingDataService: FindingDataService,
-  ): Promise<FindingProcessingStatus> {
-    const result = await findingDataService.updateWithIncomingData(finding, undefined, true);
-    this.logFindingResult(finding.Id, result.status);
-    return result.status;
-  }
-
-  private async handleFilterError(
-    finding: ASFFFinding,
-    findingDataService: FindingDataService,
-    filterError: unknown,
-  ): Promise<FindingProcessingStatus> {
-    if (filterError instanceof Error && filterError.message.includes('filter')) {
-      logger.error(`Filter error for finding ${finding.Id}, processing anyway`, {
-        error: filterError,
-        findingId: finding.Id,
-      });
-    }
-
-    try {
-      const result = await findingDataService.updateWithIncomingData(finding, undefined, true);
       return result.status;
     } catch (error) {
       logger.error(`Failed to process finding ${finding.Id}: ${error}`);
@@ -375,17 +415,132 @@ export class Synchronization implements LambdaInterface {
     }
   }
 
+  private async isFilteredOut(finding: ASFFFinding): Promise<boolean> {
+    const controlId = finding.Compliance?.SecurityControlId;
+    if (!controlId) return false;
+
+    try {
+      const controlConfig = await this.controlConfigCache.get(controlId);
+
+      if (!controlConfig || controlConfig.filters.length === 0) return false;
+
+      const normalized = asffToNormalized(finding);
+      const filterResult = await resourceFilterEvaluator.evaluateFilters(
+        normalized,
+        controlConfig.filters,
+        controlConfig.filterMode,
+      );
+      if (!filterResult.passed) {
+        logger.info('Finding blocked by resource filters, skipping sync', {
+          findingId: finding.Id,
+          reason: filterResult.reason,
+          filterMode: controlConfig.filterMode,
+          filterCount: controlConfig.filters.length,
+        });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      logger.warn('Error evaluating resource filters, proceeding with finding sync (fail-open)', {
+        findingId: finding.Id,
+        controlId,
+        error,
+      });
+      return false;
+    }
+  }
+
+  private async updateFindingData(
+    finding: ASFFFinding,
+    findingDataService: FindingDataService,
+    evaluation: FindingConfigEvaluation,
+  ): Promise<{ status: FindingProcessingStatus; findingTableItem?: FindingTableItem }> {
+    const metricEnrichment: FindingMetricEnrichment = {
+      hasFindingNotificationsEnabled: evaluation.hasNotificationsEnabled,
+      hasFindingRemediationDeadlineConfigured: evaluation.hasDeadlineConfigured,
+    };
+    // The findings reaching this path come from the Security Hub sweep in runSyncSlice, whose filters
+    // (getOptimizedFindingFilters) constrain GeneratorId to a PREFIX match on
+    // STANDARDS_WITH_REMEDIATIONS and ProductArn to `arn:aws:securityhub`. A multi-service finding
+    // matches neither, so every finding here is a Security Hub control finding and its key comes from
+    // the ARN. resolveControlId throws if that ever stops holding, rather than guessing. A
+    // multi-service source added to that sweep would need to resolve its key from the mapper instead.
+    // See ADR 0010.
+    const result = await findingDataService.updateWithIncomingData(
+      finding,
+      resolveControlId(finding),
+      undefined,
+      true,
+      undefined,
+      metricEnrichment,
+    );
+    this.logFindingResult(finding.Id, result.status);
+    return result;
+  }
+
+  /**
+   * Evaluates a synced finding against enabled finding-type notification configs to derive the
+   * metric-enrichment flags (persisted in the finding write) and deadline enforcement eligibility
+   * (stamped after the write). Runs before the write; failures are swallowed and safe defaults
+   * returned so the sync path always succeeds. Findings without a Security Hub control id are not
+   * evaluated (defaults returned).
+   */
+  private async evaluateFindingConfigsSafely(finding: ASFFFinding): Promise<FindingConfigEvaluation> {
+    const controlId = finding.Compliance?.SecurityControlId;
+    if (!controlId) {
+      return emptyFindingConfigEvaluation();
+    }
+    try {
+      const normalized = asffToNormalized(finding);
+      return await this.findingNotificationConfigEvaluator.evaluateFindingConfigs(normalized, controlId);
+    } catch (error) {
+      logger.warn('Finding config evaluation failed during sync, continuing without enrichment or enforcement', {
+        findingId: finding.Id,
+        error,
+      });
+      return emptyFindingConfigEvaluation();
+    }
+  }
+
+  /**
+   * Stamps `remediationDueBy` + `enforcementConfigIds` when a freshly synced finding is eligible
+   * for deadline enforcement. Only findings actually written to the table (a `findingTableItem` is
+   * returned) and still NOT_STARTED are stamped — archived findings and findings already under
+   * remediation are skipped. Uses the pre-computed enforcement result (no re-evaluation) and
+   * swallows write failures so the sync path always succeeds.
+   */
+  private async stampEnforcementDeadline(
+    finding: ASFFFinding,
+    findingTableItem: FindingTableItem | undefined,
+    enforcement: EligibilityResult,
+  ): Promise<void> {
+    if (findingTableItem?.remediationStatus !== 'NOT_STARTED') return;
+    if (!enforcement.isEligible || !enforcement.remediationDueBy) return;
+
+    try {
+      await findingRepository.stampRemediationDueBy(
+        findingTableItem.findingId,
+        findingTableItem.findingType,
+        enforcement.remediationDueBy,
+        enforcement.matchingConfigIds,
+      );
+    } catch (error) {
+      logger.warn('Failed to stamp remediation deadline during sync, continuing', {
+        findingId: finding.Id,
+        error,
+      });
+    }
+  }
+
   private logFindingResult(findingId: string, status: FindingProcessingStatus): void {
-    const statusMessages = {
+    const statusMessages: Record<FindingProcessingStatus, string> = {
       SUCCESS: `Successfully processed finding ${findingId}`,
       FAILED: `Failed to process finding ${findingId} - result: ${status}`,
       ERROR: `Error processing finding ${findingId} - result: ${status}`,
-      FILTERED: `Finding filtered out: ${findingId}`,
+      FILTERED: `Finding ${findingId} filtered out by resource filters`,
     };
 
-    if (statusMessages[status]) {
-      logger.debug(statusMessages[status]);
-    }
+    logger.debug(statusMessages[status]);
   }
 
   private countBatchResults(batchResults: FindingProcessingStatus[]): {
@@ -412,8 +567,12 @@ export class Synchronization implements LambdaInterface {
     );
   }
 
-  private calculateExecutionMetrics(startTime: number, totalProcessed: number, totalFiltered: number) {
-    const endTime = Date.now();
+  private calculateExecutionMetrics(
+    startTime: number,
+    totalProcessed: number,
+    totalFiltered: number,
+  ): { endTime: number; executionTimeMs: number; executionTimeSeconds: number; filterEffectivenessRatio: number } {
+    const endTime = this.clock.now().getTime();
     const executionTimeMs = endTime - startTime;
     const executionTimeSeconds = Math.round((executionTimeMs / 1000) * 100) / 100;
     const filterEffectivenessRatio =
@@ -429,14 +588,11 @@ export class Synchronization implements LambdaInterface {
 
   private async handleSyncSuccess(
     startTime: number,
-    totalProcessed: number,
-    totalSuccessful: number,
-    totalFailed: number,
-    totalError: number,
-    totalFiltered: number,
+    counts: SyncCounts,
     sliceResult: SliceResult,
     accountProgress: AccountProgress,
   ): Promise<void> {
+    const { totalProcessed, totalSuccessful, totalFailed, totalError, totalFiltered } = counts;
     const metrics = this.calculateExecutionMetrics(startTime, totalProcessed, totalFiltered);
 
     // A single invocation runs one time-bounded slice; `done` tells the state machine's Choice whether
@@ -494,7 +650,7 @@ export class Synchronization implements LambdaInterface {
     totalFailed: number,
     totalError: number,
     totalFiltered: number,
-  ) {
+  ): Promise<void> {
     const totalProcessed = totalSuccessful + totalFailed + totalError + totalFiltered;
     const metrics = this.calculateExecutionMetrics(startTime, totalProcessed, totalFiltered);
 

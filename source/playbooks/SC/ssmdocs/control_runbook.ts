@@ -23,6 +23,7 @@ import {
   IMapListVariable,
   Input,
   IStringVariable,
+  OnFailure,
   Output,
   ScriptCode,
   ScriptLanguage,
@@ -145,6 +146,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
     this.builder.steps.push(...this.getExtraSteps());
     this.builder.steps.push(this.getRemediationStep());
     this.builder.steps.push(this.getUpdateFindingStep());
+    this.builder.steps.push(this.getRemediationDetailsStep());
 
     return this.builder.steps;
   }
@@ -304,6 +306,52 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
       documentName: HardCodedString.of(remediationDocumentName),
       targetLocations,
       runtimeParameters: HardCodedStringMap.of(this.getRemediationParams()),
+      onFailure: OnFailure.invokeStepByName('GetRemediationDetails'),
+    });
+  }
+
+  /**
+   * @virtual
+   * @returns The `GetRemediationDetails` step to query the child automation execution
+   * and retrieve its outputs and failure message (if any).
+   *
+   * For REGIONAL remediations, the child execution runs in a different region than
+   * the control runbook. This step uses an inline script to call GetAutomationExecution
+   * in the correct target region.
+   *
+   * Note: The script at get_remediation_details.py is intentionally minified to reduce
+   * CloudFormation template size, as it is embedded in every control runbook.
+   * Type hints, docstrings, and other comments are intentionally missing.
+   */
+  protected getRemediationDetailsStep(): AutomationStep {
+    const inputPayload: Record<string, IGenericVariable> = {
+      execution_id: StringVariable.of('Remediation.ExecutionId'),
+    };
+
+    // For regional remediations, specify the target region for the API call
+    if (this.scope === RemediationScope.REGIONAL) {
+      inputPayload['target_region'] = StringVariable.of('ParseInput.RemediationRegion');
+    }
+
+    return new ExecuteScriptStep(this, 'GetRemediationDetails', {
+      language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'get_remediation_details'),
+      code: ScriptCode.fromFile(
+        fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'get_remediation_details.py')),
+      ),
+      inputPayload,
+      outputs: [
+        {
+          name: 'Output',
+          outputType: DataTypeEnum.STRING,
+          selector: '$.Payload.outputs',
+        },
+        {
+          name: 'FailureMessage',
+          outputType: DataTypeEnum.STRING,
+          selector: '$.Payload.failure_message',
+        },
+      ],
+      isEnd: true,
     });
   }
 
@@ -350,7 +398,6 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
         Workflow: { Status: 'RESOLVED' },
       },
       outputs: [],
-      isEnd: true,
     });
   }
 }
@@ -401,5 +448,87 @@ function getOutputs(): DocumentOutput[] {
   return [
     { name: 'Remediation.Output', outputType: DataTypeEnum.STRING_MAP },
     { name: 'ParseInput.AffectedObject', outputType: DataTypeEnum.STRING_MAP },
+    { name: 'GetRemediationDetails.Output', outputType: DataTypeEnum.STRING },
+    { name: 'GetRemediationDetails.FailureMessage', outputType: DataTypeEnum.STRING },
   ];
+}
+
+/**
+ * Thrown when a method that is intentionally unsupported is called.
+ * Used in place of generic `Error` to make the intent explicit and
+ * allow callers to distinguish unsupported-operation failures from
+ * other runtime errors.
+ */
+export class UnsupportedOperationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnsupportedOperationError';
+  }
+}
+
+/**
+ * Base class for control runbooks that use a single-step architecture.
+ *
+ * Inspector, GuardDuty.IAMUser, and Macie.SensitiveDataS3Object all perform
+ * their full remediation logic inline in the ParseInput script rather than
+ * invoking a separate remediation runbook. They share identical boilerplate:
+ * - The base class appends Remediation/GetRemediationDetails outputs that
+ *   reference non-existent steps, so docOutputs must be replaced after super().
+ * - collectedSteps() only pushes the single ParseInput step.
+ * - getRemediationStep() and getRemediationParams() are not used.
+ *
+ * Concrete subclasses only need to implement getParseInputStep() and
+ * getParseInputStepOutputs().
+ */
+export abstract class SingleStepControlRunbookDocument extends ControlRunbookDocument {
+  constructor(scope: Construct, id: string, props: ControlRunbookDocumentProps) {
+    super(scope, id, props);
+
+    // The base class appends Remediation.Output and GetRemediationDetails.*
+    // to docOutputs after merging with props.docOutputs. Replace the array
+    // to remove outputs referencing non-existent steps — SSM rejects documents
+    // with outputs referencing unknown steps.
+    this.docOutputs.length = 0;
+    this.docOutputs.push(
+      { name: 'ParseInput.AffectedObject', outputType: DataTypeEnum.STRING_MAP },
+      { name: 'ParseInput.Status', outputType: DataTypeEnum.STRING },
+      { name: 'ParseInput.Message', outputType: DataTypeEnum.STRING },
+      ...this.getAdditionalDocumentOutputs(),
+    );
+  }
+
+  /**
+   * Document-level outputs beyond the shared ParseInput.AffectedObject/Status/Message.
+   * Document outputs surface in the SSM GetAutomationExecution response that the
+   * Orchestrator reads, so a subclass must declare any ParseInput output it needs
+   * the Orchestrator to consume (e.g. GuardDuty.IAMUser's BackupS3Key). Each name
+   * must reference a real ParseInput step output or SSM rejects the document.
+   */
+  protected getAdditionalDocumentOutputs(): DocumentOutput[] {
+    return [];
+  }
+
+  public override collectedSteps(): AutomationStep[] {
+    this.builder.steps.push(this.getParseInputStep());
+    return this.builder.steps;
+  }
+
+  /**
+   * Concrete subclasses must override this to provide their control-specific
+   * inline script. Declared abstract here so that forgetting to override it
+   * causes a compile error rather than silently falling back to the base class
+   * implementation (which calls parse_input.py instead of the control script).
+   */
+  protected abstract override getParseInputStep(): ExecuteScriptStep;
+
+  protected override getRemediationStep(): AutomationStep {
+    throw new UnsupportedOperationError(
+      `getRemediationStep should not be called for ${this.controlId}. ` +
+        'This control uses a single-step architecture via collectedSteps().',
+    );
+  }
+
+  protected override getRemediationParams(): Record<string, any> {
+    return {};
+  }
 }

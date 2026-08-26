@@ -1,0 +1,10 @@
+# CloudFormation.1 — CloudFormation stacks should be integrated with SNS
+#
+# ASR remediation creates an SNS topic and configures the stack to send
+# notifications to it.
+# To apply this fix, add notification_arns to your CloudFormation stack resource.
+# NOTE: <NOTIFICATION_TOPIC> — your SNS topic ARN for stack notifications.
+
+resource "aws_cloudformation_stack" "{stack}" {
+  notification_arns = [<NOTIFICATION_TOPIC>]
+}

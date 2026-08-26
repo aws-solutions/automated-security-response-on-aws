@@ -27,6 +27,9 @@ const pathLabels: Record<string, string> = {
   findings: 'Findings',
   users: 'View Users',
   invite: 'Invite',
+  controls: 'Controls',
+  'resource-filters': 'Resource Filters',
+  notifications: 'Notifications',
 };
 
 function getLabelForPathElement(pathElement: string): string {

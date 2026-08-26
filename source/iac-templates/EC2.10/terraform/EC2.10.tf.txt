@@ -1,0 +1,14 @@
+# EC2.10 — Amazon EC2 should be configured to use VPC endpoints
+#
+# ASR remediation creates and attaches an interface VPC endpoint for the
+# specified AWS service to the VPC.
+# To apply this fix, add an aws_vpc_endpoint resource with the service name
+# and VPC ID in your Terraform configuration.
+# NOTE: <SUBNET_ID> — your subnet ID.
+
+resource "aws_vpc_endpoint" "{vpcEndpoint}" {
+  vpc_endpoint_type = "Interface"
+  vpc_id            = "{vpcId}"
+  service_name      = "com.amazonaws.{region}.ec2"
+  subnet_ids        = ["<SUBNET_ID>"]
+}

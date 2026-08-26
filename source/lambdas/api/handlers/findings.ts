@@ -12,7 +12,7 @@ import { FindingsActionRequestSchema, FindingsRequestSchema, ExportRequestSchema
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
 import { FindingsService } from '../services/findingsService';
 import { API_HEADERS, createResponse } from './apiHandler';
-import { BaseHandler, CognitoClaims } from './baseHandler';
+import { BaseHandler, getClaims } from './baseHandler';
 
 const logger = new Logger({ serviceName: SCOPE_NAME });
 const tracer = new Tracer({ serviceName: SCOPE_NAME });
@@ -20,7 +20,7 @@ const findingsService = new FindingsService(logger);
 const baseHandler = new BaseHandler(logger);
 
 async function searchFindingsHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const claims = event.requestContext?.authorizer?.claims as CognitoClaims;
+  const claims = getClaims(event);
   const findingsRequest = baseHandler.extractValidatedBody(event, FindingsRequestSchema);
 
   const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(findingsRequest);
@@ -42,12 +42,15 @@ async function searchFindingsHandler(event: APIGatewayProxyEvent): Promise<APIGa
 }
 
 async function executeFindingActionHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const claims = event.requestContext?.authorizer?.claims as CognitoClaims;
+  const claims = getClaims(event);
 
   // Validate request body first to get finding IDs
   const actionRequest = baseHandler.extractValidatedBody(event, FindingsActionRequestSchema);
 
-  const accountIds = baseHandler.extractAccountIdsFromArns(actionRequest.findingIds);
+  // Fetch the target findings once (read-only) and authorize against their
+  // stored accountId, then act on the same records — no second DynamoDB read.
+  const { findings, unresolvedIds } = await findingsService.fetchFindingsForAction(actionRequest);
+  const accountIds = baseHandler.extractAccountIdsFromFindings(findings);
   const authenticatedUser = await baseHandler.validateAccess(claims, baseHandler.createAccessRules(accountIds));
 
   logger.debug('Executing finding action', {
@@ -57,7 +60,9 @@ async function executeFindingActionHandler(event: APIGatewayProxyEvent): Promise
     findingCount: actionRequest.findingIds.length,
   });
 
-  await findingsService.executeAction(actionRequest, authenticatedUser.email);
+  const skippedIds = await findingsService.executeActionOnFindings(actionRequest, findings, authenticatedUser.email);
+  const allSkipped = [...unresolvedIds, ...skippedIds];
+  const result = { unresolvedIds: allSkipped.length > 0 ? allSkipped : undefined };
 
   // Determine status code based on action type
   const getStatusCodeForAction = (actionType: string): number => {
@@ -67,6 +72,7 @@ async function executeFindingActionHandler(event: APIGatewayProxyEvent): Promise
         return 200;
       case 'Remediate':
       case 'RemediateAndGenerateTicket':
+      case 'Rollback':
         return 202;
       default:
         return 202;
@@ -76,8 +82,10 @@ async function executeFindingActionHandler(event: APIGatewayProxyEvent): Promise
   const statusCode = getStatusCodeForAction(actionRequest.actionType);
   const responseBody =
     statusCode === 202 &&
-    (actionRequest.actionType === 'Remediate' || actionRequest.actionType === 'RemediateAndGenerateTicket')
-      ? { status: 'IN_PROGRESS' }
+    (actionRequest.actionType === 'Remediate' ||
+      actionRequest.actionType === 'RemediateAndGenerateTicket' ||
+      actionRequest.actionType === 'Rollback')
+      ? { status: 'IN_PROGRESS', ...(result.unresolvedIds && { unresolvedIds: result.unresolvedIds }) }
       : '';
 
   return createResponse(statusCode, responseBody, API_HEADERS.FINDINGS);
@@ -90,7 +98,7 @@ async function exportFindingsHandler(event: APIGatewayProxyEvent): Promise<APIGa
     hasBody: !!event.body,
   });
 
-  const claims = event.requestContext?.authorizer?.claims as CognitoClaims;
+  const claims = getClaims(event);
   const exportRequest = baseHandler.extractValidatedBody(event, ExportRequestSchema);
   const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(exportRequest);
   const authenticatedUser = await baseHandler.validateAccess(

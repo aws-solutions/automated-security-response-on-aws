@@ -9,12 +9,15 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 import { RemediationRunbookStack } from '../../lib/remediation-runbook-stack';
 import { MemberCloudTrailStack } from '../../lib/member/cloud-trail';
+import { getConfig, applyDynamicTags } from '../../lib/config/cdk-config';
 
-const SOLUTION_ID = process.env['SOLUTION_ID'] || 'unknown';
-const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'unknown';
-const SOLUTION_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
-const SOLUTION_TMN = process.env['SOLUTION_TRADEMARKEDNAME'] || 'unknown';
-const SOLUTION_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || 'unknown';
+const config = getConfig();
+
+const SOLUTION_ID = config.solution.id;
+const SOLUTION_NAME = config.solution.name;
+const SOLUTION_VERSION = config.build.distVersion;
+const SOLUTION_TMN = config.solution.trademarkedName;
+const SOLUTION_BUCKET = config.build.distOutputBucket;
 const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_11;
 
 const app = new cdk.App();
@@ -103,3 +106,5 @@ const excludedResourceTypes = ['AWS::Events::Rule', 'AWS::Lambda::EventSourceMap
 cdk.Tags.of(app).add('Solutions:SolutionID', SOLUTION_ID, { excludeResourceTypes: excludedResourceTypes });
 cdk.Tags.of(app).add('Solutions:SolutionName', SOLUTION_TMN, { excludeResourceTypes: excludedResourceTypes });
 cdk.Tags.of(app).add('Solutions:SolutionVersion', SOLUTION_VERSION, { excludeResourceTypes: excludedResourceTypes });
+
+applyDynamicTags(app);

@@ -36,7 +36,7 @@ export class Trigger extends Construct {
     const eventPattern: EventPattern = {
       source: ['aws.securityhub'],
       detailType: ['Security Hub Findings - Imported', 'Findings Imported V2'], // Security Hub & Security Hub CSPM
-      // The below pattern excludes unsupported finding types (e.g., GuardDuty or Macie findings)
+      // Match findings from supported products across ASFF and OCSF schemas
       detail: {
         findings: {
           $or: [
@@ -53,6 +53,33 @@ export class Trigger extends Construct {
                 },
               },
             },
+            {
+              class_name: ['Vulnerability Finding'], // Inspector Vulnerability Finding (OCSF Schema)
+              class_uid: [2002],
+              metadata: {
+                product: {
+                  name: ['Inspector'],
+                },
+              },
+            },
+            {
+              class_name: ['Detection Finding'], // GuardDuty / Macie Detection Finding (OCSF Schema)
+              class_uid: [2004],
+              metadata: {
+                product: {
+                  name: ['GuardDuty', 'Macie'],
+                },
+              },
+            },
+            {
+              class_name: ['Data Security Finding'], // Macie Sensitive Data Finding (OCSF Schema)
+              class_uid: [2006],
+              metadata: {
+                product: {
+                  name: ['Macie'],
+                },
+              },
+            },
           ],
         },
       },
@@ -60,7 +87,7 @@ export class Trigger extends Construct {
     new EventbridgeToSqs(this, 'EventBridgeToSQS', {
       existingQueueObj: preProcessorQueue,
       eventRuleProps: {
-        description: `This rule captures finding events from Security Hub & Security Hub CSPM and forwards them to ASR's Pre-processor SQS Queue for further execution`,
+        description: `This rule captures finding events from Security Hub, Security Hub CSPM, Inspector, GuardDuty, and Macie and forwards them to ASR's Pre-processor SQS Queue for further execution`,
         ruleName: `${props.solutionId}_${props.solutionTMN}_AutoTrigger`,
         eventPattern: eventPattern,
         enabled: true,
@@ -118,7 +145,7 @@ export class OneTrigger extends Construct {
     {
       const cfnCustomAction = customAction.node.defaultChild as cdk.CfnCustomResource;
       for (const prereq of props.prereq) {
-        cfnCustomAction.addDependency(prereq);
+        cfnCustomAction.addResourceDependency(prereq);
       }
     }
 

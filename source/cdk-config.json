@@ -1,0 +1,48 @@
+{
+  "_comment": "CDK configuration - single source of truth for local dev and CI/CD builds.",
+
+  "solution": {
+    "id": "SO0111",
+    "name": "Automated Security Response on AWS",
+    "trademarkedName": "automated-security-response-on-aws"
+  },
+
+  "ttl": {
+    "findingsDays": 8,
+    "historyDays": 365,
+    "exportFilesDays": 30,
+    "presignedUrlDays": 1
+  },
+
+  "orchestrator": {
+    "timeoutHours": 23,
+    "enableAdaptiveConcurrency": true
+  },
+
+  "sqs": {
+    "retentionPeriodDays": 14,
+    "dataKeyReuseMinutes": 60
+  },
+
+  "export": {
+    "maxTimeMs": 26000,
+    "maxRecords": 50000
+  },
+
+  "memberStackLimits": {
+    "sc": 85,
+    "nist": 63,
+    "afsbp": 63
+  },
+
+  "development": {
+    "region": "us-east-1",
+    "buildEnv": "development",
+    "customReferenceBucketRegion": ""
+  },
+
+  "build": {
+    "distOutputBucket": "",
+    "distVersion": "%%VERSION%%"
+  }
+}

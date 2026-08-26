@@ -1,0 +1,24 @@
+# EC2.13 — Security groups should not allow ingress from 0.0.0.0/0 or ::/0 to port 22
+#
+# ASR remediation removes inbound rules that allow unrestricted access (0.0.0.0/0
+# or ::/0) to administrative ports (SSH 22, RDP 3389) from the security group.
+# To apply this fix, restrict the cidr_blocks on your SSH and RDP ingress rules
+# to trusted IP ranges instead of 0.0.0.0/0 or ::/0.
+
+resource "aws_security_group" "{securityGroup}" {
+  description = "Security group with restricted administrative access"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]
+  }
+
+  ingress {
+    from_port   = 3389
+    to_port     = 3389
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]
+  }
+}

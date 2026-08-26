@@ -63,6 +63,7 @@ export class JiraBlueprintStack extends BlueprintStack {
         STACK_ID: stack.stackId,
         DISABLE_ACCOUNT_ALIAS_LOOKUP: 'false',
         SECRETS_CACHE_TTL_SECONDS: '300',
+        JIRA_FIELDS_MAPPING: '',
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(15),

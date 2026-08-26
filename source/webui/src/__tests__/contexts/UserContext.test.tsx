@@ -18,6 +18,7 @@ import { UserContext, UserContextProvider } from '../../contexts/UserContext.tsx
 import { rootReducer } from '../../store/store.ts';
 import { solutionApi } from '../../store/solutionApi.ts';
 import { useContext } from 'react';
+import { AUTH_REDIRECT_DESTINATION_KEY } from '../../utils/constants.ts';
 
 // Mock AWS Amplify
 vi.mock('aws-amplify/auth', () => ({
@@ -78,8 +79,14 @@ const renderWithProvider = () => {
   );
 };
 
+const originalLocation = window.location;
+
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
 });
 
 describe('UserContext', () => {
@@ -143,40 +150,36 @@ describe('UserContext', () => {
     expect(screen.getByTestId('user')).toHaveTextContent('null');
   });
 
-  it('handles fetchUserAttributes failure gracefully', async () => {
+  it('stores intended destination in sessionStorage before redirect when on a non-root path', async () => {
     // ARRANGE
-    mockGetCurrentUser.mockResolvedValue(mockUser);
-    mockFetchUserAttributes.mockRejectedValue(new Error('Failed to fetch attributes'));
-    mockFetchAuthSession.mockResolvedValue({
-      tokens: {
-        accessToken: {
-          payload: {
-            'cognito:groups': ['AdminGroup'],
-          },
-        },
-      },
-    } as any);
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockGetCurrentUser.mockRejectedValue(new Error('Not authenticated'));
+    mockSignInWithRedirect.mockResolvedValue();
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    Object.defineProperty(window, 'location', {
+      value: { pathname: '/controls', search: '?controlId=S3.1', hash: '' },
+      writable: true,
+    });
 
     // ACT
     renderWithProvider();
 
     // ASSERT
     await waitFor(() => {
-      expect(screen.getByTestId('user')).toHaveTextContent('testuser');
+      expect(setItemSpy).toHaveBeenCalledWith(AUTH_REDIRECT_DESTINATION_KEY, '/controls?controlId=S3.1');
     });
 
-    expect(screen.getByTestId('email')).toHaveTextContent('null');
-    expect(consoleSpy).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
+    setItemSpy.mockRestore();
   });
 
-  it('handles sign in redirect failure gracefully', async () => {
+  it('does not store destination in sessionStorage when on root path', async () => {
     // ARRANGE
     mockGetCurrentUser.mockRejectedValue(new Error('Not authenticated'));
-    mockSignInWithRedirect.mockRejectedValue(new Error('Sign in failed'));
-    const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    mockSignInWithRedirect.mockResolvedValue();
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    Object.defineProperty(window, 'location', {
+      value: { pathname: '/', search: '', hash: '' },
+      writable: true,
+    });
 
     // ACT
     renderWithProvider();
@@ -185,10 +188,44 @@ describe('UserContext', () => {
     await waitFor(() => {
       expect(mockSignInWithRedirect).toHaveBeenCalled();
     });
+    expect(setItemSpy).not.toHaveBeenCalledWith(AUTH_REDIRECT_DESTINATION_KEY, expect.anything());
 
-    expect(consoleSpy).toHaveBeenCalledWith('Sign in error:', expect.any(Error));
+    setItemSpy.mockRestore();
+  });
 
-    consoleSpy.mockRestore();
+  it('handles fetchUserAttributes failure gracefully', async () => {
+    // ARRANGE
+    mockGetCurrentUser.mockResolvedValue(mockUser);
+    mockFetchUserAttributes.mockRejectedValue(new Error('Failed to fetch attributes'));
+
+    // ACT
+    renderWithProvider();
+
+    // ASSERT - user is still set despite fetchUserAttributes failure
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('testuser');
+    });
+    // groups should be set to empty array as fallback when inner try block fails
+    await waitFor(() => {
+      expect(screen.getByTestId('groups')).toHaveTextContent('null');
+    });
+    expect(screen.getByTestId('email')).toHaveTextContent('null');
+  });
+
+  it('handles sign in redirect failure gracefully', async () => {
+    // ARRANGE
+    mockGetCurrentUser.mockRejectedValue(new Error('Not authenticated'));
+    mockSignInWithRedirect.mockRejectedValue(new Error('Sign in failed'));
+
+    // ACT
+    renderWithProvider();
+
+    // ASSERT - signInWithRedirect was attempted despite failure
+    await waitFor(() => {
+      expect(mockSignInWithRedirect).toHaveBeenCalled();
+    });
+    // User remains null after failed sign in attempt
+    expect(screen.getByTestId('user')).toHaveTextContent('null');
   });
 
   it('calls signOut function correctly', async () => {

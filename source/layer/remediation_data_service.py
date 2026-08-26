@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Literal, Optional, cast
 from urllib.parse import quote_plus
 
 from botocore.exceptions import ClientError
@@ -57,14 +57,36 @@ def get_security_hub_console_url(
     return f"https://{host}{url_pattern}"
 
 
-def map_remediation_status(status: Optional[str]) -> str:
+# Canonical remediation status values map_remediation_status can return. Fixed
+# set, so a Literal documents the valid outputs and lets the type checker verify
+# the mapping for callers.
+MappedRemediationStatus = Literal[
+    "SUCCESS",
+    "NOT_STARTED",
+    "IN_PROGRESS",
+    "FAILED",
+    "ROLLBACK_IN_PROGRESS",
+    "ROLLBACK_SUCCESS",
+    "ROLLBACK_FAILED",
+]
+
+
+def map_remediation_status(status: Optional[str]) -> MappedRemediationStatus:
     if not status:
         return "NOT_STARTED"
 
     status_upper = status.upper()
 
-    if status_upper in ("SUCCESS", "NOT_STARTED"):
-        return status_upper
+    if status_upper == "SUCCESS":
+        return "SUCCESS"
+    if status_upper == "NOT_STARTED":
+        return "NOT_STARTED"
+    if status_upper == "ROLLBACK_IN_PROGRESS":
+        return "ROLLBACK_IN_PROGRESS"
+    if status_upper == "ROLLBACK_SUCCESS":
+        return "ROLLBACK_SUCCESS"
+    if status_upper == "ROLLBACK_FAILED":
+        return "ROLLBACK_FAILED"
 
     if status_upper in ("QUEUED", "RUNNING", "IN_PROGRESS"):
         return "IN_PROGRESS"
@@ -169,7 +191,9 @@ def try_update_with_existing_history(
             request.finding_id,
             request.execution_id,
             request.remediation_status,
-            request.error,
+            error=request.error,
+            finding_json=request.finding_json,
+            backup_s3_key=request.backup_s3_key,
         )
 
         logger.debug(

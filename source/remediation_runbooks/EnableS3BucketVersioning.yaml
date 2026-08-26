@@ -1,0 +1,60 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document name - ASR-EnableS3BucketVersioning
+
+  ## What does this document do?
+  This document enables versioning for an Amazon S3 bucket.
+
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that allows Systems Manager Automation to perform the actions on your behalf.
+  * BucketName: (Required) Name of the S3 bucket to enable versioning on.
+  * AccountId: (Required) Account to which the bucket belongs.
+
+  ## Output Parameters
+  * Remediation.Output - stdout messages from the remediation
+
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0: S3.14
+
+  AIGenerated: "true"
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AccountId:
+    type: String
+    description: Account ID of the account for the finding
+    allowedPattern: ^[0-9]{12}$
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  BucketName:
+    type: String
+    description: (Required) Name of the S3 bucket to enable versioning on.
+    allowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+
+mainSteps:
+  - name: EnableBucketVersioning
+    action: 'aws:executeAwsApi'
+    inputs:
+      Service: s3
+      Api: PutBucketVersioning
+      Bucket: '{{BucketName}}'
+      ExpectedBucketOwner: '{{AccountId}}'
+      VersioningConfiguration:
+        Status: Enabled
+
+  - name: VerifyRemediation
+    action: 'aws:assertAwsResourceProperty'
+    inputs:
+      Service: s3
+      Api: GetBucketVersioning
+      Bucket: '{{BucketName}}'
+      ExpectedBucketOwner: '{{AccountId}}'
+      PropertySelector: '$.Status'
+      DesiredValues:
+        - 'Enabled'
+    isEnd: true

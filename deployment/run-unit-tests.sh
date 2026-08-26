@@ -4,14 +4,43 @@
 [[ "$DEBUG" ]] && set -x
 set -eo pipefail
 
+source "$(cd -P -- "$(dirname "$0")" && pwd -P)"/npm-build-cache.sh
+
 maxrc=0
 rc=0
 export overrideWarningsEnabled=false
 
 [[ $1 == 'update' ]] && {
     update="true"
-    echo "UPDATE MODE: CDK Snapshots will be updated. CDK UNIT TESTS WILL BE SKIPPED"
+    echo "UPDATE MODE: CDK Snapshots will be updated. CDK unit tests will run with snapshot update mode (mismatches are updated rather than failing)"
 } || update="false"
+
+[[ $1 == 'snapshot' ]] && {
+    echo "SNAPSHOT MODE: Updating CDK snapshots only, skipping all other tests"
+    [[ ! -d .venv ]] && python3.11 -m venv .venv
+    source ./.venv/bin/activate
+    CDK_CONFIG_PATH="../source/cdk-config.json"
+    export SOLUTION_ID=$(node -p "require('$CDK_CONFIG_PATH').solution.id")
+    export SOLUTION_NAME=$(node -p "require('$CDK_CONFIG_PATH').solution.trademarkedName")
+    export SOLUTION_TRADEMARKEDNAME=$(node -p "require('$CDK_CONFIG_PATH').solution.trademarkedName")
+    export SOLUTION_DISPLAY_NAME=$(node -p "require('$CDK_CONFIG_PATH').solution.name")
+    cd ../source
+    npm run build
+    npx jest -u
+    exit $?
+}
+
+[[ $1 == 'format' ]] && {
+    [[ ! -d .venv ]] && python3.11 -m venv .venv
+    source ./.venv/bin/activate
+    python3.11 -m pip install -U pip setuptools -q
+    "$( command -v poetry || echo "${POETRY_HOME}/bin/poetry" )" export --with dev -f requirements.txt --output requirements_dev.txt --without-hashes
+    pip install -r ./requirements_dev.txt -q
+    cd ..
+    tox -e format
+    tox -e lint
+    exit $?
+}
 
 [[ ! -d .venv ]] && python3.11 -m venv .venv
 source ./.venv/bin/activate
@@ -61,34 +90,40 @@ run_pytest() {
     fi
 }
 
-if [[ -e './solution_env.sh' ]]; then
-    chmod +x ./solution_env.sh
-    source ./solution_env.sh
-else
-    echo "solution_env.sh is missing from the solution root."
+# Load solution configuration from cdk-config.json (single source of truth)
+CDK_CONFIG_PATH="${source_dir}/cdk-config.json"
+if [[ ! -e "$CDK_CONFIG_PATH" ]]; then
+    echo "ERROR: cdk-config.json not found at $CDK_CONFIG_PATH"
+    echo "This file is required for builds. Ensure the file exists in source/ directory."
     exit 1
 fi
 
-if [[ -z "$SOLUTION_ID" ]]; then
-    echo "SOLUTION_ID is missing from ../solution_env.sh"
+# Read solution info from cdk-config.json using Node.js (already required for CDK)
+export SOLUTION_ID=$(node -p "require('$CDK_CONFIG_PATH').solution.id")
+export SOLUTION_NAME=$(node -p "require('$CDK_CONFIG_PATH').solution.trademarkedName")
+export SOLUTION_TRADEMARKEDNAME=$(node -p "require('$CDK_CONFIG_PATH').solution.trademarkedName")
+export SOLUTION_DISPLAY_NAME=$(node -p "require('$CDK_CONFIG_PATH').solution.name")
+
+if [[ -z "$SOLUTION_ID" ]] || [[ "$SOLUTION_ID" == "null" ]]; then
+    echo "ERROR: solution.id is missing from cdk-config.json"
     exit 1
-else
-    export SOLUTION_ID
 fi
 
-if [[ -z "$SOLUTION_NAME" ]]; then
-    echo "SOLUTION_NAME is missing from ../solution_env.sh"
+if [[ -z "$SOLUTION_NAME" ]] || [[ "$SOLUTION_NAME" == "null" ]]; then
+    echo "ERROR: solution.trademarkedName is missing from cdk-config.json"
     exit 1
-else
-    export SOLUTION_NAME
 fi
 
-if [[ -z "$SOLUTION_TRADEMARKEDNAME" ]]; then
-    echo "SOLUTION_TRADEMARKEDNAME is missing from ../solution_env.sh"
+if [[ -z "$SOLUTION_TRADEMARKEDNAME" ]] || [[ "$SOLUTION_TRADEMARKEDNAME" == "null" ]]; then
+    echo "ERROR: solution.trademarkedName is missing from cdk-config.json"
     exit 1
-else
-    export SOLUTION_TRADEMARKEDNAME
 fi
+
+echo "Loaded configuration from cdk-config.json:"
+echo "  SOLUTION_ID: $SOLUTION_ID"
+echo "  SOLUTION_NAME: $SOLUTION_NAME"
+echo "  SOLUTION_DISPLAY_NAME: $SOLUTION_DISPLAY_NAME"
+echo "  SOLUTION_TRADEMARKEDNAME: $SOLUTION_TRADEMARKEDNAME"
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Unit Tests - Orchestrator Lambdas"
@@ -124,8 +159,11 @@ run_pytest "${source_dir}/playbooks/common" "PlaybookCommon"
 echo "------------------------------------------------------------------------------"
 echo "[Test] Python Scripts for Playbooks"
 echo "------------------------------------------------------------------------------"
+# Playbooks are inconsistent about the directory name, so accept either. AFSBP and
+# PCI321 use "test" while SC uses "tests"; checking only one name silently skips
+# the others.
 for playbook in `ls ${source_dir}/playbooks`; do
-    if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ]; then
+    if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ] || [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/test ]; then
         run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
     fi
 done
@@ -133,67 +171,19 @@ done
 echo "------------------------------------------------------------------------------"
 echo "[Build] Data Models Package"
 echo "------------------------------------------------------------------------------"
-cd "$source_dir"/data-models
-npm run build
+# build-s3-dist.sh builds this package too, and buildspec.yml runs it just before
+# this script. Skip the rebuild when the output is already current; still builds
+# from scratch when this script is run on its own.
+build_npm_package_if_stale "$source_dir/data-models" "$source_dir/data-models/cjs/index.js" build
 rc=$?
 if [ "$rc" -ne "0" ]; then
     echo "** DATA MODELS BUILD FAILED **"
     exit $rc
 fi
 
-echo "------------------------------------------------------------------------------"
-echo "[Setup] Starting DynamoDB Local"
-echo "------------------------------------------------------------------------------"
-
-# Check if DynamoDB Local is already running via Docker
-if curl -s http://localhost:8000 >/dev/null 2>&1; then
-    echo "DynamoDB Local is already running (likely via Docker)"
-    DDB_PID=""
-else
-    # Fall back to tar-based installation
-    if [[ -z "$DDB_LOCAL_HOME" ]]; then
-        echo "ERROR: DDB_LOCAL_HOME environment variable is not set and DynamoDB Local is not running via Docker"
-        exit 1
-    fi
-
-    # Verify DynamoDB Local files exist
-    if [[ ! -f "$DDB_LOCAL_HOME/DynamoDBLocal.jar" ]]; then
-        echo "ERROR: DynamoDBLocal.jar not found at $DDB_LOCAL_HOME/DynamoDBLocal.jar"
-        exit 1
-    fi
-
-    if [[ ! -d "$DDB_LOCAL_HOME/DynamoDBLocal_lib" ]]; then
-        echo "ERROR: DynamoDBLocal_lib directory not found at $DDB_LOCAL_HOME/DynamoDBLocal_lib"
-        exit 1
-    fi
-
-    java -Djava.library.path="$DDB_LOCAL_HOME"/DynamoDBLocal_lib -jar "$DDB_LOCAL_HOME"/DynamoDBLocal.jar -sharedDb -inMemory >/dev/null 2>&1 &
-    DDB_PID=$!
-
-    # Wait for DynamoDB Local to be ready
-    echo "Waiting for DynamoDB Local to be ready..."
-    for i in {1..30}; do
-        if curl -s http://localhost:8000 >/dev/null 2>&1; then
-            echo "DynamoDB Local is ready (attempt $i)"
-            break
-        fi
-        if [ $i -eq 30 ]; then
-            echo "ERROR: DynamoDB Local failed to become ready after 30 seconds"
-            kill $DDB_PID 2>/dev/null || true
-            exit 1
-        fi
-        sleep 1
-    done
-
-    if ! kill -0 $DDB_PID 2>/dev/null; then
-        echo "ERROR: DynamoDB Local failed to start"
-        exit 1
-    fi
-    echo "DynamoDB Local started successfully (PID: $DDB_PID)"
-
-    # Ensure DynamoDB process is killed on script exit
-    trap 'kill $DDB_PID 2>/dev/null || true' EXIT
-fi
+source "${template_dir}/dynamodb-local.sh"
+ddb_local_start || exit 1
+trap 'ddb_local_stop' EXIT
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Preprocessor Unit Tests"
@@ -220,19 +210,44 @@ cd "$source_dir"/lambdas
 npm run test:sequential:api
 
 echo "------------------------------------------------------------------------------"
-echo "[Cleanup] Stopping DynamoDB Local"
+echo "[Test] Notification Unit Tests"
 echo "------------------------------------------------------------------------------"
-if [[ -n "$DDB_PID" ]]; then
-    kill $DDB_PID 2>/dev/null || true
-else
-    echo "DynamoDB Local was running via Docker (not stopped by this script)"
-fi
+cd "$source_dir"/lambdas
+npm run test:sequential:notification
+
+ddb_local_stop
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] Deployment Utils Unit Tests"
 echo "------------------------------------------------------------------------------"
 cd "$template_dir"/utils
 npm run test
+
+echo "------------------------------------------------------------------------------"
+echo "[Synth] CDK Synthesis - Generate templates for size validation"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"
+npm run build
+
+# Synthesize solution_deploy templates
+cd "$source_dir"/solution_deploy
+npx cdk synth --quiet
+
+# Synthesize playbook templates
+for playbook in AFSBP CIS120 CIS140 CIS300 NIST80053 PCI321 SC; do
+    if [ -d "${source_dir}/playbooks/${playbook}" ]; then
+        cd "${source_dir}/playbooks/${playbook}"
+        npx cdk synth --quiet
+    fi
+done
+
+# Synthesize blueprint templates
+for blueprint in jira servicenow; do
+    if [ -d "${source_dir}/blueprints/${blueprint}/cdk" ]; then
+        cd "${source_dir}/blueprints/${blueprint}/cdk"
+        npx cdk synth --quiet
+    fi
+done
 
 echo "------------------------------------------------------------------------------"
 echo "[Test] CDK Unit Tests"
@@ -257,8 +272,8 @@ cd "$source_dir"
 echo "------------------------------------------------------------------------------"
 echo "[Test] WebUI Unit Tests"
 echo "------------------------------------------------------------------------------"
+install_npm_dependencies_if_stale "$source_dir/webui"
 cd $source_dir/webui
-npm install
 npm run test
 rc=$?
 if [ "$rc" -ne "0" ]; then
@@ -274,7 +289,7 @@ echo "--------------------------------------------------------------------------
 echo "[Lint] Code Style and Lint"
 echo "------------------------------------------------------------------------------"
 cd $source_dir
-npx eslint --ext .ts --max-warnings=0 --ignore-pattern "*.d.ts" .
+npx eslint --fix --ext .ts --max-warnings=0 --ignore-pattern "*.d.ts" .
 cd ..
 tox -e format
 tox -e lint

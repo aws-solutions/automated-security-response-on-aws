@@ -1,0 +1,10 @@
+# AutoScaling.1 — Auto Scaling groups associated with a load balancer should use ELB health checks
+#
+# ASR remediation enables ELB health checks on the Auto Scaling group.
+# To apply this fix, set health_check_type to "ELB" and configure
+# health_check_grace_period on your Auto Scaling group.
+
+resource "aws_autoscaling_group" "{autoScalingGroup}" {
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+}

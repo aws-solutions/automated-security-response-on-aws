@@ -5,6 +5,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { createLogGroup } from './cdk-helper/log-group';
 
 export class OrgIdLookupConstruct extends Construct {
   public readonly organizationId: string;
@@ -99,11 +100,12 @@ export class OrgIdLookupConstruct extends Construct {
     `;
 
     const orgIdLookupFunction = new lambda.Function(this, 'OrgIdLookupFunction', {
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(15),
       handler: 'index.handler',
       code: lambda.Code.fromInline(orgIdLookupInlineCode),
+      logGroup: createLogGroup(this, 'OrgIdLookupFunctionLogGroup'),
     });
     addCfnGuardSuppression(orgIdLookupFunction, 'LAMBDA_INSIDE_VPC');
     addCfnGuardSuppression(orgIdLookupFunction, 'LAMBDA_CONCURRENCY_CHECK');

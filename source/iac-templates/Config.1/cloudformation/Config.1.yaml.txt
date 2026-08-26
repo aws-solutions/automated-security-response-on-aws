@@ -1,0 +1,26 @@
+# Config.1 — AWS Config should be enabled and use the service-linked role for recording
+#
+# ASR remediation enables AWS Config by creating a configuration recorder that records all
+# supported resource types (including global resources) and a delivery channel with an S3
+# bucket and SNS topic.
+# To apply this fix, add a ConfigurationRecorder and DeliveryChannel to your template
+# with the properties shown below.
+# NOTE: <CONFIG_BUCKET> — your S3 bucket for Config delivery.
+# NOTE: <CONFIG_SNS_TOPIC> — your SNS topic for Config notifications.
+
+Resources:
+  {configRecorder}:
+    Type: AWS::Config::ConfigurationRecorder
+    Properties:
+      RoleARN: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig
+      RecordingGroup:
+        AllSupported: true
+        IncludeGlobalResourceTypes: true
+
+  DeliveryChannel:
+    Type: AWS::Config::DeliveryChannel
+    Properties:
+      S3BucketName: <CONFIG_BUCKET>
+      SnsTopicARN: <CONFIG_SNS_TOPIC>
+      ConfigSnapshotDeliveryProperties:
+        DeliveryFrequency: Twelve_Hours

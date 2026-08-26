@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class TestCheckSSMDocStateLogicPreservation:
 
     def test_document_validation_logic_unchanged(self):
-        from Orchestrator.check_ssm_doc_state import lambda_handler
+        from Orchestrator.resolve_ssm_doc_for_finding import lambda_handler
 
         test_event = {
             "Finding": {
@@ -22,7 +22,9 @@ class TestCheckSSMDocStateLogicPreservation:
             "EventType": "Security Hub Findings - Imported",
         }
 
-        with patch("Orchestrator.check_ssm_doc_state._get_ssm_client") as mock_ssm:
+        with patch(
+            "Orchestrator.resolve_ssm_doc_for_finding._get_ssm_client"
+        ) as mock_ssm:
             mock_client = Mock()
             mock_client.describe_document.return_value = {
                 "Document": {"DocumentType": "Automation", "Status": "Active"}
@@ -34,7 +36,9 @@ class TestCheckSSMDocStateLogicPreservation:
             context.function_version = "1"
             context.aws_request_id = "test-request"
 
-            with patch("Orchestrator.check_ssm_doc_state.Finding") as mock_finding:
+            with patch(
+                "Orchestrator.resolve_ssm_doc_for_finding.Finding"
+            ) as mock_finding:
                 mock_finding.return_value.standard_shortname = "AFSBP"
                 mock_finding.return_value.standard_version = "1.0.0"
                 mock_finding.return_value.remediation_control = "EC2.1"
@@ -48,7 +52,7 @@ class TestCheckSSMDocStateLogicPreservation:
 
     def test_access_denied_handling_preserved(self):
         from botocore.exceptions import ClientError
-        from Orchestrator.check_ssm_doc_state import lambda_handler
+        from Orchestrator.resolve_ssm_doc_for_finding import lambda_handler
 
         test_event = {
             "Finding": {
@@ -58,7 +62,9 @@ class TestCheckSSMDocStateLogicPreservation:
             "EventType": "Security Hub Findings - Imported",
         }
 
-        with patch("Orchestrator.check_ssm_doc_state._get_ssm_client") as mock_ssm:
+        with patch(
+            "Orchestrator.resolve_ssm_doc_for_finding._get_ssm_client"
+        ) as mock_ssm:
             mock_client = Mock()
             mock_client.describe_document.side_effect = ClientError(
                 {"Error": {"Code": "AccessDenied"}}, "DescribeDocument"
@@ -70,7 +76,9 @@ class TestCheckSSMDocStateLogicPreservation:
             context.function_version = "1"
             context.aws_request_id = "test-request"
 
-            with patch("Orchestrator.check_ssm_doc_state.Finding") as mock_finding:
+            with patch(
+                "Orchestrator.resolve_ssm_doc_for_finding.Finding"
+            ) as mock_finding:
                 mock_finding.return_value.playbook_enabled = "True"
                 mock_finding.return_value.standard_shortname = "AFSBP"
                 mock_finding.return_value.standard_version = "1.0.0"
@@ -292,7 +300,7 @@ class TestSendNotificationsLogicPreservation:
 class TestCriticalPathsValidation:
 
     def test_security_hub_finding_processing_path(self):
-        from Orchestrator.check_ssm_doc_state import lambda_handler
+        from Orchestrator.resolve_ssm_doc_for_finding import lambda_handler
 
         security_hub_event = {
             "Finding": {
@@ -307,7 +315,7 @@ class TestCriticalPathsValidation:
         context.function_version = "1"
         context.aws_request_id = "test-request"
 
-        with patch("Orchestrator.check_ssm_doc_state.Finding") as mock_finding:
+        with patch("Orchestrator.resolve_ssm_doc_for_finding.Finding") as mock_finding:
             mock_finding.return_value.playbook_enabled = "True"
             mock_finding.return_value.standard_shortname = "AFSBP"
 
@@ -317,7 +325,7 @@ class TestCriticalPathsValidation:
             assert "controlid" in result
 
     def test_non_security_hub_finding_processing_path(self):
-        from Orchestrator.check_ssm_doc_state import lambda_handler
+        from Orchestrator.resolve_ssm_doc_for_finding import lambda_handler
 
         non_security_hub_event = {
             "Finding": {

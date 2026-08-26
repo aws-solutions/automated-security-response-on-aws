@@ -1,0 +1,9 @@
+// SNS.1 — SNS topics should be encrypted at rest using AWS KMS
+//
+// ASR remediation enables encryption at rest on the SNS topic using a KMS key.
+// To apply this fix, add or update the masterKey property on your Topic construct.
+// NOTE: <KMS_KEY> — your KMS key for topic encryption.
+
+new sns.Topic(this, '{snsTopic}', {
+  masterKey: <KMS_KEY>,
+});

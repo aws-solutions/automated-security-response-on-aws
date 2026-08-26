@@ -7,17 +7,10 @@ import 'source-map-support/register';
 import { CIS140PlaybookMemberStack } from '../lib/cis140_playbook-construct';
 import { CIS140_REMEDIATIONS } from '../lib/cis140_remediations';
 import { splitMemberStack } from '../../split_member_stacks';
+import { getConfig, getMemberStackLimit } from '../../../lib/config/cdk-config';
 
-// set by solution_env.sh
-const SOLUTION_ID = process.env['SOLUTION_ID'] || 'undefined';
-const SOLUTION_NAME = process.env['SOLUTION_NAME'] || 'undefined';
-const MEMBER_STACK_LIMIT = process.env['CIS120_MEMBER_STACK_LIMIT']
-  ? Number(process.env['CIS140_MEMBER_STACK_LIMIT'])
-  : Infinity;
-// DIST_* - set by build-s3-dist.sh
-const DIST_VERSION = process.env['DIST_VERSION'] || '%%VERSION%%';
-const DIST_OUTPUT_BUCKET = process.env['DIST_OUTPUT_BUCKET'] || '%%BUCKET%%';
-const DIST_SOLUTION_NAME = process.env['DIST_SOLUTION_NAME'] || '%%SOLUTION%%';
+const config = getConfig();
+const MEMBER_STACK_LIMIT = getMemberStackLimit('CIS140');
 
 const standardShortName = 'CIS';
 const standardLongName = 'cis-aws-foundations-benchmark';
@@ -28,11 +21,11 @@ const app = new cdk.App();
 const adminStack = new PlaybookPrimaryStack(app, 'CIS140Stack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-  description: `(${SOLUTION_ID}P) ${SOLUTION_NAME} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${DIST_VERSION}`,
-  solutionId: SOLUTION_ID,
-  solutionVersion: DIST_VERSION,
-  solutionDistBucket: DIST_OUTPUT_BUCKET,
-  solutionDistName: DIST_SOLUTION_NAME,
+  description: `(${config.solution.id}P) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${config.build.distVersion}`,
+  solutionId: config.solution.id,
+  solutionVersion: config.build.distVersion,
+  solutionDistBucket: config.build.distOutputBucket,
+  solutionDistName: config.solution.trademarkedName,
   remediations: CIS140_REMEDIATIONS,
   securityStandardLongName: standardLongName,
   securityStandard: standardShortName,

@@ -1,0 +1,9 @@
+# SQS.1 — SQS queues should be encrypted at rest using AWS KMS
+#
+# ASR remediation enables encryption at rest on the SQS queue using a KMS key.
+# To apply this fix, add or update the kms_master_key_id argument on your SQS queue resource.
+# NOTE: <KMS_KEY> — your KMS key for queue encryption.
+
+resource "aws_sqs_queue" "{sqsQueue}" {
+  kms_master_key_id = "<KMS_KEY>"
+}

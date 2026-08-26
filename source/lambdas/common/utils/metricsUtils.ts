@@ -4,6 +4,7 @@ import https from 'https';
 import { DeleteParameterCommand, PutParameterCommand } from '@aws-sdk/client-ssm';
 import { randomUUID } from 'crypto';
 import { ASFFSchema, OCSFComplianceSchema } from '@asr/data-models';
+import { tryResolveControlId } from './findingUtils';
 import { getLogger } from './logger';
 import { getCachedParameter, getSSMClient } from './ssmCache';
 
@@ -64,7 +65,7 @@ export function buildFailureMetric(
   if (asffResult.success) {
     return {
       ...DEFAULT_FAILURE_METRIC,
-      control_id: asffResult.data.Compliance.SecurityControlId,
+      control_id: tryResolveControlId(asffResult.data),
       product_arn: asffResult.data.ProductArn,
       region: asffResult.data.Region,
       error: errorMessage,
@@ -88,14 +89,6 @@ export function buildFailureMetric(
     ...DEFAULT_FAILURE_METRIC,
     truncatedRecordBody: truncatedRecord,
     error: errorMessage,
-  };
-}
-
-export function buildFilteringMetric(
-  filterResult: 'account_id_filter' | 'OUs_filter' | 'tags_filter' | 'none',
-): Record<string, any> {
-  return {
-    finding_filtered_by_user: filterResult,
   };
 }
 

@@ -30,21 +30,41 @@ parameters:
     allowedPattern: '^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$'
     default: 'SO0111-ASR-CloudFormationNotifications'
 outputs:
-- 'ConfigureSNSTopic.Output'
+  - 'ConfigureSNSTopic.Output'
+  - 'TagTopic.Output'
 mainSteps:
-- name: 'ConfigureSNSTopic'
-  action: 'aws:executeScript'
-  timeoutSeconds: 600
-  inputs:
-    InputPayload:
-      stack_arn: '{{ StackArn }}'
-      topic_name: 'SO0111-ASR-CloudFormationNotifications'
-    Runtime: 'python3.11'
-    Handler: 'lambda_handler'
-    Script: |-
-      %%SCRIPT=configure_stack_notifications.py%%
-  outputs:
-  - Name: 'Output'
-    Selector: '$.Payload.output'
-    Type: 'StringMap'
-  isEnd: true
+  - name: 'ConfigureSNSTopic'
+    action: 'aws:executeScript'
+    timeoutSeconds: 600
+    inputs:
+      InputPayload:
+        stack_arn: '{{ StackArn }}'
+        topic_name: 'SO0111-ASR-CloudFormationNotifications'
+      Runtime: 'python3.11'
+      Handler: 'lambda_handler'
+      Script: |-
+        %%SCRIPT=configure_stack_notifications.py%%
+    outputs:
+      - Name: 'Output'
+        Selector: '$.Payload'
+        Type: 'StringMap'
+      - Name: 'ResourceArn'
+        Selector: '$.Payload.resource_arn'
+        Type: 'String'
+    nextStep: 'TagTopic'
+
+  - name: 'TagTopic'
+    action: 'aws:executeScript'
+    onFailure: 'Continue'
+    inputs:
+      InputPayload:
+        ResourceArn: '{{ ConfigureSNSTopic.ResourceArn }}'
+      Runtime: 'python3.11'
+      Handler: 'tag_resource'
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: 'Output'
+        Selector: '$.Payload'
+        Type: 'StringMap'
+    isEnd: true

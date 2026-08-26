@@ -35,6 +35,7 @@ from simtest.remediation.rds import (
 from simtest.remediation.s3 import (
     run_s3_block_public_access,
     run_s3_block_public_bucket_access,
+    run_s3_enable_versioning,
 )
 from simtest.remediation.vpc import run_enable_vpc_flow_logs
 
@@ -300,6 +301,10 @@ def setup_afsbp_s3_2(account, _):
     run_s3_block_public_bucket_access("afsbp-s3.2", account)
 
 
+def setup_afsbp_s3_14(account: str, _: object) -> None:
+    run_s3_enable_versioning("afsbp-s3.14", account)
+
+
 def setup_pci_s3_2(account, _):
     run_s3_block_public_bucket_access("pci-s3.2", account)
 
@@ -323,6 +328,7 @@ testIdByStandard = {
         "rds.7": setup_afsbp_rds_7,
         "s3.1": setup_afsbp_s3_1,
         "s3.2": setup_afsbp_s3_2,
+        "s3.14": setup_afsbp_s3_14,
     },
     "cis": {
         "1.3": setup_cis13,

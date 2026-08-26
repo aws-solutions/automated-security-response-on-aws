@@ -1,0 +1,16 @@
+# APIGateway.1 — API Gateway REST and WebSocket API execution logging should be enabled
+#
+# ASR remediation sets the logging level to INFO on all methods/routes.
+# To apply this fix, add a MethodSetting with LoggingLevel set to INFO
+# (or ERROR) in your stage definition.
+
+Resources:
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: prod
+      RestApiId: !Ref RestApi
+      MethodSettings:
+        - HttpMethod: '*'
+          ResourcePath: '/*'
+          LoggingLevel: INFO

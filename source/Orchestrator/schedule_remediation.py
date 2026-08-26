@@ -24,7 +24,7 @@ def connect_to_sfn() -> Any:
     return boto3.client("stepfunctions", config=boto_config)
 
 
-@tracer.capture_lambda_handler  # type: ignore[misc]
+@tracer.capture_lambda_handler  # type: ignore[untyped-decorator]
 def lambda_handler(event: Dict[str, Any], _: Any) -> str:
     """
     Schedules a remediation for execution.

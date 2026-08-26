@@ -109,8 +109,9 @@ export class RunbookFactory extends Construct {
     const ssmDocName = `ASR-${props.ssmDocName}`;
     const ssmDocType = props.ssmDocFileName.substring(props.ssmDocFileName.length - 4).toLowerCase();
     const scriptPath = props.scriptPath || 'ssmdocs/scripts';
+    const commonScripts = `${scriptPath}/common`;
 
-    const ssmDocContent = this.generateRemediationRunbookDocContent(props, scriptPath);
+    const ssmDocContent = this.generateRemediationRunbookDocContent(props, scriptPath, commonScripts);
 
     return new CfnDocument(scope, id, {
       content: yaml.load(ssmDocContent),
@@ -121,7 +122,11 @@ export class RunbookFactory extends Construct {
     });
   }
 
-  private static generateRemediationRunbookDocContent(props: RemediationRunbookProps, scriptPath: string): string {
+  private static generateRemediationRunbookDocContent(
+    props: RemediationRunbookProps,
+    scriptPath: string,
+    commonScripts: string,
+  ): string {
     const ssmDocFQFileName = `${props.ssmDocPath}/${props.ssmDocFileName}`;
     const ssmDocIn = readFileSync(ssmDocFQFileName, 'utf8');
     let ssmDocOut = '';
@@ -132,7 +137,7 @@ export class RunbookFactory extends Construct {
       const foundScriptMatch = scriptRegex.exec(line);
       const foundRoleMatch = assumeRoleRegex.exec(line);
       if (foundScriptMatch?.groups?.script) {
-        ssmDocOut += this.processScriptLine(foundScriptMatch, scriptPath);
+        ssmDocOut += this.processScriptLine(foundScriptMatch, scriptPath, commonScripts);
       } else if (foundRoleMatch?.groups?.role) {
         ssmDocOut += this.processRoleLine(foundRoleMatch, props);
       } else {

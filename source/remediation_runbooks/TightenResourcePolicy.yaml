@@ -1,0 +1,62 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+description: |
+  ### Document Name - ASR-TightenResourcePolicy
+
+  ## What does this document do?
+  This document tightens resource policies by replacing wildcard principals (`Principal: "*"`)
+  with the owning account ID. If the account is a member of an AWS Organization, it also adds
+  an `aws:PrincipalOrgID` condition key to allow access from all accounts within the organization.
+
+  ## Input Parameters
+  * ResourceArn: (Required) The ARN of the resource with the policy to modify.
+  * ResourceType: (Required) The type of resource (e.g., `s3`, `kms`).
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+
+  ## Output Parameters
+  * TightenResourcePolicy.Output - JSON formatted response from the TightenResourcePolicy script.
+
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+outputs:
+  - TightenResourcePolicy.Output
+parameters:
+  ResourceArn:
+    type: String
+    description: (Required) The ARN of the resource with the policy to modify.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):[a-zA-Z0-9]+:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d)?:\d{0,12}:.*$'
+  ResourceType:
+    type: String
+    description: (Required) The type of resource (e.g., s3, kms).
+    allowedValues:
+      - s3
+      - kms
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+    allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+mainSteps:
+  - name: TightenResourcePolicy
+    action: "aws:executeScript"
+    description: |
+      ## TightenResourcePolicy
+      Tightens the resource policy by replacing wildcard principals with the owning account ID
+      and adding aws:PrincipalOrgID condition if the account is in an organization.
+      ## Outputs
+      * Output: Response from the TightenResourcePolicy script.
+    timeoutSeconds: 600
+    isCritical: true
+    isEnd: true
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        ResourceArn: "{{ResourceArn}}"
+        ResourceType: "{{ResourceType}}"
+      Script: |-
+        %%SCRIPT=TightenResourcePolicy.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap

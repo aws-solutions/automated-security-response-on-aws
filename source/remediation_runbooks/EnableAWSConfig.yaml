@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 ---
-schemaVersion: "0.3"
+schemaVersion: '0.3'
 description: |
   ### Document name - ASR-EnableAWSConfig
 
@@ -22,7 +22,7 @@ description: |
   ## Output Parameters
   * Remediation.Output: STDOUT and messages from the remediation steps.
 
-assumeRole: "{{ AutomationAssumeRole }}"
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -39,12 +39,15 @@ parameters:
   SNSTopicName:
     type: String
     allowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$
+  Tags:
+    type: StringMap
+    description: Tags to apply to created resources
+    default: {}
 outputs:
   - Remediation.Output
 
 mainSteps:
-  -
-    name: CreateTopic
+  - name: CreateTopic
     action: 'aws:executeScript'
     outputs:
       - Name: TopicArn
@@ -76,6 +79,12 @@ mainSteps:
       - Name: ConfigBucketName
         Selector: $.Payload.config_bucket
         Type: String
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap
+      - Name: ResourceArn
+        Selector: $.Payload.output.ResourceArn
+        Type: String
     inputs:
       InputPayload:
         logging_bucket: 'so0111-accesslogs-{{global:ACCOUNT_ID}}-{{global:REGION}}'
@@ -88,8 +97,20 @@ mainSteps:
       Script: |-
         %%SCRIPT=EnableAWSConfig_createconfigbucket.py%%
 
-  -
-    name: EnableConfig
+  - name: TagConfigBucket
+    action: 'aws:executeScript'
+    onFailure: Continue
+    isEnd: false
+    inputs:
+      InputPayload:
+        resource_arn: '{{CreateConfigBucket.ResourceArn}}'
+        tags: '{{Tags}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+
+  - name: EnableConfig
     action: 'aws:executeScript'
     outputs:
       - Name: OutputMessage
@@ -109,8 +130,7 @@ mainSteps:
         %%SCRIPT=EnableAWSConfig_enableconfig.py%%
     isEnd: false
 
-  -
-    name: Remediation
+  - name: Remediation
     action: 'aws:executeScript'
     outputs:
       - Name: Output

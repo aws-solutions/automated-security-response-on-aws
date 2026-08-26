@@ -7,7 +7,8 @@ import { OrganizationPrincipal, PolicyStatement, Role } from 'aws-cdk-lib/aws-ia
 import { RemovalPolicy } from 'aws-cdk-lib';
 import { OrgIdLookupConstruct } from './org-id-lookup';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
-import { CrossAccount } from './constants/parameters';
+
+export const CROSS_ACCOUNT_LOG_WRITER_EXTERNAL_ID = 'ASRCrossAccountLogWriter';
 
 interface ActionLogProps {
   logGroupName: string;
@@ -33,7 +34,7 @@ export class ActionLog extends Construct {
       description: 'Role for cross-account access to write to CloudWatch Logs with External ID security',
       assumedBy: new OrganizationPrincipal(orgIdLookup.organizationId).withConditions({
         StringEquals: {
-          'sts:ExternalId': CrossAccount.FIXED_EXTERNAL_ID,
+          'sts:ExternalId': CROSS_ACCOUNT_LOG_WRITER_EXTERNAL_ID,
         },
       }),
     });

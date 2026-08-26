@@ -1,0 +1,25 @@
+# S3.5 — S3 buckets should require requests to use SSL
+#
+# ASR remediation adds a bucket policy statement that denies all S3 actions
+# when aws:SecureTransport is false, requiring HTTPS-only access.
+# To apply this fix, add an AWS::S3::BucketPolicy resource with a Deny
+# statement that blocks non-SSL requests to your bucket.
+
+Resources:
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref {bucketName}
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSSLRequestsOnly
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt {bucketName}.Arn
+              - !Sub "${{bucketName}.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"

@@ -1,0 +1,11 @@
+# RDS.5 — RDS DB instances should be configured with multiple Availability Zones
+#
+# ASR remediation enables Multi-AZ on the RDS DB instance by calling
+# ModifyDBInstance with MultiAZ set to true.
+# To apply this fix, set MultiAZ to true on your DB instance.
+
+Resources:
+  {dbInstance}:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      MultiAZ: true

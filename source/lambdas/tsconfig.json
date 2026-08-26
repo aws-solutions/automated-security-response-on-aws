@@ -3,13 +3,14 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "outDir": null,
-    "noUnusedLocals": false
+    "noUnusedLocals": false,
+    "typeRoots": ["./node_modules/@types"],
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules",
     "coverage/**/*",  // Exclude coverage directory to avoid file conflicts
     "dist/**/*",       // Exclude dist directory to avoid file conflicts
-    "**/*.config.js",
-    "**/__tests__/**"
+    "**/*.config.js"
   ]
 }

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import urllib.error
+import uuid
 from unittest.mock import MagicMock, patch
 
 import boto3
@@ -15,6 +16,7 @@ from jira_ticket_generator import (
     create_ticket,
     get_account_alias,
     get_api_credentials,
+    get_current_user_account_id,
     get_post_endpoint_from_instance_uri,
     lambda_handler,
 )
@@ -42,6 +44,13 @@ def setup():
     os.environ["SECRET_ARN"] = response["ARN"]
     os.environ["INSTANCE_URI"] = FAKE_INSTANCE_URI
     os.environ["PROJECT_NAME"] = "MP"
+    os.environ["JIRA_FIELDS_MAPPING"] = json.dumps(
+        {
+            "reporter": {"accountId": f"123456:{uuid.uuid4()}"},
+            "priority": {"id": "3"},
+            "issuetype": {"id": "10006"},
+        }
+    )
 
 
 def setup_lambda_context():
@@ -62,13 +71,17 @@ def test_ticket_generator(mock_urlopen):
     # ARRANGE
     setup()
     lambda_context = setup_lambda_context()
-    mock_response = MagicMock()
-    mock_response.__enter__.return_value = mock_response
-    mock_response.getcode.return_value = 201
-    mock_response.read.return_value = json.dumps({"key": "my-ticket-id"}).encode(
-        "utf-8"
-    )
-    mock_urlopen.return_value = mock_response
+
+    def mock_urlopen_side_effect(request, timeout=None):
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value = mock_response
+        mock_response.getcode.return_value = 201
+        mock_response.read.return_value = json.dumps({"key": "my-ticket-id"}).encode(
+            "utf-8"
+        )
+        return mock_response
+
+    mock_urlopen.side_effect = mock_urlopen_side_effect
 
     # ACT
     response = lambda_handler(
@@ -99,9 +112,13 @@ def test_ticket_generator_jira_error(mock_urlopen):
     # ARRANGE
     setup()
     lambda_context = setup_lambda_context()
-    mock_urlopen.side_effect = urllib.error.HTTPError(
-        FAKE_JIRA_ENDPOINT, 400, "Bad Request", {}, None  # type: ignore
-    )
+
+    def mock_urlopen_side_effect(request, timeout=None):
+        raise urllib.error.HTTPError(
+            FAKE_JIRA_ENDPOINT, 400, "Bad Request", {}, None  # type: ignore
+        )
+
+    mock_urlopen.side_effect = mock_urlopen_side_effect
 
     # ACT
     response = lambda_handler(
@@ -272,11 +289,26 @@ def test_get_account_alias_error_with_connect_mock(mock_connect):
 @patch("urllib.request.urlopen")
 def test_create_ticket_success(mock_urlopen):
     # ARRANGE
-    mock_response = MagicMock()
-    mock_response.__enter__.return_value = mock_response
-    mock_response.getcode.return_value = 201
-    mock_response.read.return_value = json.dumps({"key": "TEST-123"}).encode("utf-8")
-    mock_urlopen.return_value = mock_response
+    import jira_ticket_generator
+
+    jira_ticket_generator._cached_jira_account_id = ""  # Reset cache
+
+    def mock_urlopen_side_effect(request, timeout=None):
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value = mock_response
+        if "/myself" in str(request.full_url):
+            mock_response.getcode.return_value = 200
+            mock_response.read.return_value = json.dumps(
+                {"accountId": "test-account-id"}
+            ).encode("utf-8")
+        else:
+            mock_response.getcode.return_value = 201
+            mock_response.read.return_value = json.dumps({"key": "TEST-123"}).encode(
+                "utf-8"
+            )
+        return mock_response
+
+    mock_urlopen.side_effect = mock_urlopen_side_effect
 
     remediation_info: RemediationInfo = {
         "Message": "Test",
@@ -301,3 +333,50 @@ def test_create_ticket_success(mock_urlopen):
     # ASSERT
     assert result["Ok"] is True
     assert "TEST-123" in result["TicketURL"]
+
+
+@patch("urllib.request.urlopen")
+def test_get_current_user_account_id_success(mock_urlopen):
+    # ARRANGE
+    import jira_ticket_generator
+
+    jira_ticket_generator._cached_jira_account_id = ""  # Reset cache
+
+    def mock_urlopen_side_effect(request, timeout=None):
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value = mock_response
+        mock_response.read.return_value = json.dumps(
+            {"accountId": "test-account-id"}
+        ).encode("utf-8")
+        return mock_response
+
+    mock_urlopen.side_effect = mock_urlopen_side_effect
+    api_credentials: APICredentials = {"Username": "user", "Password": "pass"}
+
+    # ACT
+    result = get_current_user_account_id("https://test.atlassian.net", api_credentials)
+
+    # ASSERT
+    assert result == "test-account-id"
+    assert mock_urlopen.call_count == 1
+
+    # Test cache hit
+    result2 = get_current_user_account_id("https://test.atlassian.net", api_credentials)
+    assert result2 == "test-account-id"
+    assert mock_urlopen.call_count == 1  # No additional call
+
+
+@patch("urllib.request.urlopen")
+def test_get_current_user_account_id_error(mock_urlopen):
+    # ARRANGE
+    import jira_ticket_generator
+
+    jira_ticket_generator._cached_jira_account_id = ""  # Reset cache
+    mock_urlopen.side_effect = Exception("API Error")
+    api_credentials: APICredentials = {"Username": "user", "Password": "pass"}
+
+    # ACT
+    result = get_current_user_account_id("https://test.atlassian.net", api_credentials)
+
+    # ASSERT
+    assert result == ""

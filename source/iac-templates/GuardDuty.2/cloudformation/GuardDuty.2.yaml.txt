@@ -1,0 +1,13 @@
+# GuardDuty.2 — GuardDuty filter should be tagged
+#
+# ASR remediation tags the GuardDuty filter with the required tag keys
+# specified in the Security Hub control parameters.
+# To apply this fix, add the required tags to your GuardDuty filter resource.
+
+Resources:
+  {filter}:
+    Type: AWS::GuardDuty::Filter
+    Properties:
+      Tags:
+        - Key: SO0111-ASR-GuardDutyResource
+          Value: ""

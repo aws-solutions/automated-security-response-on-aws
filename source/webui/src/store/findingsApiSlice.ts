@@ -1,18 +1,28 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { FindingApiResponse } from '@data-models';
+import { FindingApiResponse, FindingId, FindingsActionRequest } from '@data-models';
 import { ApiEndpoints, solutionApi } from './solutionApi.ts';
 import { SearchRequest } from './types.ts';
+
+export type { FindingsActionRequest, FindingId } from '@data-models';
 
 export interface FindingsSearchResponse {
   Findings: FindingApiResponse[];
   NextToken?: string;
 }
 
-export interface FindingsActionRequest {
-  actionType: 'Suppress' | 'Unsuppress' | 'Remediate' | 'RemediateAndGenerateTicket';
-  findingIds: string[];
+/**
+ * Response body for a findings action (Remediate / RemediateAndGenerateTicket /
+ * Rollback). `unresolvedIds` lists findings the API did not act on — e.g. a
+ * finding whose resource type is not supported by the selected remediation
+ * (an Amazon Inspector Lambda/ECR finding routed to the EC2-only patch
+ * remediation) — so the UI can report them instead of silently flipping them
+ * to IN_PROGRESS.
+ */
+export interface FindingsActionResponse {
+  status?: string;
+  unresolvedIds?: FindingId[];
 }
 
 export interface ExportFindingsResponse {
@@ -65,7 +75,7 @@ export const findingsApiSlice = solutionApi.injectEndpoints({
       invalidatesTags: ['Findings'],
     }),
 
-    executeAction: builder.mutation<void, FindingsActionRequest>({
+    executeAction: builder.mutation<FindingsActionResponse, FindingsActionRequest>({
       query: (actionRequest) => ({
         url: `${ApiEndpoints.FINDINGS}/action`,
         method: 'POST',

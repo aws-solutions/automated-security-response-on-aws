@@ -6,6 +6,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const MANIFEST_PATH = path.join(__dirname, '../../../deployment/regional-s3-assets/lambda/lambda-hashes.json');
 let hashManifest: Record<string, string> | null = null;
 
 /**
@@ -16,17 +17,14 @@ function loadHashManifest(): Record<string, string> {
     return hashManifest;
   }
 
-  // Try to load hash manifest from build output
-  const manifestPath = path.join(__dirname, '../../../deployment/regional-s3-assets/lambda/lambda-hashes.json');
-
   try {
-    if (fs.existsSync(manifestPath)) {
-      const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
+    if (fs.existsSync(MANIFEST_PATH)) {
+      const manifestContent = fs.readFileSync(MANIFEST_PATH, 'utf-8');
       hashManifest = JSON.parse(manifestContent);
       return hashManifest!;
     }
   } catch (error) {
-    console.warn(`Warning: Could not load Lambda hash manifest from ${manifestPath}. Using original filenames.`);
+    console.warn(`Warning: Could not load Lambda hash manifest. Using original filenames.`);
   }
 
   // Return empty manifest if file doesn't exist (fallback to original names)
@@ -52,4 +50,13 @@ export function getLambdaCode(
   const hashedFileName = manifest[assetPath] || assetPath;
   const s3Key = `${solutionTMN}/${solutionVersion}/lambda/${hashedFileName}`;
   return lambda.Code.fromBucket(bucket, s3Key);
+}
+
+/**
+ * Gets the WebUI manifest hash from the build-generated lambda-hashes.json.
+ * This hash triggers UI redeploy when UI source files change.
+ */
+export function getWebUIManifestHash(): string {
+  const manifest = loadHashManifest();
+  return manifest['webui-manifest-hash'] || '';
 }

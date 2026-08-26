@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { AuthUser } from 'aws-amplify/auth';
 import { http, HttpResponse } from 'msw';
 import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { AppComponent } from '../App.tsx';
 import { NotificationContext, NotificationContextProvider } from '../contexts/NotificationContext.tsx';
 import { ConfigContextProvider } from '../contexts/ConfigContext.tsx';
@@ -38,7 +38,7 @@ describe('App Component', () => {
               }}
             >
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>
@@ -50,7 +50,7 @@ describe('App Component', () => {
       const redirectMessage = screen.getByText(/Redirecting to login/i);
       expect(redirectMessage).toBeInTheDocument();
       // Check that the spinner component is rendered (it's a CloudScape component)
-      expect(document.querySelector('.awsui_root_1612d_152xz_183')).toBeInTheDocument();
+      expect(document.querySelector('[class*="awsui_root"]')).toBeInTheDocument();
     });
 
     it('should not render the main application content', () => {
@@ -70,7 +70,7 @@ describe('App Component', () => {
               }}
             >
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>
@@ -121,7 +121,7 @@ describe('App Component', () => {
           <Provider store={store}>
             <UserContext.Provider value={userContext}>
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>
@@ -218,7 +218,7 @@ describe('App Component', () => {
           <Provider store={store}>
             <UserContext.Provider value={userContext}>
               <NotificationContext.Provider value={notificationContext}>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContext.Provider>
@@ -249,7 +249,7 @@ describe('App Component', () => {
           <Provider store={store}>
             <UserContext.Provider value={userContextWithNullEmail}>
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>
@@ -281,7 +281,7 @@ describe('App Component', () => {
           <Provider store={setupStore()}>
             <UserContext.Provider value={adminUserContext}>
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>
@@ -307,7 +307,7 @@ describe('App Component', () => {
           <Provider store={setupStore()}>
             <UserContext.Provider value={delegatedAdminUserContext}>
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>
@@ -333,7 +333,7 @@ describe('App Component', () => {
           <Provider store={setupStore()}>
             <UserContext.Provider value={operatorUserContext}>
               <NotificationContextProvider>
-                <ConfigContextProvider config={{ ticketingEnabled: true }}>
+                <ConfigContextProvider config={{ ticketingEnabled: true, solutionVersion: '4.0.0' }}>
                   <AppComponent />
                 </ConfigContextProvider>
               </NotificationContextProvider>

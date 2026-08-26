@@ -3,12 +3,14 @@
 
 import * as cdk from 'aws-cdk-lib';
 import { App, CfnResource, Stack, StackProps } from 'aws-cdk-lib';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import AdminAccountParam from './parameters/admin-account-param';
 import { RedshiftAuditLogging } from './member/redshift-audit-logging';
 import { MemberRemediationKey } from './member/remediation-key';
 import { MemberLogGroup } from './member/log-group';
 import { MemberBucketEncryption } from './member/bucket-encryption';
+import { RemediationConfigurationBucket } from './member/remediation-configuration-bucket';
 import { MemberVersion } from './member/version';
 import { SerializedNestedStackFactory } from './cdk-helper/nested-stack';
 import { WaitProvider } from './wait-provider';
@@ -16,7 +18,6 @@ import { MemberPlaybook } from './member-playbook';
 import { scPlaybookProps, standardPlaybookProps } from '../playbooks/playbook-index';
 import NamespaceParam from './parameters/namespace-param';
 import MetricResources from './cdk-helper/metric-resources';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 
@@ -51,13 +52,22 @@ export class MemberStack extends Stack {
 
     const redShiftLogging = new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
 
-    new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
+    const remediationKey = new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
 
     new MemberVersion(this, 'MemberVersion', { solutionId: props.solutionId, solutionVersion: props.solutionVersion });
 
     const memberLogGroup = new MemberLogGroup(this, 'MemberLogGroup', { solutionId: props.solutionId });
 
     new MemberBucketEncryption(this, 'MemberBucketEncryption', { solutionId: props.solutionId });
+
+    new RemediationConfigurationBucket(this, 'RemediationConfigBucket', {
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      solutionTMN: props.solutionTradeMarkName,
+      solutionDistBucket: props.solutionDistBucket,
+      runtimePython: props.runtimePython,
+      kmsKey: remediationKey.key,
+    });
 
     const nestedStackFactory = new SerializedNestedStackFactory(this, 'NestedStackFactory', {
       solutionDistBucket: props.solutionDistBucket,
@@ -115,7 +125,7 @@ export class MemberStack extends Stack {
       },
     });
 
-    const sortedPlaybookNames = [...securityStandardPlaybookNames].sort();
+    const sortedPlaybookNames = [...securityStandardPlaybookNames].sort((a, b) => a.localeCompare(b));
 
     const logWriterRoleArn = `arn:${stack.partition}:iam::${adminAccountParam.value}:role/CrossAccountLogWriterRole`;
 

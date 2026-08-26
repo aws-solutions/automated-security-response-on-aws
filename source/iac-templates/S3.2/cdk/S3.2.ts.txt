@@ -1,0 +1,10 @@
+// S3.2 — S3 buckets should prohibit public read access
+//
+// ASR remediation enables the S3 bucket-level PublicAccessBlock configuration,
+// blocking all public ACLs and public bucket policies for the bucket.
+// To apply this fix, set blockPublicAccess to BlockPublicAccess.BLOCK_ALL
+// on your S3 bucket definition.
+
+new s3.Bucket(this, '{bucketName}', {
+  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+});

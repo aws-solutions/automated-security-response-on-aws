@@ -37,6 +37,25 @@ export class OrchestratorMemberRole extends Construct {
     iamPerms.addResources(`arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-*`);
     memberPolicy.addStatements(iamPerms);
 
+    // sts:AssumeRole into per-control roles (SO0111-{control}-{namespace})
+    // for multi-service runbooks. Scoped to SO0111-* in the same account;
+    // each per-control role's trust policy independently restricts which
+    // principal may assume it.
+    const stsAssumePerms = new PolicyStatement();
+    stsAssumePerms.addActions('sts:AssumeRole');
+    stsAssumePerms.effect = Effect.ALLOW;
+    stsAssumePerms.addResources(`arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-*`);
+    memberPolicy.addStatements(stsAssumePerms);
+
+    // iam:GetAccessKeyLastUsed is used by SC_GuardDuty.IAMUser to resolve the
+    // owning IAM user from a bare access-key id. Scoped to user/* since IAM
+    // evaluates the action against the user that owns the key.
+    const iamGetAccessKeyLastUsedPerms = new PolicyStatement();
+    iamGetAccessKeyLastUsedPerms.addActions('iam:GetAccessKeyLastUsed');
+    iamGetAccessKeyLastUsedPerms.effect = Effect.ALLOW;
+    iamGetAccessKeyLastUsedPerms.addResources(`arn:${stack.partition}:iam::${stack.account}:user/*`);
+    memberPolicy.addStatements(iamGetAccessKeyLastUsedPerms);
+
     const ssmRWPerms = new PolicyStatement();
     ssmRWPerms.addActions('ssm:StartAutomationExecution');
     ssmRWPerms.addResources(
@@ -66,10 +85,34 @@ export class OrchestratorMemberRole extends Construct {
     memberPolicy.addStatements(ssmRWPerms);
 
     memberPolicy.addStatements(
-      // The actions in your policy do not support resource-level permissions and require you to choose All resources
+      // ssm:DescribeAutomationExecutions does not support resource-level
+      // permissions and requires Resource '*'.
       new PolicyStatement({
-        actions: ['ssm:DescribeAutomationExecutions', 'ssm:GetAutomationExecution'],
+        actions: ['ssm:DescribeAutomationExecutions'],
         resources: ['*'],
+        effect: Effect.ALLOW,
+      }),
+      // ssm:GetAutomationExecution and ssm:DescribeAutomationStepExecutions both
+      // support the automation-execution resource type, so scope them to that
+      // type rather than '*'.
+      // DescribeAutomationStepExecutions lets the GuardDuty.IAMUser control
+      // runbook read the ReportContain step of the TargetLocations child
+      // execution to capture the backup S3 key needed for a later Restore.
+      // The child execution runs in the finding's account/region (from
+      // TargetLocations, untrusted and unknown at deploy time), so the account
+      // and region segments are wildcarded.
+      new PolicyStatement({
+        actions: ['ssm:GetAutomationExecution', 'ssm:DescribeAutomationStepExecutions'],
+        resources: [
+          stack.formatArn({
+            service: 'ssm',
+            region: '*',
+            account: '*',
+            resource: 'automation-execution',
+            resourceName: '*',
+            arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+          }),
+        ],
         effect: Effect.ALLOW,
       }),
       new PolicyStatement({

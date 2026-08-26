@@ -1,0 +1,13 @@
+# DynamoDB.5 — DynamoDB tables should be tagged
+#
+# ASR remediation tags the DynamoDB table with the required tag keys
+# specified in the Security Hub control parameters.
+# To apply this fix, add the required tags to your DynamoDB table resource.
+
+Resources:
+  {tableName}:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      Tags:
+        - Key: SO0111-ASR-DynamoDBTable
+          Value: ""

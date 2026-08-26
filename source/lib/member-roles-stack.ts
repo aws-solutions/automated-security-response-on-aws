@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
+import { InspectorAutomationRole } from './inspector-automation-role';
 import { OrchestratorMemberRole } from './orchestrator_roles-construct';
 import AdminAccountParam from './parameters/admin-account-param';
 import NamespaceParam from './parameters/namespace-param';
@@ -29,6 +30,18 @@ export class MemberRolesStack extends cdk.Stack {
       solutionId: props.solutionId,
       adminAccountId: adminAccount.value,
       adminRoleName: adminRoleName,
+    });
+
+    // Dedicated, Inspector-scoped AutomationAssumeRole. Confines the
+    // ssm:GetCommandInvocation wildcard needed by the Inspector runbook's native
+    // waiter to a single-purpose role instead of the shared Orchestrator-Member
+    // role. resolve_ssm_doc_for_finding.py resolves Inspector findings to this
+    // role name; all other multi-service controls stay on Orchestrator-Member.
+    new InspectorAutomationRole(this, 'InspectorAutomationRole', {
+      solutionId: props.solutionId,
+      adminAccountId: adminAccount.value,
+      adminRoleName: adminRoleName,
+      namespace: this.namespace.value,
     });
   }
   getOrchestratorMemberRole(): OrchestratorMemberRole {

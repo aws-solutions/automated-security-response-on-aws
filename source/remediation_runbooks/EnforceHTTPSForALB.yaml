@@ -21,8 +21,8 @@ description: |
   ## Output Parameters
   * EnforceHTTPSForALB.Output
 
-schemaVersion: "0.3"
-assumeRole: "{{ AutomationAssumeRole }}"
+schemaVersion: '0.3'
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   ResourceARN:
     type: String
@@ -34,9 +34,9 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
 outputs:
   - EnforceHTTPSForALB.Output
+  - TagListener.Output
 mainSteps:
-  -
-    name: EnforceHTTPSForALB
+  - name: EnforceHTTPSForALB
     action: 'aws:executeScript'
     description: |
       ## Remediation
@@ -45,11 +45,33 @@ mainSteps:
     inputs:
       InputPayload:
         ResourceARN: '{{ResourceARN}}'
+        Region: '{{global:REGION}}'
+        AccountId: '{{global:ACCOUNT_ID}}'
       Runtime: python3.11
       Handler: handler
       Script: |-
         %%SCRIPT=EnforceHTTPSForALB.py%%
     outputs:
       - Name: Output
+        Selector: $.Payload.Response
+        Type: StringMap
+      - Name: ResourceArn
+        Selector: $.Payload.ResourceArn
+        Type: String
+
+  - name: TagListener
+    action: 'aws:executeScript'
+    onFailure: Continue
+    outputs:
+      - Name: Output
         Selector: $.Payload
         Type: StringMap
+    inputs:
+      InputPayload:
+        ResourceArn: '{{EnforceHTTPSForALB.ResourceArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+
+    isEnd: true

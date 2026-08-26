@@ -9,7 +9,13 @@ import random
 
 import boto3
 import pytest
-from action_target_provider import CustomAction, get_securityhub_client, lambda_handler
+from action_target_provider import (
+    CustomAction,
+    InvalidCustomAction,
+    get_account_id,
+    get_securityhub_client,
+    lambda_handler,
+)
 from botocore.stub import ANY, Stubber
 
 os.environ["AWS_REGION"] = "us-east-1"
@@ -276,3 +282,59 @@ def test_customaction():
     assert test_object.description == "bar"
     assert test_object.id == "baz"
     assert test_object.account == "111122223333"
+
+
+def test_invalid_custom_action_missing_fields():
+    with pytest.raises(InvalidCustomAction):
+        CustomAction("111122223333", {"Name": "", "Description": "desc", "Id": "id"})
+
+
+def test_get_handles_exception(mocker):
+    client = mocker.Mock()
+    client.get_paginator.side_effect = Exception("boom")
+    mocker.patch("action_target_provider.get_securityhub_client", return_value=client)
+    custom_action = CustomAction(
+        "111122223333", {"Name": "n", "Description": "d", "Id": "i"}
+    )
+    assert custom_action.get() == "FAILED"
+
+
+def test_delete_general_exception(mocker):
+    client = mocker.Mock()
+    client.delete_action_target.side_effect = ValueError("boom")
+    mocker.patch("action_target_provider.get_securityhub_client", return_value=client)
+    custom_action = CustomAction(
+        "111122223333", {"Name": "n", "Description": "d", "Id": "i"}
+    )
+    assert custom_action.delete() == "FAILED"
+
+
+def test_get_account_id_calls_sts(mocker):
+    # `get_account_id` is imported by reference above, so the autouse patch of the
+    # module attribute does not shadow it here — this exercises the real STS call.
+    mock_sts = mocker.Mock()
+    mock_sts.get_caller_identity.return_value = {"Account": "999988887777"}
+    mocker.patch("action_target_provider.boto3.client", return_value=mock_sts)
+    assert get_account_id() == "999988887777"
+
+
+def test_lambda_handler_swallows_exception(mocker):
+    mocker.patch("action_target_provider.CustomAction.create", return_value="arn")
+    mocker.patch("cfnresponse.send", return_value=None)
+    # Missing RequestType raises KeyError inside the handler body; the outer
+    # except must catch and log it without re-raising.
+    bad_event = {
+        "ResourceProperties": {"Name": "n", "Description": "d", "Id": "i"},
+    }
+    lambda_handler(bad_event, {})
+
+
+def test_lambda_handler_delete(mocker):
+    mocker.patch("action_target_provider.CustomAction.delete", return_value="SUCCESS")
+    mocker.patch("cfnresponse.send", return_value=None)
+    lambda_handler(event("Delete"), {})
+
+
+def test_lambda_handler_invalid_request_type(mocker):
+    mocker.patch("cfnresponse.send", return_value=None)
+    lambda_handler(event("Bogus"), {})

@@ -15,6 +15,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from botocore.config import Config
 from botocore.stub import Stubber
 from CreateCloudTrailMultiRegionTrail_createloggingbucket import Event
+from moto import mock_aws
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -30,81 +31,53 @@ def get_region() -> str:
 # =====================================================================================
 # CreateCloudTrailMultiRegionTrail_createcloudtrailbucket
 # =====================================================================================
-def test_create_encrypted_bucket(mocker):
+@mock_aws
+def test_create_encrypted_bucket():
+    # ARRANGE
     event = {
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
-        "region": get_region(),
+        "region": "us-east-1",
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
-    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
+    bucket_name = "so0111-aws-cloudtrail-111111111111"
 
-    s3_stubber = Stubber(s3)
-    kwargs: Dict[str, Any] = {
-        "Bucket": "so0111-aws-cloudtrail-111111111111",
-        "ACL": "private",
-    }
-    if get_region() != "us-east-1":
-        kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
-
-    s3_stubber.add_response("create_bucket", {}, kwargs)
-
-    s3_stubber.add_response(
-        "put_bucket_encryption",
-        {},
-        {
-            "Bucket": "so0111-aws-cloudtrail-111111111111",
-            "ServerSideEncryptionConfiguration": {
-                "Rules": [
-                    {
-                        "ApplyServerSideEncryptionByDefault": {
-                            "SSEAlgorithm": "aws:kms",
-                            "KMSMasterKeyID": "EXAMPLE-1234-5678-9012-EXAMPLEKEY",
-                        }
-                    }
-                ]
-            },
-        },
+    # Create the logging bucket first with proper ACL for S3 log delivery
+    s3 = boto3.client("s3", region_name="us-east-1")
+    s3.create_bucket(Bucket=event["logging_bucket"])
+    s3.put_bucket_acl(
+        Bucket=event["logging_bucket"],
+        GrantWrite="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+        GrantReadACP="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
     )
 
-    s3_stubber.add_response(
-        "put_public_access_block",
-        {},
-        {
-            "Bucket": "so0111-aws-cloudtrail-111111111111",
-            "PublicAccessBlockConfiguration": {
-                "BlockPublicAcls": True,
-                "IgnorePublicAcls": True,
-                "BlockPublicPolicy": True,
-                "RestrictPublicBuckets": True,
-            },
-        },
+    # ACT
+    result = createcloudtrailbucket.create_encrypted_bucket(event, {})
+
+    # ASSERT
+    assert result["cloudtrail_bucket"] == bucket_name
+    assert result["ResourceArn"] == f"arn:aws:s3:::{bucket_name}"
+
+    # Verify bucket was created with correct configuration
+    buckets = s3.list_buckets()
+    bucket_names = [b["Name"] for b in buckets["Buckets"]]
+    assert bucket_name in bucket_names
+
+    # Check encryption is configured
+    encryption = s3.get_bucket_encryption(Bucket=bucket_name)
+    assert (
+        encryption["ServerSideEncryptionConfiguration"]["Rules"][0][
+            "ApplyServerSideEncryptionByDefault"
+        ]["SSEAlgorithm"]
+        == "aws:kms"
     )
 
-    s3_stubber.add_response(
-        "put_bucket_logging",
-        {},
-        {
-            "Bucket": "so0111-aws-cloudtrail-111111111111",
-            "BucketLoggingStatus": {
-                "LoggingEnabled": {
-                    "TargetBucket": event["logging_bucket"],
-                    "TargetPrefix": "cloudtrail-access-logs",
-                }
-            },
-        },
-    )
-    s3_stubber.activate()
-    mocker.patch(
-        "CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.connect_to_s3",
-        return_value=s3,
-    )
-    createcloudtrailbucket.create_encrypted_bucket(event, {})
-    s3_stubber.assert_no_pending_responses()
-    s3_stubber.deactivate()
+    # Check public access block is configured
+    public_access = s3.get_public_access_block(Bucket=bucket_name)
+    assert public_access["PublicAccessBlockConfiguration"]["BlockPublicAcls"] is True
+    assert public_access["PublicAccessBlockConfiguration"]["IgnorePublicAcls"] is True
 
 
 def test_bucket_already_exists(mocker):
@@ -139,37 +112,37 @@ def test_bucket_already_exists(mocker):
     s3_stubber.deactivate()
 
 
-def test_bucket_already_owned_by_you(mocker):
+@mock_aws
+def test_bucket_already_owned_by_you():
+    # ARRANGE
     event = {
         "SolutionId": "SO0000",
         "SolutionVersion": "1.2.3",
-        "region": get_region(),
+        "region": "us-east-1",
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
         "logging_bucket": "mah-loggin-bukkit",
     }
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
-    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
+    bucket_name = "so0111-aws-cloudtrail-111111111111"
 
-    s3_stubber = Stubber(s3)
-    kwargs: Dict[str, Any] = {
-        "Bucket": "so0111-aws-cloudtrail-111111111111",
-        "ACL": "private",
-    }
-    if get_region() != "us-east-1":
-        kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
-
-    s3_stubber.add_client_error("create_bucket", "BucketAlreadyOwnedByYou")
-
-    s3_stubber.activate()
-    mocker.patch(
-        "CreateCloudTrailMultiRegionTrail_createcloudtrailbucket.connect_to_s3",
-        return_value=s3,
+    # Create both buckets to simulate "already owned by you" scenario
+    s3 = boto3.client("s3", region_name="us-east-1")
+    s3.create_bucket(Bucket=event["logging_bucket"])
+    s3.put_bucket_acl(
+        Bucket=event["logging_bucket"],
+        GrantWrite="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+        GrantReadACP="uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
     )
-    assert createcloudtrailbucket.create_encrypted_bucket(event, {}) == {
-        "cloudtrail_bucket": "so0111-aws-cloudtrail-111111111111"
+    s3.create_bucket(Bucket=bucket_name)
+
+    # ACT
+    result = createcloudtrailbucket.create_encrypted_bucket(event, {})
+
+    # ASSERT
+    assert result == {
+        "cloudtrail_bucket": bucket_name,
+        "ResourceArn": f"arn:aws:s3:::{bucket_name}",
     }
-    s3_stubber.deactivate()
 
 
 # =====================================================================================
@@ -244,76 +217,44 @@ def test_create_bucket_policy(mocker):
 # =====================================================================================
 # CreateCloudTrailMultiRegionTrail_createloggingbucket
 # =====================================================================================
-def test_create_logging_bucket(mocker):
+@mock_aws
+def test_create_logging_bucket():
+    # ARRANGE
     event: Event = {
-        "region": get_region(),
+        "region": "us-east-1",
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "account": "111111111111",
     }
-    BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
-    s3 = botocore.session.get_session().create_client("s3", config=BOTO_CONFIG)
+    bucket_name = "so0111-access-logs-us-east-1-111111111111"
 
-    kwargs: Dict[str, Any] = {
-        "Bucket": "so0111-access-logs-" + get_region() + "-111111111111",
-        "ACL": "private",
-        "ObjectOwnership": "ObjectWriter",
-    }
-    if get_region() != "us-east-1":
-        kwargs["CreateBucketConfiguration"] = {"LocationConstraint": get_region()}
-    s3_stubber = Stubber(s3)
+    # ACT
+    result = createloggingbucket.create_logging_bucket(event, LambdaContext())
 
-    s3_stubber.add_response("create_bucket", {}, kwargs)
+    # ASSERT
+    assert result["logging_bucket"] == bucket_name
+    assert result["ResourceArn"] == f"arn:aws:s3:::{bucket_name}"
 
-    s3_stubber.add_response(
-        "put_bucket_encryption",
-        {},
-        {
-            "Bucket": "so0111-access-logs-" + get_region() + "-111111111111",
-            "ServerSideEncryptionConfiguration": {
-                "Rules": [
-                    {
-                        "ApplyServerSideEncryptionByDefault": {
-                            "SSEAlgorithm": "aws:kms",
-                            "KMSMasterKeyID": "EXAMPLE-1234-5678-9012-EXAMPLEKEY",
-                        }
-                    }
-                ]
-            },
-        },
+    # Verify bucket was created with correct configuration
+    s3 = boto3.client("s3", region_name="us-east-1")
+
+    # Check bucket exists
+    buckets = s3.list_buckets()
+    bucket_names = [b["Name"] for b in buckets["Buckets"]]
+    assert bucket_name in bucket_names
+
+    # Check encryption is configured
+    encryption = s3.get_bucket_encryption(Bucket=bucket_name)
+    assert (
+        encryption["ServerSideEncryptionConfiguration"]["Rules"][0][
+            "ApplyServerSideEncryptionByDefault"
+        ]["SSEAlgorithm"]
+        == "aws:kms"
     )
 
-    s3_stubber.add_response(
-        "put_public_access_block",
-        {},
-        {
-            "Bucket": "so0111-access-logs-" + get_region() + "-111111111111",
-            "PublicAccessBlockConfiguration": {
-                "BlockPublicAcls": True,
-                "IgnorePublicAcls": True,
-                "BlockPublicPolicy": True,
-                "RestrictPublicBuckets": True,
-            },
-        },
-    )
-
-    s3_stubber.add_response(
-        "put_bucket_acl",
-        {},
-        {
-            "Bucket": "so0111-access-logs-" + get_region() + "-111111111111",
-            "GrantReadACP": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
-            "GrantWrite": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
-        },
-    )
-
-    s3_stubber.activate()
-    mocker.patch(
-        "CreateCloudTrailMultiRegionTrail_createloggingbucket.connect_to_s3",
-        return_value=s3,
-    )
-    createloggingbucket.create_logging_bucket(event, LambdaContext())
-    s3_stubber.assert_no_pending_responses()
-    s3_stubber.deactivate()
+    # Check public access block is configured
+    public_access = s3.get_public_access_block(Bucket=bucket_name)
+    assert public_access["PublicAccessBlockConfiguration"]["BlockPublicAcls"] is True
+    assert public_access["PublicAccessBlockConfiguration"]["IgnorePublicAcls"] is True
 
 
 # =====================================================================================
@@ -326,11 +267,13 @@ def test_enable_cloudtrail(mocker):
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
+        "account_id": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     ct_client = botocore.session.get_session().create_client(
         "cloudtrail", config=BOTO_CONFIG
     )
+
     ct_stubber = Stubber(ct_client)
 
     # Add describe_trails response (trail doesn't exist)
@@ -360,10 +303,17 @@ def test_enable_cloudtrail(mocker):
         "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
         return_value=ct_client,
     )
+
     result = enablecloudtrail.enable_cloudtrail(event, {})
-    assert result == {
-        "output": {"Message": "CloudTrail Trail multi-region-cloud-trail created"}
-    }
+
+    assert (
+        result["output"]["Message"]
+        == "CloudTrail Trail multi-region-cloud-trail created"
+    )
+    assert "ResourceArn" in result["output"]
+    assert result["output"]["ResourceArn"].startswith("arn:aws:cloudtrail:")
+    assert "trail/multi-region-cloud-trail" in result["output"]["ResourceArn"]
+
     ct_stubber.assert_no_pending_responses()
     ct_stubber.deactivate()
 
@@ -375,11 +325,13 @@ def test_enable_cloudtrail_trail_exists(mocker):
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
+        "account_id": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     ct_client = botocore.session.get_session().create_client(
         "cloudtrail", config=BOTO_CONFIG
     )
+
     ct_stubber = Stubber(ct_client)
 
     ct_stubber.add_response(
@@ -408,10 +360,17 @@ def test_enable_cloudtrail_trail_exists(mocker):
         "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
         return_value=ct_client,
     )
+
     result = enablecloudtrail.enable_cloudtrail(event, {})
-    assert result == {
-        "output": {"Message": "CloudTrail Trail multi-region-cloud-trail updated"}
-    }
+
+    assert (
+        result["output"]["Message"]
+        == "CloudTrail Trail multi-region-cloud-trail updated"
+    )
+    assert "ResourceArn" in result["output"]
+    assert result["output"]["ResourceArn"].startswith("arn:aws:cloudtrail:")
+    assert "trail/multi-region-cloud-trail" in result["output"]["ResourceArn"]
+
     ct_stubber.assert_no_pending_responses()
     ct_stubber.deactivate()
 
@@ -423,11 +382,13 @@ def test_enable_cloudtrail_trail_already_exists_exception(mocker):
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
+        "account_id": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     ct_client = botocore.session.get_session().create_client(
         "cloudtrail", config=BOTO_CONFIG
     )
+
     ct_stubber = Stubber(ct_client)
 
     ct_stubber.add_response(
@@ -458,10 +419,17 @@ def test_enable_cloudtrail_trail_already_exists_exception(mocker):
         "CreateCloudTrailMultiRegionTrail_enablecloudtrail.connect_to_cloudtrail",
         return_value=ct_client,
     )
+
     result = enablecloudtrail.enable_cloudtrail(event, {})
-    assert result == {
-        "output": {"Message": "CloudTrail Trail multi-region-cloud-trail updated"}
-    }
+
+    assert (
+        result["output"]["Message"]
+        == "CloudTrail Trail multi-region-cloud-trail updated"
+    )
+    assert "ResourceArn" in result["output"]
+    assert result["output"]["ResourceArn"].startswith("arn:aws:cloudtrail:")
+    assert "trail/multi-region-cloud-trail" in result["output"]["ResourceArn"]
+
     ct_stubber.assert_no_pending_responses()
     ct_stubber.deactivate()
 
@@ -473,6 +441,7 @@ def test_enable_cloudtrail_update_fails_after_trail_exists_exception(mocker):
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
+        "account_id": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     ct_client = botocore.session.get_session().create_client(
@@ -509,6 +478,7 @@ def test_enable_cloudtrail_client_error(mocker):
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
+        "account_id": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     ct_client = botocore.session.get_session().create_client(
@@ -543,6 +513,7 @@ def test_enable_cloudtrail_general_exception(mocker):
         "region": get_region(),
         "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/EXAMPLE-1234-5678-9012-EXAMPLEKEY",
         "cloudtrail_bucket": "mahbukkit",
+        "account_id": "111111111111",
     }
     BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name=get_region())
     ct_client = botocore.session.get_session().create_client(

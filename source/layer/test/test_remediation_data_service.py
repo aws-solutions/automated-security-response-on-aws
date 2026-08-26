@@ -68,6 +68,12 @@ def test_map_remediation_status():
     assert map_remediation_status("FAILED") == "FAILED"
     assert map_remediation_status("LAMBDA_ERROR") == "FAILED"
     assert map_remediation_status("UNKNOWN_STATUS") == "FAILED"
+    # Rollback lifecycle states are preserved (case-insensitive) so each rollback
+    # outcome stays distinct from SUCCESS/FAILED.
+    assert map_remediation_status("ROLLBACK_IN_PROGRESS") == "ROLLBACK_IN_PROGRESS"
+    assert map_remediation_status("rollback_in_progress") == "ROLLBACK_IN_PROGRESS"
+    assert map_remediation_status("ROLLBACK_SUCCESS") == "ROLLBACK_SUCCESS"
+    assert map_remediation_status("ROLLBACK_FAILED") == "ROLLBACK_FAILED"
 
 
 @mock_aws

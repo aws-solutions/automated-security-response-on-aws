@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as https from 'https';
-import * as url from 'url';
 import { CloudFormationCustomResourceEvent, Context } from 'aws-lambda';
 
 export const SUCCESS = 'SUCCESS';
@@ -32,11 +31,11 @@ export function send(
 
     console.log('Response body:\n', responseBody);
 
-    const parsedUrl = url.parse(event.ResponseURL);
+    const parsedUrl = new URL(event.ResponseURL);
     const options: https.RequestOptions = {
       hostname: parsedUrl.hostname,
       port: 443,
-      path: parsedUrl.path,
+      path: parsedUrl.pathname + parsedUrl.search,
       method: 'PUT',
       headers: {
         'content-type': '',
@@ -46,12 +45,12 @@ export function send(
 
     const request = https.request(options, (response) => {
       console.log('Status code: ' + response.statusCode);
-      resolve(context.done());
+      resolve();
     });
 
     request.on('error', (error) => {
       console.log('send(..) failed executing https.request(..): ' + maskCredentialsAndSignature(error.message));
-      reject(context.done(error));
+      reject(error);
     });
 
     request.write(responseBody);

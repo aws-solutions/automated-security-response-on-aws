@@ -1,0 +1,19 @@
+# IAM.7 — Password policies for IAM users should have strong configurations
+#
+# ASR remediation sets the account password policy to require a minimum length
+# of 14 characters, uppercase, lowercase, numbers, and symbols, with a maximum
+# age of 90 days and prevention of reusing the last 24 passwords.
+# To apply this fix, update your aws_iam_account_password_policy resource with
+# the properties shown below.
+
+resource "aws_iam_account_password_policy" "strict" {
+  allow_users_to_change_password = true
+  hard_expiry                    = true
+  max_password_age               = 90
+  minimum_password_length        = 14
+  password_reuse_prevention      = 24
+  require_lowercase_characters   = true
+  require_numbers                = true
+  require_symbols                = true
+  require_uppercase_characters   = true
+}

@@ -3,15 +3,19 @@
 
 import { Logger } from '@aws-lambda-powertools/logger';
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { BadRequestError, ForbiddenError } from '../../common/utils/httpErrors';
+import { z } from 'zod';
+import { BadRequestError, ForbiddenError, UnauthorizedError } from '../../common/utils/httpErrors';
 import { AuthenticatedUser, AuthorizationService } from '../services/authorization';
 
 /**
- * AWS API Gateway Cognito Authorizer Claims structure
+ * Claims present on a human user (authorization_code) token from the Cognito
+ * authorizer. These tokens always carry `username` and `cognito:groups`.
  */
-export interface CognitoClaims {
+export interface UserAccessTokenClaims {
   username: string;
   'cognito:groups': string | string[];
+  client_id?: string;
+  scope?: string;
   email?: string;
   sub?: string;
   aud?: string;
@@ -22,6 +26,29 @@ export interface CognitoClaims {
   [key: string]: unknown;
 }
 
+/**
+ * Claims present on a machine (client_credentials) token. These tokens carry
+ * `client_id` and `sub` (both equal to the app-client id) but never carry
+ * `cognito:groups` or `username`.
+ */
+export interface MachineAccessTokenClaims {
+  client_id: string;
+  sub: string;
+  /** Space-delimited OAuth scopes (e.g. "asr-api/api asr-api/full-access"). */
+  scope?: string;
+  username?: never;
+  'cognito:groups'?: never;
+  email?: string;
+  aud?: string;
+  iss?: string;
+  exp?: number;
+  iat?: number;
+  token_use?: string;
+  [key: string]: unknown;
+}
+
+export type CognitoClaims = UserAccessTokenClaims | MachineAccessTokenClaims;
+
 export interface AccessValidationContext {
   accountIds?: string[];
   resourceIds?: string[];
@@ -31,6 +58,14 @@ export interface AccessValidationContext {
 export interface AccessRule {
   requiredGroups: string[];
   validator?: (user: AuthenticatedUser, context?: AccessValidationContext) => void | Promise<void>;
+}
+
+export function getClaims(event: APIGatewayProxyEvent): CognitoClaims {
+  const claims = event.requestContext?.authorizer?.claims;
+  if (!claims) {
+    throw new UnauthorizedError('Missing authentication claims');
+  }
+  return claims as CognitoClaims;
 }
 
 export class BaseHandler {
@@ -76,6 +111,25 @@ export class BaseHandler {
     };
   }
 
+  /**
+   * Access rule for operations whose account scope cannot be determined, so
+   * per-account authorization can't be applied. Restricts access to
+   * Admin/DelegatedAdmin and denies AccountOperators — a fail-closed default
+   * (rather than createAccessRules([]), whose empty-account case is permissive
+   * because callers like search rely on the service layer to scope results).
+   */
+  createAdminOnlyAccessRules(): AccessRule {
+    return {
+      requiredGroups: ['AdminGroup', 'DelegatedAdminGroup'],
+      validator: async (user) => {
+        if (user.groups.includes('AdminGroup') || user.groups.includes('DelegatedAdminGroup')) {
+          return;
+        }
+        throw new ForbiddenError('Insufficient permissions');
+      },
+    };
+  }
+
   extractAccountIdsFromRequest(request: {
     Filters?: { CompositeFilters?: Array<{ StringFilters?: Array<{ FieldName: string; Filter: { Value: string } }> }> };
   }): string[] {
@@ -92,22 +146,21 @@ export class BaseHandler {
     return Array.from(new Set(accountIds));
   }
 
-  extractAccountIdsFromArns(arns: string[]): string[] {
-    const accountIds: string[] = [];
-
-    for (const arn of arns) {
-      const arnMatch = arn.match(/^arn:aws:securityhub:[^:]+:(\d{12}):/);
-      if (arnMatch) {
-        const accountId = arnMatch[1];
-        if (!accountIds.includes(accountId)) {
-          accountIds.push(accountId);
-        }
-      } else {
-        this.logger.warn('Could not extract account ID from ARN', { arn });
-      }
-    }
-
-    return accountIds;
+  /**
+   * Derives the unique set of AWS account ids from already-fetched finding
+   * records for account-scoped authorization.
+   *
+   * The account comes from the authoritative `accountId` persisted on each
+   * finding — which resolves IAM Access Analyzer organization-analyzer findings
+   * to the resource-owner account — rather than re-parsing the finding-id ARN.
+   * Callers fetch the findings once and pass the same records to both this
+   * check and the subsequent action, so a finding that cannot be found in
+   * DynamoDB contributes no account id and simply cannot be acted upon: there
+   * is no account-scope bypass.
+   */
+  extractAccountIdsFromFindings(findings: ReadonlyArray<{ accountId: string }>): string[] {
+    const accountIds = findings.map((finding) => finding.accountId).filter((accountId) => !!accountId);
+    return Array.from(new Set(accountIds));
   }
 
   /**
@@ -126,7 +179,7 @@ export class BaseHandler {
       safeParse: (data: unknown) => {
         success: boolean;
         data?: T;
-        error?: { issues: Array<{ path: (string | number)[]; message: string }> };
+        error?: { issues: Array<{ path: PropertyKey[]; message: string }> };
       };
     },
     errorPrefix: string = 'Invalid request',
@@ -136,11 +189,20 @@ export class BaseHandler {
 
     if (!validationResult.success) {
       const errorDetails =
-        validationResult.error?.issues?.map((issue) => `${issue.path.join('.')}: ${issue.message}`)?.join('; ') ||
-        'Validation failed';
+        validationResult.error?.issues
+          ?.map((issue) => `${issue.path.map(String).join('.')}: ${issue.message}`)
+          ?.join('; ') || 'Validation failed';
       throw new BadRequestError(`${errorPrefix}: ${errorDetails}`);
     }
 
     return validationResult.data!;
+  }
+
+  extractValidatedPathId<T extends string = string>(event: APIGatewayProxyEvent, paramName: string): T {
+    const value = event.pathParameters?.[paramName];
+    if (!value || !z.uuid().safeParse(value).success) {
+      throw new BadRequestError(`${paramName} must be a valid UUID`);
+    }
+    return value as T;
   }
 }

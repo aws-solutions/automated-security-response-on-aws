@@ -1,0 +1,57 @@
+# CloudWatch.1 — A log metric filter and alarm should exist for usage of the "root" user
+#
+# ASR remediation creates a CloudWatch Logs metric filter and a CloudWatch alarm
+# with an encrypted SNS topic for notifications.
+# To apply this fix, add a metric filter on your log group, a CloudWatch alarm
+# for the metric, and an SNS topic to receive alarm notifications.
+# NOTE: <KMS_KEY> — your KMS key for SNS topic encryption.
+# NOTE: {logGroup} — your CloudWatch Logs log group (filled at runtime).
+
+Resources:
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: <KMS_KEY>
+
+  AlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref AlarmTopic
+      PolicyDocument:
+        Statement:
+          - Sid: AWSCloudWatchSNSPolicy
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: SNS:Publish
+            Resource: !Ref AlarmTopic
+
+  RootUsageMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref {logGroup}
+      FilterPattern: '{$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}'
+      MetricTransformations:
+        - MetricNamespace: LogMetrics
+          MetricName: RootAccountUsageCount
+          MetricValue: "1"
+          Unit: Count
+
+  RootUsageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm for root account usage
+      MetricName: RootAccountUsageCount
+      Namespace: LogMetrics
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 12
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic

@@ -1,0 +1,8 @@
+// ECR.1 — ECR private repositories should have image scanning configured
+//
+// ASR remediation enables image scanning on push for the private ECR repository.
+// To apply this fix, set imageScanOnPush to true on your ECR repository.
+
+new ecr.Repository(this, '{repository}', {
+  imageScanOnPush: true,
+});

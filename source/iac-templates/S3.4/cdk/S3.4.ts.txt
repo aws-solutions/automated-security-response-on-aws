@@ -1,0 +1,11 @@
+// S3.4 — S3 buckets should have server-side encryption enabled
+//
+// ASR remediation enables default server-side encryption on the S3 bucket
+// using AES-256 (SSE-S3) with an S3 Bucket Key.
+// To apply this fix, set the encryption and bucketKeyEnabled properties
+// on your S3 bucket definition.
+
+new s3.Bucket(this, '{bucketName}', {
+  encryption: s3.BucketEncryption.S3_MANAGED,
+  bucketKeyEnabled: true,
+});

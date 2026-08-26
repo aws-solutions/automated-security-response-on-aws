@@ -1,0 +1,10 @@
+// Macie.1 — Amazon Macie should be enabled
+//
+// ASR remediation enables Amazon Macie with the finding publishing frequency set to SIX_HOURS.
+// To apply this fix, add a CfnSession to your stack with findingPublishingFrequency
+// and status set as shown below.
+
+const session = new macie.CfnSession(this, '{macieSession}', {
+  findingPublishingFrequency: 'SIX_HOURS',
+  status: 'ENABLED',
+});

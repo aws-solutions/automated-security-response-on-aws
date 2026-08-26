@@ -1,0 +1,13 @@
+// AutoScaling.3 — Launch configurations should configure EC2 instances to require IMDSv2
+//
+// ASR remediation creates a new launch configuration with IMDSv2 required and
+// updates the Auto Scaling group to use it.
+// To apply this fix, add metadataOptions to your CfnLaunchConfiguration with
+// httpTokens set to "required" and httpEndpoint set to "enabled".
+
+new autoscaling.CfnLaunchConfiguration(this, '{launchConfiguration}', {
+  metadataOptions: {
+    httpTokens: 'required',
+    httpEndpoint: 'enabled',
+  },
+});

@@ -1,0 +1,8 @@
+// RDS.2 — RDS DB instances should prohibit public access
+//
+// ASR remediation disables public accessibility on the RDS DB instance.
+// To apply this fix, set publiclyAccessible to false on your DB instance.
+
+new rds.DatabaseInstance(this, '{dbInstance}', {
+  publiclyAccessible: false,
+});

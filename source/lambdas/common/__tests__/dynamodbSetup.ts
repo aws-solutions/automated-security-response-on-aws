@@ -51,6 +51,7 @@ export class DynamoDBTestSetup {
           { AttributeName: 'severity', AttributeType: 'S' },
           { AttributeName: 'FINDING_CONSTANT', AttributeType: 'S' },
           { AttributeName: 'securityHubUpdatedAtTime#findingId', AttributeType: 'S' },
+          { AttributeName: 'remediationDueBy', AttributeType: 'S' },
         ],
         LocalSecondaryIndexes: [
           {
@@ -94,6 +95,26 @@ export class DynamoDBTestSetup {
               { AttributeName: 'securityHubUpdatedAtTime#findingId', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'remediationDueBy-GSI',
+            KeySchema: [
+              { AttributeName: 'FINDING_CONSTANT', KeyType: 'HASH' },
+              { AttributeName: 'remediationDueBy', KeyType: 'RANGE' },
+            ],
+            Projection: {
+              ProjectionType: 'INCLUDE',
+              NonKeyAttributes: [
+                'findingType',
+                'findingId',
+                'remediationStatus',
+                'suppressed',
+                'accountId',
+                'resourceId',
+                'creationTime',
+                'enforcementConfigIds',
+              ],
+            },
           },
         ],
         BillingMode: 'PAY_PER_REQUEST',
@@ -204,6 +225,118 @@ export class DynamoDBTestSetup {
     await waitUntilTableExists({ client: this.docClient, maxWaitTime: 30 }, { TableName: tableName });
   }
 
+  static async createResourceFiltersTable(tableName: string) {
+    if (!this.docClient) {
+      throw new Error('DynamoDBTestSetup not initialized. Call DynamoDBTestSetup.initialize() first.');
+    }
+    if (await this.tableExists(tableName)) return;
+
+    await this.docClient.send(
+      new CreateTableCommand({
+        TableName: tableName,
+        KeySchema: [{ AttributeName: 'filterId', KeyType: 'HASH' }],
+        AttributeDefinitions: [
+          { AttributeName: 'filterId', AttributeType: 'S' },
+          { AttributeName: 'name', AttributeType: 'S' },
+        ],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'NameIndex',
+            KeySchema: [{ AttributeName: 'name', KeyType: 'HASH' }],
+            Projection: { ProjectionType: 'ALL' },
+          },
+        ],
+        BillingMode: 'PAY_PER_REQUEST',
+      }),
+    );
+
+    await waitUntilTableExists({ client: this.docClient, maxWaitTime: 30 }, { TableName: tableName });
+  }
+
+  static async createNotificationBatchesTable(tableName: string) {
+    if (!this.docClient) {
+      throw new Error('DynamoDBTestSetup not initialized. Call DynamoDBTestSetup.initialize() first.');
+    }
+    if (await this.tableExists(tableName)) return;
+
+    await this.docClient.send(
+      new CreateTableCommand({
+        TableName: tableName,
+        KeySchema: [
+          { AttributeName: 'configId', KeyType: 'HASH' },
+          { AttributeName: 'windowEnd', KeyType: 'RANGE' },
+        ],
+        AttributeDefinitions: [
+          { AttributeName: 'configId', AttributeType: 'S' },
+          { AttributeName: 'windowEnd', AttributeType: 'S' },
+          { AttributeName: 'reconciliationQueue', AttributeType: 'S' },
+        ],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'outstandingReconciliation-windowEnd-GSI',
+            KeySchema: [
+              { AttributeName: 'reconciliationQueue', KeyType: 'HASH' },
+              { AttributeName: 'windowEnd', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+        ],
+        BillingMode: 'PAY_PER_REQUEST',
+      }),
+    );
+
+    await waitUntilTableExists({ client: this.docClient, maxWaitTime: 30 }, { TableName: tableName });
+  }
+
+  static async createNotificationConfigTable(tableName: string) {
+    if (!this.docClient) {
+      throw new Error('DynamoDBTestSetup not initialized. Call DynamoDBTestSetup.initialize() first.');
+    }
+    if (await this.tableExists(tableName)) return;
+
+    await this.docClient.send(
+      new CreateTableCommand({
+        TableName: tableName,
+        KeySchema: [{ AttributeName: 'configId', KeyType: 'HASH' }],
+        AttributeDefinitions: [
+          { AttributeName: 'configId', AttributeType: 'S' },
+          { AttributeName: 'name', AttributeType: 'S' },
+          { AttributeName: 'CONFIG_CONSTANT', AttributeType: 'S' },
+          { AttributeName: 'enabledType', AttributeType: 'S' },
+        ],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'NameIndex',
+            KeySchema: [
+              { AttributeName: 'name', KeyType: 'HASH' },
+              { AttributeName: 'configId', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'AllConfigsIndex',
+            KeySchema: [
+              { AttributeName: 'CONFIG_CONSTANT', KeyType: 'HASH' },
+              { AttributeName: 'configId', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'EnabledTypeIndex',
+            KeySchema: [
+              { AttributeName: 'enabledType', KeyType: 'HASH' },
+              { AttributeName: 'configId', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+        ],
+        BillingMode: 'PAY_PER_REQUEST',
+      }),
+    );
+
+    await waitUntilTableExists({ client: this.docClient, maxWaitTime: 30 }, { TableName: tableName });
+  }
+
   static async deleteTable(tableName: string) {
     if (!(await this.tableExists(tableName))) return;
 
@@ -236,7 +369,14 @@ export class DynamoDBTestSetup {
 
   static async clearTable(
     tableName: string,
-    tableType: 'findings' | 'config' | 'userAccountMapping' | 'remediationHistory',
+    tableType:
+      | 'findings'
+      | 'config'
+      | 'userAccountMapping'
+      | 'remediationHistory'
+      | 'notificationBatches'
+      | 'notificationConfig'
+      | 'resourceFilters',
   ) {
     if (!(await this.tableExists(tableName))) return;
 
@@ -251,6 +391,12 @@ export class DynamoDBTestSetup {
           key = { findingType: item.findingType, 'findingId#executionId': item['findingId#executionId'] };
         } else if (tableType === 'userAccountMapping') {
           key = { userId: item.userId };
+        } else if (tableType === 'notificationBatches') {
+          key = { configId: item.configId, windowEnd: item.windowEnd };
+        } else if (tableType === 'notificationConfig') {
+          key = { configId: item.configId };
+        } else if (tableType === 'resourceFilters') {
+          key = { filterId: item.filterId };
         } else {
           key = { controlId: item.controlId };
         }

@@ -1197,3 +1197,106 @@ def test_get_approval_inspector(mocker):
     assert response["workflowrole"] == expected_result["workflowrole"]
 
     ssmc_stub.deactivate()
+
+
+def test_multi_service_finding_skips_lookup():
+    """Multi-service findings (findingType=multiService) bypass both the
+    SecurityHub standard lookup and the non-SH product SSM-parameter lookup,
+    returning defaults so the orchestrator routes them via Detail.remediationId
+    in resolve_ssm_doc_for_finding."""
+    os.environ["WORKFLOW_RUNBOOK"] = ""
+    test_input = {
+        "EventType": "Security Hub Findings - API Action",
+        "Finding": {
+            "Id": "arn:aws:guardduty:us-east-1:111111111111:detector/abc/finding/def",
+            "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/guardduty",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {"aws/securityhub/ProductName": "GuardDuty"},
+            "Resources": [
+                {
+                    "Type": "AwsIamAccessKey",
+                    "Id": "arn:aws:iam::111111111111:user/u",
+                    "Region": "us-east-1",
+                }
+            ],
+            "Compliance": {"SecurityControlId": "GuardDuty.IAMUser"},
+        },
+        "Detail": {
+            "findingType": "multiService",
+            "remediationId": "GuardDuty.IAMUser",
+            "findingFormat": "ASFF",
+        },
+    }
+
+    result = lambda_handler(test_input, create_lambda_context())
+
+    assert result["status"] != "ERROR"
+    assert result["workflowdoc"] == ""
+    assert result["workflowaccount"] == ""
+    assert result["workflowrole"] == ""
+    assert result["workflow_data"]["impact"] == "nondestructive"
+    assert result["workflow_data"]["approvalrequired"] == "false"
+
+
+def _multi_service_event():
+    """Minimal multiService finding event used by the approval-path tests."""
+    return {
+        "EventType": "Security Hub Findings - API Action",
+        "Finding": {
+            "Id": "arn:aws:guardduty:us-east-1:111111111111:detector/abc/finding/def",
+            "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/guardduty",
+            "AwsAccountId": "111111111111",
+            "ProductFields": {"aws/securityhub/ProductName": "GuardDuty"},
+            "Resources": [
+                {
+                    "Type": "AwsIamAccessKey",
+                    "Id": "arn:aws:iam::111111111111:user/u",
+                    "Region": "us-east-1",
+                }
+            ],
+            "Compliance": {"SecurityControlId": "GuardDuty.IAMUser"},
+        },
+        "Detail": {
+            "findingType": "multiService",
+            "remediationId": "GuardDuty.IAMUser",
+            "findingFormat": "ASFF",
+        },
+    }
+
+
+def test_multi_service_finding_honors_alt_workflow(mocker):
+    """When an alternate workflow is configured and active, multiService findings
+    are redirected to it just like SecurityHub findings, instead of being skipped."""
+    # ARRANGE
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-RunWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+    mocker.patch("get_approval_requirement._doc_is_active", return_value=True)
+
+    # ACT
+    result = lambda_handler(_multi_service_event(), create_lambda_context())
+
+    # ASSERT
+    assert result["status"] != "ERROR"
+    assert result["workflowdoc"] == "ASR-RunWorkflow"
+    assert result["workflowaccount"] == "111111111111"
+
+
+def test_multi_service_finding_requires_approval_when_destructive_and_sensitive(mocker):
+    """A customer that extends the destructive/sensitive stubs has approval enforced
+    for multiService findings, closing the gap where they bypassed those checks."""
+    # ARRANGE
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-RunWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+    mocker.patch("get_approval_requirement._doc_is_active", return_value=True)
+    mocker.patch(
+        "get_approval_requirement._is_remediation_destructive", return_value=True
+    )
+    mocker.patch("get_approval_requirement._is_account_sensitive", return_value=True)
+
+    # ACT
+    result = lambda_handler(_multi_service_event(), create_lambda_context())
+
+    # ASSERT
+    assert result["workflow_data"]["approvalrequired"] == "true"
+    assert result["workflow_data"]["impact"] == "destructive"
+    assert result["workflowdoc"] == "ASR-RunWorkflow"

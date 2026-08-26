@@ -1,0 +1,10 @@
+# EC2.15 — EC2 subnets should not automatically assign public IP addresses
+#
+# ASR remediation disables public IP auto-assignment on the subnet by setting
+# MapPublicIpOnLaunch to false.
+# To apply this fix, set map_public_ip_on_launch to false on your subnet
+# resource.
+
+resource "aws_subnet" "{subnet}" {
+  map_public_ip_on_launch = false
+}

@@ -481,6 +481,29 @@ describe('UsersHandler', () => {
       await expect(inviteUser(event, context)).rejects.toThrow(BadRequestError);
     });
 
+    it('should return 403 (not 400) for an unauthorized machine token even with an invalid body', async () => {
+      // Authorization runs before body validation, so a malformed body still yields 403.
+      const clientId = 'machine-client-no-scope';
+      const event = createMockEvent({
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'invalid-email', role: 'InvalidRole' }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              sub: clientId,
+              client_id: clientId,
+              scope: 'asr-api/api',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT & ASSERT
+      await expect(inviteUser(event, context)).rejects.toThrow(ForbiddenError);
+    });
+
     it('should throw BadRequestError for invalid role', async () => {
       // ARRANGE
       const event = createMockEvent({
@@ -554,7 +577,7 @@ describe('UsersHandler', () => {
 
       // ACT & ASSERT
       await expect(inviteUser(event, context)).rejects.toThrow(
-        new BadRequestError('Invalid request: accountIds: Array must contain at least 1 element(s)'),
+        new BadRequestError('Invalid request: accountIds: Too small: expected array to have >=1 items'),
       );
     });
 
@@ -943,6 +966,35 @@ describe('UsersHandler', () => {
       await expect(putUser(event, context)).rejects.toThrow(ForbiddenError);
     });
 
+    it('should throw ForbiddenError when DelegatedAdmin targets a non-operator user', async () => {
+      // ARRANGE - DelegatedAdmin submitting a non-operator (admin) payload must be
+      // rejected with 403 Forbidden (authorization before the operator-only 400 check),
+      // not 400. Mirrors deleteUser behavior.
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: 'admin@example.com' },
+        body: JSON.stringify({
+          type: 'admin',
+          email: 'admin@example.com',
+          accountIds: ['123456789012'],
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['DelegatedAdminGroup'],
+              username: 'delegated@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT & ASSERT
+      await expect(putUser(event, context)).rejects.toThrow(ForbiddenError);
+    });
+
     it('should successfully update account operator user as Admin', async () => {
       // ARRANGE
       const userId = 'operator@example.com';
@@ -1104,7 +1156,9 @@ describe('UsersHandler', () => {
       });
       const context = createMockContext();
 
-      cognitoMock.on(AdminGetUserCommand).rejects(new Error('User not found'));
+      // Fail only the target lookup; the caller's email must still resolve since
+      // authorization now runs first.
+      cognitoMock.on(AdminGetUserCommand, { Username: userId }).rejects(new Error('User not found'));
 
       // ACT & ASSERT
       await expect(putUser(event, context)).rejects.toThrow(NotFoundError);
@@ -1178,12 +1232,38 @@ describe('UsersHandler', () => {
       });
       const context = createMockContext();
 
-      cognitoMock.on(AdminGetUserCommand).rejects(new Error('User not found'));
+      // Fail only the target lookup; the caller's email must still resolve since
+      // authorization now runs first.
+      cognitoMock.on(AdminGetUserCommand, { Username: 'nonexistent@example.com' }).rejects(new Error('User not found'));
 
       // ACT & ASSERT
       await expect(deleteUser(event, context)).rejects.toThrow(
         new NotFoundError('User nonexistent@example.com not found.'),
       );
+    });
+
+    it('should return 403 (not 404) for an unauthorized machine token targeting a nonexistent user', async () => {
+      // Authorization runs before the existence check, so a missing user still yields 403.
+      const clientId = 'machine-client-no-scope';
+      const event = createMockEvent({
+        httpMethod: 'DELETE',
+        headers: { authorization: 'Bearer valid-token' },
+        pathParameters: { id: encodeURIComponent('nonexistent@example.com') },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              sub: clientId,
+              client_id: clientId,
+              scope: 'asr-api/api',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT & ASSERT
+      await expect(deleteUser(event, context)).rejects.toThrow(ForbiddenError);
     });
 
     it('should throw 403 when user lacks required groups', async () => {

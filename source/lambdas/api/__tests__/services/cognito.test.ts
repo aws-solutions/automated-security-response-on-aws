@@ -659,12 +659,14 @@ describe('CognitoService', () => {
       );
 
       // ACT
-      await service.updateAccountOperatorUser('operator@example.com', {
+      const previousAccountIds = await service.updateAccountOperatorUser('operator@example.com', {
         type: 'account-operator',
         accountIds: ['111111111111', '222222222222'],
       });
 
       // ASSERT
+      // The returned previous assignment lets the handler reconcile configs for dropped accounts.
+      expect(previousAccountIds).toEqual(['123456789012']);
       const result = await dynamoDBDocumentClient.send(
         new GetCommand({
           TableName: userAccountMappingTableName,
@@ -689,12 +691,14 @@ describe('CognitoService', () => {
       mockCognitoClient.on(AdminListGroupsForUserCommand).resolves({ Groups: [{ GroupName: 'AccountOperatorGroup' }] });
 
       // ACT
-      await service.updateAccountOperatorUser('newoperator@example.com', {
+      const previousAccountIds = await service.updateAccountOperatorUser('newoperator@example.com', {
         type: 'account-operator',
         accountIds: ['333333333333'],
       });
 
       // ASSERT
+      // No prior mapping means the operator previously held no accounts.
+      expect(previousAccountIds).toEqual([]);
       const result = await dynamoDBDocumentClient.send(
         new GetCommand({
           TableName: userAccountMappingTableName,

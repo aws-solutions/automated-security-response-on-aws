@@ -1,0 +1,11 @@
+// AutoScaling.1 — Auto Scaling groups associated with a load balancer should use ELB health checks
+//
+// ASR remediation enables ELB health checks on the Auto Scaling group.
+// To apply this fix, set the healthCheck property to use ELB health checks
+// on your Auto Scaling group.
+
+const asg = new autoscaling.AutoScalingGroup(this, '{autoScalingGroup}', {
+  healthCheck: autoscaling.HealthCheck.elb({
+    grace: cdk.Duration.seconds(300),
+  }),
+});

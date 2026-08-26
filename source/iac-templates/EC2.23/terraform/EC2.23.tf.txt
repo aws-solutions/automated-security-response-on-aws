@@ -1,0 +1,9 @@
+# EC2.23 — Transit Gateways should not automatically accept VPC attachment requests
+#
+# ASR remediation disables AutoAcceptSharedAttachments on the transit gateway to
+# ensure that only authorized VPC attachment requests are accepted.
+# To apply this fix, set auto_accept_shared_attachments to disable on your transit gateway.
+
+resource "aws_ec2_transit_gateway" "{transitGateway}" {
+  auto_accept_shared_attachments = "disable"
+}

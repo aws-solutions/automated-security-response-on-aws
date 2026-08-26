@@ -1,0 +1,22 @@
+// EC2.18 — Security groups should only allow unrestricted incoming traffic for authorized ports
+//
+// ASR remediation revokes inbound security group rules that allow unrestricted
+// access (0.0.0.0/0 or ::/0) on ports not in the authorized list (default: TCP 80, 443).
+// To apply this fix, restrict the peer on your ingress rules to specific trusted
+// ranges instead of allowing open access.
+// NOTE: <VPC> — your ec2.Vpc construct.
+
+const securityGroup = new ec2.SecurityGroup(this, '{securityGroup}', {
+  vpc: <VPC>,
+  description: 'Security group with restricted ingress',
+});
+
+securityGroup.addIngressRule(
+  ec2.Peer.ipv4('10.0.0.0/16'),
+  ec2.Port.tcp(443),
+);
+
+securityGroup.addIngressRule(
+  ec2.Peer.ipv4('10.0.0.0/16'),
+  ec2.Port.tcp(80),
+);

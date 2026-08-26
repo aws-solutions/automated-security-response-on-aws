@@ -1,0 +1,335 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`IaCTemplateSyncConstruct snapshot matches 1`] = `
+{
+  "Resources": {
+    "CustomerBucketEF939F4A": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketName": "test-customer-bucket",
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CustomerBucketKey697869DA": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "KeyPolicy": {
+          "Statement": [
+            {
+              "Action": "kms:*",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::KMS::Key",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "IaCTemplateSyncConstructIaCTemplateSyncLambda4129D570": {
+      "DependsOn": [
+        "IaCTemplateSyncConstructIaCTemplateSyncRoleDefaultPolicyF85F5CBA",
+        "IaCTemplateSyncConstructIaCTemplateSyncRole4FC62AF2",
+      ],
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W58",
+              "reason": "False positive. Access is provided via a policy",
+            },
+            {
+              "id": "W89",
+              "reason": "There is no need to run this lambda in a VPC",
+            },
+            {
+              "id": "W92",
+              "reason": "There is no need for Reserved Concurrency",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": "test-solutions-bucket-us-east-1",
+          "S3Key": automated-security-response-on-aws/v4.0.0/lambda/asr_lambdas.zip,
+        },
+        "Description": "IaC template sync custom resource lambda",
+        "Environment": {
+          "Variables": {
+            "AWS_ACCOUNT_ID": {
+              "Ref": "AWS::AccountId",
+            },
+            "POWERTOOLS_LOGGER_LOG_EVENT": "false",
+            "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_SERVICE_NAME": "iac_template_sync",
+            "POWERTOOLS_TRACER_CAPTURE_ERROR": "true",
+            "POWERTOOLS_TRACER_CAPTURE_RESPONSE": "true",
+            "SOLUTION_TRADEMARKEDNAME": "automated-security-response-on-aws",
+            "STACK_ID": {
+              "Ref": "AWS::StackId",
+            },
+          },
+        },
+        "FunctionName": "SO0111-ASR-IaCTemplateSyncLambda",
+        "Handler": "iac-template-sync/iacTemplateSyncHandler.handler",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "IaCTemplateSyncConstructIaCTemplateSyncLambdaLogGroup1156B67E",
+          },
+        },
+        "MemorySize": 256,
+        "Role": {
+          "Fn::GetAtt": [
+            "IaCTemplateSyncConstructIaCTemplateSyncRole4FC62AF2",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "IaCTemplateSyncConstructIaCTemplateSyncLambdaLogGroup1156B67E": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "IaCTemplateSyncConstructIaCTemplateSyncPolicy83FF5F4F": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W12",
+              "reason": "Resource * is required for CloudWatch Logs policies used by IaC template sync Lambda function.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":log-group:*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "s3:GetObject",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":s3:::test-solutions-bucket-us-east-1/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "CustomerBucketEF939F4A",
+                        "Arn",
+                      ],
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "s3:ListBucket",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CustomerBucketEF939F4A",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CustomerBucketKey697869DA",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SO0111-ASR_IaCTemplateSync",
+        "Roles": [
+          {
+            "Ref": "IaCTemplateSyncConstructIaCTemplateSyncRole4FC62AF2",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "IaCTemplateSyncConstructIaCTemplateSyncResource75DA7916": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "IaCTemplateSyncConstructIaCTemplateSyncLambda4129D570",
+        "IaCTemplateSyncConstructIaCTemplateSyncPolicy83FF5F4F",
+        "IaCTemplateSyncConstructIaCTemplateSyncRoleDefaultPolicyF85F5CBA",
+        "IaCTemplateSyncConstructIaCTemplateSyncRole4FC62AF2",
+      ],
+      "Properties": {
+        "CustomerBucketName": {
+          "Ref": "CustomerBucketEF939F4A",
+        },
+        "ManifestKey": "automated-security-response-on-aws/v4.0.0/iac-templates/.metadata/manifest.json",
+        "ServiceTimeout": "300",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "IaCTemplateSyncConstructIaCTemplateSyncLambda4129D570",
+            "Arn",
+          ],
+        },
+        "SolutionVersion": "v4.0.0",
+        "SolutionsBucketName": "test-solutions-bucket-us-east-1",
+        "TemplatePrefix": "automated-security-response-on-aws/v4.0.0/iac-templates/",
+      },
+      "Type": "Custom::IaCTemplateSync",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "IaCTemplateSyncConstructIaCTemplateSyncRole4FC62AF2": {
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "W28",
+              "reason": "Static names chosen intentionally to provide easy integration with IaC template sync function.",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Lambda role for ASR IaC template sync function",
+        "RoleName": "SO0111-ASR-IaCTemplateSync",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "IaCTemplateSyncConstructIaCTemplateSyncRoleDefaultPolicyF85F5CBA": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "IaCTemplateSyncConstructIaCTemplateSyncRoleDefaultPolicyF85F5CBA",
+        "Roles": [
+          {
+            "Ref": "IaCTemplateSyncConstructIaCTemplateSyncRole4FC62AF2",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+}
+`;

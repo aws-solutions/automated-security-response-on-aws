@@ -3,10 +3,10 @@
 
 import react from '@vitejs/plugin-react-swc';
 import { resolve } from 'path';
-import { defineConfig, UserConfig } from 'vite';
-import { CoverageV8Options, UserConfig as VitestUserConfig } from 'vitest/node';
+import { defineConfig } from 'vite';
+import { CoverageOptions } from 'vitest/node';
 
-const coverageConfig: { provider: 'v8' } & CoverageV8Options = {
+const coverageConfig: { provider: 'v8' } & CoverageOptions = {
   provider: 'v8',
   enabled: true,
   reportsDirectory: resolve(__dirname, './coverage'),
@@ -19,19 +19,21 @@ const coverageConfig: { provider: 'v8' } & CoverageV8Options = {
     './dist/**',
     './index.html',
     './vite.config.ts',
+    './src/utils/constants.ts',
   ],
 };
 
 // https://vitejs.dev/config/
-const config: VitestUserConfig & UserConfig = {
+const config = {
   test: {
     globals: true, // makes describe, it, expect available without import
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'], // runs this file before all tests
     include: ['./src/__tests__/**/*.test.ts?(x)'],
     coverage: coverageConfig,
-    maxConcurrency: 1, // set to 1 to run tests serially, one file at a time
-    testTimeout: 25000, // 25s test timeout unless specified otherwise in the test suite
+    maxConcurrency: 1, // at most one test at a time within a single file
+    fileParallelism: false, // run test files serially: the render-heavy findings-table integration tests otherwise starve each other of CPU under coverage and time out
+    testTimeout: 60000, // 60s ceiling for the render-heavy findings-table integration tests under coverage
     silent: true, // suppress console output during tests
   },
   plugins: [react()],

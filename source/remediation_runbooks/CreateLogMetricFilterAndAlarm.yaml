@@ -30,7 +30,7 @@ description: |
   ## Security Standards / Controls
   * CIS v1.2.0:     3.1-3.14
 schemaVersion: '0.3'
-assumeRole: "{{ AutomationAssumeRole }}"
+assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
   AutomationAssumeRole:
     type: String
@@ -81,31 +81,81 @@ parameters:
 outputs:
   - CreateMetricFilerAndAlarm.Output
   - CreateTopic.TopicArn
+  - CreateTopic.ParameterArn
+  - TagTopic.Output
+  - TagParameter.Output
+  - TagLogGroup.Output
+  - TagAlarm.Output
 
 mainSteps:
-  -
-    name: CreateTopic
+  - name: CreateTopic
     action: 'aws:executeScript'
     outputs:
       - Name: TopicArn
-        Selector: $.Payload.topic_arn
+        Selector: $.Payload.TopicArn
+        Type: String
+      - Name: ResourceArn
+        Selector: $.Payload.ResourceArn
+        Type: String
+      - Name: ParameterArn
+        Selector: $.Payload.ParameterArn
         Type: String
     inputs:
       InputPayload:
-        kms_key_arn: '{{KMSKeyArn}}'
-        topic_name: '{{SNSTopicName}}'
+        KmsKeyArn: '{{KMSKeyArn}}'
+        TopicName: '{{SNSTopicName}}'
+        Region: '{{global:REGION}}'
+        AccountId: '{{global:ACCOUNT_ID}}'
       Runtime: python3.11
       Handler: create_encrypted_topic
       Script: |-
         %%SCRIPT=CreateLogMetricFilterAndAlarm_createtopic.py%%
+    nextStep: TagTopic
 
-  -
-    name: CreateMetricFilerAndAlarm
+  - name: TagTopic
+    action: 'aws:executeScript'
+    onFailure: Continue
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateTopic.ResourceArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    nextStep: TagParameter
+
+  - name: TagParameter
+    action: 'aws:executeScript'
+    onFailure: Continue
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateTopic.ParameterArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    nextStep: CreateMetricFilerAndAlarm
+
+  - name: CreateMetricFilerAndAlarm
     action: 'aws:executeScript'
     outputs:
       - Name: Output
-        Selector: $.Payload.response
+        Selector: $.Payload.Response
         Type: StringMap
+      - Name: LogGroupArn
+        Selector: $.Payload.LogGroupArn
+        Type: String
+      - Name: AlarmArn
+        Selector: $.Payload.AlarmArn
+        Type: String
     inputs:
       InputPayload:
         LogGroupName: '{{LogGroupName}}'
@@ -122,3 +172,36 @@ mainSteps:
       Handler: verify
       Script: |-
         %%SCRIPT=CreateLogMetricFilterAndAlarm.py%%
+    nextStep: TagLogGroup
+
+  - name: TagLogGroup
+    action: 'aws:executeScript'
+    onFailure: Continue
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateMetricFilerAndAlarm.LogGroupArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    nextStep: TagAlarm
+
+  - name: TagAlarm
+    action: 'aws:executeScript'
+    onFailure: Continue
+    inputs:
+      InputPayload:
+        ResourceArn: '{{CreateMetricFilerAndAlarm.AlarmArn}}'
+      Runtime: python3.11
+      Handler: tag_resource
+      Script: |-
+        %%SCRIPT=common/tag_resource.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload
+        Type: StringMap
+    isEnd: true

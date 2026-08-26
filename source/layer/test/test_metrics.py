@@ -465,3 +465,43 @@ def test_get_status_for_metrics_unknown_failure():
     status, reason = Metrics.get_status_for_metrics("UNKNOWN_STATUS")
     assert status == "FAILED"
     assert reason == "UNKNOWN"
+
+
+def test_get_status_for_metrics_rollback_outcomes():
+    """Each rollback lifecycle state is a distinct metric outcome."""
+    # In progress
+    status, reason = Metrics.get_status_for_metrics("ROLLBACK_IN_PROGRESS")
+    assert status == "ROLLBACK_IN_PROGRESS"
+    assert reason == ""
+
+    # Success
+    status, reason = Metrics.get_status_for_metrics("ROLLBACK_SUCCESS")
+    assert status == "ROLLBACK_SUCCESS"
+    assert reason == ""
+
+    # Failure — must not be folded into the generic FAILED outcome
+    status, reason = Metrics.get_status_for_metrics("ROLLBACK_FAILED")
+    assert status == "ROLLBACK_FAILED"
+    assert reason == ""
+
+    # Case insensitivity
+    status, reason = Metrics.get_status_for_metrics("rollback_failed")
+    assert status == "ROLLBACK_FAILED"
+    assert reason == ""
+
+
+def test_is_ai_generated_remediation():
+    """is_ai_generated_remediation reflects membership in AI_GENERATED_REMEDIATION_IDS"""
+    # ARRANGE
+    from layer import metrics as metrics_module
+
+    # ACT & ASSERT — identifiers in the set are AI-generated, others are not
+    with patch.object(
+        metrics_module, "AI_GENERATED_REMEDIATION_IDS", frozenset({"S3.14"})
+    ):
+        assert metrics_module.is_ai_generated_remediation("S3.14") is True
+        assert metrics_module.is_ai_generated_remediation("S3.1") is False
+
+    # ACT & ASSERT — empty set (the shipped default) tags nothing as AI-generated
+    with patch.object(metrics_module, "AI_GENERATED_REMEDIATION_IDS", frozenset()):
+        assert metrics_module.is_ai_generated_remediation("S3.14") is False

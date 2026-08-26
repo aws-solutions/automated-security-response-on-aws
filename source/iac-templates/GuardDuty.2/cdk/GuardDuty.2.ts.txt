@@ -1,0 +1,11 @@
+// GuardDuty.2 — GuardDuty filter should be tagged
+//
+// ASR remediation tags the GuardDuty filter with the required tag keys
+// specified in the Security Hub control parameters.
+// To apply this fix, add the required tags to your GuardDuty filter construct.
+
+const filter = new guardduty.CfnFilter(this, '{filter}', {
+  // ... your existing filter properties ...
+});
+
+Tags.of(filter).add('SO0111-ASR-GuardDutyResource', '');

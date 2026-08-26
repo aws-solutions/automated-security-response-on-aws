@@ -1,7 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
 import CollectionPreferences, {
   CollectionPreferencesProps,
 } from '@cloudscape-design/components/collection-preferences';
@@ -12,13 +11,20 @@ import Table, { TableProps } from '@cloudscape-design/components/table';
 import Alert from '@cloudscape-design/components/alert';
 import Box from '@cloudscape-design/components/box';
 import Button from '@cloudscape-design/components/button';
+import Modal from '@cloudscape-design/components/modal';
 import SpaceBetween from '@cloudscape-design/components/space-between';
 import Spinner from '@cloudscape-design/components/spinner';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { historyTablePreferences } from '../../../utils/tablePreferences.ts';
 import { EmptyTableState } from '../../../components/EmptyTableState.tsx';
-import { RemediationHistoryApiResponse } from '@data-models';
+import {
+  RemediationHistoryApiResponse,
+  REMEDIATION_STATUS_FILTER_OPTIONS,
+  denormalizeRemediationStatus,
+} from '@data-models';
 import { useExportRemediationsMutation, useLazySearchRemediationsQuery } from '../../../store/remediationsSlice.ts';
+import { useExecuteActionMutation } from '../../../store/findingsApiSlice.ts';
+import { useGetControlsQuery } from '../../../store/controlsApiSlice.ts';
 import { CompositeFilter, SearchRequest, StringFilter } from '../../../store/types.ts';
 import { getErrorMessage } from '../../../utils/error.ts';
 import { createHistoryColumnDefinitions } from './createHistoryColumnDefinitions.tsx';
@@ -28,6 +34,7 @@ const getFilterCounterText = (count = 0) => `${count} ${count === 1 ? 'match' : 
 export default function RemediationHistoryTable() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const persistedPreferences = historyTablePreferences.load();
 
   // State management
@@ -37,6 +44,7 @@ export default function RemediationHistoryTable() {
     contentDensity: 'comfortable',
   });
   const [sortingColumn, setSortingColumn] = useState<TableProps.SortingColumn<RemediationHistoryApiResponse>>(() => {
+    // onRollback omitted — this call is only used to get column metadata for sorting initialization
     const columns = createHistoryColumnDefinitions(navigate);
     return (
       columns.find((col) => col.sortingField === persistedPreferences.sortingField) ??
@@ -46,6 +54,24 @@ export default function RemediationHistoryTable() {
   });
   const [sortingDescending, setSortingDescending] = useState(persistedPreferences.sortingDescending);
   const [filterTokens, setFilterTokens] = useState<PropertyFilterProps.Token[]>(persistedPreferences.filterTokens);
+
+  // When `?findingId=…` is present (e.g. a notification deep-link), apply it as a filter
+  // and strip the query param so reloads don't keep re-applying it. Re-runs whenever
+  // `searchParams` changes so navigating from `/history` to `/history?findingId=…` works
+  // even if the component does not remount.
+  useEffect(() => {
+    const findingIdFromUrl = searchParams.get('findingId');
+    if (!findingIdFromUrl) return;
+    setFilterTokens([{ propertyKey: 'findingId', operator: '=', value: findingIdFromUrl }]);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('findingId');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const [allHistory, setAllHistory] = useState<RemediationHistoryApiResponse[]>([]);
   const [nextToken, setNextToken] = useState<string | undefined>();
@@ -61,6 +87,29 @@ export default function RemediationHistoryTable() {
   const [searchRemediations, { data: searchResult, isLoading: isSearchLoading, error: searchError }] =
     useLazySearchRemediationsQuery();
   const [exportRemediations, { isLoading: isExportLoading, error: exportError }] = useExportRemediationsMutation();
+  const [executeAction, { isLoading: isRollbackLoading }] = useExecuteActionMutation();
+
+  // Controls drive the rollback warning: if auto-remediation is enabled for the
+  // control behind the finding, a rolled-back finding can be picked up and
+  // re-remediated automatically. The list is small and cached, so querying it
+  // here is cheap.
+  const { data: controls } = useGetControlsQuery();
+
+  // Rollback confirmation state
+  const [pendingRollback, setPendingRollback] = useState<RemediationHistoryApiResponse | null>(null);
+  const [rollbackError, setRollbackError] = useState<string | null>(null);
+  const [rollbackSuccess, setRollbackSuccess] = useState<string | null>(null);
+
+  // True when auto-remediation is enabled for the control of the finding being
+  // rolled back. The history record's findingType is the control id (e.g.
+  // "GuardDuty.IAMUser").
+  const isPendingControlAutoRemediationEnabled = useMemo(() => {
+    if (!pendingRollback || !controls) return false;
+    return (
+      controls.find((control) => control.controlId === pendingRollback.findingType)?.automatedRemediationEnabled ??
+      false
+    );
+  }, [pendingRollback, controls]);
 
   // Handle initial filter state from navigation
   useEffect(() => {
@@ -92,15 +141,10 @@ export default function RemediationHistoryTable() {
   };
 
   const unformatStatus = (formattedStatus: string) => {
-    // Convert formatted status back to uppercase with underscores for API
-    const statusMap: { [key: string]: string } = {
-      Success: 'SUCCESS',
-      Failed: 'FAILED',
-      'Not Started': 'NOT_STARTED',
-      'In Progress': 'IN_PROGRESS',
-    };
-
-    return statusMap[formattedStatus] || formattedStatus.toUpperCase().replace(/\s+/g, '_');
+    // Convert formatted status back to the raw value persisted on the history
+    // table for the API filter. Shared with the schema so new statuses (rollback
+    // lifecycle) never need a second hand-maintained list here.
+    return denormalizeRemediationStatus(formattedStatus);
   };
 
   const convertTokensToFilters = (tokens: PropertyFilterProps.Token[]): SearchRequest['Filters'] => {
@@ -292,8 +336,7 @@ export default function RemediationHistoryTable() {
     const options: { propertyKey: string; value: string }[] = [];
     const uniqueValues = new Set<string>();
 
-    // Add fixed formatted status values
-    const statusOptions = ['Success', 'Failed', 'Not Started', 'In Progress'];
+    const statusOptions = REMEDIATION_STATUS_FILTER_OPTIONS.filter((s) => s !== 'All');
 
     statusOptions.forEach((status) => {
       options.push({ propertyKey: 'remediationStatus', value: status });
@@ -371,6 +414,11 @@ export default function RemediationHistoryTable() {
           label: 'View Execution',
           visible: preferences?.visibleContent?.includes('viewExecution') ?? true,
         },
+        {
+          id: 'rollback',
+          label: 'Rollback',
+          visible: preferences?.visibleContent?.includes('rollback') ?? true,
+        },
       ],
     },
     onConfirm: ({ detail }: { detail: CollectionPreferencesProps.Preferences }) => {
@@ -392,11 +440,19 @@ export default function RemediationHistoryTable() {
         { id: 'executionTimestamp', label: 'Execution Timestamp' },
         { id: 'executedBy', label: 'Executed By' },
         { id: 'viewExecution', label: 'View Execution' },
+        { id: 'rollback', label: 'Rollback' },
       ],
     },
   };
 
-  const allColumnDefinitions = useMemo(() => createHistoryColumnDefinitions(navigate), [navigate]);
+  const handleRollbackClick = useCallback((item: RemediationHistoryApiResponse): void => {
+    setPendingRollback(item);
+  }, []);
+
+  const allColumnDefinitions = useMemo(
+    () => createHistoryColumnDefinitions(navigate, handleRollbackClick),
+    [navigate, handleRollbackClick],
+  );
 
   const columnDefinitions = useMemo(() => {
     if (!preferences?.visibleContent) {
@@ -484,6 +540,29 @@ export default function RemediationHistoryTable() {
     }
   }, [hasMoreData, isLoadingMore, isSearchLoading, loadMoreRemediations]);
 
+  const executeRollback = async (): Promise<void> => {
+    if (!pendingRollback) return;
+    const findingId = pendingRollback.findingId;
+    setRollbackError(null);
+    setRollbackSuccess(null);
+    const result = await executeAction({
+      actionType: 'Rollback',
+      findingIds: [findingId],
+      // Supply the explicit key so the lookup never depends on deriving the partition key from the
+      // finding id, which is impossible for ids that are not Security Hub ARNs. The history row's
+      // findingType is the findings-table partition key: the TypeScript write path copies it from
+      // the finding item and the Orchestrator derives it identically. See ADR 0010.
+      findingKeys: [{ findingId, findingType: pendingRollback.findingType }],
+    });
+    setPendingRollback(null);
+    if (result.error) {
+      setRollbackError(getErrorMessage(result.error) || 'Failed to initiate rollback. Please try again.');
+    } else {
+      setRollbackSuccess(`Rollback initiated for finding ${findingId}.`);
+      handleRefresh();
+    }
+  };
+
   const handleRefresh = () => {
     setOperationType('refresh');
     setAllHistory([]);
@@ -519,6 +598,59 @@ export default function RemediationHistoryTable() {
 
   return (
     <div>
+      {/* Rollback confirmation modal */}
+      <Modal
+        visible={pendingRollback !== null}
+        onDismiss={() => setPendingRollback(null)}
+        header="Confirm GuardDuty Credential Rollback"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setPendingRollback(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={executeRollback} loading={isRollbackLoading}>
+                Rollback Containment
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p">
+          This will restore the IAM principal to its pre-containment state: re-enabling access keys, restoring console
+          access, and removing the deny-all policy.
+        </Box>
+        <Box variant="p">
+          Only roll back after completing your investigation and confirming the threat has been resolved. IAM
+          configuration backups are retained for 90 days.
+        </Box>
+        {isPendingControlAutoRemediationEnabled && (
+          <Box margin={{ top: 's' }}>
+            <Alert type="warning" header="Auto-remediation is enabled for this control">
+              Automatic remediation is enabled for {pendingRollback?.findingType}. After this rollback, ASR may
+              automatically re-remediate the finding, reversing the rollback. Disable auto-remediation for this control
+              before rolling back if you want the change to persist.
+            </Alert>
+          </Box>
+        )}
+      </Modal>
+
+      {rollbackSuccess && (
+        <Box margin={{ bottom: 's' }}>
+          <Alert type="success" dismissible onDismiss={() => setRollbackSuccess(null)}>
+            {rollbackSuccess}
+          </Alert>
+        </Box>
+      )}
+
+      {rollbackError && (
+        <Box margin={{ bottom: 's' }}>
+          <Alert type="error" dismissible onDismiss={() => setRollbackError(null)} header="Rollback Failed">
+            {rollbackError}
+          </Alert>
+        </Box>
+      )}
+
       {/* Header Section */}
       <Header
         variant="h1"

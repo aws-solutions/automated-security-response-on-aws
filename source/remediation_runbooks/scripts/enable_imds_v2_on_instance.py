@@ -1,16 +1,31 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, TypedDict
+
 import boto3
 from botocore.config import Config
+
+if TYPE_CHECKING:
+    from mypy_boto3_ec2.client import EC2Client
+    from mypy_boto3_ec2.type_defs import ModifyInstanceMetadataOptionsResultTypeDef
+else:
+    EC2Client = object
+
+
+class Event(TypedDict):
+    instance_arn: str
+
 
 boto_config = Config(retries={"mode": "standard", "max_attempts": 10})
 
 
-def connect_to_ec2():
+def connect_to_ec2() -> EC2Client:
     return boto3.client("ec2", config=boto_config)
 
 
-def lambda_handler(event, _):
+def lambda_handler(event: Event, _: object) -> dict[str, str]:
     """
     Enable IMDSv2 on an EC2 Instance.
 
@@ -24,44 +39,26 @@ def lambda_handler(event, _):
 
     instance_id = instance_arn.split("/")[1]
 
-    enable_imdsv2(instance_id)
+    response = enable_imdsv2(instance_id)
 
-    instance_attributes = describe_instance(instance_id)
-
-    imds_v2_attribute = instance_attributes["Reservations"][0]["Instances"][0][
-        "MetadataOptions"
-    ]
-
-    if imds_v2_attribute["HttpTokens"] == "required":
-        return imds_v2_attribute
-
-    raise RuntimeError(
-        f"ASR Remediation failed - {instance_id} did not have IMDSv2 enabled."
-    )
+    return {
+        "InstanceId": response["InstanceId"],
+        "HttpTokens": response["InstanceMetadataOptions"]["HttpTokens"],
+        "HttpEndpoint": response["InstanceMetadataOptions"]["HttpEndpoint"],
+    }
 
 
-def enable_imdsv2(instance_id):
+def enable_imdsv2(instance_id: str) -> ModifyInstanceMetadataOptionsResultTypeDef:
     """
     Changes EC2 Instance metadata options to require IMDSv2
     """
     ec2 = connect_to_ec2()
     try:
-        ec2.modify_instance_metadata_options(
-            InstanceId=instance_id, HttpTokens="required", HttpEndpoint="enabled"
+        return ec2.modify_instance_metadata_options(
+            InstanceId=instance_id,
+            HttpTokens="required",
+            HttpEndpoint="enabled",
         )
 
     except Exception as e:
-        exit("There was an error enabling IMDSv2: " + str(e))
-
-
-def describe_instance(instance_id):
-    """
-    Grabs Instance Attributes to verify IMDSv2 values were set as expected.
-    """
-    ec2 = connect_to_ec2()
-    try:
-        instance_attributes = ec2.describe_instances(InstanceIds=[instance_id])
-        return instance_attributes
-
-    except Exception as e:
-        exit("Failed to get attributes of instance: " + str(e))
+        raise RuntimeError(f"There was an error enabling IMDSv2: {e}")

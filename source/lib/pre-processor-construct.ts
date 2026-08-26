@@ -10,9 +10,12 @@ import { Construct } from 'constructs';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { createLogGroup } from './cdk-helper/log-group';
 import { Effect, PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { Table } from 'aws-cdk-lib/aws-dynamodb';
+import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
+import { getConfig } from './config/cdk-config';
+import { PreProcessorEnvironmentConfig } from '@asr/data-models';
 
 export interface PreProcessorStackProps {
   readonly solutionId: string;
@@ -20,14 +23,17 @@ export interface PreProcessorStackProps {
   readonly resourceNamePrefix: string;
   readonly solutionsBucket: IBucket;
   readonly solutionTMN: string;
-  readonly findingsTable: string;
-  readonly remediationHistoryTable: string;
+  readonly findingsTable: ITable;
+  readonly remediationHistoryTable: ITable;
   readonly functionName: string;
-  readonly remediationConfigTable: string;
+  readonly remediationConfigTable: ITable;
+  readonly resourceFiltersTable: ITable;
+  readonly notificationConfigTable: ITable;
   readonly orchestratorArn: string;
   readonly findingsTTL: string;
   readonly historyTTL: string;
   readonly kmsKey: Key;
+  readonly notificationQueueUrl: string;
 }
 
 export class PreProcessorConstruct extends Construct {
@@ -38,17 +44,25 @@ export class PreProcessorConstruct extends Construct {
   constructor(scope: Construct, id: string, props: PreProcessorStackProps) {
     super(scope, id);
     const stack = cdk.Stack.of(this);
+    const config = getConfig();
+
+    const processingTimeout = cdk.Duration.minutes(15);
+    const sqsBatchSize = 10;
+    const sqsBatchingWindow = cdk.Duration.seconds(5);
+    const lambdaConcurrency = 5;
+    const sqsRetentionPeriod = cdk.Duration.days(config.sqs.retentionPeriodDays);
+    const sqsDataKeyReuse = cdk.Duration.minutes(config.sqs.dataKeyReuseMinutes);
 
     this.deadLetterQueue = new sqs.Queue(this, 'PreProcessorDLQ', {
-      retentionPeriod: cdk.Duration.days(14),
+      retentionPeriod: sqsRetentionPeriod,
       encryption: QueueEncryption.KMS,
       encryptionMasterKey: props.kmsKey,
       enforceSSL: true,
-      dataKeyReuse: cdk.Duration.minutes(60),
+      dataKeyReuse: sqsDataKeyReuse,
     });
 
     this.queue = new sqs.Queue(this, 'PreProcessorQueue', {
-      visibilityTimeout: cdk.Duration.minutes(15),
+      visibilityTimeout: processingTimeout,
       enforceSSL: true,
       encryption: QueueEncryption.KMS,
       encryptionMasterKey: props.kmsKey,
@@ -56,7 +70,7 @@ export class PreProcessorConstruct extends Construct {
         queue: this.deadLetterQueue,
         maxReceiveCount: 10, // Messages can be retried 10 times before being sent to DLQ
       },
-      dataKeyReuse: cdk.Duration.minutes(60),
+      dataKeyReuse: sqsDataKeyReuse,
     });
 
     this.queue.addToResourcePolicy(
@@ -70,41 +84,42 @@ export class PreProcessorConstruct extends Construct {
 
     this.preProcessorFunction = new lambda.Function(this, 'PreProcessorFunction', {
       functionName: props.functionName,
-      runtime: lambda.Runtime.NODEJS_22_X,
+      logGroup: createLogGroup(this, 'PreProcessorFunctionLogGroup'),
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'pre-processor/preProcessor.handler',
       code: getLambdaCode(props.solutionsBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
-      timeout: cdk.Duration.minutes(15),
+      timeout: processingTimeout,
       memorySize: 512,
       environment: {
         SOLUTION_TRADEMARKEDNAME: props.solutionTMN,
         POWERTOOLS_LOG_LEVEL: 'INFO',
-        FINDINGS_TABLE_ARN: props.findingsTable,
-        REMEDIATION_HISTORY_TABLE_ARN: props.remediationHistoryTable,
-        REMEDIATION_CONFIG_TABLE_ARN: props.remediationConfigTable,
+        FINDINGS_TABLE_NAME: props.findingsTable.tableName,
+        REMEDIATION_HISTORY_TABLE_NAME: props.remediationHistoryTable.tableName,
+        REMEDIATION_CONFIG_TABLE_NAME: props.remediationConfigTable.tableName,
+        RESOURCE_FILTERS_TABLE_NAME: props.resourceFiltersTable.tableName,
+        NOTIFICATION_CONFIG_TABLE_NAME: props.notificationConfigTable.tableName,
         ORCHESTRATOR_ARN: props.orchestratorArn,
         FINDINGS_TTL_DAYS: props.findingsTTL,
         HISTORY_TTL_DAYS: props.historyTTL,
         AWS_ACCOUNT_ID: stack.account,
         STACK_ID: stack.stackId,
-      },
+        NOTIFICATION_QUEUE_URL: props.notificationQueueUrl,
+      } satisfies PreProcessorEnvironmentConfig,
       tracing: lambda.Tracing.ACTIVE,
-      reservedConcurrentExecutions: 5,
+      reservedConcurrentExecutions: lambdaConcurrency,
     });
 
     addCfnGuardSuppression(this.preProcessorFunction, 'LAMBDA_INSIDE_VPC');
     addCfnGuardSuppression(this.preProcessorFunction, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
 
     // Grant DynamoDB table read/write permissions to PreProcessor Lambda
-    const findingsTable = Table.fromTableArn(this, 'FindingsTable', props.findingsTable);
-    findingsTable.grantReadWriteData(this.preProcessorFunction);
+    props.findingsTable.grantReadWriteData(this.preProcessorFunction);
+    props.remediationConfigTable.grantReadWriteData(this.preProcessorFunction);
+    props.remediationHistoryTable.grantReadWriteData(this.preProcessorFunction);
+    props.resourceFiltersTable.grantReadData(this.preProcessorFunction);
+    props.notificationConfigTable.grantReadData(this.preProcessorFunction);
 
-    const remediationConfigTable = Table.fromTableArn(this, 'RemediationConfigTable', props.remediationConfigTable);
-    remediationConfigTable.grantReadWriteData(this.preProcessorFunction);
-
-    const remediationHistoryTable = Table.fromTableArn(this, 'RemediationHistoryTable', props.remediationHistoryTable);
-    remediationHistoryTable.grantReadWriteData(this.preProcessorFunction);
-
-    // Grant SSM parameter access for metrics and filter configuration
+    // Grant SSM parameter access for metrics
     this.preProcessorFunction.addToRolePolicy(
       new PolicyStatement({
         actions: [
@@ -112,14 +127,9 @@ export class PreProcessorConstruct extends Construct {
           'ssm:GetParameter',
           'ssm:GetParametersByPath',
           'ssm:PutParameter',
-          'ssm:PutParameters',
           'ssm:DeleteParameter',
         ],
-        resources: [
-          `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/Solutions/SO0111/*`,
-          `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/ASR/Filters`,
-          `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/ASR/Filters/*`,
-        ],
+        resources: [`arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter/Solutions/SO0111/*`],
         effect: Effect.ALLOW,
       }),
     );
@@ -142,8 +152,8 @@ export class PreProcessorConstruct extends Construct {
     );
 
     const eventSource = new SqsEventSource(this.queue, {
-      batchSize: 10, // Reduced from 50 to prevent connection exhaustion
-      maxBatchingWindow: cdk.Duration.seconds(5), // Reduced batching window for faster processing
+      batchSize: sqsBatchSize,
+      maxBatchingWindow: sqsBatchingWindow,
       reportBatchItemFailures: true,
     });
 

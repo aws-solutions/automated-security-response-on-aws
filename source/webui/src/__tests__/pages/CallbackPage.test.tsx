@@ -4,16 +4,23 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router';
 
 import { CallbackPage } from '../../pages/callback/CallbackPage.tsx';
 import { UserContext } from '../../contexts/UserContext.tsx';
 import { mockUserContext } from '../test-data-factory.ts';
 import { vi } from 'vitest';
+import { AUTH_REDIRECT_DESTINATION_KEY } from '../../utils/constants.ts';
 
 const MockHomePage = () => (
   <div>
     <h1>Home Page</h1>
+  </div>
+);
+
+const MockControlsPage = () => (
+  <div>
+    <h1>Controls Page</h1>
   </div>
 );
 
@@ -29,6 +36,7 @@ const renderCallbackPage = (searchParams = '', userContextOverrides = {}) => {
         <Routes>
           <Route path="/callback" element={<CallbackPage />} />
           <Route path="/" element={<MockHomePage />} />
+          <Route path="/controls" element={<MockControlsPage />} />
         </Routes>
       </UserContext.Provider>
     </MemoryRouter>,
@@ -38,6 +46,7 @@ const renderCallbackPage = (searchParams = '', userContextOverrides = {}) => {
 describe('CallbackPage', () => {
   afterEach(() => {
     vi.useRealTimers();
+    sessionStorage.clear();
   });
 
   it('displays error when authentication fails with error parameter', () => {
@@ -134,5 +143,61 @@ describe('CallbackPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Home Page' })).toBeInTheDocument();
     });
+  });
+
+  it('redirects to stored destination after authentication', async () => {
+    // ARRANGE
+    sessionStorage.setItem(AUTH_REDIRECT_DESTINATION_KEY, '/controls?controlId=S3.1');
+
+    // ACT
+    renderCallbackPage('', { user: { email: 'test@example.com' } });
+
+    // ASSERT
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Controls Page' })).toBeInTheDocument();
+    });
+    expect(sessionStorage.getItem(AUTH_REDIRECT_DESTINATION_KEY)).toBeNull();
+  });
+
+  it('redirects to home when stored destination is an absolute URL (open redirect prevention)', async () => {
+    // ARRANGE
+    sessionStorage.setItem(AUTH_REDIRECT_DESTINATION_KEY, 'https://malicious-site.com');
+
+    // ACT
+    renderCallbackPage('', { user: { email: 'test@example.com' } });
+
+    // ASSERT
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Home Page' })).toBeInTheDocument();
+    });
+    expect(sessionStorage.getItem(AUTH_REDIRECT_DESTINATION_KEY)).toBeNull();
+  });
+
+  it('redirects to home when stored destination is a protocol-relative URL (open redirect prevention)', async () => {
+    // ARRANGE
+    sessionStorage.setItem(AUTH_REDIRECT_DESTINATION_KEY, '//malicious-site.com');
+
+    // ACT
+    renderCallbackPage('', { user: { email: 'test@example.com' } });
+
+    // ASSERT
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Home Page' })).toBeInTheDocument();
+    });
+    expect(sessionStorage.getItem(AUTH_REDIRECT_DESTINATION_KEY)).toBeNull();
+  });
+
+  it('redirects to stored destination with hash fragment', async () => {
+    // ARRANGE
+    sessionStorage.setItem(AUTH_REDIRECT_DESTINATION_KEY, '/controls#section');
+
+    // ACT
+    renderCallbackPage('', { user: { email: 'test@example.com' } });
+
+    // ASSERT
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Controls Page' })).toBeInTheDocument();
+    });
+    expect(sessionStorage.getItem(AUTH_REDIRECT_DESTINATION_KEY)).toBeNull();
   });
 });

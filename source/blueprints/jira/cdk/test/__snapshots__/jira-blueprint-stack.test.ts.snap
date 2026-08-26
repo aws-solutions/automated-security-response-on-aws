@@ -126,6 +126,7 @@ exports[`JiraBlueprintStack Matches snapshot 1`] = `
             "INSTANCE_URI": {
               "Ref": "InstanceURI",
             },
+            "JIRA_FIELDS_MAPPING": "",
             "POWERTOOLS_LOGGER_LOG_EVENT": "false",
             "POWERTOOLS_LOG_LEVEL": "INFO",
             "POWERTOOLS_SERVICE_NAME": "jira_ticket_generator",

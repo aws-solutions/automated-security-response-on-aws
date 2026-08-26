@@ -1,0 +1,10 @@
+# KMS.4 — KMS key rotation should be enabled
+#
+# ASR remediation enables automatic key rotation for the customer-managed symmetric KMS key.
+# To apply this fix, add or update the EnableKeyRotation property on your KMS key resource.
+
+Resources:
+  {kmsKey}:
+    Type: AWS::KMS::Key
+    Properties:
+      EnableKeyRotation: true

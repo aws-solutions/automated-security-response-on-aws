@@ -3,31 +3,24 @@
 
 import { TableProps } from '@cloudscape-design/components/table';
 
-import { Link, StatusIndicator, Popover, Box } from '@cloudscape-design/components';
-import { NavigateFunction } from 'react-router-dom';
-import { RemediationHistoryApiResponse } from '@data-models';
+import { Link, StatusIndicator, Popover, Box, Button } from '@cloudscape-design/components';
+import { NavigateFunction } from 'react-router';
+import { RemediationHistoryApiResponse, normalizeRemediationStatus } from '@data-models';
 
 const getStatusIndicatorType = (status: string) => {
   switch (status.toLowerCase()) {
     case 'success':
+    case 'rollback_success':
       return 'success';
     case 'failed':
+    case 'rollback_failed':
       return 'error';
     case 'in_progress':
+    case 'rollback_in_progress':
       return 'in-progress';
     default:
       return 'pending';
   }
-};
-
-const formatStatus = (status: string) => {
-  if (!status) return 'Unknown';
-
-  // Convert underscores to spaces and capitalize each word
-  return status
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 const formatDateTime = (dateTimeString: string) => {
@@ -51,6 +44,7 @@ const formatDateTime = (dateTimeString: string) => {
 
 export const createHistoryColumnDefinitions = (
   navigate: NavigateFunction,
+  onRollback?: (item: RemediationHistoryApiResponse) => void,
 ): TableProps<RemediationHistoryApiResponse>['columnDefinitions'] => [
   {
     id: 'findingId',
@@ -64,7 +58,7 @@ export const createHistoryColumnDefinitions = (
     cell: ({ remediationStatus, error }) => {
       const statusIndicator = (
         <StatusIndicator type={getStatusIndicatorType(remediationStatus)}>
-          {formatStatus(remediationStatus)}
+          {normalizeRemediationStatus(remediationStatus)}
         </StatusIndicator>
       );
 
@@ -73,7 +67,7 @@ export const createHistoryColumnDefinitions = (
           <Box color="text-status-error">
             <Popover dismissButton={false} position="top" size="small" content={<Box padding="s">{error}</Box>}>
               <StatusIndicator type={getStatusIndicatorType(remediationStatus)}>
-                {formatStatus(remediationStatus)}
+                {normalizeRemediationStatus(remediationStatus)}
               </StatusIndicator>
             </Popover>
           </Box>
@@ -118,5 +112,26 @@ export const createHistoryColumnDefinitions = (
       </Link>
     ),
     minWidth: '140px',
+  },
+  {
+    id: 'rollback',
+    header: 'Rollback',
+    cell: (item) => {
+      // isRollbackEligible is the single source of truth (computed server-side:
+      // GuardDuty.IAMUser, original remediation SUCCESS or a prior ROLLBACK_FAILED,
+      // newest entry per finding). Eligibility is not re-derived from
+      // remediationStatus here, so the server decision is authoritative.
+      if (item.isRollbackEligible !== true || !onRollback) return null;
+      return (
+        <Button
+          variant="inline-link"
+          onClick={() => onRollback(item)}
+          ariaLabel={`Rollback GuardDuty containment for ${item.resourceId || item.findingId}`}
+        >
+          Rollback
+        </Button>
+      );
+    },
+    minWidth: '100px',
   },
 ];

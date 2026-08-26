@@ -1,0 +1,11 @@
+# CloudFormation.3 — CloudFormation stacks should have termination protection enabled
+#
+# ASR remediation enables termination protection on the stack.
+# If you manage CloudFormation stacks via Terraform, use the
+# enable_termination_protection argument.
+
+resource "aws_cloudformation_stack" "{stack}" {
+  name = "{stack}"
+
+  enable_termination_protection = true
+}
