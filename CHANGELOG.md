@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2026-09-10
+
+### Security
+
+- Upgraded browserslist to mitigate [CVE-2026-73088](https://github.com/advisories/GHSA-73wf-gq98-2v4g) and [CVE-2026-73089](https://github.com/advisories/GHSA-c83g-rgw3-j3cx).
+- Upgraded @humanfs/node to mitigate [GHSA-p498-v437-472g](https://github.com/advisories/GHSA-p498-v437-472g).
+- Upgraded @cdklabs/cdk-ssm-documents to mitigate [CVE-2026-45820](https://github.com/advisories/GHSA-px8p-9vwx-vf98) in the bundled fflate dependency.
+- Upgraded js-yaml to mitigate [CVE-2026-84375](https://github.com/advisories/GHSA-2883-xcg3-v3hh).
+- Upgraded vitest to mitigate [CVE-2026-84373](https://github.com/advisories/GHSA-82fw-gwwq-j7x9) in the @vitest/mocker dependency.
+
 ## [4.0.0] - 2026-08-26
 
 ### Added
