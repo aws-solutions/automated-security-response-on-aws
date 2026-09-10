@@ -227,6 +227,7 @@ This software includes third party software subject to the following copyrights:
 @formatjs/intl-localematcher under the MIT license.
 @humanfs/core under the Apache-2.0 license.
 @humanfs/node under the Apache-2.0 license.
+@humanfs/types under the Apache-2.0 license.
 @humanwhocodes/config-array under the Apache-2.0 license.
 @humanwhocodes/module-importer under the Apache-2.0 license.
 @humanwhocodes/object-schema under the BSD 3-Clause license
