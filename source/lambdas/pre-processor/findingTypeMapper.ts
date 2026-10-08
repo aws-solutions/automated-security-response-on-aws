@@ -309,6 +309,21 @@ function isAuthenticServiceProductArn(productArn: string | undefined, expectedSe
   return match?.[1] === expectedService;
 }
 
+/** Product slug Security Hub V2 uses for its own Coverage findings (productv2/aws/securityhub-coverage). */
+const SECURITY_HUB_COVERAGE_PRODUCT_SERVICE = 'securityhub-coverage';
+
+/**
+ * Security Hub V2 Coverage findings report whether a security service (GuardDuty,
+ * Inspector, Macie, Security Hub CSPM) is enabled in an account. They are OCSF
+ * compliance findings (class_uid 2003) with no compliance.control, so they match
+ * no schema the pre-processor accepts and there is nothing to remediate. The check
+ * uses the authenticated reserved AWS product ARN so a custom or partner
+ * integration cannot have its findings dropped by claiming the Coverage product.
+ */
+export function isSecurityHubCoverageFinding(finding: UnprocessedFinding): boolean {
+  return isAuthenticServiceProductArn(extractProductArn(finding), SECURITY_HUB_COVERAGE_PRODUCT_SERVICE);
+}
+
 function extractTypes(finding: UnprocessedFinding): string[] {
   // ASFF format
   if (Array.isArray(finding.Types)) return finding.Types;

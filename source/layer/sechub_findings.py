@@ -19,6 +19,10 @@ logger = get_logger("sechub_findings_layer")
 
 SOLUTION_BASE_PATH = "/Solutions/SO0111"
 
+# Separator between the resource path and the finding UUID in a Security Hub
+# finding ARN, e.g. arn:...:subscription/<standard>/finding/<uuid>.
+FINDING_ID_SEPARATOR = "/finding/"
+
 # The four ASFF Workflow.Status values ASR sets on a finding.
 WorkflowStatus = Literal["NEW", "NOTIFIED", "SUPPRESSED", "RESOLVED"]
 
@@ -106,7 +110,7 @@ class Finding(object):
             return
 
         self.arn = self.details.get("Id", "error")
-        _uuid_parts = self.arn.split("/finding/")
+        _uuid_parts = self.arn.split(FINDING_ID_SEPARATOR)
         self.uuid = _uuid_parts[1] if len(_uuid_parts) > 1 else self.arn
         self.generator_id = self.details.get("GeneratorId", "error")
         self.account_id = self.details.get("AwsAccountId", "error")
@@ -147,8 +151,8 @@ class Finding(object):
         """
         finding_info = finding_rec.get("finding_info", {})
         self.arn = finding_info.get("uid", "")
-        # OCSF finding UIDs contain /finding/ — extract uuid safely
-        parts = self.arn.split("/finding/")
+        # OCSF finding UIDs contain the finding separator — extract uuid safely
+        parts = self.arn.split(FINDING_ID_SEPARATOR)
         self.uuid = parts[1] if len(parts) > 1 else self.arn
         self.generator_id = finding_rec.get("class_name", "")
         cloud = finding_rec.get("cloud", {})
@@ -440,24 +444,44 @@ NATIVE_ARN_FINDING_TYPES: tuple[tuple[str, str], ...] = (
     ),
 )
 
+SECURITY_HUB_ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+SECURITY_HUB_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d")
+
+
+def _get_control_id_from_security_hub_arn(finding_id: str) -> str | None:
+    arn_parts = finding_id.split(":", 5)
+    if len(arn_parts) != 6:
+        return None
+
+    arn_label, partition, service, region, account_id, resource = arn_parts
+    if (
+        arn_label != "arn"
+        or partition not in SECURITY_HUB_ARN_PARTITIONS
+        or service != "securityhub"
+        or SECURITY_HUB_REGION_PATTERN.fullmatch(region) is None
+        or len(account_id) != 12
+        or not account_id.isascii()
+        or not account_id.isdigit()
+    ):
+        return None
+
+    resource_path, separator, finding_identifier = resource.rpartition(
+        FINDING_ID_SEPARATOR
+    )
+    if not separator or not resource_path or not finding_identifier:
+        return None
+
+    if resource_path.startswith("subscription/"):
+        resource_path = resource_path.removeprefix("subscription/")
+    return resource_path or None
+
 
 def get_control_id_from_finding_id(finding_id: str) -> Optional[str]:
     # Finding ID structure depends on consolidation settings
     # https://aws.amazon.com/blogs/security/consolidating-controls-in-security-hub-the-new-controls-view-and-consolidated-findings/
-
-    # Unconsolidated finding ID pattern
-    unconsolidated_pattern = r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d:\d{12}:subscription\/(.+)\/finding\/.+$"
-    unconsolidated_match = re.match(unconsolidated_pattern, finding_id)
-    if unconsolidated_match:
-        return unconsolidated_match.group(
-            1
-        )  # example: 'aws-foundational-security-best-practices/v/1.0.0/S3.1'
-
-    # Consolidated finding ID pattern
-    consolidated_pattern = r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:[a-z]{2}(?:-gov)?-[a-z]+-\d:\d{12}:(.+)\/finding\/.+$"
-    consolidated_match = re.match(consolidated_pattern, finding_id)
-    if consolidated_match:
-        return consolidated_match.group(1)  # example: 'security-control/Lambda.3'
+    security_hub_control_id = _get_control_id_from_security_hub_arn(finding_id)
+    if security_hub_control_id:
+        return security_hub_control_id
 
     # Native ARNs from multi-service ingestion (GuardDuty / Inspector / Macie)
     # — the control id is not in the ARN, so map the ARN service prefix to

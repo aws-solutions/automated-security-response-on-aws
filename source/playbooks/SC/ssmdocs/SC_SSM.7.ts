@@ -6,7 +6,7 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { HardCodedString } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableSSMDocumentBlockPublicSharing(scope, id, { ...props, controlId: 'SSM.7' });
+  return new EnableSSMDocumentBlockPublicSharing(scope, id, { ...props, controlId: 'SSM.7', isRollbackEnabled: true });
 }
 
 export class EnableSSMDocumentBlockPublicSharing extends ControlRunbookDocument {

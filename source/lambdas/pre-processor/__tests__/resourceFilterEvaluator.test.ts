@@ -768,15 +768,78 @@ describe('ResourceFilterEvaluator', () => {
 
       const finding = createMockFinding({ accountId: '111111111111' });
 
-      // ACT: First call fails due to transient error - OU lookup fails, so filter doesn't match
+      // ACT: First call fails due to transient error - OU membership is indeterminate, so it fails closed
       const result1 = await evaluator.evaluateFilters(finding, [filterId], 'include');
       expect(result1.passed).toBe(false);
+      expect(result1.reason).toBe('ou_lookup_failed');
 
       // ACT: Second call should retry and succeed (not use cached empty result)
       const result2 = await evaluator.evaluateFilters(finding, [filterId], 'include');
 
       // ASSERT
       expect(result2.passed).toBe(true);
+    });
+
+    it('blocks remediation in exclude mode when the OU lookup fails transiently', async () => {
+      // ARRANGE: An OU-based exclusion filter, with the Organizations lookup failing transiently.
+      // Returning [] here (definite "no OU match") would skip the exclusion and let remediation
+      // proceed — the fail-open the SEC review flagged. Indeterminate OU membership must fail closed.
+      mockOrganizationsClient.on(ListParentsCommand).rejects(new Error('Throttling'));
+
+      const filterId = 'filter-1';
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'OU Exclusion Filter',
+            accountIds: [],
+            organizationalUnits: new Set(['ou-1234-12345678']),
+            tags: [],
+            arnPatterns: [],
+          },
+        }),
+      );
+
+      const finding = createMockFinding({ accountId: '111111111111' });
+
+      // ACT
+      const result = await evaluator.evaluateFilters(finding, [filterId], 'exclude');
+
+      // ASSERT
+      expect(result.passed).toBe(false);
+      expect(result.reason).toBe('ou_lookup_failed');
+    });
+
+    it('allows remediation in exclude mode when a determinate criterion already rules out the exclusion, without an OU lookup', async () => {
+      // ARRANGE: Exclusion requires a different account AND an OU. The account already does not match,
+      // so the exclusion cannot apply; the unavailable OU lookup must not be consulted or over-block.
+      mockOrganizationsClient.on(ListParentsCommand).rejects(new Error('Throttling'));
+
+      const filterId = 'filter-1';
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId,
+            name: 'Account And OU Exclusion Filter',
+            accountIds: new Set(['222222222222']),
+            organizationalUnits: new Set(['ou-1234-12345678']),
+            tags: [],
+            arnPatterns: [],
+          },
+        }),
+      );
+
+      const finding = createMockFinding({ accountId: '111111111111' });
+
+      // ACT
+      const result = await evaluator.evaluateFilters(finding, [filterId], 'exclude');
+
+      // ASSERT: Determinate non-match short-circuits; remediation proceeds and no OU call is made.
+      expect(result.passed).toBe(true);
+      expect(result.reason).toBe('no_exclusion_filters_matched');
+      expect(mockOrganizationsClient.commandCalls(ListParentsCommand)).toHaveLength(0);
     });
   });
 

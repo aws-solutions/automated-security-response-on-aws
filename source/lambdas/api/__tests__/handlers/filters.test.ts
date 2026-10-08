@@ -6,7 +6,14 @@ import {
   AdminGetUserCommand,
   AdminListGroupsForUserCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  ScanCommand,
+  TransactWriteCommand,
+  UpdateCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
 import {
@@ -583,7 +590,7 @@ describe('FiltersHandler Integration Tests', () => {
       expect(await readReconciliationTasks(dynamoDBDocumentClient)).toHaveLength(0);
     });
 
-    it('should return 409 Conflict when version does not match (optimistic locking)', async () => {
+    it('should return 409 Conflict with the current version when version does not match (optimistic locking)', async () => {
       // ARRANGE
       await dynamoDBDocumentClient.send(
         new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER, version: 3 } }),
@@ -592,16 +599,29 @@ describe('FiltersHandler Integration Tests', () => {
       const context = createMockContext();
 
       // ACT & ASSERT
-      await expect(updateFilter(event, context)).rejects.toThrow('Data was modified by another user, please refresh');
+      await expect(updateFilter(event, context)).rejects.toMatchObject({
+        name: 'ConflictError',
+        statusCode: 409,
+        message: 'Data was modified by another user, please refresh',
+        code: 'VERSION_CONFLICT',
+        context: { filterId: FILTER_ID, expectedVersion: 1, currentVersion: 3 },
+      });
     });
 
-    it('should return 409 Conflict when filter does not exist', async () => {
+    it('should return 404 Not Found (not 409) when filter does not exist', async () => {
+      // A refresh-and-retry conflict can never be resolved for a filter that isn't there, so a
+      // missing id must be reported as absent rather than as a stale version.
       // ARRANGE
-      const event = createUpdateEvent('550e8400-e29b-41d4-a716-446655440099', VALID_UPDATE_BODY);
+      const missingId = '550e8400-e29b-41d4-a716-446655440099';
+      const event = createUpdateEvent(missingId, VALID_UPDATE_BODY);
       const context = createMockContext();
 
       // ACT & ASSERT
-      await expect(updateFilter(event, context)).rejects.toThrow('Data was modified by another user, please refresh');
+      await expect(updateFilter(event, context)).rejects.toMatchObject({
+        name: 'NotFoundError',
+        statusCode: 404,
+        message: `Filter ${missingId} not found`,
+      });
     });
 
     it('should return 400 for invalid account ID, OU, ARN, empty criteria, long name, and empty name', async () => {
@@ -1109,10 +1129,300 @@ describe('FiltersHandler Integration Tests', () => {
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
       expect(body.message).toBe('Filter deleted successfully');
+      expect(body.deleted).toBe(true);
       expect(body.affectedControlIds).toEqual([]);
 
       const scanResult = await dynamoDBDocumentClient.send(new ScanCommand({ TableName: resourceFiltersTableName }));
       expect(scanResult.Items).toHaveLength(0);
+    });
+
+    it('should return 207 naming detached and still-attached controls, and keep the filter, on a partial detach', async () => {
+      // ARRANGE - two controls reference the filter; a concurrent writer bumps EC2.1's version
+      // between the version read and the detach transaction, so only S3.1 is detached.
+      await dynamoDBDocumentClient.send(
+        new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER } }),
+      );
+      for (const controlId of ['S3.1', 'EC2.1']) {
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: {
+              controlId,
+              automatedRemediationEnabled: true,
+              filters: new Set([FILTER_ID]),
+              filterMode: 'include',
+              version: 1,
+            },
+          }),
+        );
+      }
+      // The detach reads every control's version, then writes conditioned on it. The concurrent
+      // writer has to land between those two steps, so intercept the client prototype (the
+      // service holds its own client instance): the first TransactWrite about to leave bumps
+      // EC2.1's version first, and only then is forwarded.
+      const realSend = DynamoDBDocumentClient.prototype.send;
+      let bumped = false;
+      const sendSpy = jest.spyOn(DynamoDBDocumentClient.prototype, 'send').mockImplementation(async function (
+        this: DynamoDBDocumentClient,
+        command: unknown,
+        ...rest: unknown[]
+      ) {
+        if (command instanceof TransactWriteCommand && !bumped) {
+          bumped = true;
+          await (realSend as (...args: unknown[]) => Promise<unknown>).call(
+            this,
+            new UpdateCommand({
+              TableName: remediationConfigTableName,
+              Key: { controlId: 'EC2.1' },
+              UpdateExpression: 'SET version = :v',
+              ExpressionAttributeValues: { ':v': 2 },
+            }),
+          );
+        }
+        return (realSend as (...args: unknown[]) => Promise<unknown>).call(this, command, ...rest);
+      });
+
+      try {
+        // ACT
+        const result = await deleteFilter(createDeleteEvent(FILTER_ID), createMockContext());
+
+        // ASSERT - the response is unambiguous about all three states
+        expect(result.statusCode).toBe(207);
+        const body = JSON.parse(result.body);
+        expect(body.deleted).toBe(false);
+        expect(body.detachedControlIds).toEqual(['S3.1']);
+        expect(body.stillAttachedControlIds).toEqual(['EC2.1']);
+        expect(body.message).toMatch(/NOT deleted/);
+      } finally {
+        sendSpy.mockRestore();
+      }
+
+      // ...and matches storage: the filter survives, S3.1 is widened, EC2.1 still narrowed.
+      const filterRow = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: resourceFiltersTableName, Key: { filterId: FILTER_ID } }),
+      );
+      expect(filterRow.Item).toBeDefined();
+      const s3 = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'S3.1' } }),
+      );
+      expect(s3.Item?.filters).toBeUndefined();
+      const ec2 = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'EC2.1' } }),
+      );
+      expect(Array.from(ec2.Item?.filters as Set<string>)).toEqual([FILTER_ID]);
+    });
+
+    it('keeps the filter when a control was attached to it after the pre-detach scan', async () => {
+      // ARRANGE - only S3.1 references the filter when deleteFilter scans. Between that scan and
+      // the detach transaction a concurrent request attaches the filter to IAM.1 (which also
+      // bumps IAM.1's version, so the detach's conditional write on IAM.1 is refused). IAM.1 was
+      // not in the scan; treating that refusal as noise would delete the filter out from under it.
+      await dynamoDBDocumentClient.send(
+        new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER } }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            automatedRemediationEnabled: true,
+            filters: new Set([FILTER_ID]),
+            filterMode: 'include',
+            version: 1,
+          },
+        }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: { controlId: 'IAM.1', automatedRemediationEnabled: true, filterMode: 'include', version: 1 },
+        }),
+      );
+      const realSend = DynamoDBDocumentClient.prototype.send;
+      let attached = false;
+      const sendSpy = jest.spyOn(DynamoDBDocumentClient.prototype, 'send').mockImplementation(async function (
+        this: DynamoDBDocumentClient,
+        command: unknown,
+        ...rest: unknown[]
+      ) {
+        if (command instanceof TransactWriteCommand && !attached) {
+          attached = true;
+          await (realSend as (...args: unknown[]) => Promise<unknown>).call(
+            this,
+            new UpdateCommand({
+              TableName: remediationConfigTableName,
+              Key: { controlId: 'IAM.1' },
+              UpdateExpression: 'SET filters = :f, version = :v',
+              ExpressionAttributeValues: { ':f': new Set([FILTER_ID]), ':v': 2 },
+            }),
+          );
+        }
+        return (realSend as (...args: unknown[]) => Promise<unknown>).call(this, command, ...rest);
+      });
+
+      try {
+        // ACT
+        const result = await deleteFilter(createDeleteEvent(FILTER_ID), createMockContext());
+
+        // ASSERT - the late attachment blocks the delete and is named
+        expect(result.statusCode).toBe(207);
+        const body = JSON.parse(result.body);
+        expect(body.deleted).toBe(false);
+        expect(body.detachedControlIds).toEqual(['S3.1']);
+        expect(body.stillAttachedControlIds).toEqual(['IAM.1']);
+      } finally {
+        sendSpy.mockRestore();
+      }
+
+      const filterRow = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: resourceFiltersTableName, Key: { filterId: FILTER_ID } }),
+      );
+      expect(filterRow.Item).toBeDefined();
+      const iam = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'IAM.1' } }),
+      );
+      expect(Array.from(iam.Item?.filters as Set<string>)).toEqual([FILTER_ID]);
+    });
+
+    it('still deletes when the only refused control never carried the filter', async () => {
+      // ARRANGE - S3.1 references the filter; IAM.1 does not, but a concurrent writer bumps
+      // IAM.1's version for an unrelated reason between the version read and the detach. IAM.1's
+      // refusal is noise: a strongly consistent re-read shows no filter on it, so the delete
+      // proceeds.
+      await dynamoDBDocumentClient.send(
+        new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER } }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            automatedRemediationEnabled: true,
+            filters: new Set([FILTER_ID]),
+            filterMode: 'include',
+            version: 1,
+          },
+        }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: { controlId: 'IAM.1', automatedRemediationEnabled: true, filterMode: 'include', version: 1 },
+        }),
+      );
+      const realSend = DynamoDBDocumentClient.prototype.send;
+      let bumped = false;
+      const sendSpy = jest.spyOn(DynamoDBDocumentClient.prototype, 'send').mockImplementation(async function (
+        this: DynamoDBDocumentClient,
+        command: unknown,
+        ...rest: unknown[]
+      ) {
+        if (command instanceof TransactWriteCommand && !bumped) {
+          bumped = true;
+          await (realSend as (...args: unknown[]) => Promise<unknown>).call(
+            this,
+            new UpdateCommand({
+              TableName: remediationConfigTableName,
+              Key: { controlId: 'IAM.1' },
+              UpdateExpression: 'SET version = :v',
+              ExpressionAttributeValues: { ':v': 2 },
+            }),
+          );
+        }
+        return (realSend as (...args: unknown[]) => Promise<unknown>).call(this, command, ...rest);
+      });
+
+      try {
+        // ACT
+        const result = await deleteFilter(createDeleteEvent(FILTER_ID), createMockContext());
+
+        // ASSERT
+        expect(result.statusCode).toBe(200);
+        const body = JSON.parse(result.body);
+        expect(body.deleted).toBe(true);
+        expect(body.detachedControlIds).toEqual(['S3.1']);
+      } finally {
+        sendSpy.mockRestore();
+      }
+
+      const filterRow = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: resourceFiltersTableName, Key: { filterId: FILTER_ID } }),
+      );
+      expect(filterRow.Item).toBeUndefined();
+    });
+
+    it('keeps the filter when a control attaches it after every detach succeeded', async () => {
+      // ARRANGE - S3.1 references the filter and its detach succeeds cleanly, so there is no
+      // refused write to notice. A concurrent request then attaches the filter to IAM.1 in the
+      // gap before the filter row is removed. Only a strongly consistent re-check immediately
+      // before the delete can see it.
+      await dynamoDBDocumentClient.send(
+        new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER } }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            automatedRemediationEnabled: true,
+            filters: new Set([FILTER_ID]),
+            filterMode: 'include',
+            version: 1,
+          },
+        }),
+      );
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: { controlId: 'IAM.1', automatedRemediationEnabled: true, filterMode: 'include', version: 1 },
+        }),
+      );
+      const realSend = DynamoDBDocumentClient.prototype.send;
+      let attached = false;
+      const sendSpy = jest.spyOn(DynamoDBDocumentClient.prototype, 'send').mockImplementation(async function (
+        this: DynamoDBDocumentClient,
+        command: unknown,
+        ...rest: unknown[]
+      ) {
+        // The first read after the detach transaction is the pre-delete re-check; land the
+        // attach just before it so the re-check is what has to catch it.
+        if (
+          attached === false &&
+          command instanceof ScanCommand &&
+          (command.input as { ConsistentRead?: boolean }).ConsistentRead
+        ) {
+          attached = true;
+          await (realSend as (...args: unknown[]) => Promise<unknown>).call(
+            this,
+            new UpdateCommand({
+              TableName: remediationConfigTableName,
+              Key: { controlId: 'IAM.1' },
+              UpdateExpression: 'SET filters = :f, version = :v',
+              ExpressionAttributeValues: { ':f': new Set([FILTER_ID]), ':v': 2 },
+            }),
+          );
+        }
+        return (realSend as (...args: unknown[]) => Promise<unknown>).call(this, command, ...rest);
+      });
+
+      try {
+        // ACT
+        const result = await deleteFilter(createDeleteEvent(FILTER_ID), createMockContext());
+
+        // ASSERT
+        expect(result.statusCode).toBe(207);
+        const body = JSON.parse(result.body);
+        expect(body.deleted).toBe(false);
+        expect(body.detachedControlIds).toEqual(['S3.1']);
+        expect(body.stillAttachedControlIds).toEqual(['IAM.1']);
+      } finally {
+        sendSpy.mockRestore();
+      }
+
+      const filterRow = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: resourceFiltersTableName, Key: { filterId: FILTER_ID } }),
+      );
+      expect(filterRow.Item).toBeDefined();
     });
 
     it('should return 200 and remove filter from associated controls before deleting', async () => {
@@ -1202,7 +1512,7 @@ describe('FiltersHandler Integration Tests', () => {
       expect(Array.from(remainingFilters as Set<string>)).toEqual(['00000000-0000-0000-0000-000000000001']);
     });
 
-    it('should return 200 when deleting a non-existent filter (idempotent)', async () => {
+    it('should return 200 with deleted: false when deleting a non-existent filter (idempotent)', async () => {
       // ARRANGE
       const event = createDeleteEvent(FILTER_ID);
       const context = createMockContext();
@@ -1210,11 +1520,43 @@ describe('FiltersHandler Integration Tests', () => {
       // ACT
       const result = await deleteFilter(event, context);
 
-      // ASSERT
+      // ASSERT - still a 200, but the body no longer claims a teardown happened
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
-      expect(body.message).toBe('Filter deleted successfully');
+      expect(body.message).toBe('Filter already absent');
+      expect(body.deleted).toBe(false);
       expect(body.affectedControlIds).toEqual([]);
+    });
+
+    it('should report detached dangling references when the filter row is absent but controls still point at it', async () => {
+      // ARRANGE - no filter row, but a control still carries the id (e.g. a delete that crashed
+      // between detaching and removing the row, or a row removed out of band).
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            automatedRemediationEnabled: true,
+            filters: new Set([FILTER_ID]),
+            filterMode: 'include',
+            version: 1,
+          },
+        }),
+      );
+
+      // ACT
+      const result = await deleteFilter(createDeleteEvent(FILTER_ID), createMockContext());
+
+      // ASSERT - not a no-op: the control was widened, and the body must say so
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.deleted).toBe(false);
+      expect(body.message).toMatch(/dangling references/);
+      expect(body.detachedControlIds).toEqual(['S3.1']);
+      const s3 = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'S3.1' } }),
+      );
+      expect(s3.Item?.filters).toBeUndefined();
     });
 
     it('should reject invalid UUID filterId', async () => {

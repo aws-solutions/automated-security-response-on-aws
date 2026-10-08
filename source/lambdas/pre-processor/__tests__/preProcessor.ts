@@ -73,6 +73,8 @@ import {
   mockSpoofedIamAccessAnalyzerAsffFindingWithControlId,
   mockSpoofedGuardDutyAsffFindingWithControlId,
 } from './fixtures/multiServiceFixtures';
+import { mockSecurityHubCoverageFinding } from './fixtures/securityHubCoverageFixtures';
+import { Logger } from '@aws-lambda-powertools/logger';
 import { asFindingId, asConfigId, asResolvedFindingType } from '../../common/__tests__/utils';
 
 describe('PreProcessor Lambda', () => {
@@ -169,7 +171,7 @@ describe('PreProcessor Lambda', () => {
   };
 
   const createSQSRecord = (
-    finding: ASFFFinding | OCSFComplianceFinding,
+    finding: ASFFFinding | OCSFComplianceFinding | Record<string, unknown>,
     additionalPayload = {},
     messageId?: string,
   ): SQSRecord => ({
@@ -799,6 +801,80 @@ describe('PreProcessor Lambda', () => {
       expect(metricsScope.isDone()).toBe(true);
 
       ddbMock.restore();
+    });
+  });
+
+  describe('Unrecognized finding shapes', () => {
+    let errorLogSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      errorLogSpy = jest.spyOn(Logger.prototype, 'error');
+    });
+
+    afterEach(() => {
+      errorLogSpy.mockRestore();
+    });
+
+    /** Decodes the url-encoded UsageData body sendMetrics posts and returns its Data payload. */
+    const captureMetricPayloads = (): Record<string, unknown>[] => {
+      ssmMock.reset();
+      nock.cleanAll();
+      ssmMock
+        .resolves({ Parameter: { Value: 'test-uuid' } })
+        .on(GetParameterCommand, { Name: '/Solutions/SO0111/version' })
+        .resolves({ Parameter: { Value: '1.0.0' } });
+      const payloads: Record<string, unknown>[] = [];
+      nock('https://metrics.awssolutionsbuilder.com')
+        .post('/generic', (body: unknown) => {
+          const usageData: { Data: Record<string, unknown> } = JSON.parse(decodeURIComponent(String(body)));
+          payloads.push(usageData.Data);
+          return true;
+        })
+        .reply(200)
+        .persist();
+      return payloads;
+    };
+
+    it('drops a Security Hub V2 Coverage finding silently: no metric, no ERROR log, not retried', async () => {
+      // ARRANGE
+      const metricPayloads = captureMetricPayloads();
+      const record = createSQSRecord(mockSecurityHubCoverageFinding);
+
+      // ACT: a resolved promise is what keeps the record out of batchItemFailures.
+      // recordHandler awaits every sendMetrics call, so once it resolves no metric can still be in flight.
+      await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+
+      // ASSERT
+      expect(metricPayloads).toEqual([]);
+      expect(errorLogSpy).not.toHaveBeenCalled();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('fails loudly on an unrecognized shape without retrying, and tags the metric with class_uid and product ARN', async () => {
+      // ARRANGE: a 2003-class finding whose product is not Coverage still has no control,
+      // so no accepted schema matches it
+      const metricPayloads = captureMetricPayloads();
+      const unrecognizedFinding = {
+        ...mockSecurityHubCoverageFinding,
+        metadata: { product: { uid: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product' } },
+      };
+      const record = createSQSRecord(unrecognizedFinding);
+
+      // ACT: recordHandler awaits sendMetrics, so its resolution guarantees the failure metric was posted
+      await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+
+      // ASSERT
+      expect(errorLogSpy).toHaveBeenCalledTimes(1);
+      expect(metricPayloads).toContainEqual({ finding_schema: 'unknown' });
+      expect(metricPayloads).toContainEqual(
+        expect.objectContaining({
+          status: 'FAILED',
+          status_reason: 'PRE_PROCESSOR_FAILED',
+          class_uid: 2003,
+          product_arn: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product',
+        }),
+      );
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
     });
   });
 

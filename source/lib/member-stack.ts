@@ -23,6 +23,7 @@ import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
+  resourceNamePrefix: string;
   solutionDistBucket: string;
   solutionTradeMarkName: string;
   solutionVersion: string;
@@ -50,18 +51,29 @@ export class MemberStack extends Stack {
       expression: cdk.Fn.conditionEquals(enableCloudTrailParam, 'yes'),
     });
 
-    const redShiftLogging = new RedshiftAuditLogging(this, 'RedshiftAuditLogging', { solutionId: props.solutionId });
+    const redShiftLogging = new RedshiftAuditLogging(this, 'RedshiftAuditLogging', {
+      resourceNamePrefix: props.resourceNamePrefix,
+    });
 
-    const remediationKey = new MemberRemediationKey(this, 'MemberKey', { solutionId: props.solutionId });
+    const remediationKey = new MemberRemediationKey(this, 'MemberKey', {
+      resourceNamePrefix: props.resourceNamePrefix,
+    });
 
-    new MemberVersion(this, 'MemberVersion', { solutionId: props.solutionId, solutionVersion: props.solutionVersion });
+    new MemberVersion(this, 'MemberVersion', {
+      resourceNamePrefix: props.resourceNamePrefix,
+      solutionVersion: props.solutionVersion,
+    });
 
-    const memberLogGroup = new MemberLogGroup(this, 'MemberLogGroup', { solutionId: props.solutionId });
+    const memberLogGroup = new MemberLogGroup(this, 'MemberLogGroup', {
+      resourceNamePrefix: props.resourceNamePrefix,
+    });
 
-    new MemberBucketEncryption(this, 'MemberBucketEncryption', { solutionId: props.solutionId });
+    new MemberBucketEncryption(this, 'MemberBucketEncryption', {
+      resourceNamePrefix: props.resourceNamePrefix,
+    });
 
     new RemediationConfigurationBucket(this, 'RemediationConfigBucket', {
-      solutionId: props.solutionId,
+      resourceNamePrefix: props.resourceNamePrefix,
       solutionVersion: props.solutionVersion,
       solutionTMN: props.solutionTradeMarkName,
       solutionDistBucket: props.solutionDistBucket,

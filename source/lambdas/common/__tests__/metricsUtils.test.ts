@@ -82,10 +82,76 @@ describe('metricsUtils', () => {
         status_reason: 'PRE_PROCESSOR_FAILED',
         control_id: 'EC2.1',
         product_arn: 'arn:aws:securityhub:us-west-2::product/aws/securityhub',
+        class_uid: 2003,
         region: 'us-west-2',
         truncatedRecordBody: 'truncated record',
         error: 'error',
       });
+    });
+
+    it('should carry class_uid and the product uid for an OCSF shape no schema accepts', () => {
+      // ARRANGE: a compliance-class finding with no compliance.control, as Security Hub V2
+      // emits for products the pre-processor does not recognize
+      const unrecognizedOcsfFinding = {
+        class_uid: 2003,
+        compliance: { status: 'Pass' },
+        metadata: { product: { uid: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product' } },
+      };
+
+      // ACT
+      const result = buildFailureMetric(Error('error'), undefined, unrecognizedOcsfFinding);
+
+      // ASSERT
+      expect(result).toEqual({
+        status: 'FAILED',
+        status_reason: 'PRE_PROCESSOR_FAILED',
+        control_id: undefined,
+        product_arn: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product',
+        class_uid: 2003,
+        region: undefined,
+        truncatedRecordBody: undefined,
+        error: 'error',
+      });
+    });
+
+    it('should carry ProductArn for an ASFF-like shape no schema accepts, and nothing for a shape with neither', () => {
+      // ARRANGE
+      const asffLikeFinding = { ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub', Types: [] };
+      const bareFinding = { unexpected: 'shape', class_uid: 'not-a-number' };
+
+      // ACT
+      const asffLikeResult = buildFailureMetric(Error('error'), undefined, asffLikeFinding);
+      const bareResult = buildFailureMetric(Error('error'), undefined, bareFinding);
+
+      // ASSERT
+      expect(asffLikeResult.product_arn).toBe('arn:aws:securityhub:us-east-1::product/aws/securityhub');
+      expect(asffLikeResult.class_uid).toBeUndefined();
+      expect(bareResult.product_arn).toBeUndefined();
+      expect(bareResult.class_uid).toBeUndefined();
+    });
+
+    it('should keep each shape hint when a sibling field is malformed', () => {
+      // ARRANGE
+      const malformedMetadata = {
+        class_uid: 2003,
+        ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/x',
+        metadata: 'oops',
+      };
+      const malformedProductArn = {
+        class_uid: 'not-a-number',
+        ProductArn: 42,
+        metadata: { product: { uid: 'arn:aws:securityhub:us-east-1::productv2/aws/y' } },
+      };
+
+      // ACT
+      const malformedMetadataResult = buildFailureMetric(Error('error'), undefined, malformedMetadata);
+      const malformedProductArnResult = buildFailureMetric(Error('error'), undefined, malformedProductArn);
+
+      // ASSERT
+      expect(malformedMetadataResult.class_uid).toBe(2003);
+      expect(malformedMetadataResult.product_arn).toBe('arn:aws:securityhub:us-east-1::product/aws/x');
+      expect(malformedProductArnResult.class_uid).toBeUndefined();
+      expect(malformedProductArnResult.product_arn).toBe('arn:aws:securityhub:us-east-1::productv2/aws/y');
     });
 
     it('should handle undefined finding', () => {

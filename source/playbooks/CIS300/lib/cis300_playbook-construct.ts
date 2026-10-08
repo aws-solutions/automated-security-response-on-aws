@@ -11,6 +11,7 @@ import NamespaceParam from '../../../lib/parameters/namespace-param';
 
 export interface CIS300PlaybookMemberStackProps extends StackProps {
   solutionId: string;
+  resourceNamePrefix: string;
   solutionVersion: string;
   solutionDistBucket: string;
   securityStandard: string;
@@ -46,6 +47,7 @@ export class CIS300PlaybookMemberStack extends Stack {
       standardVersion: props.securityStandardVersion,
       runtimePython: Runtime.PYTHON_3_11,
       solutionId: props.solutionId,
+      resourceNamePrefix: props.resourceNamePrefix,
       solutionAcronym: 'ASR',
       solutionVersion: props.solutionVersion,
       remediations: props.remediations,

@@ -33,6 +33,8 @@ This software includes third party software subject to the following copyrights:
 @aws-cdk/asset-awscli-v1 under the Apache-2.0 license.
 @aws-cdk/asset-kubectl-v20 under the Apache-2.0 license.
 @aws-cdk/asset-node-proxy-agent-v6 under the Apache-2.0 license.
+@aws-cdk/aws-bedrock-agentcore-alpha under the Apache-2.0 license.
+@aws-cdk/aws-bedrock-alpha under the Apache-2.0 license.
 @aws-cdk/aws-servicecatalogappregistry-alpha under the Apache-2.0 license.
 @aws-cdk/cloud-assembly-schema under the Apache-2.0 license.
 @aws-crypto/crc32 under the Apache-2.0 license.
@@ -567,6 +569,7 @@ aws-amplify under the Apache-2.0 license.
 aws-cdk under the Apache-2.0 license.
 aws-cdk-lib under the Apache-2.0 license.
 aws-encryption-sdk under the Apache-2.0 license.
+aws-jwt-verify under the Apache-2.0 license.
 aws-lambda under the MIT license.
 aws-lambda-context under the MIT license.
 aws-lambda-powertools under the MIT license.
@@ -769,7 +772,7 @@ fetch-blob under the MIT license.
 fflate under the MIT license.
 file-entry-cache under the MIT license.
 file-uri-to-path under the MIT license.
-filelock under the Unlicense license.
+filelock under the MIT license.
 filelist under the Apache-2.0 license.
 fill-range under the MIT license.
 find-up under the MIT license.
@@ -1132,6 +1135,7 @@ pytest-cov under the MIT license.
 pytest-env under the MIT license.
 pytest-mock under the MIT license.
 python-dateutil under the Apache-2.0 license.
+python-discovery under the MIT license.
 python-dotenv under the BSD 3-Clause license
 python-shell under the MIT license.
 pywin32 under the PSF-2.0 license.

@@ -9,8 +9,9 @@ import {
   ExportRequest,
   SearchCriteria,
   ACTION_TYPE_TO_ASR_ACTION_NAME,
-  ROLLBACK_ELIGIBLE_FINDING_TYPE,
+  ROLLBACK_ELIGIBLE_FINDING_TYPES,
   ROLLBACK_TIMEOUT_MS,
+  getRemediationConfigBucketName,
   normalizeSeverity,
   isResourceTypeSupportedForRemediation,
   getSupportedResourceTypes,
@@ -35,6 +36,7 @@ import { sendMetrics } from '../../common/utils/metricsUtils';
 import { triggerRemediationForFinding } from '../../common/utils/remediationTrigger';
 import { calculateTtlTimestamp } from '../../common/utils/ttlUtils';
 import { Clock, getClock } from '../../common/utils/clock';
+import { ControlsRepository } from '../../common/repositories/controlsRepository';
 import { IdGenerator, getIdGenerator } from '../../common/utils/idGenerator';
 import { AuthenticatedUser } from './authorization';
 import { BaseSearchService } from './baseSearchService';
@@ -48,9 +50,37 @@ interface FetchFindingsResult {
 
 type PersistHistoryFn = (finding: FindingTableItem, executionId: string) => Promise<void>;
 
+/** The rollback locks one request holds: the lockable findings plus what each lock replaced. */
+interface RollbackLocks {
+  findings: FindingTableItem[];
+  acquired: { finding: FindingTableItem; previousStatus: string | undefined }[];
+  /** The timestamp written into every lock; releasing is conditioned on it. */
+  lockedAt: string;
+}
+
+/**
+ * Human-readable reason a finding could not take the rollback lock, keyed on the
+ * remediationStatus observed when the conditional write was refused.
+ */
+function describeIneligibleStatus(remediationStatus: string | undefined): string {
+  switch (remediationStatus) {
+    case 'ROLLBACK_SUCCESS':
+      return 'already rolled back';
+    case 'FAILED':
+      return 'remediation did not succeed';
+    case 'IN_PROGRESS':
+      return 'remediation still in progress';
+    case undefined:
+      return 'no remediation recorded';
+    default:
+      return `status ${remediationStatus}`;
+  }
+}
+
 export class FindingsService extends BaseSearchService {
   private readonly findingRepository: FindingRepository;
   private readonly remediationHistoryRepository: RemediationHistoryRepository;
+  private readonly controlsRepository: ControlsRepository;
   private readonly s3Client: ASRS3Client;
   private readonly idGenerator: IdGenerator;
   private readonly clock: Clock;
@@ -61,6 +91,7 @@ export class FindingsService extends BaseSearchService {
     clock: Clock = getClock(),
     findingRepository?: FindingRepository,
     remediationHistoryRepository?: RemediationHistoryRepository,
+    controlsRepository?: ControlsRepository,
   ) {
     super(logger);
     this.idGenerator = idGenerator;
@@ -78,6 +109,9 @@ export class FindingsService extends BaseSearchService {
         this.dynamoDBClient,
         env.FINDINGS_TABLE_NAME,
       );
+
+    this.controlsRepository =
+      controlsRepository ?? new ControlsRepository(env.REMEDIATION_CONFIG_TABLE_NAME, this.dynamoDBClient);
 
     this.s3Client = new ASRS3Client();
   }
@@ -180,13 +214,61 @@ export class FindingsService extends BaseSearchService {
           ),
         );
       case 'Rollback': {
-        const lockedFindings = await this.acquireRollbackLocks(findings);
-        return this.executeRemediation(
-          'Rollback',
-          lockedFindings,
-          principal,
-          this.remediationHistoryRepository.createRemediationHistory.bind(this.remediationHistoryRepository),
-        );
+        // All three gates run before the lock so a finding that cannot be rolled back is never left
+        // in ROLLBACK_IN_PROGRESS.
+        const { supported, skippedIds: unsupportedIds, unsupported } = this.partitionByRollbackSupport(findings);
+        if (supported.length === 0) {
+          // Name what was refused and why: without the ids and controls a caller acting on a
+          // batch cannot tell which finding to drop from the request.
+          const detail = unsupported.map(({ findingId, controlId }) => `${findingId} (${controlId})`).join(', ');
+          throw new BadRequestError(
+            `Rollback is only supported for eligible controls. Not eligible for rollback: ${detail}`,
+          );
+        }
+        const { eligible: rollbackEligibleFindings, skippedIds: rollbackSkippedIds } =
+          await this.filterByRollbackEnabled(supported);
+        if (rollbackEligibleFindings.length === 0) {
+          throw new BadRequestError(
+            'Rollback is disabled for all requested controls. Check the per-control rollbackEnabled setting.',
+          );
+        }
+        const { dispatchable, skippedIds: noSnapshotIds } =
+          this.partitionByRollbackDispatchable(rollbackEligibleFindings);
+        if (dispatchable.length === 0) {
+          throw new BadRequestError(
+            'No requested finding has a recorded remediation execution, so its pre-remediation snapshot cannot be located.',
+          );
+        }
+        const locks = await this.acquireRollbackLocks(dispatchable);
+        // Only a lock whose finding was never sent to the Orchestrator is safe to hand back:
+        // StartExecution carries no idempotent name, so a call that threw may still have been
+        // accepted, and releasing that lock would let a second request start a duplicate
+        // rollback. Findings never attempted — skipped ones, and the rest of the batch after
+        // one invocation threw — are released; an attempted one whose outcome is unknown stays
+        // locked and relies on the stale-lock timeout, as before. The one attempted case we can
+        // prove did not start — the Orchestrator returned no executionId — is walked back out of
+        // `attempted` so its lock is released like a never-attempted finding, rather than sitting
+        // ROLLBACK_IN_PROGRESS until stale while the caller is told the finding was not processed.
+        const attempted = new Set<FindingId>();
+        const persistHistory: PersistHistoryFn = (item, executionId) =>
+          this.remediationHistoryRepository.createRemediationHistory(item, executionId);
+        const onDispatchAttempt = (item: FindingTableItem) => attempted.add(item.findingId);
+        const onDispatchUnstarted = (item: FindingTableItem) => attempted.delete(item.findingId);
+        try {
+          const result = await this.executeRemediation(
+            'Rollback',
+            locks.findings,
+            principal,
+            persistHistory,
+            onDispatchAttempt,
+            onDispatchUnstarted,
+          );
+          await this.releaseUnusedRollbackLocks(locks, attempted);
+          return [...unsupportedIds, ...rollbackSkippedIds, ...noSnapshotIds, ...result];
+        } catch (error) {
+          await this.releaseUnusedRollbackLocks(locks, attempted);
+          throw error;
+        }
       }
       case 'Suppress':
       case 'Unsuppress':
@@ -209,6 +291,8 @@ export class FindingsService extends BaseSearchService {
     findings: FindingTableItem[],
     principal: string,
     persistHistory: PersistHistoryFn,
+    onDispatchAttempt?: (finding: FindingTableItem) => void,
+    onDispatchUnstarted?: (finding: FindingTableItem) => void,
   ): Promise<FindingId[]> {
     let persistedCount = 0;
     const skippedFindingIds: FindingId[] = [];
@@ -236,12 +320,30 @@ export class FindingsService extends BaseSearchService {
       }
 
       const asffFinding = extractASFFFinding(finding);
+
+      // Build rollback params for non-GuardDuty controls that have an SSM execution ID.
+      const isGuardDutyRollback = actionType === 'Rollback' && finding.findingType.endsWith('GuardDuty.IAMUser');
+      const snapshotRollbackParams =
+        actionType === 'Rollback' && !isGuardDutyRollback && finding.ssmExecutionId
+          ? {
+              executionId: finding.ssmExecutionId,
+              remediationConfigBucket: getRemediationConfigBucketName(finding.region, finding.accountId),
+              snapshotVersionId: finding.snapshotVersionId,
+            }
+          : undefined;
+
       const orchestratorInput = this.buildOrchestratorInput(
         finding.findingType,
         asffFinding,
         actionType,
         finding.rollbackBackupKey,
+        snapshotRollbackParams,
       );
+      // Marked attempted before the invocation, not after: StartExecution carries no idempotent
+      // name, so a call that *throws* may still have been accepted by the Orchestrator. A caller
+      // holding locks must keep such a finding locked. The clean no-executionId return below is
+      // the one case we can prove did not start, and it is walked back via onDispatchUnstarted.
+      onDispatchAttempt?.(finding);
       const executionId = await triggerRemediationForFinding({
         orchestratorInput,
         logger: this.logger,
@@ -253,9 +355,13 @@ export class FindingsService extends BaseSearchService {
       });
 
       // A missing executionId means the orchestrator did not start; skip history for this finding
-      // rather than writing a record with a malformed `findingId#` composite key.
+      // rather than writing a record with a malformed `findingId#` composite key. Unlike a thrown
+      // call, this return proves nothing started, so the finding is walked back out of `attempted`
+      // (onDispatchUnstarted) — otherwise its rollback lock would sit in ROLLBACK_IN_PROGRESS until
+      // stale while the caller is told the finding was not processed, contradicting an immediate retry.
       if (!executionId) {
         this.logger.warn('Failed to get execution ID for finding', { findingId: finding.findingId, actionType });
+        onDispatchUnstarted?.(finding);
         skippedFindingIds.push(finding.findingId);
         continue;
       }
@@ -348,6 +454,59 @@ export class FindingsService extends BaseSearchService {
   }
 
   /**
+   * Filters findings to only those whose control has rollbackEnabled !== false, read in one batched
+   * lookup. A control absent from the config table has no valid rollback target and is skipped, which
+   * is deliberately stricter than the Orchestrator gate, which fails open for unknown controls.
+   */
+  private async filterByRollbackEnabled(
+    findings: FindingTableItem[],
+  ): Promise<{ eligible: FindingTableItem[]; skippedIds: FindingId[] }> {
+    const eligible: FindingTableItem[] = [];
+    const skippedIds: FindingId[] = [];
+    const rollbackState = await this.controlsRepository.findRollbackStateByControlIds(
+      findings.map((finding) => this.configTableKeyFor(finding)),
+    );
+    for (const finding of findings) {
+      const controlId = this.configTableKeyFor(finding);
+      if (rollbackState.get(controlId) ?? false) {
+        eligible.push(finding);
+      } else {
+        skippedIds.push(finding.findingId);
+        this.logger.info('Rollback disabled for control — skipping', {
+          controlId,
+          findingId: finding.findingId,
+        });
+      }
+    }
+    return { eligible, skippedIds };
+  }
+
+  /**
+   * Splits findings by whether a rollback can be dispatched. A snapshot-based rollback needs the
+   * original SSM execution id to locate its snapshot; without it the orchestrator would run the
+   * remediation forward instead. GuardDuty uses the existing restore path and needs no execution id.
+   */
+  private partitionByRollbackDispatchable(findings: FindingTableItem[]): {
+    dispatchable: FindingTableItem[];
+    skippedIds: FindingId[];
+  } {
+    const dispatchable: FindingTableItem[] = [];
+    const skippedIds: FindingId[] = [];
+    for (const finding of findings) {
+      if (!finding.findingType.endsWith('GuardDuty.IAMUser') && !finding.ssmExecutionId) {
+        skippedIds.push(finding.findingId);
+        this.logger.warn('Skipping rollback: no SSM execution id, snapshot cannot be located', {
+          findingType: finding.findingType,
+          findingId: finding.findingId,
+        });
+        continue;
+      }
+      dispatchable.push(finding);
+    }
+    return { dispatchable, skippedIds };
+  }
+
+  /**
    * Reconstruct minimal FindingTableItems from history entries that have findingJSON.
    * Used for rollback when the finding is not available in the findings table.
    */
@@ -383,7 +542,7 @@ export class FindingsService extends BaseSearchService {
    * plus findingJSON to invoke the runbook. They are not read by downstream rollback logic.
    */
   private buildFindingTableItemFromHistoryEntry(
-    entry: RemediationHistoryBaseData & { findingJSON: Uint8Array },
+    entry: RemediationHistoryBaseData & { findingJSON: Uint8Array; remediationConfigTableKey?: string },
   ): FindingTableItem {
     const severityNormalized = normalizeSeverity(entry.severity);
     return {
@@ -412,36 +571,81 @@ export class FindingsService extends BaseSearchService {
       // Carry the Contain backup key (if the history entry has it) so the
       // rollback can pass it to the runbook as BackupS3KeyName.
       ...(entry.rollbackBackupKey ? { rollbackBackupKey: entry.rollbackBackupKey } : {}),
+      // Carry the SSM execution ID so the rollback can locate the
+      // pre-remediation snapshot in S3.
+      ...(entry.ssmExecutionId ? { ssmExecutionId: entry.ssmExecutionId } : {}),
+      // Carry the S3 version ID for tamper-proof snapshot reads during rollback.
+      ...(entry.snapshotVersionId ? { snapshotVersionId: entry.snapshotVersionId } : {}),
+      // Carry the config table key so the rollback gates don't derive one from findingType.
+      ...(entry.remediationConfigTableKey ? { remediationConfigTableKey: entry.remediationConfigTableKey } : {}),
     };
   }
 
+  /** Config table key: the stamped value, else the ASFF SecurityControlId, else the finding type. */
+  private configTableKeyFor(finding: FindingTableItem): string {
+    if (finding.remediationConfigTableKey) {
+      return finding.remediationConfigTableKey;
+    }
+    try {
+      const securityControlId = extractASFFFinding(finding).Compliance?.SecurityControlId;
+      if (securityControlId) {
+        return securityControlId;
+      }
+    } catch {
+      // Unreadable ASFF, fall through.
+    }
+    const lastSlash = finding.findingType.lastIndexOf('/');
+    return lastSlash === -1 ? finding.findingType : finding.findingType.slice(lastSlash + 1);
+  }
+
+  /** Skips controls with no rollback capability, so they aren't blamed on the per-control toggle. */
+  private partitionByRollbackSupport(findings: FindingTableItem[]): {
+    supported: FindingTableItem[];
+    skippedIds: FindingId[];
+    /** The skipped findings paired with the control that lacks rollback, for the refusal message. */
+    unsupported: { findingId: FindingId; controlId: string }[];
+  } {
+    const supported: FindingTableItem[] = [];
+    const skippedIds: FindingId[] = [];
+    const unsupported: { findingId: FindingId; controlId: string }[] = [];
+    for (const finding of findings) {
+      const controlId = this.configTableKeyFor(finding);
+      if (!ROLLBACK_ELIGIBLE_FINDING_TYPES.has(controlId)) {
+        skippedIds.push(finding.findingId);
+        unsupported.push({ findingId: finding.findingId, controlId });
+        this.logger.info('Skipping rollback: control does not support rollback', {
+          controlId,
+          findingId: finding.findingId,
+        });
+        continue;
+      }
+      supported.push(finding);
+    }
+    return { supported, skippedIds, unsupported };
+  }
+
   /**
-   * Acquires the rollback lock for each GuardDuty.IAMUser finding and returns the
+   * Acquires the rollback lock for each eligible finding and returns the
    * findings that the caller may roll back.
    *
-   * Validates the finding type, then per finding transitions its status to
-   * ROLLBACK_IN_PROGRESS via a conditional write. That write is both the
-   * eligibility gate and the double-rollback guard: it only succeeds from
-   * SUCCESS / ROLLBACK_FAILED (or a stale in-progress lock). Rejects the whole
-   * request if any finding is already rolling back or is not in an initiable
-   * state, so a partial rollback is never started.
+   * Per finding, transitions its status to ROLLBACK_IN_PROGRESS via a
+   * conditional write. That write is both the eligibility gate and the
+   * double-rollback guard: it only succeeds from SUCCESS / ROLLBACK_FAILED (or a
+   * stale in-progress lock). Rejects the whole request if any finding is already
+   * rolling back or is not in an initiable state, so a partial rollback is never
+   * started — and on rejection the locks already taken are released back to the
+   * status they replaced, so a rejected batch does not leave findings parked in
+   * ROLLBACK_IN_PROGRESS with no rollback running until the lock goes stale.
    */
-  private async acquireRollbackLocks(findings: FindingTableItem[]): Promise<FindingTableItem[]> {
-    const wrongType = findings.filter((f) => !f.findingType.endsWith(ROLLBACK_ELIGIBLE_FINDING_TYPE));
-    if (wrongType.length > 0) {
-      const wrongTypeIds = wrongType.map((f) => f.findingId).join(', ');
-      throw new BadRequestError(
-        `Rollback is only supported for ${ROLLBACK_ELIGIBLE_FINDING_TYPE} findings. Non-eligible finding IDs: ${wrongTypeIds}`,
-      );
-    }
-
+  private async acquireRollbackLocks(findings: FindingTableItem[]): Promise<RollbackLocks> {
     const now = this.clock.now();
     const nowIso = now.toISOString();
     const staleBefore = new Date(now.getTime() - ROLLBACK_TIMEOUT_MS).toISOString();
 
     const lockedFindings: FindingTableItem[] = [];
+    const acquired: { finding: FindingTableItem; previousStatus: string | undefined }[] = [];
     const alreadyInProgress: FindingId[] = [];
-    const ineligible: FindingId[] = [];
+    const ineligible: { findingId: FindingId; remediationStatus: string | undefined }[] = [];
 
     for (const finding of findings) {
       // History-reconstructed findings may not have a live findings-table row
@@ -457,13 +661,23 @@ export class FindingsService extends BaseSearchService {
         staleBefore,
       );
 
-      if (lockResult === 'ACQUIRED') {
-        lockedFindings.push({ ...finding, remediationStatus: 'ROLLBACK_IN_PROGRESS' });
-      } else if (lockResult === 'IN_PROGRESS') {
-        alreadyInProgress.push(finding.findingId);
-      } else {
-        ineligible.push(finding.findingId);
+      switch (lockResult.outcome) {
+        case 'ACQUIRED':
+          lockedFindings.push({ ...finding, remediationStatus: 'ROLLBACK_IN_PROGRESS' });
+          acquired.push({ finding, previousStatus: lockResult.previousStatus });
+          break;
+        case 'IN_PROGRESS':
+          alreadyInProgress.push(finding.findingId);
+          break;
+        case 'INELIGIBLE':
+          ineligible.push({ findingId: finding.findingId, remediationStatus: lockResult.remediationStatus });
+          break;
       }
+    }
+
+    const locks: RollbackLocks = { findings: lockedFindings, acquired, lockedAt: nowIso };
+    if (alreadyInProgress.length > 0 || ineligible.length > 0) {
+      await this.releaseUnusedRollbackLocks(locks, new Set());
     }
 
     if (alreadyInProgress.length > 0) {
@@ -471,12 +685,47 @@ export class FindingsService extends BaseSearchService {
     }
 
     if (ineligible.length > 0) {
+      // Say what was actually observed per finding. The generic "requires a successful
+      // remediation" was misleading for the common case — a finding that had already been rolled
+      // back *did* have a successful remediation.
+      const detail = ineligible
+        .map(({ findingId, remediationStatus }) => `${findingId} (${describeIneligibleStatus(remediationStatus)})`)
+        .join(', ');
       throw new BadRequestError(
-        `Rollback requires a successful remediation (or a previously failed rollback). Non-eligible finding IDs: ${ineligible.join(', ')}`,
+        `Rollback is only possible after a successful remediation or a previously failed rollback. Not eligible: ${detail}`,
       );
     }
 
-    return lockedFindings;
+    return locks;
+  }
+
+  /**
+   * Hands back every acquired lock whose finding is not in `attempted`. Best-effort: a lock that
+   * cannot be released is logged, not thrown — the caller is already on a rejection or failure
+   * path, and an unreleased lock still expires as stale.
+   */
+  private async releaseUnusedRollbackLocks(locks: RollbackLocks, attempted: ReadonlySet<FindingId>): Promise<void> {
+    const nowIso = this.clock.now().toISOString();
+    for (const { finding, previousStatus } of locks.acquired) {
+      if (attempted.has(finding.findingId)) continue;
+      try {
+        const released = await this.findingRepository.releaseRollbackLock(
+          finding.findingType,
+          finding.findingId,
+          locks.lockedAt,
+          previousStatus,
+          nowIso,
+        );
+        if (!released) {
+          this.logger.warn('Rollback lock changed hands before it could be released', { findingId: finding.findingId });
+        }
+      } catch (error) {
+        this.logger.error('Failed to release an unused rollback lock; it will expire as stale', {
+          findingId: finding.findingId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   }
 
   private buildOrchestratorInput(
@@ -484,6 +733,7 @@ export class FindingsService extends BaseSearchService {
     asffFinding: ASFFFinding,
     actionType: keyof typeof ACTION_TYPE_TO_ASR_ACTION_NAME,
     rollbackBackupKey?: string,
+    snapshotRollbackParams?: { executionId: string; remediationConfigBucket: string; snapshotVersionId?: string },
   ): string {
     return buildOrchestratorInput(
       remediationId,
@@ -492,6 +742,7 @@ export class FindingsService extends BaseSearchService {
       this.idGenerator,
       this.clock,
       rollbackBackupKey,
+      snapshotRollbackParams,
     );
   }
 
@@ -525,11 +776,11 @@ export class FindingsService extends BaseSearchService {
 
       const downloadUrl = await this.uploadToS3AndGenerateUrl(csvContent);
 
-      this.logger.debug('Findings export completed successfully', {
-        totalFindings: exportResult.findings.length,
+      this.logger.info('Findings export completed', {
+        username: authenticatedUser.username,
+        totalExported: exportResult.findings.length,
         status: exportResult.status,
-        csvSizeBytes: csvContent.length,
-        hasDownloadUrl: !!downloadUrl,
+        timestamp: this.clock.now().toISOString(),
       });
 
       return {
@@ -676,7 +927,6 @@ export class FindingsService extends BaseSearchService {
       findingIdControl: _findingIdControl,
       FINDING_CONSTANT: _findingConstant,
       lastUpdatedBy: _lastUpdatedBy,
-      expireAt: _expireAt,
       firstDetectedTime: _firstDetectedTime,
       hasFindingNotificationsEnabled: _hasFindingNotificationsEnabled,
       hasFindingRemediationDeadlineConfigured: _hasFindingRemediationDeadlineConfigured,

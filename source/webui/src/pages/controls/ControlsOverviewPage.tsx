@@ -12,6 +12,8 @@ import {
   Header,
   NonCancelableCustomEvent,
   Pagination,
+  Select,
+  SelectProps,
   SpaceBetween,
   Table,
   TextFilter,
@@ -41,12 +43,31 @@ interface Preferences {
   contentDensity: 'compact' | 'comfortable';
 }
 
+/** Which kind of control the table is scoped to. */
+type ControlSourceScope = 'all' | 'custom' | 'builtin';
+
+const CONTROL_SOURCE_SCOPES: readonly ControlSourceScope[] = ['all', 'custom', 'builtin'];
+
+/** Narrow a raw Select value to a known scope, falling back to 'all' for anything unexpected. */
+function toControlSourceScope(value: string | undefined): ControlSourceScope {
+  return CONTROL_SOURCE_SCOPES.find((scope) => scope === value) ?? 'all';
+}
+
+const SOURCE_SCOPE_OPTIONS: readonly SelectProps.Option[] = [
+  { value: 'all', label: 'All controls' },
+  { value: 'custom', label: 'Custom runbooks only' },
+  { value: 'builtin', label: 'Built-in only' },
+];
+
 const DEFAULT_PREFERENCES: Preferences = {
   pageSize: 20,
   visibleContent: [
     'controlId',
     'description',
     'isEnabled',
+    'source',
+    'runbookVersion',
+    'rollbackEnabled',
     'appliedFilters',
     'notifications',
     'modifiedBy',
@@ -70,6 +91,7 @@ export const ControlsOverviewPage = (): React.ReactElement => {
     hasUnsavedChanges,
     changedControlIds,
     handleToggle,
+    handleRollbackToggle,
     handleDisableAll,
     handleSave,
     handleDiscard,
@@ -86,17 +108,38 @@ export const ControlsOverviewPage = (): React.ReactElement => {
   const allRemediationDisabled = localControls.length > 0 && localControls.every((c) => !c.automatedRemediationEnabled);
 
   const [preferences, setPreferences] = useState<Preferences>(() => controlsTablePreferences.load());
+  const [sourceScope, setSourceScope] = useState<ControlSourceScope>('all');
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
 
   const columnDefinitions = useMemo(
-    () => createControlsColumnDefinitions({ onToggle: handleToggle, isReadOnly, filters, notificationConfigs }),
-    [handleToggle, isReadOnly, filters, notificationConfigs],
+    () =>
+      createControlsColumnDefinitions({
+        onToggle: handleToggle,
+        onRollbackToggle: handleRollbackToggle,
+        isReadOnly,
+        filters,
+        notificationConfigs,
+      }),
+    [handleToggle, handleRollbackToggle, isReadOnly, filters, notificationConfigs],
   );
 
   const visibleColumns = columnDefinitions.filter((col) => preferences.visibleContent.includes(col.id ?? ''));
 
+  // Scope the table to built-in or custom-runbook controls before the text filter runs.
+  // The two kinds behave differently enough to be worth separating — a custom runbook is
+  // manual-trigger only — and a customer with a handful of custom runbooks among 100+
+  // built-ins otherwise has no way to see just theirs.
+  const sourceScopedControls = useMemo(() => {
+    if (sourceScope === 'all') return localControls;
+    // Controls stored before `source` existed carry no value and are built-ins, so an
+    // absent source must read as built-in rather than dropping out of both scopes.
+    return localControls.filter((control) =>
+      sourceScope === 'custom' ? control.source === 'custom' : control.source !== 'custom',
+    );
+  }, [localControls, sourceScope]);
+
   const { items, filterProps, actions, filteredItemsCount, collectionProps } = useCollection<SecurityControl>(
-    localControls,
+    sourceScopedControls,
     {
       filtering: {
         filteringFunction: (item, filteringText) => {
@@ -288,16 +331,31 @@ export const ControlsOverviewPage = (): React.ReactElement => {
         }}
         empty={<EmptyTableState title="No controls" subtitle="No controls to display." />}
         filter={
-          <TextFilter
-            {...filterProps}
-            filteringPlaceholder="Search by Control ID..."
-            countText={getFilterCounterText(filteredItemsCount)}
-          />
+          <SpaceBetween direction="horizontal" size="xs">
+            <TextFilter
+              {...filterProps}
+              filteringPlaceholder="Search by Control ID..."
+              countText={getFilterCounterText(filteredItemsCount)}
+            />
+            <Select
+              selectedOption={
+                SOURCE_SCOPE_OPTIONS.find((option) => option.value === sourceScope) ?? SOURCE_SCOPE_OPTIONS[0]
+              }
+              onChange={({ detail }) => {
+                setSourceScope(toControlSourceScope(detail.selectedOption.value));
+                // Narrowing the scope shrinks the list, so a page index from the wider
+                // list can land past the end and render an empty table.
+                setCurrentPageIndex(1);
+              }}
+              options={[...SOURCE_SCOPE_OPTIONS]}
+              ariaLabel="Filter by control source"
+            />
+          </SpaceBetween>
         }
         header={
           <Header
             variant="awsui-h1-sticky"
-            counter={getHeaderCounterText(localControls.length, selectedItems.length)}
+            counter={getHeaderCounterText(sourceScopedControls.length, selectedItems.length)}
             actions={
               <SpaceBetween direction="horizontal" size="xs">
                 <Button
@@ -372,6 +430,9 @@ export const ControlsOverviewPage = (): React.ReactElement => {
                     { id: 'controlId', label: 'Control ID', editable: false },
                     { id: 'description', label: 'Description' },
                     { id: 'isEnabled', label: 'Automated Remediation' },
+                    { id: 'source', label: 'Runbook Type' },
+                    { id: 'runbookVersion', label: 'Runbook Version' },
+                    { id: 'rollbackEnabled', label: 'Rollback' },
                     { id: 'appliedFilters', label: 'Applied Filters' },
                     { id: 'notifications', label: 'Notifications' },
                     { id: 'modifiedBy', label: 'Modified By' },

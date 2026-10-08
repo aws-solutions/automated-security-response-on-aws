@@ -20,11 +20,33 @@ import {
 } from '@cloudscape-design/components';
 
 import { FilterMode, ResourceFilter, SecurityControl } from '@data-models';
+import { describeRunbook, isCustomControl } from './createControlsColumnDefinitions';
 
 const FILTER_MODE_OPTIONS: SelectProps.Option[] = [
   { label: 'Include', value: 'include', description: 'Remediation applies only to matching resources' },
   { label: 'Exclude', value: 'exclude', description: 'Remediation applies to all resources except matching ones' },
 ];
+
+/**
+ * The same three states the table's Automated Remediation column shows, so the panel
+ * never contradicts the row it describes. A custom-runbook control runs only on a manual
+ * trigger, so its stored flag has no effect either way: "Enabled" here would be a green
+ * success indicator for a setting the resolver ignores, and the row beside it says
+ * "Enabled (no effect)". Rendered as a warning, not a success, for that reason.
+ */
+const renderAutomatedRemediationStatus = (control: SecurityControl): React.ReactElement => {
+  if (!isCustomControl(control)) {
+    return (
+      <StatusIndicator type={control.automatedRemediationEnabled ? 'success' : 'stopped'}>
+        {control.automatedRemediationEnabled ? 'Enabled' : 'Disabled'}
+      </StatusIndicator>
+    );
+  }
+  if (control.automatedRemediationEnabled) {
+    return <StatusIndicator type="warning">Enabled (no effect)</StatusIndicator>;
+  }
+  return <StatusIndicator type="stopped">Manual trigger only</StatusIndicator>;
+};
 
 interface ControlDetailPanelProps {
   control: SecurityControl;
@@ -107,9 +129,17 @@ export const ControlDetailPanel = ({
           </SpaceBetween>
           <SpaceBetween size="xs">
             <Box variant="awsui-key-label">Automated Remediation</Box>
-            <StatusIndicator type={control.automatedRemediationEnabled ? 'success' : 'stopped'}>
-              {control.automatedRemediationEnabled ? 'Enabled' : 'Disabled'}
-            </StatusIndicator>
+            {renderAutomatedRemediationStatus(control)}
+          </SpaceBetween>
+          <SpaceBetween size="xs">
+            <Box variant="awsui-key-label">Runbook</Box>
+            <Box>{describeRunbook(control)}</Box>
+            {isCustomControl(control) && (
+              <Box variant="small" color="text-body-secondary">
+                Only the most recently deployed version runs. Deploying a newer version, or rolling back to an older
+                one, changes which version this is.
+              </Box>
+            )}
           </SpaceBetween>
         </ColumnLayout>
 

@@ -1,0 +1,19 @@
+schemaVersion: "0.3"
+description: Disables TLS verification via curl -k.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+mainSteps:
+  - name: DoStuff
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      Script: |
+        import subprocess
+        subprocess.run("curl -k https://example.internal/config", shell=True)
+  - name: VerifyThing
+    action: aws:assertAwsResourceProperty

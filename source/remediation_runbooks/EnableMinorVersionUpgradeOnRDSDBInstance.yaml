@@ -3,17 +3,33 @@
 ---
 schemaVersion: "0.3"
 description: |
-  ### Document name - AWSConfigRemediation-EnableMinorVersionUpgradeOnRDSDBInstance
+  ### Document name - ASR-EnableMinorVersionUpgradeOnRDSDBInstance
 
   ## What does this document do?
-  This document enables AutoMinorVersionUpgrade on the Amazon Relational Database Service (Amazon RDS) instance using the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.
+  Enables AutoMinorVersionUpgrade on an Amazon RDS DB instance using the
+  [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.
+  When the instance belongs to a Multi-AZ cluster (mysql/postgres), the setting is applied on the cluster
+  via [ModifyDBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBCluster.html).
 
-  ## Input parameters
+  When invoked with Rollback=ROLLBACK, it restores AutoMinorVersionUpgrade to its pre-remediation
+  state using a snapshot stored in S3.
+
+  ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * RDSInstanceARN: (Required) ARN of the Amazon RDS instance to be modified.
+  * RDSInstanceARN: (Required) ARN of the Amazon RDS DB instance.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * ControlExecutionId: (Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation.
+  * SnapshotVersionId: (Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
-  ## Output parameters
-  * ModifyDBInstance.Output: The standard HTTP response from the ModifyDBInstance API.
+  ## Output Parameters
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
+
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
@@ -22,21 +38,78 @@ parameters:
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
   RDSInstanceARN:
     type: String
-    description: (Required) Identifier of the Amazon RDS instance for which AutoMinorVersionUpgrade needs to be enabled.
+    description: (Required) ARN of the Amazon RDS DB instance for which AutoMinorVersionUpgrade needs to be enabled.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$'
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+
 outputs:
-  - ModifyDBInstance.Output
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  - name: ModifyDBInstance
-    action: 'aws:executeScript'
-    outputs:
-      - Name: Output
-        Selector: $.Payload.response
-        Type: StringMap
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
+    description: |
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation AutoMinorVersionUpgrade state to S3, then enables it (on the Multi-AZ
+      cluster when applicable, else the instance). When Rollback=ROLLBACK, restores the pre-remediation
+      state from the snapshot.
+    timeoutSeconds: 600
+    isEnd: true
     inputs:
-      InputPayload:
-        RDSInstanceARN: "{{RDSInstanceARN}}"
       Runtime: python3.11
-      Handler: lambda_handler
+      Handler: handler
+      InputPayload:
+        RDSInstanceARN: "{{ RDSInstanceARN }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
       Script: |-
-        %%SCRIPT=enable_minor_version_upgrade_rds.py%%
+        %%SCRIPT=EnableMinorVersionUpgradeOnRDSDBInstance_rollback.py%%
+    outputs:
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

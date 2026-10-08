@@ -69,6 +69,14 @@ def test_bucket_created_with_encryption_and_ssl_policy() -> None:
         bucket_policy = s3.get_bucket_policy(Bucket=bucket_name)
         assert has_ssl_policy(bucket_policy)
 
+        # Check Block Public Access is applied
+        bpa = s3.get_public_access_block(Bucket=bucket_name)
+        config = bpa["PublicAccessBlockConfiguration"]
+        assert config["BlockPublicAcls"] is True
+        assert config["IgnorePublicAcls"] is True
+        assert config["BlockPublicPolicy"] is True
+        assert config["RestrictPublicBuckets"] is True
+
 
 def get_region() -> str:
     my_session = boto3.session.Session()
@@ -95,6 +103,19 @@ def test_create_logging_bucket(mocker):
             "LocationConstraint": event["AWS_REGION"]
         }
     s3_stubber.add_response("create_bucket", {}, kwargs)
+    s3_stubber.add_response(
+        "put_public_access_block",
+        {},
+        {
+            "Bucket": event["BucketName"],
+            "PublicAccessBlockConfiguration": {
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        },
+    )
     s3_stubber.add_response(
         "put_bucket_encryption",
         {},
@@ -178,6 +199,22 @@ def test_bucket_already_owned_by_you(mocker):
     s3_stubber = Stubber(s3)
 
     s3_stubber.add_client_error("create_bucket", "BucketAlreadyOwnedByYou")
+
+    # Even when the bucket already exists, Block Public Access must be
+    # (re)applied so the bucket converges to the hardened state on every run.
+    s3_stubber.add_response(
+        "put_public_access_block",
+        {},
+        {
+            "Bucket": event["BucketName"],
+            "PublicAccessBlockConfiguration": {
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        },
+    )
 
     s3_stubber.activate()
     mocker.patch(

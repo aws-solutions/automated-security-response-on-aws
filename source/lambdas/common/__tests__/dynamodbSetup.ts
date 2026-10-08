@@ -157,6 +157,39 @@ export class DynamoDBTestSetup {
     await waitUntilTableExists({ client: this.docClient, maxWaitTime: 30 }, { TableName: tableName });
   }
 
+  static async createCustomRunbookTable(tableName: string) {
+    if (await this.tableExists(tableName)) return;
+
+    await this.docClient.send(
+      new CreateTableCommand({
+        TableName: tableName,
+        KeySchema: [
+          { AttributeName: 'runbookId', KeyType: 'HASH' },
+          { AttributeName: 'version', KeyType: 'RANGE' },
+        ],
+        AttributeDefinitions: [
+          { AttributeName: 'runbookId', AttributeType: 'S' },
+          { AttributeName: 'version', AttributeType: 'N' },
+          { AttributeName: 'controlId', AttributeType: 'S' },
+          { AttributeName: 'status', AttributeType: 'S' },
+        ],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'controlId-status-index',
+            KeySchema: [
+              { AttributeName: 'controlId', KeyType: 'HASH' },
+              { AttributeName: 'status', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+        ],
+        BillingMode: 'PAY_PER_REQUEST',
+      }),
+    );
+
+    await waitUntilTableExists({ client: this.docClient, maxWaitTime: 30 }, { TableName: tableName });
+  }
+
   static async createRemediationHistoryTable(tableName: string) {
     if (await this.tableExists(tableName)) return;
 
@@ -376,7 +409,8 @@ export class DynamoDBTestSetup {
       | 'remediationHistory'
       | 'notificationBatches'
       | 'notificationConfig'
-      | 'resourceFilters',
+      | 'resourceFilters'
+      | 'customRunbook',
   ) {
     if (!(await this.tableExists(tableName))) return;
 
@@ -397,6 +431,8 @@ export class DynamoDBTestSetup {
           key = { configId: item.configId };
         } else if (tableType === 'resourceFilters') {
           key = { filterId: item.filterId };
+        } else if (tableType === 'customRunbook') {
+          key = { runbookId: item.runbookId, version: item.version };
         } else {
           key = { controlId: item.controlId };
         }

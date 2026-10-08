@@ -156,6 +156,12 @@ from typing import Any
 import boto3
 from botocore.config import Config
 
+ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+AWS_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\\d")
+# AWS service namespaces are lowercase and may contain hyphens
+# (e.g. access-analyzer, elastic-mapreduce, cognito-idp).
+AWS_SERVICE_PATTERN = re.compile(r"[a-z][a-z0-9-]*")
+
 
 def connect_to_config(boto_config):
     return boto3.client("config", config=boto_config)
@@ -276,15 +282,20 @@ class FindingEvent:
             return None, {}
         return rule_name, get_config_rule(rule_name)
 
-    def _get_region_from_resource_id(self):
-        check_for_region = re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
-            self.finding_json["Resources"][0]["Id"],
-        )
-        if check_for_region:
-            self.resource_region = check_for_region.group(1)
-        else:
-            self.resource_region = self.finding_json["Resources"][0]["Region"]
+    def _get_region_from_resource_id(self) -> None:
+        resource = self.finding_json["Resources"][0]
+        arn_parts = resource["Id"].split(":", 5)
+        if len(arn_parts) == 6:
+            arn_label, partition, service, region, _, _ = arn_parts
+            if (
+                arn_label == "arn"
+                and partition in ARN_PARTITIONS
+                and AWS_SERVICE_PATTERN.fullmatch(service) is not None
+                and AWS_REGION_PATTERN.fullmatch(region) is not None
+            ):
+                self.resource_region = region
+                return
+        self.resource_region = resource["Region"]
 
     def _resolve_product_arn(self) -> None:
         if not self.valid_finding:
@@ -549,6 +560,12 @@ from typing import Any
 import boto3
 from botocore.config import Config
 
+ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+AWS_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\\d")
+# AWS service namespaces are lowercase and may contain hyphens
+# (e.g. access-analyzer, elastic-mapreduce, cognito-idp).
+AWS_SERVICE_PATTERN = re.compile(r"[a-z][a-z0-9-]*")
+
 
 def connect_to_config(boto_config):
     return boto3.client("config", config=boto_config)
@@ -669,15 +686,20 @@ class FindingEvent:
             return None, {}
         return rule_name, get_config_rule(rule_name)
 
-    def _get_region_from_resource_id(self):
-        check_for_region = re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
-            self.finding_json["Resources"][0]["Id"],
-        )
-        if check_for_region:
-            self.resource_region = check_for_region.group(1)
-        else:
-            self.resource_region = self.finding_json["Resources"][0]["Region"]
+    def _get_region_from_resource_id(self) -> None:
+        resource = self.finding_json["Resources"][0]
+        arn_parts = resource["Id"].split(":", 5)
+        if len(arn_parts) == 6:
+            arn_label, partition, service, region, _, _ = arn_parts
+            if (
+                arn_label == "arn"
+                and partition in ARN_PARTITIONS
+                and AWS_SERVICE_PATTERN.fullmatch(service) is not None
+                and AWS_REGION_PATTERN.fullmatch(region) is not None
+            ):
+                self.resource_region = region
+                return
+        self.resource_region = resource["Region"]
 
     def _resolve_product_arn(self) -> None:
         if not self.valid_finding:
@@ -929,6 +951,12 @@ from typing import Any
 import boto3
 from botocore.config import Config
 
+ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+AWS_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\\d")
+# AWS service namespaces are lowercase and may contain hyphens
+# (e.g. access-analyzer, elastic-mapreduce, cognito-idp).
+AWS_SERVICE_PATTERN = re.compile(r"[a-z][a-z0-9-]*")
+
 
 def connect_to_config(boto_config):
     return boto3.client("config", config=boto_config)
@@ -1049,15 +1077,20 @@ class FindingEvent:
             return None, {}
         return rule_name, get_config_rule(rule_name)
 
-    def _get_region_from_resource_id(self):
-        check_for_region = re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
-            self.finding_json["Resources"][0]["Id"],
-        )
-        if check_for_region:
-            self.resource_region = check_for_region.group(1)
-        else:
-            self.resource_region = self.finding_json["Resources"][0]["Region"]
+    def _get_region_from_resource_id(self) -> None:
+        resource = self.finding_json["Resources"][0]
+        arn_parts = resource["Id"].split(":", 5)
+        if len(arn_parts) == 6:
+            arn_label, partition, service, region, _, _ = arn_parts
+            if (
+                arn_label == "arn"
+                and partition in ARN_PARTITIONS
+                and AWS_SERVICE_PATTERN.fullmatch(service) is not None
+                and AWS_REGION_PATTERN.fullmatch(region) is not None
+            ):
+                self.resource_region = region
+                return
+        self.resource_region = resource["Region"]
 
     def _resolve_product_arn(self) -> None:
         if not self.valid_finding:

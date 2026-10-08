@@ -13,12 +13,27 @@ import {
   ListUsersCommand,
   UsernameExistsException,
   DescribeIdentityProviderCommand,
+  UserType as CognitoUserType,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { UserAccountMappingRepository } from '../../common/repositories/userAccountMappingRepository';
+import {
+  UserAccountMappingRepository,
+  UserAuthorizationData,
+} from '../../common/repositories/userAccountMappingRepository';
 import { createDynamoDBClient } from '../../common/utils/dynamodb';
 import { AccountOperatorUser, AdminUser, DelegatedAdminUser, User } from '@asr/data-models';
 import { BadRequestError, NotFoundError } from '../../common/utils/httpErrors';
 import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
+
+type AsrUserType = 'admin' | 'delegated-admin' | 'account-operator';
+
+interface RecognizedCognitoUser {
+  readonly cognitoUser: CognitoUserType;
+  readonly email: string;
+  readonly invitedBy: string;
+  readonly userType: AsrUserType;
+}
+
+const COGNITO_GROUP_LOOKUP_CONCURRENCY = 10;
 
 export class CognitoService {
   private readonly cognitoClient: CognitoIdentityProviderClient;
@@ -42,55 +57,88 @@ export class CognitoService {
 
   async getAllUsers(): Promise<User[]> {
     try {
-      const response = await this.cognitoClient.send(
-        new ListUsersCommand({
-          UserPoolId: this.userPoolId,
-        }),
+      const cognitoUsers = await this.listAllCognitoUsers();
+      const recognizedUsers = (
+        await mapWithConcurrency(cognitoUsers, COGNITO_GROUP_LOOKUP_CONCURRENCY, async (cognitoUser) => {
+          const email = cognitoUser.Attributes?.find((attr) => attr.Name === 'email')?.Value;
+          const invitedBy = cognitoUser.Attributes?.find((attr) => attr.Name === 'custom:invitedBy')?.Value;
+          const username = cognitoUser.Username;
+
+          if (!email || !invitedBy || !username) {
+            this.logger.warn('Skipping user with missing required attributes', { username });
+            return undefined;
+          }
+
+          const groupsResponse = await this.cognitoClient.send(
+            new AdminListGroupsForUserCommand({
+              UserPoolId: this.userPoolId,
+              Username: username,
+            }),
+          );
+
+          const groups = groupsResponse.Groups?.flatMap((group) => (group.GroupName ? [group.GroupName] : [])) ?? [];
+          const userType = this.determineUserType(groups);
+
+          if (!userType) {
+            this.logger.warn('Skipping user with no recognized groups', { username, groups });
+            return undefined;
+          }
+
+          return { cognitoUser, email, invitedBy, userType };
+        })
+      ).filter((user): user is RecognizedCognitoUser => user !== undefined);
+
+      const authorizationByEmail = await this.userAccountMappingRepository.findUserAuthorizations(
+        recognizedUsers.filter((user) => user.userType !== 'admin').map((user) => user.email),
       );
 
-      const users: User[] = [];
-      for (const cognitoUser of response?.Users || []) {
-        const email = cognitoUser.Attributes?.find((attr) => attr.Name === 'email')?.Value;
-        const invitedBy = cognitoUser.Attributes?.find((attr) => attr.Name === 'custom:invitedBy')?.Value;
-        const username = cognitoUser.Username!;
-
-        if (!email || !invitedBy) {
-          this.logger.warn('Skipping user with missing required attributes', { username });
-          continue;
-        }
-
-        const groupsResponse = await this.cognitoClient.send(
-          new AdminListGroupsForUserCommand({
-            UserPoolId: this.userPoolId,
-            Username: username,
-          }),
-        );
-
-        const groups = groupsResponse.Groups?.map((group) => group.GroupName!) || [];
-        const userType = this.determineUserType(groups);
-
-        if (!userType) {
-          this.logger.warn('Skipping user with no recognized groups', { username, groups });
-          continue;
-        }
-
-        const user = await this.constructUserFromCognitoData(
+      return recognizedUsers.map(({ cognitoUser, email, invitedBy, userType }) =>
+        this.constructUserFromCognitoData(
           email,
           invitedBy,
           userType,
           cognitoUser.UserCreateDate,
           cognitoUser.UserStatus,
-        );
-        if (user) {
-          users.push(user);
-        }
-      }
-
-      return users;
+          authorizationByEmail.get(email.toLowerCase()),
+        ),
+      );
     } catch (error) {
       this.logger.error('Failed to retrieve users', {
         error: error instanceof Error ? error.message : String(error),
       });
+      throw error;
+    }
+  }
+
+  /**
+   * Resolve whether a user exists in the pool and, if so, their ASR user type — using
+   * ONLY Cognito (AdminGetUser + AdminListGroups), with no DynamoDB read.
+   *
+   * `getUserById` also reads the user's account/MCP-grant mapping from DynamoDB to build a
+   * full `User`, which adds a DynamoDB dependency to any caller that only needs existence.
+   * The federated pre-sign-up trigger is one such caller: it just needs to know the user
+   * exists (and logs the type), so it must not fail sign-in on a transient DynamoDB blip in
+   * a mapping read it never uses. Returns undefined when the user does not exist or carries
+   * no recognized ASR group; a genuine Cognito failure still propagates.
+   */
+  async findUserTypeByEmail(userId: string): Promise<AsrUserType | undefined> {
+    try {
+      const response = await this.cognitoClient.send(
+        new AdminGetUserCommand({ UserPoolId: this.userPoolId, Username: userId }),
+      );
+      const email = response.UserAttributes?.find((attr) => attr.Name === 'email')?.Value;
+      const invitedBy = response.UserAttributes?.find((attr) => attr.Name === 'custom:invitedBy')?.Value;
+      if (!email || !invitedBy) return undefined;
+
+      const groupsResponse = await this.cognitoClient.send(
+        new AdminListGroupsForUserCommand({ UserPoolId: this.userPoolId, Username: userId }),
+      );
+      const groups = groupsResponse.Groups?.flatMap((group) => (group.GroupName ? [group.GroupName] : [])) ?? [];
+      // determineUserType returns null for no recognized group; normalize to undefined
+      // to match this method's contract (a single "no ASR user type" sentinel).
+      return this.determineUserType(groups) ?? undefined;
+    } catch (error) {
+      if (isUserNotFound(error)) return undefined;
       throw error;
     }
   }
@@ -132,23 +180,40 @@ export class CognitoService {
         return null;
       }
 
-      const user = await this.constructUserFromCognitoData(
+      const authorization =
+        userType === 'admin' ? undefined : await this.userAccountMappingRepository.findUserAuthorization(email);
+      const user = this.constructUserFromCognitoData(
         email,
         invitedBy,
         userType,
         response.UserCreateDate,
         response.UserStatus,
+        authorization,
       );
 
       this.userCache.set(userId, { user });
       return user;
     } catch (error) {
+      // Cache a negative result ONLY for a genuine "no such user". Any other
+      // failure — notably a transient DynamoDB error from the findUserAuthorization
+      // read above, or a Cognito throttle — must not be frozen into the cache as
+      // user:null for the warm Lambda's lifetime, which would make a real, still-
+      // existing user look permanently deleted. Rethrow those so the caller
+      // surfaces a retryable error instead of a false 404.
+      //
+      // Not-found is recognized by the real Cognito exception name
+      // (UserNotFoundException) or by an error whose message says the user was not
+      // found, which is the not-found signal used throughout this service's tests
+      // and callers. A transient failure matches neither.
+      if (isUserNotFound(error)) {
+        this.userCache.set(userId, { user: null });
+        return null;
+      }
       this.logger.error('Failed to retrieve user by ID', {
         userId,
         error: error instanceof Error ? error.message : String(error),
       });
-      this.userCache.set(userId, { user: null });
-      return null;
+      throw error;
     }
   }
 
@@ -173,18 +238,21 @@ export class CognitoService {
     }
   }
 
-  private async constructUserFromCognitoData(
+  private constructUserFromCognitoData(
     email: string,
     invitedBy: string,
-    userType: 'admin' | 'delegated-admin' | 'account-operator',
+    userType: AsrUserType,
     userCreateDate?: Date,
     userStatus?: string,
-  ): Promise<User> {
+    authorization?: UserAuthorizationData,
+  ): User {
+    const allowedMcpTools = userType === 'admin' ? undefined : (authorization?.allowedMcpTools ?? []);
     const baseUser = {
       email,
       invitedBy,
       invitationTimestamp: userCreateDate?.toISOString() || new Date().toISOString(),
       status: userStatus === 'CONFIRMED' ? ('Confirmed' as const) : ('Invited' as const),
+      ...(allowedMcpTools ? { allowedMcpTools } : {}),
     };
 
     switch (userType) {
@@ -192,11 +260,31 @@ export class CognitoService {
         return { ...baseUser, type: 'admin' } as AdminUser;
       case 'delegated-admin':
         return { ...baseUser, type: 'delegated-admin' } as DelegatedAdminUser;
-      case 'account-operator': {
-        const accountIds = (await this.userAccountMappingRepository.getUserAccounts(email)) ?? [];
-        return { ...baseUser, type: 'account-operator', accountIds } as AccountOperatorUser;
-      }
+      case 'account-operator':
+        return {
+          ...baseUser,
+          type: 'account-operator',
+          accountIds: authorization?.accountIds ?? [],
+        } as AccountOperatorUser;
     }
+  }
+
+  private async listAllCognitoUsers(): Promise<CognitoUserType[]> {
+    const users: CognitoUserType[] = [];
+    let paginationToken: string | undefined;
+
+    do {
+      const response = await this.cognitoClient.send(
+        new ListUsersCommand({
+          UserPoolId: this.userPoolId,
+          PaginationToken: paginationToken,
+        }),
+      );
+      users.push(...(response.Users ?? []));
+      paginationToken = response.PaginationToken;
+    } while (paginationToken);
+
+    return users;
   }
 
   async createUser(
@@ -271,23 +359,29 @@ export class CognitoService {
       );
     }
 
-    const existingMapping = await this.userAccountMappingRepository.findById(userId, '');
-    const previousAccountIds = existingMapping?.accountIds ?? [];
-    if (existingMapping) {
-      await this.userAccountMappingRepository.put({
-        ...existingMapping,
-        accountIds: userData.accountIds ?? [],
-      });
-    } else {
-      await this.userAccountMappingRepository.create({
-        userId,
-        accountIds: userData.accountIds ?? [],
-        invitedBy: existingUser.invitedBy,
-        invitationTimestamp: new Date().toISOString(),
-      });
-    }
+    const previousAuthorization = await this.userAccountMappingRepository.findUserAuthorization(userId);
+    const previousAccountIds = previousAuthorization?.accountIds ?? [];
+    // Route the write through the repository's key-normalizing path rather than a
+    // verbatim findById/put. The read-authorization path lowercases and migrates
+    // the record, so a raw write on the mixed-case userId would land on a stale
+    // duplicate while authorization kept reading the lowercase one — preserving
+    // accounts this update was meant to revoke.
+    await this.userAccountMappingRepository.setUserAccounts(userId, userData.accountIds ?? [], existingUser.invitedBy);
     this.userCache.delete(userId);
     return previousAccountIds;
+  }
+
+  /** Replace a Delegated Admin or Account Operator's MCP tool grant. */
+  async updateUserMcpTools(userId: string, allowedTools: readonly string[]): Promise<void> {
+    const existingUser = await this.getUserById(userId);
+    if (!existingUser) {
+      throw new NotFoundError(`User ${userId} not found.`);
+    }
+    if (existingUser.type === 'admin') {
+      throw new BadRequestError('AdminGroup receives all MCP tools automatically and does not accept a tool grant.');
+    }
+    await this.userAccountMappingRepository.putUserAllowedMcpTools(existingUser.email, allowedTools);
+    this.userCache.delete(userId);
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -296,9 +390,7 @@ export class CognitoService {
       throw new NotFoundError(`User ${userId} not found.`);
     }
 
-    if (user.type === 'account-operator') {
-      await this.userAccountMappingRepository.deleteIfExists(userId, '');
-    }
+    await this.userAccountMappingRepository.deleteIfExists(userId, '');
 
     await this.cognitoClient.send(
       new AdminDeleteUserCommand({
@@ -369,4 +461,29 @@ export class CognitoService {
     }
     return null;
   }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let start = 0; start < items.length; start += concurrency) {
+    results.push(...(await Promise.all(items.slice(start, start + concurrency).map(mapper))));
+  }
+  return results;
+}
+
+/**
+ * Whether an AdminGetUser failure means the user genuinely does not exist, as
+ * opposed to a transient or unknown failure. Recognizes both the real Cognito
+ * `UserNotFoundException` and an error whose message says the user was not found
+ * — the latter is the not-found signal this service's callers and tests rely on.
+ * A transient DynamoDB or throttling error matches neither, so it propagates
+ * rather than being cached as a missing user.
+ */
+function isUserNotFound(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === 'UserNotFoundException' || /user not found/i.test(error.message);
 }

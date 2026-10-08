@@ -60,6 +60,11 @@ export interface AccessRule {
   validator?: (user: AuthenticatedUser, context?: AccessValidationContext) => void | Promise<void>;
 }
 
+export interface RequestedAccountScope {
+  accountIds: string[];
+  hasUnusableAccountFilter: boolean;
+}
+
 export function getClaims(event: APIGatewayProxyEvent): CognitoClaims {
   const claims = event.requestContext?.authorizer?.claims;
   if (!claims) {
@@ -114,9 +119,15 @@ export class BaseHandler {
   /**
    * Access rule for operations whose account scope cannot be determined, so
    * per-account authorization can't be applied. Restricts access to
-   * Admin/DelegatedAdmin and denies AccountOperators — a fail-closed default
-   * (rather than createAccessRules([]), whose empty-account case is permissive
-   * because callers like search rely on the service layer to scope results).
+   * Admin/DelegatedAdmin and denies AccountOperators, a fail-closed default.
+   *
+   * Use this for paths with no account ceiling of their own.
+   * `createAccessRules([])` admits an AccountOperator without narrowing the
+   * request, so it is safe only where something else supplies the account scope.
+   * On the search paths that is `applyAccountFilteringForAccountOperators`,
+   * which composes the operator's authorized accounts when the request carries
+   * no `accountId` filter of its own, and `createRequestScopedAccessRules`,
+   * which authorizes the filter when it does carry one.
    */
   createAdminOnlyAccessRules(): AccessRule {
     return {
@@ -130,20 +141,90 @@ export class BaseHandler {
     };
   }
 
-  extractAccountIdsFromRequest(request: {
-    Filters?: { CompositeFilters?: Array<{ StringFilters?: Array<{ FieldName: string; Filter: { Value: string } }> }> };
-  }): string[] {
-    if (!request.Filters?.CompositeFilters) {
-      return [];
+  /**
+   * Account scope a search request asks for.
+   *
+   * `hasUnusableAccountFilter` is set when the request carries an `accountId`
+   * filter that cannot serve as a scope: any comparison other than `EQUALS`, or a
+   * missing filter, comparison or value.
+   *
+   * A non-`EQUALS` filter cannot be narrowed to the operator's authorized
+   * accounts, because the repository combines filters on one field with OR, so an
+   * appended ceiling widens the scope instead of intersecting it and
+   * `accountId NOT_EQUALS <own account>` would return every other account. An
+   * incomplete filter is dropped when the request is converted to search
+   * criteria, so accepting it as a scope would authorize a request that reaches
+   * the query with none. Both are denied.
+   */
+  extractAccountScopeFromRequest(request: {
+    Filters?: {
+      StringFilters?: Array<{ FieldName: string; Filter?: { Value?: string; Comparison?: string } }>;
+      CompositeFilters?: Array<{
+        StringFilters?: Array<{ FieldName: string; Filter?: { Value?: string; Comparison?: string } }>;
+      }>;
+    };
+  }): RequestedAccountScope {
+    const filters = request.Filters;
+    if (!filters) {
+      return { accountIds: [], hasUnusableAccountFilter: false };
     }
 
-    const accountIds = request.Filters.CompositeFilters.flatMap(
-      (compositeFilter) => compositeFilter.StringFilters || [],
-    )
-      .filter((stringFilter) => stringFilter.FieldName === 'accountId')
-      .map((stringFilter) => stringFilter.Filter.Value);
+    // Both filter shapes are read. The service layer accepts an accountId
+    // filter at the root or nested in a composite, so validating only the
+    // composite shape would let a root-level filter through unauthorized.
+    const stringFilters = [
+      ...(filters.StringFilters ?? []),
+      ...(filters.CompositeFilters ?? []).flatMap((compositeFilter) => compositeFilter.StringFilters ?? []),
+    ];
 
-    return Array.from(new Set(accountIds));
+    const accountIdFilters = stringFilters.filter((stringFilter) => stringFilter.FieldName === 'accountId');
+    // Fail closed on anything that is not a usable EQUALS filter. A missing
+    // Filter, comparison or value is dropped when the request is converted to
+    // search criteria, so admitting one here would authorize a request that
+    // reaches the query with no account scope.
+    const hasUnusableAccountFilter = accountIdFilters.some(
+      (stringFilter) => stringFilter.Filter?.Comparison !== 'EQUALS' || !stringFilter.Filter?.Value,
+    );
+    const accountIds = accountIdFilters
+      .map((stringFilter) => stringFilter.Filter?.Value)
+      .filter((accountId): accountId is string => accountId !== undefined);
+
+    return {
+      accountIds: Array.from(new Set(accountIds)),
+      hasUnusableAccountFilter,
+    };
+  }
+
+  /**
+   * Access rule for a search request, scoped to the accounts the request asks
+   * for. Prefer this over deriving the scope and calling `createAccessRules`
+   * separately: it is the only path that also rejects an account filter whose
+   * comparison cannot be narrowed.
+   */
+  createRequestScopedAccessRules(request: {
+    Filters?: {
+      StringFilters?: Array<{ FieldName: string; Filter?: { Value?: string; Comparison?: string } }>;
+      CompositeFilters?: Array<{
+        StringFilters?: Array<{ FieldName: string; Filter?: { Value?: string; Comparison?: string } }>;
+      }>;
+    };
+  }): AccessRule {
+    const requestedScope = this.extractAccountScopeFromRequest(request);
+    const accountScopedRules = this.createAccessRules(requestedScope.accountIds);
+
+    return {
+      ...accountScopedRules,
+      validator: async (user) => {
+        if (
+          requestedScope.hasUnusableAccountFilter &&
+          !user.groups.includes('AdminGroup') &&
+          !user.groups.includes('DelegatedAdminGroup')
+        ) {
+          throw new ForbiddenError('Unsupported accountId filter comparison');
+        }
+        await accountScopedRules.validator?.(user);
+      },
+    };
   }
 
   /**

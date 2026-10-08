@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import { mockClient } from 'aws-sdk-client-mock';
 import { SNSClient, PublishCommand, ListSubscriptionsByTopicCommand } from '@aws-sdk/client-sns';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
 import {
   notificationConfigTableName,
@@ -338,6 +338,57 @@ describe('Notification Configurations Handler', () => {
       expect(body.configurations).toHaveLength(2);
     });
 
+    it('should not leak storage-index attributes into the response', async () => {
+      // The table carries CONFIG_CONSTANT and enabledType for its GSIs. They are not part of the
+      // model, and a client round-tripping a returned object into an update would resubmit them.
+      const created = await createConfig();
+      const stored = await DynamoDBTestSetup.getDocClient().send(
+        new GetCommand({ TableName: notificationConfigTableName, Key: { configId: created.configId } }),
+      );
+      expect(stored.Item).toHaveProperty('CONFIG_CONSTANT');
+      expect(stored.Item).toHaveProperty('enabledType');
+
+      const listed = JSON.parse((await getNotificationConfigurations(createGetEvent(), createMockContext())).body);
+      const fetched = JSON.parse(
+        (await getNotificationConfiguration(createGetByIdEvent(created.configId), createMockContext())).body,
+      );
+
+      for (const config of [created, listed.configurations[0], fetched]) {
+        expect(config).not.toHaveProperty('CONFIG_CONSTANT');
+        expect(config).not.toHaveProperty('enabledType');
+        expect(config.configId).toBe(created.configId);
+      }
+    });
+
+    it('should still list a stored row that no longer matches the item schema, minus storage attributes', async () => {
+      // A legacy or hand-edited row must not take the whole listing down with a 500.
+      const created = await createConfig();
+      await DynamoDBTestSetup.getDocClient().send(
+        new PutCommand({
+          TableName: notificationConfigTableName,
+          Item: {
+            configId: 'bbbbbbbb-cccc-4ddd-aeee-ffffffffffff',
+            CONFIG_CONSTANT: 'CONFIG',
+            enabledType: 'finding',
+            name: 'Legacy Row',
+            enabled: true,
+            notificationType: 'finding',
+            // Missing deliveryChannels / batchWindow / contentOptions / version / createdAt / createdBy
+          },
+        }),
+      );
+
+      const result = await getNotificationConfigurations(createGetEvent(), createMockContext());
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.configurations).toHaveLength(2);
+      const legacy = body.configurations.find((c: { configId: string }) => c.configId !== created.configId);
+      expect(legacy.name).toBe('Legacy Row');
+      expect(legacy).not.toHaveProperty('CONFIG_CONSTANT');
+      expect(legacy).not.toHaveProperty('enabledType');
+    });
+
     it('should allow AccountOperatorGroup to read', async () => {
       setupCognitoMock('operator@example.com', ['AccountOperatorGroup']);
       const result = await getNotificationConfigurations(
@@ -593,24 +644,48 @@ describe('Notification Configurations Handler', () => {
       const result = await deleteNotificationConfiguration(createDeleteEvent(created.configId), createMockContext());
 
       expect(result.statusCode).toBe(200);
+      expect(JSON.parse(result.body)).toMatchObject({ deleted: true });
       await expect(
         getNotificationConfiguration(createGetByIdEvent(created.configId), createMockContext()),
       ).rejects.toThrow('not found');
     });
 
-    it('should return 200 when deleting a non-existent configuration (idempotent)', async () => {
-      // ARRANGE - assert the no-op path records no Delete CRUD metric
+    it('should return 200 with deleted:false when the configuration does not exist (idempotent)', async () => {
+      // Stays a 200 — DELETE is idempotent, so a missing resource is not an error, and the WebUI
+      // mutation is typed <void, string> so a 404 would show a failure toast when another tab got
+      // there first. The `deleted` flag is what makes the response truthful: it distinguishes a
+      // real teardown from a no-op, which the old flat "deleted successfully" could not.
+      // The no-op path still records no Delete CRUD metric.
       const metricsScope = createMetricsTestScope(/.*configuration_crud.*operation.*Delete.*/);
 
-      // ACT
       const result = await deleteNotificationConfiguration(
         createDeleteEvent('aaaaaaaa-bbbb-4ccc-addd-eeeeeeeeeeee'),
         createMockContext(),
       );
 
-      // ASSERT
       expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body) as { deleted: boolean; message: string };
+      expect(body.deleted).toBe(false);
+      expect(body.message).toMatch(/did not exist/);
       expect(metricsScope.isDone()).toBe(false);
+    });
+
+    it('should return 200 with deleted:false for an account operator when the configuration does not exist', async () => {
+      // The operator creator check used to run first with a throwing lookup, so an operator
+      // deleting an already-removed configuration got a 404 while an admin got the idempotent
+      // 200. Idempotency has to hold for every caller: with nothing to compare a creator
+      // against, the no-op path is the only truthful answer.
+      setupCognitoMock('operator@example.com', ['AccountOperatorGroup']);
+
+      const result = await deleteNotificationConfiguration(
+        createDeleteEvent('aaaaaaaa-bbbb-4ccc-addd-eeeeeeeeeeee', 'operator@example.com', ['AccountOperatorGroup']),
+        createMockContext(),
+      );
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body) as { deleted: boolean; message: string };
+      expect(body.deleted).toBe(false);
+      expect(body.message).toMatch(/did not exist/);
     });
 
     it('should throw on invalid UUID', async () => {

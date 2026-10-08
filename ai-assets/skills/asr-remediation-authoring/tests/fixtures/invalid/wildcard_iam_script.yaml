@@ -1,0 +1,19 @@
+schemaVersion: "0.3"
+description: Wildcard privilege in a script block.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+mainSteps:
+  - name: DoStuff
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      Script: |
+        policy = {"Action": "*", "Resource": "*"}
+        print(policy)
+  - name: VerifyThing
+    action: aws:assertAwsResourceProperty

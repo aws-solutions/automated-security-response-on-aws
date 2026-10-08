@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import CollectionPreferences, {
   CollectionPreferencesProps,
 } from '@cloudscape-design/components/collection-preferences';
@@ -11,6 +11,7 @@ import Table, { TableProps } from '@cloudscape-design/components/table';
 import Alert from '@cloudscape-design/components/alert';
 import Box from '@cloudscape-design/components/box';
 import Button from '@cloudscape-design/components/button';
+import Checkbox from '@cloudscape-design/components/checkbox';
 import Modal from '@cloudscape-design/components/modal';
 import SpaceBetween from '@cloudscape-design/components/space-between';
 import Spinner from '@cloudscape-design/components/spinner';
@@ -23,11 +24,12 @@ import {
   denormalizeRemediationStatus,
 } from '@data-models';
 import { useExportRemediationsMutation, useLazySearchRemediationsQuery } from '../../../store/remediationsSlice.ts';
-import { useExecuteActionMutation } from '../../../store/findingsApiSlice.ts';
-import { useGetControlsQuery } from '../../../store/controlsApiSlice.ts';
 import { CompositeFilter, SearchRequest, StringFilter } from '../../../store/types.ts';
 import { getErrorMessage } from '../../../utils/error.ts';
+import { canRollback } from '../../../utils/userPermissions.ts';
+import { UserContext } from '../../../contexts/UserContext.tsx';
 import { createHistoryColumnDefinitions } from './createHistoryColumnDefinitions.tsx';
+import { useRollbackConfirmation } from './useRollbackConfirmation.ts';
 
 const getFilterCounterText = (count = 0) => `${count} ${count === 1 ? 'match' : 'matches'}`;
 
@@ -35,6 +37,7 @@ export default function RemediationHistoryTable() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { groups } = useContext(UserContext);
   const persistedPreferences = historyTablePreferences.load();
 
   // State management
@@ -87,29 +90,27 @@ export default function RemediationHistoryTable() {
   const [searchRemediations, { data: searchResult, isLoading: isSearchLoading, error: searchError }] =
     useLazySearchRemediationsQuery();
   const [exportRemediations, { isLoading: isExportLoading, error: exportError }] = useExportRemediationsMutation();
-  const [executeAction, { isLoading: isRollbackLoading }] = useExecuteActionMutation();
 
-  // Controls drive the rollback warning: if auto-remediation is enabled for the
-  // control behind the finding, a rolled-back finding can be picked up and
-  // re-remediated automatically. The list is small and cached, so querying it
-  // here is cheap.
-  const { data: controls } = useGetControlsQuery();
-
-  // Rollback confirmation state
-  const [pendingRollback, setPendingRollback] = useState<RemediationHistoryApiResponse | null>(null);
-  const [rollbackError, setRollbackError] = useState<string | null>(null);
-  const [rollbackSuccess, setRollbackSuccess] = useState<string | null>(null);
-
-  // True when auto-remediation is enabled for the control of the finding being
-  // rolled back. The history record's findingType is the control id (e.g.
-  // "GuardDuty.IAMUser").
-  const isPendingControlAutoRemediationEnabled = useMemo(() => {
-    if (!pendingRollback || !controls) return false;
-    return (
-      controls.find((control) => control.controlId === pendingRollback.findingType)?.automatedRemediationEnabled ??
-      false
-    );
-  }, [pendingRollback, controls]);
+  // Rollback confirmation flow (modal state, derived warning content, and the
+  // rollback + exclusion-filter side effects) is owned by this hook.
+  const {
+    pendingRollback,
+    shouldExcludeFromAutoRemediation,
+    setShouldExcludeFromAutoRemediation,
+    rollbackError,
+    setRollbackError,
+    rollbackSuccess,
+    setRollbackSuccess,
+    rollbackWarning,
+    setRollbackWarning,
+    isRollbackInProgress,
+    isPendingControlAutoRemediationEnabled,
+    reRemediationEligibleDate,
+    pendingControlLabel,
+    handleRollbackClick,
+    executeRollback,
+    closeModal,
+  } = useRollbackConfirmation();
 
   // Handle initial filter state from navigation
   useEffect(() => {
@@ -293,6 +294,21 @@ export default function RemediationHistoryTable() {
     return allHistory;
   }, [allHistory]);
 
+  const pendingRollbackDescription = useMemo(() => {
+    if (!pendingRollback) {
+      return undefined;
+    }
+    if (pendingRollback.rollbackDescription) {
+      return pendingRollback.rollbackDescription;
+    }
+    return history
+      .filter((item) => item.findingId === pendingRollback.findingId && item.rollbackDescription)
+      .reduce<
+        (typeof history)[number] | undefined
+      >((newest, item) => (!newest || item.lastUpdatedTime > newest.lastUpdatedTime ? item : newest), undefined)
+      ?.rollbackDescription;
+  }, [pendingRollback, history]);
+
   const filteringProperties = [
     {
       key: 'findingId',
@@ -384,42 +400,32 @@ export default function RemediationHistoryTable() {
     return options;
   }, [allHistory]);
 
+  // Rollback is admin-only. When the user cannot roll back, the column is dropped
+  // entirely (not just its click handler) so it does not render as an empty column
+  // or appear as a column preference option.
+  const userCanRollback = canRollback(groups);
+
+  const historyColumnOptions = [
+    { id: 'findingId', label: 'Finding ID' },
+    { id: 'status', label: 'Status' },
+    { id: 'accountId', label: 'Account' },
+    { id: 'resourceId', label: 'Resource ID' },
+    { id: 'executionTimestamp', label: 'Execution Timestamp' },
+    { id: 'executedBy', label: 'Executed By' },
+    { id: 'viewExecution', label: 'View Execution' },
+    ...(userCanRollback ? [{ id: 'rollback', label: 'Rollback' }] : []),
+  ];
+
   const collectionPreferencesProps = {
     title: 'Preferences',
     confirmLabel: 'Confirm',
     cancelLabel: 'Cancel',
     preferences: {
       ...preferences,
-      contentDisplay: [
-        { id: 'findingId', label: 'Finding ID', visible: preferences?.visibleContent?.includes('findingId') ?? true },
-        { id: 'status', label: 'Status', visible: preferences?.visibleContent?.includes('status') ?? true },
-        { id: 'accountId', label: 'Account', visible: preferences?.visibleContent?.includes('accountId') ?? true },
-        {
-          id: 'resourceId',
-          label: 'Resource ID',
-          visible: preferences?.visibleContent?.includes('resourceId') ?? true,
-        },
-        {
-          id: 'executionTimestamp',
-          label: 'Execution Timestamp',
-          visible: preferences?.visibleContent?.includes('executionTimestamp') ?? true,
-        },
-        {
-          id: 'executedBy',
-          label: 'Executed By',
-          visible: preferences?.visibleContent?.includes('executedBy') ?? true,
-        },
-        {
-          id: 'viewExecution',
-          label: 'View Execution',
-          visible: preferences?.visibleContent?.includes('viewExecution') ?? true,
-        },
-        {
-          id: 'rollback',
-          label: 'Rollback',
-          visible: preferences?.visibleContent?.includes('rollback') ?? true,
-        },
-      ],
+      contentDisplay: historyColumnOptions.map((option) => ({
+        ...option,
+        visible: preferences?.visibleContent?.includes(option.id) ?? true,
+      })),
     },
     onConfirm: ({ detail }: { detail: CollectionPreferencesProps.Preferences }) => {
       const visibleContent = detail.contentDisplay?.filter((item) => item.visible).map((item) => item.id);
@@ -432,27 +438,14 @@ export default function RemediationHistoryTable() {
     contentDisplayPreference: {
       title: 'Column preferences',
       description: 'Choose which columns to display in the table',
-      options: [
-        { id: 'findingId', label: 'Finding ID' },
-        { id: 'status', label: 'Status' },
-        { id: 'accountId', label: 'Account' },
-        { id: 'resourceId', label: 'Resource ID' },
-        { id: 'executionTimestamp', label: 'Execution Timestamp' },
-        { id: 'executedBy', label: 'Executed By' },
-        { id: 'viewExecution', label: 'View Execution' },
-        { id: 'rollback', label: 'Rollback' },
-      ],
+      options: historyColumnOptions,
     },
   };
 
-  const handleRollbackClick = useCallback((item: RemediationHistoryApiResponse): void => {
-    setPendingRollback(item);
-  }, []);
-
-  const allColumnDefinitions = useMemo(
-    () => createHistoryColumnDefinitions(navigate, handleRollbackClick),
-    [navigate, handleRollbackClick],
-  );
+  const allColumnDefinitions = useMemo(() => {
+    const columns = createHistoryColumnDefinitions(navigate, userCanRollback ? handleRollbackClick : undefined);
+    return userCanRollback ? columns : columns.filter((column) => column.id !== 'rollback');
+  }, [navigate, handleRollbackClick, userCanRollback]);
 
   const columnDefinitions = useMemo(() => {
     if (!preferences?.visibleContent) {
@@ -540,29 +533,6 @@ export default function RemediationHistoryTable() {
     }
   }, [hasMoreData, isLoadingMore, isSearchLoading, loadMoreRemediations]);
 
-  const executeRollback = async (): Promise<void> => {
-    if (!pendingRollback) return;
-    const findingId = pendingRollback.findingId;
-    setRollbackError(null);
-    setRollbackSuccess(null);
-    const result = await executeAction({
-      actionType: 'Rollback',
-      findingIds: [findingId],
-      // Supply the explicit key so the lookup never depends on deriving the partition key from the
-      // finding id, which is impossible for ids that are not Security Hub ARNs. The history row's
-      // findingType is the findings-table partition key: the TypeScript write path copies it from
-      // the finding item and the Orchestrator derives it identically. See ADR 0010.
-      findingKeys: [{ findingId, findingType: pendingRollback.findingType }],
-    });
-    setPendingRollback(null);
-    if (result.error) {
-      setRollbackError(getErrorMessage(result.error) || 'Failed to initiate rollback. Please try again.');
-    } else {
-      setRollbackSuccess(`Rollback initiated for finding ${findingId}.`);
-      handleRefresh();
-    }
-  };
-
   const handleRefresh = () => {
     setOperationType('refresh');
     setAllHistory([]);
@@ -601,44 +571,63 @@ export default function RemediationHistoryTable() {
       {/* Rollback confirmation modal */}
       <Modal
         visible={pendingRollback !== null}
-        onDismiss={() => setPendingRollback(null)}
-        header="Confirm GuardDuty Credential Rollback"
+        onDismiss={closeModal}
+        header="Confirm Rollback"
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button variant="link" onClick={() => setPendingRollback(null)}>
+              <Button variant="link" onClick={closeModal}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={executeRollback} loading={isRollbackLoading}>
-                Rollback Containment
+              <Button variant="primary" onClick={() => executeRollback(handleRefresh)} loading={isRollbackInProgress}>
+                Confirm Rollback
               </Button>
             </SpaceBetween>
           </Box>
         }
       >
-        <Box variant="p">
-          This will restore the IAM principal to its pre-containment state: re-enabling access keys, restoring console
-          access, and removing the deny-all policy.
-        </Box>
-        <Box variant="p">
-          Only roll back after completing your investigation and confirming the threat has been resolved. IAM
-          configuration backups are retained for 90 days.
-        </Box>
-        {isPendingControlAutoRemediationEnabled && (
-          <Box margin={{ top: 's' }}>
-            <Alert type="warning" header="Auto-remediation is enabled for this control">
-              Automatic remediation is enabled for {pendingRollback?.findingType}. After this rollback, ASR may
-              automatically re-remediate the finding, reversing the rollback. Disable auto-remediation for this control
-              before rolling back if you want the change to persist.
-            </Alert>
+        <SpaceBetween size="s">
+          <Box variant="p">
+            <strong>Control:</strong> {pendingControlLabel}
           </Box>
-        )}
+          <Box variant="p">
+            <strong>Resource:</strong> {pendingRollback?.resourceId}
+          </Box>
+          {pendingRollbackDescription && (
+            <Box variant="p">
+              <strong>Action:</strong> {pendingRollbackDescription}
+            </Box>
+          )}
+          <Box variant="p" color="text-status-warning">
+            This will weaken the security posture of this resource. If auto-remediation is enabled, ASR may re-remediate
+            this resource
+            {reRemediationEligibleDate
+              ? ` after the current finding expires (around ${reRemediationEligibleDate}).`
+              : ' after the current finding expires.'}
+          </Box>
+          {isPendingControlAutoRemediationEnabled && (
+            <Checkbox
+              checked={shouldExcludeFromAutoRemediation}
+              onChange={({ detail }) => setShouldExcludeFromAutoRemediation(detail.checked)}
+            >
+              Exclude this resource from future auto-remediation
+            </Checkbox>
+          )}
+        </SpaceBetween>
       </Modal>
 
       {rollbackSuccess && (
         <Box margin={{ bottom: 's' }}>
           <Alert type="success" dismissible onDismiss={() => setRollbackSuccess(null)}>
             {rollbackSuccess}
+          </Alert>
+        </Box>
+      )}
+
+      {rollbackWarning && (
+        <Box margin={{ bottom: 's' }}>
+          <Alert type="warning" dismissible onDismiss={() => setRollbackWarning(null)}>
+            {rollbackWarning}
           </Alert>
         </Box>
       )}

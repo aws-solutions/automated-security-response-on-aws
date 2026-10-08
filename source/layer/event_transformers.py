@@ -42,6 +42,19 @@ class Event(TypedDict):
     SSMExecution: NotRequired[dict[str, Any]]
 
 
+# EventType values EventBridge stamps when a human triggers a remediation:
+# a Security Hub custom action from the console, or the API action. Everything
+# else (scheduled, event-driven) is automation. This is the single definition of
+# "a person did this" shared by is_notified_workflow, extract_triggered_by, and
+# the SSM document resolver's manual-trigger gate.
+MANUAL_TRIGGER_EVENT_TYPES = frozenset(
+    {
+        "Security Hub Findings - Custom Action",
+        "Security Hub Findings - API Action",
+    }
+)
+
+
 def extract_stepfunctions_execution_id(event: Event) -> str:
     execution_id = event.get("Notification", {}).get("StepFunctionsExecutionId")
 
@@ -68,10 +81,7 @@ def is_notified_workflow(event: Event) -> bool:
 
     event_type = event.get("EventType", "")
     event_dict = cast(dict[str, Any], cast(object, event))
-    if event_type in (
-        "Security Hub Findings - Custom Action",
-        "Security Hub Findings - API Action",
-    ):
+    if event_type in MANUAL_TRIGGER_EVENT_TYPES:
         logger.debug(
             "NOTIFIED workflow detected but EventType indicates custom/API action - not skipping database updates",
             extra={
@@ -207,6 +217,32 @@ def resolve_finding_account_id(event: Event) -> str:
                 },
             )
     return extract_account_id(event)
+
+
+def extract_triggered_by(event: Event) -> str:
+    """Attribute a remediation to a person or to automation, for remediation history.
+
+    Derived from ``EventType``, which is a declared field of ``Event`` and is set by the
+    producers: EventBridge stamps "Security Hub Findings - Custom Action" when an
+    operator uses a Security Hub custom action, and "- API Action" when one is triggered
+    through the API. Anything else — a scheduled or event-driven remediation — is
+    automation. ``preProcessor.isNotified`` already treats exactly these two values as
+    "a human did this", so this agrees with the existing definition rather than
+    inventing a second one.
+
+    This previously read ``Detail.triggeredBy``. No producer ever set that field, and
+    ``Detail`` is not even declared on ``Event``, so every remediation — including every
+    manual one — was recorded as "Automated", silently corrupting audit attribution.
+
+    ``CustomActionName`` names *which* action ran, so it is appended when present to
+    distinguish two different operator actions in the history.
+    """
+    event_type = event.get("EventType")
+    if event_type not in MANUAL_TRIGGER_EVENT_TYPES:
+        return "Automated"
+
+    custom_action_name = event.get("CustomActionName")
+    return f"Manual: {custom_action_name}" if custom_action_name else "Manual"
 
 
 def extract_region(event: Event) -> str:

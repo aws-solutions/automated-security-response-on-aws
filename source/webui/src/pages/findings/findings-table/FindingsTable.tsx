@@ -708,9 +708,9 @@ export default function FindingsTable() {
     const submittedPlural = submittedIds.length === 1 ? '' : 's';
     const successText = `Successfully ${actionType.toLowerCase()}ed ${submittedIds.length} finding${submittedPlural}`;
 
-    // Suppress/Unsuppress return no unresolvedIds today, so this is null on the
-    // common path and shows no warning. A future/edge response is surfaced as a
-    // neutral note instead of being silently dropped.
+    // Suppress/Unsuppress report `unresolvedIds` only when some requested ids could not be
+    // resolved to a stored finding, so this is null on the common path and shows no warning.
+    // When present it is surfaced as a neutral note instead of being silently dropped.
     const unresolvedFindingLabel = unresolvedIds.length === 1 ? 'finding was' : 'findings were';
     const unresolvedNote =
       unresolvedIds.length > 0 ? `${unresolvedIds.length} ${unresolvedFindingLabel} not processed.` : null;

@@ -136,7 +136,7 @@ export const createMockFinding = (overrides: Partial<FindingTableItem> = {}): Fi
     ],
     Compliance: {
       Status: 'FAILED',
-      SecurityControlId: defaultFinding.findingIdControl || 'Lambda.3',
+      SecurityControlId: findingType.slice(findingType.lastIndexOf('/') + 1),
     },
     Region: defaultFinding.region,
   };

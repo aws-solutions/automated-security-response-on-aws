@@ -8,7 +8,7 @@ import { Construct } from 'constructs';
 import overrideLogicalId from '../cdk-helper/override-logical-id';
 
 export interface MemberRemediationKeyProps {
-  readonly solutionId: string;
+  readonly resourceNamePrefix: string;
 }
 
 export class MemberRemediationKey extends Construct {
@@ -59,14 +59,14 @@ export class MemberRemediationKey extends Construct {
     this.key = kmsKey;
 
     const alias = new Alias(scope, 'SHARR Remediation Key Alias', {
-      aliasName: `${props.solutionId}-SHARR-Remediation-Key`,
+      aliasName: `${props.resourceNamePrefix}-SHARR-Remediation-Key`,
       targetKey: kmsKey,
     });
     overrideLogicalId(alias, 'SHARRRemediationKeyAlias5531874D');
 
     new StringParameter(scope, 'SHARR Key Alias', {
       description: 'KMS Customer Managed Key that will encrypt data for remediations',
-      parameterName: `/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN`,
+      parameterName: `/Solutions/${props.resourceNamePrefix}/CMK_REMEDIATION_ARN`,
       stringValue: kmsKey.keyArn,
     });
   }

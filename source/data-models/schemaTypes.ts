@@ -641,6 +641,8 @@ export interface FindingBaseData extends FindingAbstractData {
 // API response
 export interface FindingApiResponse extends FindingBaseData {
   consoleLink: string;
+  /** Unix timestamp (seconds) — ASR reprocess TTL. Used in the UI rollback confirmation warning. */
+  expireAt?: number;
 }
 
 export interface FindingTableItem extends FindingBaseData {
@@ -650,6 +652,7 @@ export interface FindingTableItem extends FindingBaseData {
   findingJSON: Uint8Array<ArrayBufferLike>;
   findingIdControl: string;
   FINDING_CONSTANT: 'finding';
+  remediationConfigTableKey?: string;
   lastUpdatedBy?: string;
   expireAt: number;
   severityNormalized: number;
@@ -685,6 +688,8 @@ export interface FindingTableItem extends FindingBaseData {
   // onto the rollback finding so the API can pass it as BackupS3KeyName to the
   // runbook. Absent when there is no captured backup key.
   rollbackBackupKey?: string;
+  ssmExecutionId?: string;
+  snapshotVersionId?: string;
   // Stored as DynamoDB String Set (SS). Must be converted to Array before JSON serialization.
   enforcementConfigIds?: Set<string>;
 }
@@ -705,12 +710,21 @@ export interface RemediationHistoryBaseData extends FindingAbstractData {
   // S3 object key of the IAM config backup written by a successful GuardDuty
   // Contain. Read on rollback to supply BackupS3KeyName to the runbook.
   rollbackBackupKey?: string;
+  ssmExecutionId?: string;
+  snapshotVersionId?: string;
 }
 
 // API response for remediation history
 export interface RemediationHistoryApiResponse extends RemediationHistoryBaseData {
   consoleLink: string;
   isRollbackEligible?: boolean;
+  rollbackDescription?: string;
+  /**
+   * Unix timestamp (seconds): earliest time a rolled-back finding could be
+   * auto-remediated again (`lastUpdatedTime + FINDINGS_TTL_DAYS`). Shown in the
+   * rollback confirmation warning.
+   */
+  reRemediationEligibleAt?: number;
 }
 
 // Table item for remediation history
@@ -720,6 +734,10 @@ export interface RemediationHistoryTableItem extends RemediationHistoryBaseData 
   'lastUpdatedTime#findingId': string;
   REMEDIATION_CONSTANT: 'remediation';
   expireAt: number;
+  rollbackAvailable?: boolean;
+  rollbackDescription?: string;
+  // Carried from the finding so a rollback rebuilt from history keeps the key.
+  remediationConfigTableKey?: string;
 }
 
 // Generate TypeScript types from Zod schemas

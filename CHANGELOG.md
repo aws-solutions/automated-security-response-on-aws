@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-10-12
+
+### Added
+
+- Custom remediation support: author, register, test, and deploy your own remediation runbooks alongside the built-in controls. Custom runbooks are resolved per member account with built-in runbooks taking precedence, gated behind a test that must pass before deploy, and their coverage is surfaced to operators (unverified custom coverage is reported as a gap rather than as coverage).
+- Optional MCP (Model Context Protocol) server, exposing the deployed solution's tools to AI clients (Claude Code, Kiro, OpenAI Codex CLI) through an Amazon Bedrock AgentCore Gateway. Enabled with the `EnableMcpServer` parameter, it is deployable independently of the Web UI, verifies the Cognito access token signature and pins the app client before reading any claim, tier-scopes tool grants, and emits tool metrics with an alarm on tool errors.
+- AI remediation-authoring skill (`ai-assets/`): a shared skill plus host adapters for Claude Code, Kiro, and OpenAI Codex CLI that guide an AI coding agent through authoring, validating, testing, and deploying ASR remediations. It supports two workflows: Custom Runbooks deployed into an existing ASR environment, and built-in remediations contributed to the solution source.
+- Snapshot-based remediation rollback: for supported controls, the solution captures a pre-remediation snapshot during remediation and lets an administrator or delegated administrator reverse a completed remediation from the Web UI. Enabled with the new `EnableRollback` parameter; rollback restores the recorded snapshot by its exact version, aborts on drift, and is one-shot per finding.
+
+### Fixed
+
+- Fixed the pre-processor rejecting Security Hub V2 Coverage findings with `InvalidFindingSchemaError`, which emitted a `PRE_PROCESSOR_FAILED` metric and an ERROR log on every coverage refresh. Coverage findings report whether GuardDuty, Inspector, Macie or Security Hub CSPM is enabled and have no remediation; they are now dropped at DEBUG level before schema detection, and the failure metric for any remaining unrecognized finding shape now carries the finding's `class_uid` and product ARN.
+- Fixed pre-production builds (`build-s3-dist.sh -t`) stripping the `DEV-` prefix at some call sites but not others, so the findings status topic, the six member configuration parameters, and the role, instance profile, topic and bucket names referenced by CloudTrail.5, CloudTrail.7, EC2.6, RDS.6, SNS.2, SSM.1, Config.1 and CloudWatch.1 were created under one name and looked up under another.
+
+### Changed
+
+- Pre-production builds now use production resource names, so a `-t` build can no longer be deployed beside a production deployment in one account and Region, and upgrading an existing `-t` deployment replaces the findings status topic and drops any subscriptions created on it.
+- The CloudTrail Action Log group (`/aws/lambda/SO0111-ASR-CloudTrailEvents`) is now retained on stack deletion instead of being deleted, so its ten-year audit records survive a stack delete or a failed-update rollback. After deleting the admin stack the log group remains in the account, and a later redeploy in the same account must remove it first or the deployment fails because the fixed log group name already exists.
+
+### Security
+
+- Fixed an issue where `ASR-ReplaceCodeBuildClearTextCredentials` (CodeBuild.2) wrote the plaintext `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` values into its automation execution history.
+- Removed logging of full event objects across the Orchestrator Lambdas and the WebUI deployer, replacing them with explicit non-sensitive fields so the Security Hub finding body is no longer written to logs.
+- Stopped logging the CloudFormation `ResponseURL` (a presigned S3 URL) in `cfnresponse.py`, and redacted the query string of any presigned URL that surfaces in a failed-callback error message so its credential, signature, and session token cannot leak.
+- Upgraded brace-expansion to mitigate [CVE-2026-102276](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p), [CVE-2026-102277](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr) and [CVE-2026-102278](https://github.com/advisories/GHSA-qhr7-859c-m2p7). The copy bundled inside aws-cdk-lib is not yet patched upstream.
+- Upgraded werkzeug to 3.1.9 to mitigate [CVE-2026-102598](https://github.com/advisories/GHSA-g6x2-hccm-hh4m) (denial of service via `safe_join()` Windows special-device paths). werkzeug is a development/test-only dependency.
+- Upgraded source-map-js to 1.2.2 in the Web UI to mitigate [CVE-2026-93749](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) (denial of service via malformed indexed source maps).
+- Upgraded undici to mitigate [CVE-2026-18149](https://github.com/advisories/GHSA-pmjh-fq2x-6v4x), [CVE-2026-18540](https://github.com/advisories/GHSA-r53p-7pc4-xj5r), [CVE-2026-19534](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5), [CVE-2026-84890](https://github.com/advisories/GHSA-3xpg-4rpp-hhhm), [CVE-2026-84933](https://github.com/advisories/GHSA-2jfj-6hjv-fm6j), [CVE-2026-84947](https://github.com/advisories/GHSA-2gqq-gqf2-x968), [CVE-2026-84961](https://github.com/advisories/GHSA-w293-vg96-wgc3), [CVE-2026-85008](https://github.com/advisories/GHSA-8436-99hf-9mmv), [CVE-2026-85014](https://github.com/advisories/GHSA-rx4f-c7p8-82vq) and [CVE-2026-85024](https://github.com/advisories/GHSA-3wwx-pv8p-q78v).
+- Upgraded urllib3 to mitigate [CVE-2026-97687](https://github.com/advisories/GHSA-8988-9cw3-xx77), [CVE-2026-97688](https://github.com/advisories/GHSA-gh4c-6fx4-qh6g) and [CVE-2026-97689](https://github.com/advisories/GHSA-vxq7-64xx-v4gw).
+- Upgraded virtualenv to mitigate [CVE-2026-102925](https://github.com/advisories/GHSA-p58f-9548-mpm2), [CVE-2026-102930](https://github.com/advisories/GHSA-94p9-xgh2-xp45), [CVE-2026-102937](https://github.com/advisories/GHSA-x78j-v8h9-3j2q) and [CVE-2026-102938](https://github.com/advisories/GHSA-9h9j-4vrj-gf7g).
+- Removed the `browserslist` override added in 4.0.2. Every dependency now resolves a patched browserslist on its own.
+
 ## [4.0.2] - 2026-09-15
 
 ### Fixed

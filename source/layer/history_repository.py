@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, cast
 
+from layer.findings_repository import SUCCESS_STATUSES
 from layer.findings_repository import build_update_item as build_finding_update_item
 from layer.powertools_logger import get_logger
 
@@ -50,6 +51,10 @@ class RemediationUpdateRequest:
     # Contain. Persisted so a later rollback (Restore) can supply it back to
     # AWSSupport-ContainIAMPrincipal, which cannot derive it. Empty otherwise.
     backup_s3_key: Optional[str] = None
+    ssm_execution_id: Optional[str] = None
+    rollback_available: Optional[bool] = None
+    rollback_description: Optional[str] = None
+    snapshot_version_id: Optional[str] = None
 
     def validate(self) -> bool:
         if not self.finding_id or not self.execution_id or not self.finding_type:
@@ -64,6 +69,15 @@ class RemediationUpdateRequest:
             return False
 
         return True
+
+
+def _add_optional_string_fields(
+    item: dict[str, Any], fields: dict[str, Optional[str]]
+) -> None:
+    """Add non-empty string fields to a DynamoDB item dict."""
+    for key, value in fields.items():
+        if value:
+            item[key] = {"S": value}
 
 
 def calculate_ttl_timestamp(timestamp: str) -> int:
@@ -114,6 +128,17 @@ def build_create_item(
     if request.backup_s3_key:
         item["rollbackBackupKey"] = {"S": request.backup_s3_key}
 
+    _add_optional_string_fields(
+        item,
+        {
+            "ssmExecutionId": request.ssm_execution_id,
+            "rollbackDescription": request.rollback_description,
+            "snapshotVersionId": request.snapshot_version_id,
+        },
+    )
+    if request.rollback_available is not None:
+        item["rollbackAvailable"] = {"BOOL": request.rollback_available}
+
     if extra_fields:
         for field, value in extra_fields.items():
             item[field] = {"S": value}
@@ -139,8 +164,13 @@ def build_update_item(
     error: Optional[str] = None,
     finding_json: Optional[bytes] = None,
     backup_s3_key: Optional[str] = None,
+    ssm_execution_id: Optional[str] = None,
+    rollback_available: Optional[bool] = None,
+    rollback_description: Optional[str] = None,
+    snapshot_version_id: Optional[str] = None,
 ) -> dict[str, Any]:
     update_expression = "SET remediationStatus = :rs"
+    remove_expression = ""
     expression_values: dict[str, Any] = {
         ":rs": {"S": remediation_status},
     }
@@ -150,6 +180,19 @@ def build_update_item(
         update_expression += ", #err = :err"
         expression_names["#err"] = "error"
         expression_values[":err"] = {"S": error}
+    elif remediation_status in SUCCESS_STATUSES:
+        # A retry that succeeds has to clear the previous attempt's message, or the
+        # row reads as a success carrying a failure: `SET` alone never removes an
+        # attribute, so an `error` written by the failed attempt survives the update
+        # and `get_execution_status` reports SUCCESS next to a stale AccessDenied.
+        #
+        # Scoped to the success statuses rather than to "no error was passed",
+        # because this builder is also used for partial updates that legitimately
+        # re-assert a failed status (setting rollbackAvailable on a FAILED row, say)
+        # without resupplying the message. Removing it there would discard the real
+        # reason the remediation failed.
+        remove_expression = " REMOVE #err"
+        expression_names["#err"] = "error"
 
     if finding_json:
         # Compressed ASFF blob for IaC template placeholder rendering after
@@ -162,7 +205,25 @@ def build_update_item(
         update_expression += ", rollbackBackupKey = :bk"
         expression_values[":bk"] = {"S": backup_s3_key}
 
+    if ssm_execution_id:
+        update_expression += ", ssmExecutionId = :sei"
+        expression_values[":sei"] = {"S": ssm_execution_id}
+    if rollback_available is not None:
+        update_expression += ", rollbackAvailable = :ra"
+        expression_values[":ra"] = {"BOOL": rollback_available}
+    for attr, alias, val in [
+        ("rollbackDescription", ":rdes", rollback_description),
+        ("snapshotVersionId", ":svid", snapshot_version_id),
+    ]:
+        if val:
+            update_expression += f", {attr} = {alias}"
+            expression_values[alias] = {"S": val}
+
     sort_key = f"{finding_id}#{execution_id}"
+
+    # REMOVE is its own clause and has to follow every SET assignment, so it is
+    # appended here rather than where the attribute was decided above.
+    update_expression += remove_expression
 
     history_update_item: dict[str, Any] = {
         "Update": {
@@ -197,6 +258,10 @@ def transact_update_finding_and_history(
     error: Optional[str] = None,
     finding_json: Optional[bytes] = None,
     backup_s3_key: Optional[str] = None,
+    ssm_execution_id: Optional[str] = None,
+    rollback_available: Optional[bool] = None,
+    rollback_description: Optional[str] = None,
+    snapshot_version_id: Optional[str] = None,
 ) -> None:
     transact_items = [
         build_finding_update_item(
@@ -214,6 +279,10 @@ def transact_update_finding_and_history(
             error=error,
             finding_json=finding_json,
             backup_s3_key=backup_s3_key,
+            ssm_execution_id=ssm_execution_id,
+            rollback_available=rollback_available,
+            rollback_description=rollback_description,
+            snapshot_version_id=snapshot_version_id,
         ),
     ]
 

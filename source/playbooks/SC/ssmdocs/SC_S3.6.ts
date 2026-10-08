@@ -17,7 +17,7 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new S3BlockDenylistDocument(scope, id, { ...props, controlId: 'S3.6' });
+  return new S3BlockDenylistDocument(scope, id, { ...props, controlId: 'S3.6', isRollbackEnabled: true });
 }
 
 export class S3BlockDenylistDocument extends ControlRunbookDocument {
@@ -67,6 +67,8 @@ export class S3BlockDenylistDocument extends ControlRunbookDocument {
         ],
         inputPayload: {
           SerializedList: StringVariable.of('ParseInput.DenyListSerialized'),
+          // Lets the script skip extraction on rollback, which needs no denylist.
+          Rollback: StringVariable.of('Rollback'),
         },
       }),
     ];

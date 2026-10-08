@@ -26,7 +26,7 @@ export class EnableVPCFlowLogsDocument extends ControlRunbookDocument {
     const params: Record<string, any> = super.getRemediationParams();
 
     params.RemediationRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-EnableVPCFlowLogs-remediationRole-${this.namespace}`,
+      `arn:%s:iam::%s:role/${this.resourceNamePrefix}-EnableVPCFlowLogs-remediationRole-${this.namespace}`,
       [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
 

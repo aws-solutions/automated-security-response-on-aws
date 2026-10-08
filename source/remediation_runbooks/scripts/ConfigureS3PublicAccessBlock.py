@@ -48,7 +48,7 @@ def connect_to_service(service):
     return boto3.client(service, config=boto_config)
 
 
-def handle_account(event: AccountEvent, _) -> HandlerResponse:
+def handle_account(event: AccountEvent, _: object) -> HandlerResponse:
     """
     Configures the S3 account-level public access block.
     """
@@ -87,7 +87,22 @@ def handle_account(event: AccountEvent, _) -> HandlerResponse:
         )
 
 
-def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
+def get_caller_account() -> str:
+    """
+    Resolve the account this remediation runs in, for use as ExpectedBucketOwner.
+
+    Raised errors say "resolve caller account", not "configure public access block", so an
+    STS throttle or network failure is not misreported as an S3 configuration failure.
+    """
+    try:
+        return connect_to_service("sts").get_caller_identity()["Account"]
+    except Exception as e:
+        raise RuntimeError(
+            f"Encountered error resolving caller account for bucket-owner check: {str(e)}"
+        )
+
+
+def handle_s3_bucket(event: BucketEvent, _: object) -> HandlerResponse:
     """
     Configures the public access block for an S3 bucket.
     """
@@ -99,10 +114,13 @@ def handle_s3_bucket(event: BucketEvent, _) -> HandlerResponse:
             "BlockPublicPolicy": bool(event["BlockPublicPolicy"]),
             "RestrictPublicBuckets": bool(event["RestrictPublicBuckets"]),
         }
-        put_s3_bucket_public_access_block(bucket, public_access_block_config)
+        expected_owner = get_caller_account()
+        put_s3_bucket_public_access_block(
+            bucket, public_access_block_config, expected_owner
+        )
 
         valid_bucket_public_access_block = validate_bucket_public_access_block(
-            bucket, public_access_block_config
+            bucket, public_access_block_config, expected_owner
         )
 
         if valid_bucket_public_access_block["Valid"]:
@@ -146,12 +164,17 @@ def put_account_public_access_block(
 def put_s3_bucket_public_access_block(
     bucket_name: str,
     public_access_block_config: PublicAccessConfiguration,
+    expected_owner: str,
 ) -> None:
     s3_client = connect_to_service("s3")
     try:
         s3_client.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration=public_access_block_config,
+            # Assert the bucket is owned by the account this remediation runs in,
+            # so a bucket renamed away between finding and remediation cannot have
+            # its public-access block silently reconfigured in another account.
+            ExpectedBucketOwner=expected_owner,
         )
     except Exception as e:
         raise RuntimeError(
@@ -199,12 +222,13 @@ def validate_account_public_access_block(
 
 def validate_bucket_public_access_block(
     bucket_name: str,
-    expected_public_access_block_config,
+    expected_public_access_block_config: PublicAccessConfiguration,
+    expected_owner: str,
 ) -> ValidateBucketPublicAccessBlockResponse:
     s3_client = connect_to_service("s3")
     try:
         configuration: PublicAccessConfiguration = s3_client.get_public_access_block(
-            Bucket=bucket_name
+            Bucket=bucket_name, ExpectedBucketOwner=expected_owner
         )["PublicAccessBlockConfiguration"]
 
         for configuration_name, actual_configuration in configuration.items():

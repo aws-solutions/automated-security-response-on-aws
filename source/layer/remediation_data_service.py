@@ -194,6 +194,10 @@ def try_update_with_existing_history(
             error=request.error,
             finding_json=request.finding_json,
             backup_s3_key=request.backup_s3_key,
+            ssm_execution_id=request.ssm_execution_id,
+            rollback_available=request.rollback_available,
+            rollback_description=request.rollback_description,
+            snapshot_version_id=request.snapshot_version_id,
         )
 
         logger.debug(

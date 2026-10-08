@@ -28,9 +28,12 @@ export function buildOrchestratorInput(
   idGenerator: IdGenerator,
   clock: Clock,
   rollbackBackupKey?: string,
+  snapshotRollbackParams?: { executionId: string; remediationConfigBucket: string; snapshotVersionId?: string },
 ): string {
   const actionName = ACTION_TYPE_TO_ASR_ACTION_NAME[actionType];
   const isMultiService = MULTI_SERVICE_REMEDIATION_IDS.has(remediationId);
+  const isGuardDutyRollback = actionType === 'Rollback' && remediationId.endsWith('GuardDuty.IAMUser');
+  const isSnapshotRollback = actionType === 'Rollback' && !isGuardDutyRollback && !!snapshotRollbackParams;
 
   return JSON.stringify({
     version: '0',
@@ -61,13 +64,25 @@ export function buildOrchestratorInput(
         remediationId,
         findingFormat: 'ASFF',
       }),
-      // Rollback runs the GuardDuty runbook with Action=Restore and must pass
-      // back the exact S3 key of the Contain backup; the managed runbook cannot
-      // derive it. Both flow through exec_ssm_doc's docParameters allowlist.
-      ...(actionType === 'Rollback' && {
+      // v4 GuardDuty rollback: runs the managed runbook with Action=Restore
+      // and the S3 key of the Contain backup.
+      ...(isGuardDutyRollback && {
         docParameters: {
           Action: 'Restore',
           ...(rollbackBackupKey ? { BackupS3KeyName: rollbackBackupKey } : {}),
+        },
+      }),
+      // Generic rollback: runs the same remediation SSM doc with
+      // Rollback=ROLLBACK, the original SSM execution ID (for snapshot
+      // lookup), and the member account's remediation config bucket.
+      ...(isSnapshotRollback && {
+        docParameters: {
+          Rollback: 'ROLLBACK',
+          ExecutionId: snapshotRollbackParams.executionId,
+          RemediationConfigBucket: snapshotRollbackParams.remediationConfigBucket,
+          ...(snapshotRollbackParams.snapshotVersionId
+            ? { SnapshotVersionId: snapshotRollbackParams.snapshotVersionId }
+            : {}),
         },
       }),
     },

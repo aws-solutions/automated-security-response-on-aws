@@ -9,18 +9,28 @@ import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { createResponse, API_HEADERS } from './apiHandler';
 import { dynamicImport } from 'tsimportlib';
-import { AccountOperatorUser, InviteUserRequest, User, PutUserRequest } from '@asr/data-models';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../../common/utils/httpErrors';
+import {
+  AccountOperatorUser,
+  InviteUserRequest,
+  User,
+  PutUserRequest,
+  PutUserMcpToolsRequest,
+  PutUserMcpToolsRequestSchema,
+} from '@asr/data-models';
+import { BadRequestError, ForbiddenError, NotFoundError, NotImplementedError } from '../../common/utils/httpErrors';
 import { z } from 'zod';
 import { sendMetrics } from '../../common/utils/metricsUtils';
 import { BaseHandler, CognitoClaims, AccessRule, getClaims } from './baseHandler';
 import { AuthenticatedUser } from '../services/authorization';
 import { NotificationConfigurationService } from '../services/notificationConfigurationService';
+import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
+import { McpToolGrantService } from '../services/mcpToolGrantService';
 
 const logger = new Logger({ serviceName: 'UsersAPI' });
 const tracer = new Tracer({ serviceName: 'UsersAPI' });
 const cognitoService = new CognitoService(logger);
 const notificationConfigService = new NotificationConfigurationService(logger);
+const mcpToolGrantService = new McpToolGrantService(cognitoService, logger);
 const baseHandler = new BaseHandler(logger);
 
 async function validateAccess(claims: CognitoClaims, rules: AccessRule) {
@@ -50,9 +60,25 @@ function createGetUsersAccessRules(userType?: string): AccessRule {
   };
 }
 
+// MCP tool grants are managed by full Admins only. This is deliberately stricter
+// than the shared createAdminOnlyAccessRules() (which also admits DelegatedAdmin,
+// per ADR 0011): granting a tool widens a user's MCP capability across the whole
+// deployment, not scoped to any account, so a Delegated Admin — whose authority is
+// bounded to the Account Operators they manage — must not control it. requiredGroups
+// alone enforces this; authenticateAndAuthorize rejects any caller lacking the group.
+function createStrictAdminOnlyAccessRules(): AccessRule {
+  return { requiredGroups: ['AdminGroup'] };
+}
+
 // Base authorization gate for user management. Checked before any body parsing
 // or user lookup so an unauthorized caller gets 403, not 400 or 404.
 const USER_MANAGEMENT_GROUPS = ['AdminGroup', 'DelegatedAdminGroup'];
+
+function assertMcpEnabled(): void {
+  if (apiLambdaEnvironment().MCP_ENABLED !== 'yes') {
+    throw new NotImplementedError('MCP user authorization is not available because MCP is not enabled.');
+  }
+}
 
 // A DelegatedAdmin may only act on AccountOperator users; an Admin is
 // unrestricted. Applied after base authorization, using the already-
@@ -156,6 +182,50 @@ async function putUserHandler(event: APIGatewayProxyEvent, _: Context): Promise<
   return createResponse(200, { message: 'User updated successfully' }, API_HEADERS.USERS);
 }
 
+async function putUserMcpToolsHandler(event: APIGatewayProxyEvent, _: Context): Promise<APIGatewayProxyResult> {
+  // Authorize before the feature gate, matching deleteUserHandler and ADR 0011: a
+  // caller who is not authorized must not learn whether MCP is enabled for this
+  // deployment. MCP tool grants are Admin-only (see createStrictAdminOnlyAccessRules).
+  const authenticatedUser = await validateAccess(getClaims(event), createStrictAdminOnlyAccessRules());
+  assertMcpEnabled();
+
+  const userId = event.pathParameters?.id;
+  if (!userId || !z.string().email().safeParse(userId).success) {
+    throw new BadRequestError('Valid email address is required for user ID');
+  }
+  const request = baseHandler.extractValidatedBody<PutUserMcpToolsRequest>(
+    event,
+    PutUserMcpToolsRequestSchema,
+    'Invalid MCP tool grant request',
+  );
+
+  // Use the path id verbatim, exactly as putUser and deleteUser do. The Cognito
+  // user pool is case-sensitive (no UsernameConfiguration override) and createUser
+  // stores Username: email as given, so lower-casing here would fail to find a
+  // user whose email has any upper-case character. The DynamoDB mapping repository
+  // normalizes its own key internally, so the grant write stays consistent.
+  const targetUser = await cognitoService.getUserById(userId);
+  if (!targetUser) {
+    throw new NotFoundError(`User ${userId} not found.`);
+  }
+
+  const result = await mcpToolGrantService.grantTools(
+    userId,
+    targetUser,
+    request.allowedTools,
+    authenticatedUser.email,
+  );
+  return createResponse(200, result, API_HEADERS.USERS);
+}
+
+async function getMcpToolsHandler(event: APIGatewayProxyEvent, _: Context): Promise<APIGatewayProxyResult> {
+  // Authorization precedes the feature gate — see putUserMcpToolsHandler. Admin-only.
+  await validateAccess(getClaims(event), createStrictAdminOnlyAccessRules());
+  assertMcpEnabled();
+
+  return createResponse(200, { tools: mcpToolGrantService.listGrantableTools() }, API_HEADERS.USERS);
+}
+
 async function deleteUserHandler(event: APIGatewayProxyEvent, _: Context): Promise<APIGatewayProxyResult> {
   const claims = getClaims(event);
 
@@ -226,6 +296,32 @@ export const putUser = async (event: APIGatewayProxyEvent, context: Context): Pr
     .use(httpJsonBodyParser())
     .use(httpUrlEncodePathParser());
   return middlewareHandler(event, context);
+};
+
+export const putUserMcpTools = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+): Promise<APIGatewayProxyResult> => {
+  const { default: middy } = (await dynamicImport('@middy/core', module)) as typeof import('@middy/core');
+  const { default: httpJsonBodyParser } = (await dynamicImport(
+    '@middy/http-json-body-parser',
+    module,
+  )) as typeof import('@middy/http-json-body-parser');
+  const { default: httpUrlEncodePathParser } = (await dynamicImport(
+    '@middy/http-urlencode-path-parser',
+    module,
+  )) as typeof import('@middy/http-urlencode-path-parser');
+
+  return middy(putUserMcpToolsHandler)
+    .use(injectLambdaContext(logger))
+    .use(captureLambdaHandler(tracer))
+    .use(httpJsonBodyParser())
+    .use(httpUrlEncodePathParser())(event, context);
+};
+
+export const getMcpTools = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+  const { default: middy } = (await dynamicImport('@middy/core', module)) as typeof import('@middy/core');
+  return middy(getMcpToolsHandler).use(injectLambdaContext(logger)).use(captureLambdaHandler(tracer))(event, context);
 };
 
 export const deleteUser = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {

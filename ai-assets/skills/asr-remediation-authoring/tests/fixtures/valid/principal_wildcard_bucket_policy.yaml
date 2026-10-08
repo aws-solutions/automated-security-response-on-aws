@@ -1,0 +1,76 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Negative fixture for privilege-escalation, modelled on ASR-SetSSLBucketPolicy.
+# `"Principal": "*"` is REQUIRED here: a policy that denies non-TLS access must
+# deny it for every principal. A wildcard is only privilege escalation when it
+# is the value of an Action, so this must stay strict-valid.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-S3.5
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  Finding:
+    type: StringMap
+    description: (Required) The ASFF finding, passed by the ASR Orchestrator.
+mainSteps:
+  - name: PutSslPolicy
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        Finding: "{{ Finding }}"
+      Script: |-
+        import json
+
+        import boto3
+
+        def handler(event, context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            bucket = resource_id.split(":::")[-1].split("/")[0]
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "DenyNonSecureTransport",
+                        "Effect": "Deny",
+                        "Principal": "*",
+                        "Action": "s3:*",
+                        "Resource": [
+                            f"arn:aws:s3:::{bucket}",
+                            f"arn:aws:s3:::{bucket}/*",
+                        ],
+                        "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                    }
+                ],
+            }
+            boto3.client("s3").put_bucket_policy(
+                Bucket=bucket, Policy=json.dumps(policy)
+            )
+            return {"status": "applied"}
+
+  - name: VerifyPolicyApplied
+    action: aws:executeScript
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Runtime: python3.11
+      Handler: verify
+      InputPayload:
+        Finding: "{{ Finding }}"
+      Script: |-
+        import boto3
+
+        def verify(event, context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            policy = boto3.client("s3").get_bucket_policy(
+                Bucket=resource_id.split(":::")[-1].split("/")[0]
+            )["Policy"]
+            if "DenyNonSecureTransport" not in policy:
+                raise RuntimeError("TLS-only policy was not applied")
+            return {"status": "verified"}

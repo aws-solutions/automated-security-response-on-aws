@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { DynamoDBDocumentClient, DeleteCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
+import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { CreateFilterRequest, ResourceFilter, ResourceFilterDynamoDBItem, UpdateFilterRequest } from '@asr/data-models';
 import { toStringArray } from '../utils/dynamodb';
 import { Sleeper } from '../utils/sleeper';
+import { NotFoundError, VersionConflictError } from '../utils/httpErrors';
 import { AbstractRepository } from './abstractRepository';
 
 interface FilterKey {
@@ -148,19 +151,47 @@ export class FiltersRepository extends AbstractRepository<ResourceFilter> {
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
       ReturnValues: 'ALL_NEW',
+      // Without this the condition failure carries no item, so "no such filter" and "someone else
+      // moved the version" are indistinguishable — and a refresh-and-retry conflict can never be
+      // resolved for a filter that does not exist. Same approach as the notification repository.
+      ReturnValuesOnConditionCheckFailure: 'ALL_OLD',
     });
 
-    const response = await this.dynamoDBClient.send(command);
-    return this.transformToResourceFilter(response.Attributes as ResourceFilterDynamoDBItem);
+    try {
+      const response = await this.dynamoDBClient.send(command);
+      return this.transformToResourceFilter(response.Attributes as ResourceFilterDynamoDBItem);
+    } catch (error) {
+      if (!(error instanceof ConditionalCheckFailedException)) throw error;
+      // An item came back → the row exists and it was the version check that failed. No item → the
+      // row is absent, which is a 404, not a conflict.
+      const rawItem = error.Item;
+      if (!rawItem) {
+        throw new NotFoundError(`Filter ${filterId} not found`);
+      }
+      const versionValue = unmarshall(rawItem)['version'];
+      throw new VersionConflictError(undefined, {
+        currentVersion: typeof versionValue === 'number' ? versionValue : undefined,
+      });
+    }
   }
 
-  async deleteFilter(filterId: string): Promise<void> {
-    await this.dynamoDBClient.send(
+  /**
+   * Deletes a filter, reporting whether one was actually there.
+   *
+   * `ReturnValues: 'ALL_OLD'` is what makes the no-op distinguishable: DynamoDB's DeleteItem
+   * succeeds whether or not the key exists, so without the old image the handler could only ever
+   * claim "deleted successfully". The status stays 200 either way — DELETE is idempotent by
+   * project convention — but the caller can now tell a real teardown from a miss.
+   */
+  async deleteFilter(filterId: string): Promise<{ deleted: boolean }> {
+    const response = await this.dynamoDBClient.send(
       new DeleteCommand({
         TableName: this.tableName,
         Key: { filterId },
+        ReturnValues: 'ALL_OLD',
       }),
     );
+    return { deleted: response.Attributes !== undefined };
   }
 
   private transformToResourceFilter(item: ResourceFilterDynamoDBItem): ResourceFilter {

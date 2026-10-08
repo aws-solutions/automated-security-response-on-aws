@@ -176,3 +176,97 @@ describe('extractASFFFinding (Property 13: remediation extraction round-trip)', 
     expect(() => extractASFFFinding(item)).toThrow(/Failed to extract ASFF finding/);
   });
 });
+
+describe('buildOrchestratorInput', () => {
+  const fakeClock: Clock = { now: () => new Date('2025-06-15T12:00:00Z') };
+  const fakeIdGenerator: IdGenerator = { randomUUID: () => '00000000-0000-4000-8000-000000000001' };
+
+  const minimalAsffFinding: ASFFFinding = {
+    SchemaVersion: '2018-10-08',
+    Id: 'arn:aws:securityhub:us-east-1:111111111111:finding/kms4',
+    ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+    GeneratorId: 'security-control/KMS.4',
+    AwsAccountId: '111111111111',
+    Region: 'us-east-1',
+    Types: [],
+    CreatedAt: '2025-01-01T00:00:00Z',
+    UpdatedAt: '2025-01-01T00:00:00Z',
+    Severity: { Label: 'HIGH' },
+    Title: 'KMS.4 finding',
+    Resources: [{ Type: 'AwsKmsKey', Id: 'arn:aws:kms:us-east-1:111111111111:key/test-key' }],
+    Compliance: { SecurityControlId: 'KMS.4' },
+  };
+
+  it('emits snapshot-based rollback docParameters for a non-GuardDuty control when snapshotRollbackParams is provided', () => {
+    // GIVEN
+    const snapshotRollbackParams = {
+      executionId: 'exec-abc-123',
+      remediationConfigBucket: 'asr-config-bucket-us-east-1',
+    };
+
+    // WHEN
+    const result = JSON.parse(
+      buildOrchestratorInput(
+        'KMS.4',
+        minimalAsffFinding,
+        'Rollback',
+        fakeIdGenerator,
+        fakeClock,
+        undefined,
+        snapshotRollbackParams,
+      ),
+    );
+
+    // THEN
+    expect(result.detail.docParameters).toEqual({
+      Rollback: 'ROLLBACK',
+      ExecutionId: 'exec-abc-123',
+      RemediationConfigBucket: 'asr-config-bucket-us-east-1',
+    });
+    expect(result.detail.docParameters).not.toHaveProperty('Action');
+  });
+
+  it('emits GuardDuty v4 rollback docParameters with Action: Restore for GuardDuty.IAMUser', () => {
+    // GIVEN
+    const guardDutyFinding: ASFFFinding = {
+      ...minimalAsffFinding,
+      Id: 'arn:aws:securityhub:us-east-1:111111111111:finding/guardduty',
+      GeneratorId: 'guardduty/IAMUser',
+    };
+    const snapshotRollbackParams = {
+      executionId: 'exec-should-be-ignored',
+      remediationConfigBucket: 'bucket-should-be-ignored',
+    };
+
+    // WHEN
+    const result = JSON.parse(
+      buildOrchestratorInput(
+        'GuardDuty.IAMUser',
+        guardDutyFinding,
+        'Rollback',
+        fakeIdGenerator,
+        fakeClock,
+        'backups/guardduty/key.json',
+        snapshotRollbackParams,
+      ),
+    );
+
+    // THEN
+    expect(result.detail.docParameters).toEqual({
+      Action: 'Restore',
+      BackupS3KeyName: 'backups/guardduty/key.json',
+    });
+    expect(result.detail.docParameters).not.toHaveProperty('Rollback');
+    expect(result.detail.docParameters).not.toHaveProperty('ExecutionId');
+  });
+
+  it('does not include docParameters for non-rollback actions', () => {
+    // WHEN
+    const result = JSON.parse(
+      buildOrchestratorInput('KMS.4', minimalAsffFinding, 'Remediate', fakeIdGenerator, fakeClock),
+    );
+
+    // THEN
+    expect(result.detail).not.toHaveProperty('docParameters');
+  });
+});

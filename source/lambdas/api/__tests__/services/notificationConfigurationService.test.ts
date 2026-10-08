@@ -348,6 +348,40 @@ describe('NotificationConfigurationService', () => {
       expect(result).toBeNull();
     });
 
+    it('deletes using a pre-read item without reading it again', async () => {
+      // Arrange
+      const created = await service.createConfiguration(buildCreateRequest(), ADMIN_ACTOR);
+      const preRead = await service.findConfigurationById(created.configId);
+      expect(preRead).not.toBeNull();
+      const findSpy = jest.spyOn(NotificationConfigurationRepository.prototype, 'findConfigById');
+
+      try {
+        // Act
+        const result = await service.deleteConfiguration(created.configId, ADMIN_ACTOR, preRead ?? undefined);
+
+        // Assert - the handler's read is the only one; the delete itself does not re-read
+        expect(result?.configId).toBe(created.configId);
+        expect(findSpy).not.toHaveBeenCalled();
+        expect(await service.findConfigurationById(created.configId)).toBeUndefined();
+      } finally {
+        findSpy.mockRestore();
+      }
+    });
+
+    it('reports nothing to delete when the item vanished after it was pre-read', async () => {
+      // Arrange - the caller read the item, then another request deleted it. The name-release
+      // transaction's condition fails; that is not a conflict to retry, the item is simply gone.
+      const created = await service.createConfiguration(buildCreateRequest(), ADMIN_ACTOR);
+      const preRead = await service.findConfigurationById(created.configId);
+      await service.deleteConfiguration(created.configId, ADMIN_ACTOR);
+
+      // Act
+      const result = await service.deleteConfiguration(created.configId, ADMIN_ACTOR, preRead ?? undefined);
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
     it('writes a "deadlineChange" task when remediationDeadlineDays changes', async () => {
       // Arrange
       const created = await service.createConfiguration(buildCreateRequest(), ADMIN_ACTOR);

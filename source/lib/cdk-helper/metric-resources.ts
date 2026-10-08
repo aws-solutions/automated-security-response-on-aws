@@ -102,16 +102,22 @@ export default class MetricResources extends Construct {
     this.securityHubV2Enabled = deploymentMetricsCustomResource.getAtt('securityhub_v2_enabled').toString();
   }
 
-  private static getAllStackParameters(stack: Stack): { [key: string]: any } {
-    const parameters: { [key: string]: any } = {};
+  private static getAllStackParameters(stack: Stack): Record<string, string> {
+    const parameters: Record<string, string> = {};
 
     const children = stack.node.findAll();
     children.forEach((child) => {
       if (child instanceof CfnParameter) {
-        parameters[child.logicalId] = child.valueAsString;
+        parameters[child.logicalId] = MetricResources.getParameterValue(child);
       }
     });
 
     return parameters;
+  }
+
+  private static getParameterValue(parameter: CfnParameter): string {
+    const isListParameter = parameter.type.includes('List<') || parameter.type.includes('CommaDelimitedList');
+
+    return isListParameter ? cdk.Fn.join(',', parameter.valueAsList) : parameter.valueAsString;
   }
 }

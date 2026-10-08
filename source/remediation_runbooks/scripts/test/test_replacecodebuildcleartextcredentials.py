@@ -1,818 +1,556 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-import re
-from datetime import datetime
+import json
+import traceback
+from collections.abc import Iterator
+from json import dumps
+from typing import Any
 
-import boto3.session
-import botocore.session
+import boto3
 import pytest
 import ReplaceCodeBuildClearTextCredentials as remediation
-from botocore.config import Config
-from botocore.stub import ANY, Stubber
+from moto import mock_aws
+from moto.codebuild.exceptions import InvalidInputException, ResourceNotFoundException
+from moto.codebuild.responses import CodeBuildResponse
+from moto.iam.exceptions import LimitExceededException
+from moto.iam.responses import IamResponse
+from moto.resourcegroupstaggingapi.models import ResourceGroupsTaggingAPIBackend
+from moto.ssm.exceptions import InvalidResourceId
+from moto.ssm.models import ssm_backends
+
+REGION_NAME = "us-east-1"
+ACCOUNT_ID = "123456789012"
+PROJECT_NAME = "invoke-codebuild-2"
+SERVICE_ROLE_NAME = f"codebuild-{PROJECT_NAME}-service-role"
+POLICY_NAME = f"CodeBuildSSMParameterPolicy-{PROJECT_NAME}-{REGION_NAME}"
+POLICY_ARN = f"arn:aws:iam::{ACCOUNT_ID}:policy/{POLICY_NAME}"
+EVENT: dict[str, object] = {"ProjectName": PROJECT_NAME}
+
+ACCESS_KEY_VALUE = "fake-access-key-id-for-tests"
+SECRET_KEY_VALUE = "fake-secret-access-key-for-tests"
+RETAINED_VALUE = "a_non_credential_value"
+
+EnvironmentVariable = dict[str, str]
 
 
-def get_region() -> str:
-    my_session = boto3.session.Session()
-    return my_session.region_name
+def parameter_name(variable_name: str) -> str:
+    return f"/CodeBuild/{PROJECT_NAME}/env/{variable_name}"
 
 
-def get_config() -> Config:
-    return Config(retries={"mode": "standard"}, region_name=get_region())
-
-
-class Case:
-    def __init__(self, env_vars):
-        self._env_vars = env_vars
-        self._project_name = "invoke-codebuild-2"
-        self._service_role = f"codebuild-{self._project_name}-service-role"
-        self._policy_name = (
-            f"CodeBuildSSMParameterPolicy-{self._project_name}-{get_region()}"
-        )
-        self._policy_arn = f"arn:aws:iam::111111111111:policy/{self._policy_name}"
-        self._policy_modtime = datetime.now()
-
-    def event(self):
-        return {
-            "ProjectInfo": {
-                "name": self._project_name,
-                "arn": f"arn:aws:codebuild:{get_region()}:111111111111:project/{self._project_name}",
-                "source": {
-                    "type": "NO_SOURCE",
-                    "gitCloneDepth": 1,
-                    "buildspec": 'version: 0.2\n\nphases:\n  build:\n    commands:\n       - echo "Hello world!"\n',
-                    "insecureSsl": False,
-                },
-                "secondarySources": [],
-                "secondarySourceVersions": [],
-                "artifacts": {"type": "NO_ARTIFACTS"},
-                "secondaryArtifacts": [],
-                "cache": {"type": "NO_CACHE"},
-                "environment": {
-                    "type": "ARM_CONTAINER",
-                    "image": "aws/codebuild/amazonlinux2-aarch64-standard:2.0",
-                    "computeType": "BUILD_GENERAL1_SMALL",
-                    "environmentVariables": self._env_vars,
-                    "privilegedMode": False,
-                    "imagePullCredentialsType": "CODEBUILD",
-                },
-                "serviceRole": f"arn:aws:iam::111111111111:role/service-role/{self._service_role}",
-                "timeoutInMinutes": 60,
-                "queuedTimeoutInMinutes": 480,
-                "encryptionKey": f"arn:aws:kms:{get_region()}:111111111111:alias/aws/s3",
-                "tags": [],
-                "created": "2022-01-28T21:59:12.932000+00:00",
-                "lastModified": "2022-02-02T19:16:05.722000+00:00",
-                "badge": {"badgeEnabled": False},
-                "logsConfig": {
-                    "cloudWatchLogs": {"status": "DISABLED"},
-                    "s3Logs": {"status": "DISABLED", "encryptionDisabled": False},
-                },
-                "fileSystemLocations": [],
-                "projectVisibility": "PRIVATE",
-            }
-        }
-
-    def parameter_name(self, env_var_name):
-        return f"{remediation.get_project_ssm_namespace(self._project_name)}/env/{env_var_name}"
-
-    def policy(self):
-        return {
-            "Policy": {
-                "PolicyName": self._policy_name,
-                "PolicyId": "1234567812345678",
-                "Arn": self._policy_arn,
-                "Path": "/",
-                "DefaultVersionId": "",
-                "AttachmentCount": 0,
-                "PermissionsBoundaryUsageCount": 0,
-                "IsAttachable": True,
-                "Description": "",
-                "CreateDate": self._policy_modtime,
-                "UpdateDate": self._policy_modtime,
-                "Tags": [],
-            }
-        }
-
-    def policy_serialized(self):
-        policy = self.policy()
-        policy["Policy"]["CreateDate"] = policy["Policy"]["CreateDate"].isoformat()
-        policy["Policy"]["UpdateDate"] = policy["Policy"]["UpdateDate"].isoformat()
-        return policy
-
-    def attach_params(self):
-        return {"PolicyArn": self._policy_arn, "RoleName": self._service_role}
-
-
-def successful_parameter_response():
-    return {"Tier": "Standard", "Version": 1}
-
-
-def test_success(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
-    ]
-
-    test_case = Case(env_vars)
-
-    expected_env_vars = [
-        {
-            "name": "AWS_ACCESS_KEY_ID",
-            "type": "PARAMETER_STORE",
-            "value": test_case.parameter_name(env_vars[0]["name"]),
-        }
-    ]
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
+def parameter_arn(variable_name: str) -> str:
+    return (
+        f"arn:aws:ssm:{REGION_NAME}:{ACCOUNT_ID}:parameter"
+        f"{parameter_name(variable_name)}"
     )
-    ssm_stubber = Stubber(ssm_client)
 
-    ssm_stubber.add_response(
-        "put_parameter",
-        successful_parameter_response(),
-        {
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
+
+def update_project_in_moto(self: CodeBuildResponse) -> str:
+    """moto does not implement CodeBuild UpdateProject."""
+    name = self._get_param("name")
+    project = self.codebuild_backend.codebuild_projects.get(name)
+    if project is None:
+        raise ResourceNotFoundException(f"Project cannot be found: {name}")
+    project.project_metadata["environment"] = self._get_param("environment")
+    return json.dumps({"project": project.project_metadata})
+
+
+def tag_parameters_in_moto(
+    self: ResourceGroupsTaggingAPIBackend,
+    resource_arns: list[str],
+    tags: dict[str, str],
+) -> dict[str, dict[str, Any]]:
+    """moto's tagging API reports every SSM parameter as an unsupported service."""
+    ssm_backend = ssm_backends[self.account_id][self.region_name]
+    failed_resources = {}
+    for arn in resource_arns:
+        try:
+            ssm_backend.add_tags_to_resource(
+                "Parameter", arn.split(":parameter", 1)[1], tags
+            )
+        except InvalidResourceId:
+            failed_resources[arn] = {
+                "StatusCode": 400,
+                "ErrorCode": "InvalidParameterException",
+                "ErrorMessage": f"{arn} does not exist",
+            }
+    return failed_resources
+
+
+def fail_operation(
+    monkeypatch: pytest.MonkeyPatch,
+    response_class: type,
+    operation: str,
+    error: Exception,
+) -> None:
+    """Make moto answer an operation with an error it would never raise itself."""
+
+    def raise_error(self: Any) -> str:
+        raise error
+
+    monkeypatch.setattr(response_class, operation, raise_error, raising=False)
+
+
+@pytest.fixture
+def aws_services(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setattr(
+        CodeBuildResponse, "update_project", update_project_in_moto, raising=False
+    )
+    monkeypatch.setattr(
+        ResourceGroupsTaggingAPIBackend, "tag_resources", tag_parameters_in_moto
+    )
+    with mock_aws():
+        yield
+
+
+def create_project(environment_variables: list[EnvironmentVariable]) -> None:
+    role_arn = boto3.client("iam", region_name=REGION_NAME).create_role(
+        RoleName=SERVICE_ROLE_NAME,
+        Path="/service-role/",
+        AssumeRolePolicyDocument=dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"Service": "codebuild.amazonaws.com"},
+                        "Action": "sts:AssumeRole",
+                    }
+                ],
+            }
+        ),
+    )["Role"]["Arn"]
+    boto3.client("codebuild", region_name=REGION_NAME).create_project(
+        name=PROJECT_NAME,
+        source={"type": "GITHUB", "location": "https://github.com/example/repo.git"},
+        artifacts={"type": "NO_ARTIFACTS"},
+        environment={
+            "type": "LINUX_CONTAINER",
+            "image": "aws/codebuild/standard:7.0",
+            "computeType": "BUILD_GENERAL1_SMALL",
+            "environmentVariables": environment_variables,
         },
+        serviceRole=role_arn,
     )
 
-    ssm_stubber.activate()
 
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
+def read_environment_variables() -> list[EnvironmentVariable]:
+    project = boto3.client("codebuild", region_name=REGION_NAME).batch_get_projects(
+        names=[PROJECT_NAME]
+    )["projects"][0]
+    environment_variables: list[EnvironmentVariable] = project["environment"][
+        "environmentVariables"
+    ]
+    return environment_variables
 
-    iam_stubber.add_response("create_policy", test_case.policy())
 
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
+def read_secure_parameter(variable_name: str) -> dict[str, Any]:
+    parameter: dict[str, Any] = boto3.client(
+        "ssm", region_name=REGION_NAME
+    ).get_parameter(Name=parameter_name(variable_name), WithDecryption=True)[
+        "Parameter"
+    ]
+    return parameter
 
-    iam_stubber.activate()
 
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
-        return_value={"success": True, "tagged_count": 1},
-    )
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    project_env = test_case.event()["ProjectInfo"]["environment"]
-    project_env["environmentVariables"] = expected_env_vars
-    successful_response = {
-        "AttachResponse": {},
-        "Parameters": [successful_parameter_response()],
-        "Policy": test_case.policy_serialized(),
-        "UpdatedProjectEnv": project_env,
-        "ResourceArn": test_case.policy()["Policy"]["Arn"],
-        "ParameterArns": [
-            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}"
-        ],
-        "TaggingResult": {"success": True, "tagged_count": 1},
+def stored_in_parameter_store(variable_name: str) -> EnvironmentVariable:
+    return {
+        "name": variable_name,
+        "type": "PARAMETER_STORE",
+        "value": parameter_name(variable_name),
     }
 
-    assert remediation.replace_credentials(test_case.event(), {}) == successful_response
 
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
+def run_remediation_expecting_exit() -> str:
+    with pytest.raises(SystemExit) as wrapped_exception:
+        remediation.replace_credentials(EVENT, {})
+    return str(wrapped_exception.value)
 
 
-def test_multiple_params(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"},
-        {"name": "AWS_SECRET_ACCESS_KEY", "value": "test_value_2", "type": "PLAINTEXT"},
-        {
-            "name": "AN_ACCEPTABLE_PARAMETER",
-            "value": "test_value_3",
-            "type": "PLAINTEXT",
-        },
-    ]
-
-    test_case = Case(env_vars)
-
-    expected_env_vars = [
-        {
-            "name": "AWS_ACCESS_KEY_ID",
-            "type": "PARAMETER_STORE",
-            "value": test_case.parameter_name(env_vars[0]["name"]),
-        },
+@pytest.fixture
+def project_with_credentials(aws_services: None) -> list[EnvironmentVariable]:
+    environment_variables = [
+        {"name": "AWS_ACCESS_KEY_ID", "value": ACCESS_KEY_VALUE, "type": "PLAINTEXT"},
         {
             "name": "AWS_SECRET_ACCESS_KEY",
-            "type": "PARAMETER_STORE",
-            "value": test_case.parameter_name(env_vars[1]["name"]),
+            "value": SECRET_KEY_VALUE,
+            "type": "PLAINTEXT",
         },
         {
             "name": "AN_ACCEPTABLE_PARAMETER",
-            "value": "test_value_3",
+            "value": RETAINED_VALUE,
             "type": "PLAINTEXT",
         },
     ]
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    for env_var in env_vars[0:2]:
-        ssm_stubber.add_response(
-            "put_parameter",
-            successful_parameter_response(),
-            {
-                "Name": test_case.parameter_name(env_var["name"]),
-                "Description": ANY,
-                "Value": env_var["value"],
-                "Type": "SecureString",
-                "Overwrite": False,
-                "DataType": "text",
-            },
-        )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_response("create_policy", test_case.policy())
-
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
-        return_value={"success": True, "tagged_count": 2},
-    )
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    project_env = test_case.event()["ProjectInfo"]["environment"]
-    project_env["environmentVariables"] = expected_env_vars
-    successful_response = {
-        "AttachResponse": {},
-        "Parameters": [successful_parameter_response()] * 2,
-        "Policy": test_case.policy_serialized(),
-        "UpdatedProjectEnv": project_env,
-        "ResourceArn": test_case.policy()["Policy"]["Arn"],
-        "ParameterArns": [
-            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}",
-            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[1]['name'])}",
-        ],
-        "TaggingResult": {"success": True, "tagged_count": 2},
-    }
-
-    assert remediation.replace_credentials(test_case.event(), {}) == successful_response
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
+    create_project(environment_variables)
+    return environment_variables
 
 
-def test_param_exists(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
+def test_replaces_plaintext_credentials_with_secure_parameters(
+    project_with_credentials: list[EnvironmentVariable],
+) -> None:
+    # ARRANGE (project_with_credentials)
+
+    # ACT
+    result = remediation.replace_credentials(EVENT, {})
+
+    # ASSERT
+    assert read_environment_variables() == [
+        stored_in_parameter_store("AWS_ACCESS_KEY_ID"),
+        stored_in_parameter_store("AWS_SECRET_ACCESS_KEY"),
+        project_with_credentials[2],
     ]
+    for variable_name, original_value in (
+        ("AWS_ACCESS_KEY_ID", ACCESS_KEY_VALUE),
+        ("AWS_SECRET_ACCESS_KEY", SECRET_KEY_VALUE),
+    ):
+        stored = read_secure_parameter(variable_name)
+        assert stored["Type"] == "SecureString"
+        assert stored["Value"] == original_value
+        tags = boto3.client("ssm", region_name=REGION_NAME).list_tags_for_resource(
+            ResourceType="Parameter", ResourceId=parameter_name(variable_name)
+        )["TagList"]
+        assert tags == [
+            {"Key": "Solutions:SolutionName", "Value": remediation.SOLUTION_TAG_VALUE}
+        ]
 
-    test_case = Case(env_vars)
-
-    expected_env_vars = [
+    iam = boto3.client("iam", region_name=REGION_NAME)
+    attached = iam.list_attached_role_policies(RoleName=SERVICE_ROLE_NAME)
+    assert [policy["PolicyName"] for policy in attached["AttachedPolicies"]] == [
+        POLICY_NAME
+    ]
+    policy_version = iam.get_policy_version(PolicyArn=POLICY_ARN, VersionId="v1")
+    assert policy_version["PolicyVersion"]["Document"]["Statement"] == [
         {
-            "name": "AWS_ACCESS_KEY_ID",
-            "type": "PARAMETER_STORE",
-            "value": test_case.parameter_name(env_vars[0]["name"]),
+            "Effect": "Allow",
+            "Action": ["ssm:GetParameter", "ssm:GetParameters"],
+            "Resource": f"arn:aws:ssm:{REGION_NAME}:{ACCOUNT_ID}:parameter"
+            f"/CodeBuild/{PROJECT_NAME}/*",
         }
     ]
 
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
+    assert result["ParameterNames"] == [
+        parameter_name("AWS_ACCESS_KEY_ID"),
+        parameter_name("AWS_SECRET_ACCESS_KEY"),
+    ]
+    assert result["ParameterArns"] == [
+        parameter_arn("AWS_ACCESS_KEY_ID"),
+        parameter_arn("AWS_SECRET_ACCESS_KEY"),
+    ]
+    assert result["ResourceArn"] == POLICY_ARN
+    assert result["Policy"]["Policy"]["Arn"] == POLICY_ARN
+    assert isinstance(result["Policy"]["Policy"]["CreateDate"], str)
+    assert result["TaggingResult"] == {"success": True, "tagged_count": 2}
 
-    ssm_stubber.add_client_error(
-        "put_parameter",
-        "ParameterAlreadyExists",
-        expected_params={
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
 
-    ssm_stubber.activate()
+def test_published_output_omits_environment_values(
+    project_with_credentials: list[EnvironmentVariable],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The returned payload and stdout are both published, so neither holds a value."""
+    # ARRANGE (project_with_credentials)
 
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
+    # ACT
+    result = remediation.replace_credentials(EVENT, {})
 
-    iam_stubber.add_response("create_policy", test_case.policy())
+    # ASSERT
+    published_output = dumps(result, default=str) + capsys.readouterr().out
+    assert result["ParameterNames"]
+    for environment_value in (ACCESS_KEY_VALUE, SECRET_KEY_VALUE, RETAINED_VALUE):
+        assert environment_value not in published_output
 
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
 
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
-        return_value={"success": True, "tagged_count": 1},
-    )
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    project_env = test_case.event()["ProjectInfo"]["environment"]
-    project_env["environmentVariables"] = expected_env_vars
-    successful_response = {
-        "AttachResponse": {},
-        "Parameters": [None],
-        "Policy": test_case.policy_serialized(),
-        "UpdatedProjectEnv": project_env,
-        "ResourceArn": test_case.policy()["Policy"]["Arn"],
-        "ParameterArns": [
-            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}"
-        ],
-        "TaggingResult": {"success": True, "tagged_count": 1},
+def test_leaves_credentials_already_in_parameter_store_untouched(
+    aws_services: None,
+) -> None:
+    # ARRANGE
+    already_stored = {
+        "name": "AWS_ACCESS_KEY_ID",
+        "value": "an_existing_parameter",
+        "type": "PARAMETER_STORE",
     }
-
-    assert remediation.replace_credentials(test_case.event(), {}) == successful_response
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
-
-
-def test_policy_exists(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
-    ]
-
-    test_case = Case(env_vars)
-
-    expected_env_vars = [
-        {
-            "name": "AWS_ACCESS_KEY_ID",
-            "type": "PARAMETER_STORE",
-            "value": test_case.parameter_name(env_vars[0]["name"]),
-        }
-    ]
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    ssm_stubber.add_response(
-        "put_parameter",
-        successful_parameter_response(),
-        {
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_client_error("create_policy", "EntityAlreadyExists")
-
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
-        return_value={"success": True, "tagged_count": 1},
-    )
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    project_env = test_case.event()["ProjectInfo"]["environment"]
-    project_env["environmentVariables"] = expected_env_vars
-    successful_response = {
-        "AttachResponse": {},
-        "Parameters": [successful_parameter_response()],
-        "Policy": {"Policy": {"Arn": test_case.policy_serialized()["Policy"]["Arn"]}},
-        "UpdatedProjectEnv": project_env,
-        "ResourceArn": test_case.policy()["Policy"]["Arn"],
-        "ParameterArns": [
-            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[0]['name'])}"
-        ],
-        "TaggingResult": {"success": True, "tagged_count": 1},
-    }
-
-    assert remediation.replace_credentials(test_case.event(), {}) == successful_response
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
-
-
-def test_new_param(mocker):
-    env_vars = [
-        {
-            "name": "AWS_ACCESS_KEY_ID",
-            "value": "an_existing_parameter",
-            "type": "PARAMETER_STORE",
-        },
-        {"name": "AWS_SECRET_ACCESS_KEY", "value": "test_value_2", "type": "PLAINTEXT"},
-    ]
-
-    test_case = Case(env_vars)
-
-    expected_env_vars = [
-        {
-            "name": "AWS_ACCESS_KEY_ID",
-            "type": "PARAMETER_STORE",
-            "value": "an_existing_parameter",
-        },
-        {
-            "name": "AWS_SECRET_ACCESS_KEY",
-            "type": "PARAMETER_STORE",
-            "value": test_case.parameter_name(env_vars[1]["name"]),
-        },
-    ]
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    ssm_stubber.add_response(
-        "put_parameter",
-        successful_parameter_response(),
-        {
-            "Name": test_case.parameter_name(env_vars[1]["name"]),
-            "Description": ANY,
-            "Value": env_vars[1]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_response("create_policy", test_case.policy())
-
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.tag_parameters",
-        return_value={"success": True, "tagged_count": 1},
-    )
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    project_env = test_case.event()["ProjectInfo"]["environment"]
-    project_env["environmentVariables"] = expected_env_vars
-    successful_response = {
-        "AttachResponse": {},
-        "Parameters": [successful_parameter_response()],
-        "Policy": test_case.policy_serialized(),
-        "UpdatedProjectEnv": project_env,
-        "ResourceArn": test_case.policy()["Policy"]["Arn"],
-        "ParameterArns": [
-            f"arn:aws:ssm:{get_region()}:111111111111:parameter{test_case.parameter_name(env_vars[1]['name'])}"
-        ],
-        "TaggingResult": {"success": True, "tagged_count": 1},
-    }
-
-    assert remediation.replace_credentials(test_case.event(), {}) == successful_response
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
-
-
-def test_put_parameter_fails(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
-    ]
-
-    test_case = Case(env_vars)
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    ssm_stubber.add_client_error(
-        "put_parameter",
-        " InternalServerError",
-        http_status_code=500,
-        expected_params={
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
-
-    ssm_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=None
-    )
-
-    with pytest.raises(SystemExit) as wrapped_exception:
-        remediation.replace_credentials(test_case.event(), {})
-    assert wrapped_exception.type == SystemExit
-
-    ssm_stubber.deactivate()
-
-
-def test_create_policy_fails(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
-    ]
-
-    test_case = Case(env_vars)
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    ssm_stubber.add_response(
-        "put_parameter",
-        successful_parameter_response(),
-        {
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_client_error(
-        "create_policy", " ServiceFailure", http_status_code=500
-    )
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    with pytest.raises(SystemExit) as wrapped_exception:
-        remediation.replace_credentials(test_case.event(), {})
-    assert wrapped_exception.type == SystemExit
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
-
-
-def test_attach_policy_fails(mocker):
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
-    ]
-
-    test_case = Case(env_vars)
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    ssm_stubber.add_response(
-        "put_parameter",
-        successful_parameter_response(),
-        {
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_response("create_policy", test_case.policy())
-
-    iam_stubber.add_client_error(
-        "attach_role_policy",
-        "ServiceFailure",
-        http_status_code=500,
-        expected_params=test_case.attach_params(),
-    )
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    with pytest.raises(SystemExit) as wrapped_exception:
-        remediation.replace_credentials(test_case.event(), {})
-    assert wrapped_exception.type == SystemExit
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
-
-
-def test_returns_resource_arn(mocker):
-    """Test that replace_credentials returns ResourceArn in correct format"""
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"}
-    ]
-
-    test_case = Case(env_vars)
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    ssm_stubber.add_response(
-        "put_parameter",
-        successful_parameter_response(),
-        {
-            "Name": test_case.parameter_name(env_vars[0]["name"]),
-            "Description": ANY,
-            "Value": env_vars[0]["value"],
-            "Type": "SecureString",
-            "Overwrite": False,
-            "DataType": "text",
-        },
-    )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_response("create_policy", test_case.policy())
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
-    )
-
-    result = remediation.replace_credentials(test_case.event(), {})
-
-    expected_arn = test_case.policy()["Policy"]["Arn"]
-
-    # Verify ResourceArn is present
-    assert "ResourceArn" in result
-
-    # Verify ARN format matches the policy ARN
-    assert result["ResourceArn"] == expected_arn
-    assert re.match(
-        r"arn:aws:iam::\d{12}:policy/CodeBuildSSMParameterPolicy-[a-zA-Z0-9_-]+-[a-z0-9-]+",
-        result["ResourceArn"],
-    )
-
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
-
-
-def test_returns_parameter_arns(mocker):
-    """Test that replace_credentials returns ParameterArns for created SSM parameters"""
-    env_vars = [
-        {"name": "AWS_ACCESS_KEY_ID", "value": "test_value", "type": "PLAINTEXT"},
-        {"name": "AWS_SECRET_ACCESS_KEY", "value": "test_value_2", "type": "PLAINTEXT"},
-    ]
-
-    test_case = Case(env_vars)
-
-    ssm_client = botocore.session.get_session().create_client(
-        "ssm", config=get_config()
-    )
-    ssm_stubber = Stubber(ssm_client)
-
-    for env_var in env_vars:
-        ssm_stubber.add_response(
-            "put_parameter",
-            successful_parameter_response(),
+    create_project(
+        [
+            already_stored,
             {
-                "Name": test_case.parameter_name(env_var["name"]),
-                "Description": ANY,
-                "Value": env_var["value"],
-                "Type": "SecureString",
-                "Overwrite": False,
-                "DataType": "text",
+                "name": "AWS_SECRET_ACCESS_KEY",
+                "value": SECRET_KEY_VALUE,
+                "type": "PLAINTEXT",
             },
+        ]
+    )
+
+    # ACT
+    result = remediation.replace_credentials(EVENT, {})
+
+    # ASSERT
+    assert read_environment_variables() == [
+        already_stored,
+        stored_in_parameter_store("AWS_SECRET_ACCESS_KEY"),
+    ]
+    assert result["ParameterNames"] == [parameter_name("AWS_SECRET_ACCESS_KEY")]
+    created = boto3.client("ssm", region_name=REGION_NAME).describe_parameters()
+    assert [parameter["Name"] for parameter in created["Parameters"]] == [
+        parameter_name("AWS_SECRET_ACCESS_KEY")
+    ]
+
+
+def test_continues_when_parameters_and_policy_already_exist(
+    project_with_credentials: list[EnvironmentVariable],
+) -> None:
+    # ARRANGE: a previous run created these before it failed
+    ssm = boto3.client("ssm", region_name=REGION_NAME)
+    for variable_name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        ssm.put_parameter(
+            Name=parameter_name(variable_name),
+            Value="value_from_a_previous_run",
+            Type="SecureString",
         )
-
-    ssm_stubber.activate()
-
-    iam_client = botocore.session.get_session().create_client(
-        "iam", config=get_config()
-    )
-    iam_stubber = Stubber(iam_client)
-
-    iam_stubber.add_response("create_policy", test_case.policy())
-    iam_stubber.add_response("attach_role_policy", {}, test_case.attach_params())
-
-    iam_stubber.activate()
-
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_ssm", return_value=ssm_client
-    )
-    mocker.patch(
-        "ReplaceCodeBuildClearTextCredentials.connect_to_iam", return_value=iam_client
+    boto3.client("iam", region_name=REGION_NAME).create_policy(
+        PolicyName=POLICY_NAME,
+        PolicyDocument=dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {"Effect": "Allow", "Action": "ssm:GetParameter", "Resource": "*"}
+                ],
+            }
+        ),
     )
 
-    result = remediation.replace_credentials(test_case.event(), {})
+    # ACT
+    result = remediation.replace_credentials(EVENT, {})
 
-    # Verify ParameterArns is present
-    assert "ParameterArns" in result
-    assert isinstance(result["ParameterArns"], list)
-    assert len(result["ParameterArns"]) == 2
+    # ASSERT
+    assert read_environment_variables() == [
+        stored_in_parameter_store("AWS_ACCESS_KEY_ID"),
+        stored_in_parameter_store("AWS_SECRET_ACCESS_KEY"),
+        project_with_credentials[2],
+    ]
+    assert result["ResourceArn"] == POLICY_ARN
+    attached = boto3.client("iam", region_name=REGION_NAME).list_attached_role_policies(
+        RoleName=SERVICE_ROLE_NAME
+    )
+    assert [policy["PolicyName"] for policy in attached["AttachedPolicies"]] == [
+        POLICY_NAME
+    ]
 
-    # Verify ARN formats
-    for param_arn in result["ParameterArns"]:
-        assert re.match(
-            r"arn:aws:ssm:[a-z0-9-]+:\d{12}:parameter/CodeBuild/[a-zA-Z0-9_-]+/env/(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY)",
-            param_arn,
-        )
 
-    ssm_stubber.deactivate()
-    iam_stubber.deactivate()
+def test_second_run_finds_nothing_to_replace(
+    project_with_credentials: list[EnvironmentVariable],
+) -> None:
+    # ARRANGE
+    remediation.replace_credentials(EVENT, {})
+    environment_after_first_run = read_environment_variables()
+
+    # ACT
+    result = remediation.replace_credentials(EVENT, {})
+
+    # ASSERT
+    assert read_environment_variables() == environment_after_first_run
+    assert result["ParameterNames"] == []
+    assert result["ResourceArn"] == POLICY_ARN
+    assert result["TaggingResult"] == {"success": True, "tagged_count": 0}
+
+
+def test_project_not_found_exits(aws_services: None) -> None:
+    # ARRANGE (no project exists)
+
+    # ACT
+    exit_message = run_remediation_expecting_exit()
+
+    # ASSERT
+    assert "was not found" in exit_message
+
+
+def test_project_read_failure_is_reported(
+    aws_services: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ARRANGE
+    fail_operation(
+        monkeypatch,
+        CodeBuildResponse,
+        "batch_get_projects",
+        InvalidInputException("The request was rejected."),
+    )
+
+    # ACT
+    exit_message = run_remediation_expecting_exit()
+
+    # ASSERT
+    assert "InvalidInputException" in exit_message
+
+
+def test_project_read_failure_message_omits_response_content(
+    aws_services: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """botocore quotes response content it cannot parse, and the response holds secrets."""
+    # ARRANGE: a field botocore must parse as a timestamp carries a credential
+    unparsable_response = dumps(
+        {"projects": [{"name": PROJECT_NAME, "created": ACCESS_KEY_VALUE}]}
+    )
+    monkeypatch.setattr(
+        CodeBuildResponse,
+        "batch_get_projects",
+        lambda self: unparsable_response,
+        raising=False,
+    )
+
+    # ACT
+    with pytest.raises(SystemExit) as wrapped_exception:
+        remediation.get_project(PROJECT_NAME)
+
+    # ASSERT
+    failure_message = str(wrapped_exception.value)
+    formatted_traceback = "".join(traceback.format_exception(wrapped_exception.value))
+    assert PROJECT_NAME in failure_message
+    assert ACCESS_KEY_VALUE not in failure_message
+    assert ACCESS_KEY_VALUE not in formatted_traceback
+
+
+def test_tag_parameters_reports_the_parameters_it_could_not_tag(
+    aws_services: None,
+) -> None:
+    # ARRANGE
+    boto3.client("ssm", region_name=REGION_NAME).put_parameter(
+        Name=parameter_name("AWS_ACCESS_KEY_ID"), Value="value", Type="SecureString"
+    )
+    missing_arn = parameter_arn("AWS_SECRET_ACCESS_KEY")
+
+    # ACT
+    result = remediation.tag_parameters(
+        [parameter_arn("AWS_ACCESS_KEY_ID"), missing_arn]
+    )
+
+    # ASSERT
+    assert result["success"] is False
+    assert result["tagged_count"] == 1
+    assert list(result["failed_resources"]) == [missing_arn]
+
+
+def test_put_parameter_failure_leaves_project_unchanged(aws_services: None) -> None:
+    # ARRANGE: SSM rejects an empty parameter value
+    environment_variables = [
+        {"name": "AWS_ACCESS_KEY_ID", "value": "", "type": "PLAINTEXT"}
+    ]
+    create_project(environment_variables)
+
+    # ACT
+    exit_message = run_remediation_expecting_exit()
+
+    # ASSERT
+    assert "PutParameter" in exit_message
+    assert read_environment_variables() == environment_variables
+
+
+def test_create_policy_failure_leaves_project_unchanged(
+    project_with_credentials: list[EnvironmentVariable], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ARRANGE
+    fail_operation(
+        monkeypatch,
+        IamResponse,
+        "create_policy",
+        LimitExceededException("Cannot exceed quota for PoliciesPerAccount"),
+    )
+
+    # ACT
+    exit_message = run_remediation_expecting_exit()
+
+    # ASSERT
+    assert "CreatePolicy" in exit_message
+    assert read_environment_variables() == project_with_credentials
+
+
+def test_attach_policy_failure_leaves_project_unchanged(
+    project_with_credentials: list[EnvironmentVariable],
+) -> None:
+    # ARRANGE: the project's service role no longer exists
+    boto3.client("iam", region_name=REGION_NAME).delete_role(RoleName=SERVICE_ROLE_NAME)
+
+    # ACT
+    exit_message = run_remediation_expecting_exit()
+
+    # ASSERT
+    assert "AttachRolePolicy" in exit_message
+    assert read_environment_variables() == project_with_credentials
+
+
+def test_update_failure_message_omits_quoted_environment_value(
+    project_with_credentials: list[EnvironmentVariable], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ARRANGE: the service quotes back a value from the request
+    fail_operation(
+        monkeypatch,
+        CodeBuildResponse,
+        "update_project",
+        InvalidInputException(f"Invalid environment variable value: {RETAINED_VALUE}"),
+    )
+
+    # ACT
+    with pytest.raises(SystemExit) as wrapped_exception:
+        remediation.replace_credentials(EVENT, {})
+
+    # ASSERT
+    failure_message = str(wrapped_exception.value)
+    formatted_traceback = "".join(traceback.format_exception(wrapped_exception.value))
+    assert "InvalidInputException" in failure_message
+    assert RETAINED_VALUE not in failure_message
+    assert RETAINED_VALUE not in formatted_traceback
+
+
+def test_update_failure_message_omits_invalid_environment_value(
+    aws_services: None,
+) -> None:
+    """A botocore validation error is not a ClientError and quotes the failing value."""
+    # ARRANGE
+    invalid_value = 48151623
+    environment = {
+        "type": "LINUX_CONTAINER",
+        "image": "aws/codebuild/standard:7.0",
+        "computeType": "BUILD_GENERAL1_SMALL",
+        "environmentVariables": [
+            {
+                "name": "AN_ACCEPTABLE_PARAMETER",
+                "value": invalid_value,
+                "type": "PLAINTEXT",
+            }
+        ],
+    }
+
+    # ACT
+    with pytest.raises(SystemExit) as wrapped_exception:
+        remediation.update_project_environment(PROJECT_NAME, environment)
+
+    # ASSERT
+    failure_message = str(wrapped_exception.value)
+    formatted_traceback = "".join(traceback.format_exception(wrapped_exception.value))
+    assert "ParamValidationError" in failure_message
+    assert str(invalid_value) not in failure_message
+    assert str(invalid_value) not in formatted_traceback
+
+
+@pytest.mark.parametrize("project_name", [None, ""])
+def test_missing_project_name_is_rejected(project_name: str | None) -> None:
+    # ARRANGE
+    event: dict[str, object] = (
+        {} if project_name is None else {"ProjectName": project_name}
+    )
+
+    # ACT
+    with pytest.raises(SystemExit) as wrapped_exception:
+        remediation.replace_credentials(event, {})
+
+    # ASSERT
+    assert "ProjectName is required" in str(wrapped_exception.value)
 
 
 def test_parse_project_arn_valid():
     """Test parse_project_arn with valid ARN"""
-    arn = f"arn:aws:codebuild:{get_region()}:111111111111:project/test-project"
+    arn = f"arn:aws:codebuild:{REGION_NAME}:111111111111:project/test-project"
     partition, region, account = remediation.parse_project_arn(arn)
 
     assert partition == "aws"
-    assert region == get_region()
+    assert region == REGION_NAME
     assert account == "111111111111"
 
 

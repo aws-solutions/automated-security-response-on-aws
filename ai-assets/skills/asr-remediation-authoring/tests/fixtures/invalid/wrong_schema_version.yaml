@@ -1,0 +1,10 @@
+schemaVersion: "0.2"
+description: Wrong schema version.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+mainSteps:
+  - name: VerifyThing
+    action: aws:assertAwsResourceProperty

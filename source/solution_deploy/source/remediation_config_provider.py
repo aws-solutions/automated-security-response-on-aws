@@ -96,7 +96,12 @@ def get_supported_controls() -> list[str]:
     s3_client = boto3.client("s3", region_name=bucket_region, config=BOTO_CONFIG)
 
     try:
-        response = s3_client.get_object(
+        # No ExpectedBucketOwner: the reference bucket is the solution distribution
+        # bucket, owned by AWS Solutions or a customer staging account in a different
+        # account than this Lambda (its policy grants cross-account read — see README).
+        # Asserting an owner here would break every deployment whose reference bucket
+        # is external, which is the documented, normal case.
+        response = s3_client.get_object(  # NOSONAR - reference bucket is intentionally cross-account owned
             Bucket=source_bucket,
             Key=f"{solution_tmn}/{solution_version}/supported-controls.json",
         )

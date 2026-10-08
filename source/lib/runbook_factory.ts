@@ -159,12 +159,55 @@ export class RunbookFactory extends Construct {
       ? `${commonScripts}/${script.replace(commonPrefix, '')}`
       : `${scriptPath}/${script}`;
     const scriptIn = readFileSync(pathAndFileToInsert, 'utf8');
+    const resolvedScript = this.resolveIncludes(scriptIn, scriptPath, commonScripts);
     return (
-      scriptIn
+      resolvedScript
         .split('\n')
         .map((scriptLine) => `${padding}${scriptLine}`)
         .join('\n') + '\n'
     );
+  }
+
+  static resolveIncludes(scriptContent: string, scriptPath: string, commonScripts?: string): string {
+    const includeRegex = /^#?\s*%%INCLUDE=(?<file>.*)%%$/; // NOSONAR: Allowed to use named groups
+    const lines = scriptContent.split('\n');
+    const resolved: string[] = [];
+    for (const line of lines) {
+      const match = includeRegex.exec(line.trim());
+      if (match?.groups?.file) {
+        const commonPrefix = 'common/';
+        const includePath = match.groups.file.startsWith(commonPrefix)
+          ? `${commonScripts}/${match.groups.file.replace(commonPrefix, '')}`
+          : `${scriptPath}/${match.groups.file}`;
+        const includeContent = readFileSync(includePath, 'utf8');
+        // Strip the test-time `from common...` import (fenced by `# fmt: off`/`# fmt: on`) before
+        // embedding: at SSM runtime the module is inlined below, not importable. The import may span
+        // multiple lines (black wraps long imports), so strip the whole fence, not a fixed size.
+        const isFmtOff = (s: string): boolean => /^#\s*fmt:\s*off$/.test(s.trim());
+        const isFmtOn = (s: string): boolean => /^#\s*fmt:\s*on$/.test(s.trim());
+        const fenceEnd = resolved.length - 1;
+        if (fenceEnd >= 0 && isFmtOn(resolved[fenceEnd])) {
+          let fenceStart = fenceEnd - 1;
+          while (fenceStart >= 0 && !isFmtOff(resolved[fenceStart])) {
+            fenceStart--;
+          }
+          const fenceBody = fenceStart >= 0 ? resolved.slice(fenceStart + 1, fenceEnd) : [];
+          // The shim is always `# fmt: off` immediately followed by the `from common...` import. Require
+          // that shape (first non-blank line inside the fence is the import) so a distant, unrelated
+          // `# fmt: off` further up the file can't cause a large unrelated block to be spliced out.
+          const firstNonBlank = fenceBody.find((l) => l.trim() !== '');
+          const isTestImportBlock =
+            firstNonBlank !== undefined && /^from\s+common\.\w+\s+import/.test(firstNonBlank.trim());
+          if (isTestImportBlock) {
+            resolved.splice(fenceStart, fenceEnd - fenceStart + 1);
+          }
+        }
+        resolved.push(includeContent.replace(/\n$/, ''));
+      } else {
+        resolved.push(line);
+      }
+    }
+    return resolved.join('\n');
   }
 
   private static processRoleLine(

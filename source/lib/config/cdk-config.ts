@@ -14,6 +14,7 @@ export interface CDKConfig {
     id: string;
     name: string;
     trademarkedName: string;
+    resourceNamePrefix: string;
   };
   ttl: {
     findingsDays: number;
@@ -74,11 +75,22 @@ export interface CDKConfig {
   };
 }
 
+/**
+ * Strips the pre-prod `DEV-` prefix that `build-s3-dist.sh -t` prepends to the solution ID.
+ *
+ * Use the result for any identifier one component produces and another consumes; use
+ * `solution.id` for build identity. See ADR 0012.
+ */
+export function stripDevelopmentPrefix(solutionId: string): string {
+  return solutionId.replace(/^DEV-/, '');
+}
+
 const DEFAULT_CONFIG: CDKConfig = {
   solution: {
     id: 'SO0111',
     name: 'Automated Security Response on AWS',
     trademarkedName: 'automated-security-response-on-aws',
+    resourceNamePrefix: stripDevelopmentPrefix('SO0111'),
   },
   ttl: {
     findingsDays: 8,
@@ -254,6 +266,9 @@ export function getConfig(): CDKConfig {
   if (!withEnvOverrides.solution.id || !withEnvOverrides.solution.trademarkedName) {
     throw new Error('solution.id and solution.trademarkedName are required (via config or env vars)');
   }
+
+  // Derived after env overrides so a `-t` build's DEV- prefix is stripped exactly once.
+  withEnvOverrides.solution.resourceNamePrefix = stripDevelopmentPrefix(withEnvOverrides.solution.id);
 
   cachedConfig = withEnvOverrides;
   return cachedConfig;

@@ -33,7 +33,7 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
       resourceIdName,
       resourceIdRegex: String.raw`^(?:arn:(?:aws|aws-cn|aws-us-gov):s3:::)?([A-Za-z0-9.-]{3,63})$`,
       updateDescription: new StringFormat('Created S3 bucket %s for logging access to %s', [
-        getTargetBucketName(props.solutionId),
+        getTargetBucketName(props.resourceNamePrefix),
         StringVariable.of(`ParseInput.${resourceIdName}`),
       ]),
     });
@@ -44,9 +44,9 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
     const createAccessLoggingBucketStep = new ExecuteAutomationStep(this, createAccessLoggingBucketStepName, {
       documentName: HardCodedString.of(`${this.solutionAcronym}-${createAccessLoggingBucketStepName}`),
       runtimeParameters: HardCodedStringMap.of({
-        BucketName: getTargetBucketName(this.solutionId),
+        BucketName: getTargetBucketName(this.resourceNamePrefix),
         AutomationAssumeRole: new StringFormat(
-          `arn:%s:iam::%s:role/${this.solutionId}-${createAccessLoggingBucketStepName}-${this.namespace}`,
+          `arn:%s:iam::%s:role/${this.resourceNamePrefix}-${createAccessLoggingBucketStepName}-${this.namespace}`,
           [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
         ),
       }),
@@ -69,14 +69,14 @@ export class ConfigureS3BucketLoggingDocument extends ControlRunbookDocument {
     params.GranteeType = ['Group'];
     params.GranteeUri = ['http://acs.amazonaws.com/groups/s3/LogDelivery']; //NOSONAR This is the recommended URL for a log delivery group.
     params.TargetPrefix = [StringVariable.of(`ParseInput.${this.resourceIdName}`)];
-    params.TargetBucket = [getTargetBucketName(this.solutionId)];
+    params.TargetBucket = [getTargetBucketName(this.resourceNamePrefix)];
 
     return params;
   }
 }
 
-function getTargetBucketName(solutionId: string): IStringVariable {
-  return new StringFormat(`${solutionId}-cloudtrailaccesslogs-%s-%s`.toLowerCase(), [
+function getTargetBucketName(resourceNamePrefix: string): IStringVariable {
+  return new StringFormat(`${resourceNamePrefix}-cloudtrailaccesslogs-%s-%s`.toLowerCase(), [
     StringVariable.of('global:ACCOUNT_ID'),
     StringVariable.of('global:REGION'),
   ]);

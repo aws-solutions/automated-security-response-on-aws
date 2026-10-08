@@ -16,6 +16,10 @@ requirements_dev.txt
 /source/webui/dist/
 /source/data-models/cjs/
 /source/data-models/esm/
+# Build outputs for self-contained workspaces (e.g. source/mcp)
+**/dist/
+/source/mcp/bin/
+*.tsbuildinfo
 *.d.ts*
 *.js
 *.cjs

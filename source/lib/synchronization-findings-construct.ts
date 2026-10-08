@@ -20,7 +20,6 @@ import { LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { SynchronizationFindingsEnvironmentConfig } from '@asr/data-models';
 
 export interface SynchronizationFindingsConstructProps {
-  readonly solutionId: string;
   readonly solutionTMN: string;
   readonly solutionVersion: string;
   readonly resourceNamePrefix: string;
@@ -65,9 +64,9 @@ export class SynchronizationFindingsConstruct extends Construct {
         new PolicyStatement({
           actions: ['ssm:GetParameter', 'ssm:PutParameter'],
           resources: [
-            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${props.solutionId}/anonymous_metrics_uuid`,
-            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${props.solutionId}/metrics_uuid`,
-            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${props.solutionId}/version`,
+            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${props.resourceNamePrefix}/anonymous_metrics_uuid`,
+            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${props.resourceNamePrefix}/metrics_uuid`,
+            `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${props.resourceNamePrefix}/version`,
           ],
         }),
         new PolicyStatement({

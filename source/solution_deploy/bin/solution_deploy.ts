@@ -10,22 +10,27 @@ import * as cdk from 'aws-cdk-lib';
 import { RemediationRunbookStack } from '../../lib/remediation-runbook-stack';
 import { MemberCloudTrailStack } from '../../lib/member/cloud-trail';
 import { getConfig, applyDynamicTags } from '../../lib/config/cdk-config';
+import { buildOrchestratorLogGroupName, buildStatusTopicName } from '../../lib/cdk-helper/solution-resource-names';
 
 const config = getConfig();
 
 const SOLUTION_ID = config.solution.id;
+const RESOURCE_NAME_PREFIX = config.solution.resourceNamePrefix;
 const SOLUTION_NAME = config.solution.name;
 const SOLUTION_VERSION = config.build.distVersion;
 const SOLUTION_TMN = config.solution.trademarkedName;
 const SOLUTION_BUCKET = config.build.distOutputBucket;
 const LAMBDA_RUNTIME_PYTHON = lambda.Runtime.PYTHON_3_11;
 
-const app = new cdk.App();
+const app = new cdk.App({
+  context: {
+    '@aws-cdk/core:suppressTemplateIndentation': true,
+  },
+});
 
-let LOG_GROUP = `${SOLUTION_ID}-ASR-Orchestrator`;
-LOG_GROUP = LOG_GROUP.replace(/^DEV-/, ''); // prefix on every resource name
+const LOG_GROUP = buildOrchestratorLogGroupName(RESOURCE_NAME_PREFIX);
 
-const primarySolutionSNSTopicName = `${SOLUTION_ID}-ASR_Topic`;
+const primarySolutionSNSTopicName = buildStatusTopicName(RESOURCE_NAME_PREFIX);
 const ACTION_LOG_LOGGROUP_NAME = '/aws/lambda/SO0111-ASR-CloudTrailEvents';
 
 const solutionStack = new AdministratorStack(app, 'SolutionDeployStack', {
@@ -49,6 +54,7 @@ const memberStack = new MemberStack(app, 'MemberStack', {
   synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: '(' + SOLUTION_ID + 'M) ' + SOLUTION_NAME + ' Member Account Stack, ' + SOLUTION_VERSION,
   solutionId: SOLUTION_ID,
+  resourceNamePrefix: RESOURCE_NAME_PREFIX,
   solutionTradeMarkName: SOLUTION_TMN,
   solutionDistBucket: SOLUTION_BUCKET,
   solutionVersion: SOLUTION_VERSION,

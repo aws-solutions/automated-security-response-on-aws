@@ -1,0 +1,73 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Trips [orchestrator-parameters] on the second half of the contract only: `Finding`
+# IS declared and read, but `KmsKeyId` is required with no default. The Orchestrator
+# sends only Finding and AutomationAssumeRole, so the execution fails before the
+# first step even though the runbook derives its resource correctly. Isolated from
+# missing_finding_param.yaml so a regression names which half broke.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-S3.17
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  Finding:
+    type: StringMap
+    description: (Required) The ASFF finding, passed by the ASR Orchestrator.
+  KmsKeyId:
+    type: String
+    description: (Required) The KMS key to encrypt with. Missing a default is the defect.
+mainSteps:
+  - name: EnableBucketKmsEncryption
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: remediate
+      InputPayload:
+        Finding: "{{ Finding }}"
+        KmsKeyId: "{{ KmsKeyId }}"
+      Script: |-
+        import boto3
+
+        def remediate(event, _context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            bucket = resource_id.split(":::")[-1].split("/")[0]
+            boto3.client("s3").put_bucket_encryption(
+                Bucket=bucket,
+                ServerSideEncryptionConfiguration={
+                    "Rules": [
+                        {
+                            "ApplyServerSideEncryptionByDefault": {
+                                "SSEAlgorithm": "aws:kms",
+                                "KMSMasterKeyID": event["KmsKeyId"],
+                            }
+                        }
+                    ]
+                },
+            )
+            return {"status": "applied", "Bucket": bucket}
+  - name: VerifyEncryption
+    action: aws:executeScript
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Runtime: python3.11
+      Handler: verify
+      InputPayload:
+        Finding: "{{ Finding }}"
+      Script: |-
+        import boto3
+
+        def verify(event, _context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            bucket = resource_id.split(":::")[-1].split("/")[0]
+            response = boto3.client("s3").get_bucket_encryption(Bucket=bucket)
+            rules = response["ServerSideEncryptionConfiguration"]["Rules"]
+            algorithm = rules[0]["ApplyServerSideEncryptionByDefault"]["SSEAlgorithm"]
+            if algorithm != "aws:kms":
+                raise RuntimeError(f"expected aws:kms, found {algorithm}")
+            return {"status": "verified"}

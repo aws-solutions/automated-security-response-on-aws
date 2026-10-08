@@ -7,7 +7,11 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableElastiCacheVersionUpgrades(scope, id, { ...props, controlId: 'ElastiCache.2' });
+  return new EnableElastiCacheVersionUpgrades(scope, id, {
+    ...props,
+    controlId: 'ElastiCache.2',
+    isRollbackEnabled: true,
+  });
 }
 
 export class EnableElastiCacheVersionUpgrades extends ControlRunbookDocument {

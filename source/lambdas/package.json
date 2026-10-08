@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr_lambdas",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "description": "Non-Orchestrator Lambda functions in ASR, including the Pre-processor and backend API lambdas.",
   "author": {
     "name": "Amazon Web Services",
@@ -9,21 +9,23 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "check": "../../deployment/dynamodb-local.sh bash -c 'npm run format && npm run lint && tsc --noEmit && npm run test:sequential' 2>&1 | node ../../deployment/utils/filter-test-output.js",
+    "check": "bash -c 'set -o pipefail; ../../deployment/dynamodb-local.sh bash -c \"npm run format && npm run lint && tsc --noEmit && npm run test:sequential\" 2>&1 | node ../../deployment/utils/filter-test-output.js'",
     "build:install": "npm ci",
     "build:clean:ts": "find . -type f -not -path \"./node_modules/*\" -not -name \"*.config.js\"  \\( -name \"*.js\" -o -name \"*.js.map\" -o -name \"*.d.ts*\" \\) -delete",
     "build:clean": "rm -rf ./coverage && npm run build:clean:ts",
     "build:clean:deps": "rm -rf ./node_modules && npm run build:clean",
     "build:ts": "./node_modules/typescript/bin/tsc",
+    "build:tool-schema": "npm run build:ts && node mcp-server/writeToolSchema.js && npm run build:clean:ts",
     "watch": "tsc -w",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"**/*.ts\"",
-    "test:sequential": "npm run test:sequential:preprocessor && npm run test:sequential:common && npm run test:sequential:api && npm run test:sequential:synchronization && npm run test:sequential:notification",
+    "test:sequential": "npm run test:sequential:preprocessor && npm run test:sequential:common && npm run test:sequential:api && npm run test:sequential:synchronization && npm run test:sequential:notification && npm run test:sequential:mcp-server",
     "test:sequential:preprocessor": "npm run build:clean:ts && export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Pre-processor Unit Tests' --runInBand --coverage --coverageDirectory=pre-processor/coverage --silent",
     "test:sequential:common": "npm run build:clean:ts && export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Common Unit Tests' --runInBand --coverage --coverageDirectory=common/coverage --silent",
     "test:sequential:api": "npm run build:clean:ts && export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'API Unit Tests' --runInBand --coverage --coverageDirectory=api/coverage --silent",
     "test:sequential:synchronization": "npm run build:clean:ts && export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Synchronization Unit Tests' 'IaC Template Sync Unit Tests' 'Baseline Configuration Unit Tests' --runInBand --coverage --coverageDirectory=synchronization/coverage --silent",
     "test:sequential:notification": "npm run build:clean:ts && npm run test:sequential:notification:channels && npm run test:sequential:notification:dispatcher && npm run test:sequential:notification:batch",
+    "test:sequential:mcp-server": "npm run build:clean:ts && export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'MCP Server Unit Tests' --runInBand --coverage --coverageDirectory=mcp-server/coverage --silent",
     "test:sequential:notification:channels": "export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Notification Channels Unit Tests' --runInBand --coverage --coverageDirectory=notification-channels/coverage --silent",
     "test:sequential:notification:dispatcher": "export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Notification Dispatcher Unit Tests' --runInBand --coverage --coverageDirectory=notification-dispatcher/coverage --silent",
     "test:sequential:notification:batch": "export POWERTOOLS_DEV=true && node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --selectProjects 'Batch Processor Unit Tests' --runInBand --coverage --coverageDirectory=batch-processor/coverage --silent"
@@ -56,6 +58,7 @@
     "@aws-sdk/client-cloudfront": "3.1023.0",
     "@aws-sdk/client-cognito-identity-provider": "3.1094.0",
     "@aws-sdk/client-dynamodb": "3.1094.0",
+    "@aws-sdk/client-iam": "3.1094.0",
     "@aws-sdk/client-lambda": "3.1094.0",
     "@aws-sdk/client-organizations": "3.1094.0",
     "@aws-sdk/client-s3": "3.1094.0",
@@ -65,6 +68,7 @@
     "@aws-sdk/client-sns": "3.1023.0",
     "@aws-sdk/client-sqs": "3.1023.0",
     "@aws-sdk/client-ssm": "3.1094.0",
+    "@aws-sdk/client-sts": "3.1094.0",
     "@aws-sdk/lib-dynamodb": "3.1094.0",
     "@aws-sdk/s3-request-presigner": "3.1094.0",
     "@middy/core": "7.1.1",
@@ -74,6 +78,7 @@
     "@middy/http-router": "7.1.1",
     "@middy/http-urlencode-path-parser": "7.1.1",
     "@types/aws-lambda": "8.10.160",
+    "aws-jwt-verify": "5.2.1",
     "js-yaml": "^4.3.1",
     "pako": "2.1.0",
     "zod": "4.3.6"
@@ -84,8 +89,7 @@
   },
   "overrides": {
     "babel-plugin-istanbul": "^8.0.0",
-    "@aws-sdk/util-dynamodb": "3.996.7",
-    "browserslist": "^4.28.7"
+    "@aws-sdk/util-dynamodb": "3.996.7"
   },
   "jestSonar": {
     "reportPath": "coverage"

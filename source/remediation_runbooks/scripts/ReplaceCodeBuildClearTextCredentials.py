@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import re
 from json import dumps
+from typing import Any, Protocol, TypedDict
 
 import boto3
 from boto3 import client
@@ -15,12 +16,82 @@ SOLUTION_TAG_KEY = "Solutions:SolutionName"
 SOLUTION_TAG_VALUE = "automated-security-response-on-aws"
 
 
+class Event(TypedDict):
+    ProjectName: str
+
+
+class BatchGetProjectsResponse(TypedDict):
+    projects: list[dict[str, Any]]
+
+
+class CodeBuildClient(Protocol):
+    """The calls this script makes. `boto3-stubs-lite` is installed without a codebuild extra."""
+
+    def batch_get_projects(self, *, names: list[str]) -> BatchGetProjectsResponse: ...
+
+    def update_project(
+        self, *, name: str, environment: dict[str, Any]
+    ) -> dict[str, Any]: ...
+
+
 def connect_to_ssm(boto_config: Config):
     return client("ssm", config=boto_config)
 
 
 def connect_to_iam(boto_config: Config):
     return client("iam", config=boto_config)
+
+
+def connect_to_codebuild(boto_config: Config) -> CodeBuildClient:
+    codebuild_client: CodeBuildClient = client("codebuild", config=boto_config)
+    return codebuild_client
+
+
+def get_project(project_name: str) -> dict[str, Any]:
+    """Read a CodeBuild project.
+
+    The response embeds every environment variable value, so it must stay in this
+    script: a step output is readable through ssm:GetAutomationExecution.
+    """
+    codebuild_client = connect_to_codebuild(boto_config)
+    try:
+        response = codebuild_client.batch_get_projects(names=[project_name])
+    except ClientError as client_exception:
+        exit(f"ERROR: Unhandled client exception: {client_exception}")
+    except Exception as unexpected_exception:
+        # The response holds every environment variable value and botocore quotes
+        # content it fails to parse, so only the exception type is reported.
+        raise SystemExit(
+            f"ERROR: could not read CodeBuild project {project_name}: "
+            f"{type(unexpected_exception).__name__}"
+        ) from None
+
+    projects = response.get("projects", [])
+    if not projects:
+        exit(f"ERROR: CodeBuild project {project_name} was not found.")
+    return projects[0]
+
+
+def update_project_environment(project_name: str, environment: dict[str, Any]) -> None:
+    """Apply the rewritten environment, discarding the response, which echoes the project."""
+    codebuild_client = connect_to_codebuild(boto_config)
+    try:
+        codebuild_client.update_project(name=project_name, environment=environment)
+    except ClientError as client_exception:
+        # Neither handler reports the exception message: the request carries every
+        # environment variable value, validation errors can quote the failing one, and
+        # this text becomes the step's FailureMessage. `from None` is required because a
+        # formatted traceback prints the chained exception too. `.get` is required because
+        # a KeyError raised here would chain it as well.
+        error_code = client_exception.response.get("Error", {}).get("Code", "Unknown")
+        raise SystemExit(
+            f"ERROR: could not update CodeBuild project {project_name}: {error_code}"
+        ) from None
+    except Exception as unexpected_exception:
+        raise SystemExit(
+            f"ERROR: could not update CodeBuild project {project_name}: "
+            f"{type(unexpected_exception).__name__}"
+        ) from None
 
 
 def is_clear_text_credential(env_var: dict) -> bool:
@@ -192,29 +263,42 @@ def tag_parameters(parameter_arns: list[str]) -> dict:
         return {"success": False, "tagged_count": 0, "error": error_message}
 
 
-def replace_credentials(event: dict, _: dict) -> dict:
+def validate_event(event: dict[str, object]) -> Event:
+    """Return the event with ProjectName narrowed to a non-empty string, or exit."""
+    project_name = event.get("ProjectName")
+    if not isinstance(project_name, str) or not project_name:
+        exit("ERROR: ProjectName is required and must be a non-empty string.")
+    return {"ProjectName": project_name}
+
+
+def replace_credentials(
+    event: dict[str, object], _: dict[str, object]
+) -> dict[str, Any]:
     """Replace clear text credentials in CodeBuild project with SSM parameters.
 
+    The returned dictionary is published as the step output, so it must never carry an
+    environment variable value.
+
     Args:
-        event: Lambda event containing ProjectInfo
+        event: Lambda event containing ProjectName
         _: Lambda context (unused)
 
     Returns:
-        Dictionary with updated project environment and tagging results
+        Dictionary with the created parameter names, policy details, and tagging results
     """
-    project_info = event.get("ProjectInfo")
-    project_name = project_info.get("name")
-    project_env = project_info.get("environment")
-    project_env_vars = project_env.get("environmentVariables")
-    updated_project_env_vars = []
-    parameters = []
-    parameter_arns = []
+    project_name = validate_event(event)["ProjectName"]
+    project_info = get_project(project_name)
+    project_env: dict[str, Any] = project_info["environment"]
+    project_env_vars: list[dict[str, Any]] = project_env.get("environmentVariables", [])
+    updated_project_env_vars: list[dict[str, Any]] = []
+    parameter_names: list[str] = []
+    parameter_arns: list[str] = []
 
     partition, region, account = parse_project_arn(project_info.get("arn"))
 
     for env_var in project_env_vars:
         if is_clear_text_credential(env_var):
-            parameter_response, parameter_name, parameter_arn = create_parameter(
+            _put_parameter_response, parameter_name, parameter_arn = create_parameter(
                 project_name, env_var, region, account, partition
             )
             updated_env_var = {
@@ -223,7 +307,7 @@ def replace_credentials(event: dict, _: dict) -> dict:
                 "value": parameter_name,
             }
             updated_project_env_vars.append(updated_env_var)
-            parameters.append(parameter_response)
+            parameter_names.append(parameter_name)
             parameter_arns.append(parameter_arn)
         else:
             updated_project_env_vars.append(env_var)
@@ -232,9 +316,11 @@ def replace_credentials(event: dict, _: dict) -> dict:
     updated_project_env["environmentVariables"] = updated_project_env_vars
 
     policy = create_policy(region, account, partition, project_name)
-    service_role_arn = project_info.get("serviceRole")
+    service_role_arn: str = project_info["serviceRole"]
     service_role_name = service_role_arn[service_role_arn.rfind("/") + 1 :]
     attach_response = attach_policy(policy["Policy"]["Arn"], service_role_name)
+
+    update_project_environment(project_name, updated_project_env)
 
     # datetimes are not serializable, so convert them to ISO 8601 strings
     policy_datetime_keys = ["CreateDate", "UpdateDate"]
@@ -248,8 +334,7 @@ def replace_credentials(event: dict, _: dict) -> dict:
     tagging_result = tag_parameters(parameter_arns)
 
     return {
-        "UpdatedProjectEnv": updated_project_env,
-        "Parameters": parameters,
+        "ParameterNames": parameter_names,
         "Policy": policy,
         "AttachResponse": attach_response,
         "ResourceArn": policy_arn,

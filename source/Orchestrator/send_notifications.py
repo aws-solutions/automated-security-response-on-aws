@@ -3,8 +3,18 @@
 import gzip
 import json
 import os
+import re
 from datetime import datetime, timezone
-from typing import Any, Literal, Optional, TypedDict, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Optional,
+    Protocol,
+    TypedDict,
+    Union,
+    cast,
+)
 
 import boto3
 from botocore.config import Config
@@ -21,6 +31,7 @@ from layer.event_transformers import (
     extract_resources,
     extract_severity,
     extract_stepfunctions_execution_id,
+    extract_triggered_by,
     is_notified_workflow,
     is_resolved_item,
     resolve_finding_account_id,
@@ -46,6 +57,9 @@ from layer.sechub_findings import (
 from layer.tracer_utils import init_tracer
 from layer.utils import get_account_alias
 
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import Table
+
 # Get AWS region from Lambda environment. If not present then we're not
 # running under lambda, so defaulting to us-east-1
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")  # MUST BE SET in global variables
@@ -59,6 +73,86 @@ NOTIFICATION_QUEUE_URL = os.getenv("NOTIFICATION_QUEUE_URL")
 # for its full timeout; standard retries add headroom.
 _BOTO_CONFIG = Config(retries={"mode": "standard"}, connect_timeout=5, read_timeout=10)
 _sqs_client = boto3.client("sqs", config=_BOTO_CONFIG)
+
+
+class _SecurityHubBatchUpdater(Protocol):
+    """The subset of the Security Hub client this module uses."""
+
+    def batch_update_findings(self, **kwargs: Any) -> dict[str, Any]: ...
+
+
+# Created lazily via _get_sechub_client(): only the rollback path calls Security Hub, so
+# cold starts that never run a rollback don't pay to construct this client.
+_sechub_client: "_SecurityHubBatchUpdater | None" = None
+
+
+def _first_element(value: list[Any] | str | None) -> str | None:
+    """Extract the first element from an SSM output value (array-wrapped) or return as-is if string."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        first = value[0] if value else None
+        return first if isinstance(first, str) else None
+    return value if isinstance(value, str) else None
+
+
+def _get_output_field(
+    output: dict[str, Any], field: str, step_prefix: str = "SnapshotRemediateOrRollback"
+) -> str | None:
+    """Extract a field from remediation output, checking both flat and step-prefixed formats."""
+    flat = _first_element(output.get(field))
+    if flat is not None:
+        return flat
+    return _first_element(output.get(f"{step_prefix}.{field}"))
+
+
+_rollback_config_table: "Table | None" = None
+
+
+_dynamodb_resource = boto3.resource("dynamodb", config=_BOTO_CONFIG)
+
+
+def _get_rollback_config_table() -> "Table | None":
+    global _rollback_config_table
+    if _rollback_config_table is None:
+        table_name = os.environ.get("REMEDIATION_CONFIG_TABLE_NAME")
+        if table_name:
+            _rollback_config_table = _dynamodb_resource.Table(table_name)
+    return _rollback_config_table
+
+
+def _get_sechub_client() -> _SecurityHubBatchUpdater:
+    global _sechub_client
+    if _sechub_client is None:
+        _sechub_client = boto3.client("securityhub", config=_BOTO_CONFIG)
+    return _sechub_client
+
+
+def _is_control_rollback_enabled(control_id: str) -> bool:
+    """Check the Remediation Config Table for per-control rollback toggle.
+
+    Returns True (rollback allowed) when:
+      - The table name env var is not set (backward compat — no table, no gate)
+      - The control's item has rollbackEnabled=true or the field is absent (default true)
+    Returns False when rollbackEnabled is explicitly set to false.
+    """
+    table = _get_rollback_config_table()
+    if not table:
+        return True
+    try:
+        response = table.get_item(
+            Key={"controlId": control_id}, ProjectionExpression="rollbackEnabled"
+        )
+        item = response.get("Item")
+        if not item:
+            return True
+        return item.get("rollbackEnabled", True) is not False
+    except Exception as e:
+        logger.warning(
+            "Failed to check rollbackEnabled, defaulting to enabled",
+            extra={"controlId": control_id, "error": str(e)},
+        )
+        return True
 
 
 def _set_if_present(target: dict[str, str], key: str, value: str | None) -> None:
@@ -184,6 +278,73 @@ def _publish_notification_event(
         )
     except Exception as e:
         logger.warning("Failed to publish notification event", extra={"error": str(e)})
+
+
+_EXCEPTION_LINE = re.compile(
+    r"^(?:[\w.]+\.)?(\w*(?:Error|Exception|Exit)): (.+)$", re.MULTILINE
+)
+_TRACEBACK_FRAME = re.compile(r'File "[^"]*", line (\d+), in (\S+)')
+_CAUSE_PREFIX = "Cause: "
+
+
+def _messages_from_cause(cause: object) -> list[str]:
+    """The messages inside a Lambda error cause, or its text when it carries none."""
+    if not isinstance(cause, dict):
+        return [str(cause)]
+
+    lines: list[str] = []
+    trace = cause.get("trace")
+    if isinstance(trace, list):
+        lines.extend(str(line) for line in trace)
+    message = str(cause.get("errorMessage") or "")
+    if message:
+        lines.append(message)
+
+    if lines:
+        return lines
+    return [str(cause)]
+
+
+def _messages_from(raw_message: object) -> list[str]:
+    """The individual messages behind the field, whatever shape it arrived in."""
+    if isinstance(raw_message, str) and raw_message.startswith(_CAUSE_PREFIX):
+        body = raw_message[len(_CAUSE_PREFIX) :]
+        try:
+            return _messages_from_cause(json.loads(body))
+        except ValueError:
+            return [body]
+
+    parsed: object = raw_message
+    if isinstance(raw_message, str):
+        try:
+            parsed = json.loads(raw_message)
+        except ValueError:
+            parsed = raw_message
+    if isinstance(parsed, list):
+        return [str(part) for part in parsed]
+    return [str(parsed)]
+
+
+def extract_failure_reason(raw_message: object) -> str:
+    """The exception the script raised, else where it broke, else the messages themselves."""
+    if not raw_message:
+        return ""
+    parts = _messages_from(raw_message)
+
+    for part in reversed(parts):
+        exceptions = _EXCEPTION_LINE.findall(part)
+        if exceptions:
+            name, detail = exceptions[-1]
+            return f"{name}: {detail.strip()}"
+
+    frames = [frame for part in parts for frame in _TRACEBACK_FRAME.findall(part)]
+    if frames:
+        line_number, function = frames[0]
+        return (
+            f"Failed in {function} at line {line_number}. The error message was "
+            "truncated; see the Systems Manager automation execution for the full trace."
+        )
+    return " ".join(" ".join(part.split()) for part in parts)
 
 
 def format_failure_message(
@@ -608,6 +769,22 @@ def _translate_ocsf_vulnerability(vulnerability: dict[str, Any]) -> AsffVulnerab
     }
 
 
+def _non_empty_str(value: object) -> str | None:
+    """A value the Notification carries only sometimes, normalised to str or None."""
+    return value if isinstance(value, str) and value else None
+
+
+def _compress_finding_for_history(event: Event) -> bytes | None:
+    try:
+        return gzip.compress(json.dumps(_build_asff_for_history(event)).encode("utf-8"))
+    except (TypeError, ValueError, OverflowError) as exc:
+        logger.warning(
+            "Failed to compress finding for IaC rendering; proceeding without",
+            extra={"error": str(exc)},
+        )
+        return None
+
+
 def _update_finding_remediation_status(
     execution_id: str,
     status_from_event: str,
@@ -617,10 +794,12 @@ def _update_finding_remediation_status(
     remediation_status = map_remediation_status(status_from_event)
     error_message = None
 
-    if remediation_status == "FAILED":
-        error_message = event["Notification"].get("Details") or event[
-            "Notification"
-        ].get("Message", None)
+    # Capture the reason on rollback failures too, so the history `error` field shows why.
+    if remediation_status in ("FAILED", "ROLLBACK_FAILED"):
+        raw_error = event["Notification"].get("Details") or event["Notification"].get(
+            "Message"
+        )
+        error_message = extract_failure_reason(raw_error) if raw_error else None
 
     if is_resolved_item(event):
         logger.warning(
@@ -650,36 +829,29 @@ def _update_finding_remediation_status(
 
         # Capture the GuardDuty Contain backup key (if present) so a later
         # rollback can supply it to AWSSupport-ContainIAMPrincipal.
-        backup_s3_key_raw = event["Notification"].get("BackupS3Key")
-        backup_s3_key = (
-            backup_s3_key_raw
-            if isinstance(backup_s3_key_raw, str) and backup_s3_key_raw
-            else None
-        )
+        backup_s3_key = _non_empty_str(event["Notification"].get("BackupS3Key"))
 
-        # On SUCCESS, persist an ASFF representation of the finding so the
-        # history `findingJSON` matches the documented invariant (DynamoDB
-        # always stores ASFF). The downstream readers — rollback,
-        # iacTemplateService, batch-processor reconciliation — all assume
-        # ASFF, so compressing the raw `event["Finding"]` (which is OCSF for
-        # multi-service auto-triggered findings) would break them. Synthesize
-        # ASFF from the event using the same source-of-truth extractors used
-        # elsewhere in this module. gzip matches the format
-        # `findingDataService.compressJson` writes to the Findings table
-        # (`pako.gzip`), so `pako.inflate` on the API side decompresses
-        # uniformly. Skip on non-SUCCESS — IaC links and rollback only fire
-        # on successful remediations.
+        # Capture the SSM Automation execution ID so the rollback API can
+        # locate the pre-remediation snapshot in S3 (keyed by this ID).
+        ssm_execution_id = _non_empty_str(event["Notification"].get("SSMExecutionId"))
+
+        # Skip on non-SUCCESS — IaC links and rollback only fire on successful remediations.
         finding_json: bytes | None = None
         if remediation_status == "SUCCESS" and event.get("Finding"):
-            try:
-                finding_json = gzip.compress(
-                    json.dumps(_build_asff_for_history(event)).encode("utf-8")
-                )
-            except (TypeError, ValueError, OverflowError) as exc:
-                logger.warning(
-                    "Failed to compress finding for IaC rendering; proceeding without",
-                    extra={"error": str(exc)},
-                )
+            finding_json = _compress_finding_for_history(event)
+
+        rollback_available, rollback_description, snapshot_version_id = (
+            _resolve_rollback_state(event, event_dict, remediation_status)
+        )
+
+        if remediation_status == "ROLLBACK_SUCCESS" and event.get("Finding"):
+            _reset_finding_workflow_status(event)
+            # Mark rollback as consumed so the UI hides the rollback button.
+            # _resolve_rollback_state returns None for non-SUCCESS statuses,
+            # so this explicit False is what persists to DynamoDB.
+            rollback_available = False
+        elif remediation_status == "ROLLBACK_FAILED":
+            rollback_available = True
 
         remediation_request = RemediationUpdateRequest(
             finding_id=finding_id,
@@ -694,11 +866,15 @@ def _update_finding_remediation_status(
             # notification path applies its own fallback for filtering purposes.
             severity=extract_severity(event),
             region=extract_region(event),
-            last_updated_by="Automated",
+            last_updated_by=extract_triggered_by(event),
             finding_json=finding_json,
             # Persisted only on a successful GuardDuty Contain so a later rollback
             # can supply the backup key to AWSSupport-ContainIAMPrincipal.
             backup_s3_key=backup_s3_key,
+            ssm_execution_id=ssm_execution_id,
+            rollback_available=rollback_available,
+            rollback_description=rollback_description,
+            snapshot_version_id=snapshot_version_id,
         )
         update_remediation_status_and_history(remediation_request)
     except Exception as e:
@@ -969,6 +1145,218 @@ MULTI_SERVICE_CONTROLS: frozenset[str] = frozenset(
 def _get_service_type(control_id: str) -> str:
     """Extract the service name from a multi-service control ID (e.g. 'GuardDuty' from 'GuardDuty.IAMUser')."""
     return control_id.split(".")[0] if "." in control_id else control_id
+
+
+def _resolve_rollback_state(
+    event: Event,
+    event_dict: dict[str, Any],
+    remediation_status: str,
+) -> tuple[bool | None, str | None, str | None]:
+    """Orchestrate rollback metadata extraction and metric emission.
+
+    Returns (rollback_available, rollback_description, snapshot_version_id).
+    """
+    control_id = extract_security_control_id(event_dict) or ""
+    is_rollback_enabled = os.environ.get("ENABLE_ROLLBACK", "no") == "yes" and (
+        not control_id or _is_control_rollback_enabled(control_id)
+    )
+
+    rollback_available: bool | None = None
+    rollback_description: str | None = None
+    snapshot_version_id: str | None = None
+
+    if is_rollback_enabled and remediation_status == "SUCCESS":
+        rollback_available, rollback_description, snapshot_version_id = (
+            _extract_rollback_metadata(event)
+        )
+
+    should_emit_metrics = is_rollback_enabled and (
+        remediation_status == "SUCCESS"
+        or remediation_status in ("ROLLBACK_SUCCESS", "ROLLBACK_FAILED")
+    )
+    if should_emit_metrics:
+        _emit_rollback_metrics(
+            cloudwatch_metrics=CloudWatchMetrics(),
+            control_id=control_id or "Unknown",
+            event_state=remediation_status,
+            rollback_available=rollback_available,
+        )
+
+    return rollback_available, rollback_description, snapshot_version_id
+
+
+def _extract_rollback_metadata(
+    event: Event,
+) -> tuple[bool | None, str | None, str | None]:
+    """Parse remediation output for snapshot metadata.
+
+    Returns (rollback_available, rollback_description, snapshot_version_id).
+    """
+    remediation_output_raw = event["Notification"].get("RemediationOutput", "")
+    if not remediation_output_raw:
+        return None, None, None
+    try:
+        remediation_output = (
+            json.loads(remediation_output_raw)
+            if isinstance(remediation_output_raw, str)
+            else remediation_output_raw
+        )
+        if not isinstance(remediation_output, dict):
+            return None, None, None
+
+        snapshot_stored = _get_output_field(remediation_output, "snapshotStored")
+        if snapshot_stored is None:
+            return None, None, None
+        if snapshot_stored == "true":
+            return (
+                True,
+                _get_output_field(remediation_output, "rollbackDescription") or "",
+                _get_output_field(remediation_output, "snapshotVersionId"),
+            )
+        return False, None, None
+    except (json.JSONDecodeError, TypeError):
+        logger.debug(
+            "RemediationOutput is not JSON or does not contain snapshot info",
+            extra={"output": str(remediation_output_raw)[:200]},
+        )
+        return None, None, None
+
+
+def _reset_finding_workflow_status(event: Event) -> None:
+    """Reset Security Hub finding WorkflowStatus to NEW after successful rollback."""
+    finding_id_for_sechub = ""
+    try:
+        finding = event["Finding"]
+        finding_id_for_sechub = finding.get("Id", "")
+        product_arn = finding.get("ProductArn", "")
+        if finding_id_for_sechub and product_arn:
+            _get_sechub_client().batch_update_findings(
+                FindingIdentifiers=[
+                    {"Id": finding_id_for_sechub, "ProductArn": product_arn}
+                ],
+                Workflow={"Status": "NEW"},
+                Note={
+                    "Text": "ASR rollback completed. WorkflowStatus reset to NEW for re-evaluation.",
+                    "UpdatedBy": "ASR-Rollback",
+                },
+            )
+            logger.info(
+                "Reset Security Hub WorkflowStatus to NEW after rollback",
+                extra={"findingId": finding_id_for_sechub},
+            )
+    except Exception as sechub_err:
+        logger.warning(
+            "Failed to reset finding WorkflowStatus to NEW after rollback",
+            extra={"findingId": finding_id_for_sechub, "error": str(sechub_err)},
+        )
+
+
+def _rollback_dimension_sets(
+    control_id: str, is_enhanced_metrics: bool, extra: list[dict[str, str]]
+) -> list[list[dict[str, str]]]:
+    """Dimension sets for a rollback metric: always the ControlId-free aggregate
+    the alarms watch, plus the per-ControlId breakdown only under ENHANCED_METRICS."""
+    aggregate: list[dict[str, str]] = list(extra)
+    if not is_enhanced_metrics:
+        return [aggregate]
+    return [[{"Name": "ControlId", "Value": control_id}, *extra], aggregate]
+
+
+def _emit_snapshot_capture_metric(
+    cloudwatch_metrics: CloudWatchMetrics,
+    control_id: str,
+    event_state: str,
+    rollback_available: bool | None,
+    is_enhanced_metrics: bool,
+) -> None:
+    """Snapshot-capture outcome for a SUCCESS remediation: captured, failed, or skipped."""
+    if rollback_available is True:
+        if is_enhanced_metrics:
+            cloudwatch_metrics.send_metric(
+                {
+                    "MetricName": "SnapshotCaptureSuccess",
+                    "Dimensions": [{"Name": "ControlId", "Value": control_id}],
+                    "Unit": "Count",
+                    "Value": 1,
+                }
+            )
+    elif rollback_available is False:
+        for dimensions in _rollback_dimension_sets(control_id, is_enhanced_metrics, []):
+            cloudwatch_metrics.send_metric(
+                {
+                    "MetricName": "SnapshotCaptureFailure",
+                    "Dimensions": dimensions,
+                    "Unit": "Count",
+                    "Value": 1,
+                }
+            )
+    elif event_state == "SUCCESS" and is_enhanced_metrics:
+        cloudwatch_metrics.send_metric(
+            {
+                "MetricName": "SnapshotCaptureSkipped",
+                "Dimensions": [{"Name": "ControlId", "Value": control_id}],
+                "Unit": "Count",
+                "Value": 1,
+            }
+        )
+
+
+def _emit_rollback_execution_metric(
+    cloudwatch_metrics: CloudWatchMetrics,
+    control_id: str,
+    event_state: str,
+    is_enhanced_metrics: bool,
+) -> None:
+    """RollbackExecutionOutcome for a ROLLBACK_SUCCESS / ROLLBACK_FAILED event."""
+    if event_state not in ("ROLLBACK_SUCCESS", "ROLLBACK_FAILED"):
+        return
+    rollback_outcome = "Success" if event_state == "ROLLBACK_SUCCESS" else "Failed"
+    for dimensions in _rollback_dimension_sets(
+        control_id,
+        is_enhanced_metrics,
+        [{"Name": "Outcome", "Value": rollback_outcome}],
+    ):
+        cloudwatch_metrics.send_metric(
+            {
+                "MetricName": "RollbackExecutionOutcome",
+                "Dimensions": dimensions,
+                "Unit": "Count",
+                "Value": 1,
+            }
+        )
+
+
+def _emit_rollback_metrics(
+    cloudwatch_metrics: CloudWatchMetrics,
+    control_id: str,
+    event_state: str,
+    rollback_available: bool | None,
+) -> None:
+    """Emit snapshot-capture and rollback-execution CloudWatch metrics.
+
+    Alarm-backing series (SnapshotCaptureFailure, RollbackExecutionOutcome) are
+    emitted both per-ControlId and as a ControlId-free aggregate the alarms
+    watch, since a CloudWatch alarm cannot roll a per-ControlId series up across
+    controls (no SEARCH). Per-ControlId series are gated on ENHANCED_METRICS.
+    """
+    try:
+        control_id = control_id or "Unknown"
+        is_enhanced_metrics = os.environ.get("ENHANCED_METRICS", "no").lower() == "yes"
+        _emit_snapshot_capture_metric(
+            cloudwatch_metrics,
+            control_id,
+            event_state,
+            rollback_available,
+            is_enhanced_metrics,
+        )
+        _emit_rollback_execution_metric(
+            cloudwatch_metrics, control_id, event_state, is_enhanced_metrics
+        )
+    except Exception as e:
+        logger.debug(
+            "Failed to emit rollback metrics",
+            extra={"error": str(e)},
+        )
 
 
 def _emit_multi_service_metrics(

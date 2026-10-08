@@ -3,8 +3,19 @@
 """Send custom resource status to CloudFormation"""
 
 import json
+import re
+from typing import TYPE_CHECKING, Any
 
 import urllib3
+
+if TYPE_CHECKING:
+    from aws_lambda_powertools.utilities.data_classes import (
+        CloudFormationCustomResourceEvent,
+    )
+    from aws_lambda_powertools.utilities.typing import LambdaContext
+else:
+    CloudFormationCustomResourceEvent = object
+    LambdaContext = object
 
 SUCCESS = "SUCCESS"
 FAILED = "FAILED"
@@ -12,19 +23,37 @@ FAILED = "FAILED"
 http = urllib3.PoolManager()
 
 
+def redact_presigned_url(message: str) -> str:
+    """Redact the query string of any presigned URL found in a string.
+
+    A failed PUT to the CloudFormation callback URL can surface the presigned
+    ResponseURL inside the exception text. Presigned URLs are prohibited data
+    in logs, and their query string carries every sensitive value (credential,
+    signature, and the session token X-Amz-Security-Token when the URL is signed
+    with role credentials). The whole query string is stripped rather than
+    masking individual parameters, so nothing sensitive leaks even if AWS adds
+    new signing parameters.
+
+    The match anchors on the "?" alone, so it covers both full URLs and the bare
+    path a urllib3 MaxRetryError renders ("Max retries exceeded with url:
+    /key?X-Amz-Signature=..."), and it runs in linear time on any input.
+    Matching stops at whitespace or a closing paren so the trailing
+    "(Caused by ...)" context is preserved.
+    """
+    return re.sub(r"\?[^\s)]*", "?*****", message)
+
+
 def send(
-    event,
-    context,
-    response_status,
-    response_data,
-    physical_resource_id=None,
-    no_echo=False,
-    reason=None,
-):
+    event: CloudFormationCustomResourceEvent,
+    context: LambdaContext,
+    response_status: str,
+    response_data: dict[str, Any],
+    physical_resource_id: str | None = None,
+    no_echo: bool = False,
+    reason: str | None = None,
+) -> None:
     """Send custom resource status to CloudFormation"""
     response_url = event["ResponseURL"]
-
-    print(response_url)
 
     max_reason_length = 3854  # response can't exceed 4 kiB
     if reason and len(reason) > max_reason_length:
@@ -56,4 +85,7 @@ def send(
         print("Status code:", response.status)
 
     except Exception as ex:
-        print("send(..) failed executing http.request(..):", ex)
+        print(
+            "send(..) failed executing http.request(..):",
+            redact_presigned_url(str(ex)),
+        )

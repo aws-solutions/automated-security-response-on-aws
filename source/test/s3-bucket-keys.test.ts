@@ -45,6 +45,7 @@ function getMemberStack(): Stack {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     env: envEU,
     solutionId: 'SO0111',
+    resourceNamePrefix: 'SO0111',
     solutionVersion: 'v1.0.0',
     solutionDistBucket: 'solutions',
     solutionTradeMarkName: 'automated-security-response-on-aws',
@@ -110,8 +111,8 @@ describe('S3 Bucket Keys Configuration', () => {
           ],
         },
       },
-      2,
-    ); // Should be exactly 2 buckets (CSV Export + IaC Templates)
+      3,
+    ); // Should be exactly 3 buckets (CSV Export + IaC Templates + Custom Runbooks)
   });
 
   test('WebUI Hosting Bucket uses S3-managed encryption without bucket keys', () => {
@@ -174,8 +175,8 @@ describe('S3 Bucket Keys Configuration', () => {
   test('Only consolidated KMS key buckets have bucket keys enabled', () => {
     const template = Template.fromStack(getAdministratorStack());
 
-    // Verify exactly 2 buckets have KMS encryption with bucket keys
-    // (the CSV Export and IaC Templates buckets, both using the consolidated KMS key)
+    // Verify exactly 3 buckets have KMS encryption with bucket keys
+    // (CSV Export, IaC Templates, and Custom Runbooks — all on the consolidated KMS key)
     template.resourcePropertiesCountIs(
       'AWS::S3::Bucket',
       {
@@ -190,7 +191,7 @@ describe('S3 Bucket Keys Configuration', () => {
           ],
         },
       },
-      2,
+      3,
     );
   });
 

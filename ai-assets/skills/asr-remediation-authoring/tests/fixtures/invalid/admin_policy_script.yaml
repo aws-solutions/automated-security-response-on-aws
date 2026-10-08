@@ -1,0 +1,29 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# privilege-escalation via the managed-policy ARN rather than a wildcard action.
+# The Action here is scoped, so only ADMIN_POLICY_PATTERN can catch this.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-TEST.3
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+mainSteps:
+  - name: AttachPolicy
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      Script: |-
+        import boto3
+
+        def handler(event, context):
+            boto3.client("iam").attach_role_policy(
+                RoleName=event["RoleName"],
+                PolicyArn="arn:aws:iam::aws:policy/AdministratorAccess",
+            )
+            return {"status": "attached"}

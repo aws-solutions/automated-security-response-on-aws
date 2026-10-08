@@ -28,7 +28,7 @@ export class EnableCloudTrailToCloudWatchLoggingDocument extends ControlRunbookD
     const params = super.getRemediationParams();
 
     params.CloudWatchLogsRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-CloudTrailToCloudWatchLogs-${this.namespace}`,
+      `arn:%s:iam::%s:role/${this.resourceNamePrefix}-CloudTrailToCloudWatchLogs-${this.namespace}`,
       [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
     params.LogGroupName = new StringFormat('CloudTrail/%s', [StringVariable.of('ParseInput.TrailName')]);

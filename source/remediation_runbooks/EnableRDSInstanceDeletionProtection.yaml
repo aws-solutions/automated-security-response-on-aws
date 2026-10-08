@@ -8,15 +8,23 @@ description: |
   ## What does this document do?
   This document enables `Deletion Protection` on a given Amazon RDS instance using the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.
 
+  When invoked with Rollback=ROLLBACK, it restores the deletion protection setting
+  to its pre-remediation state using a snapshot stored in S3.
+
   ## Input Parameters
-  * ApplyImmediately: (Optional) A value that indicates whether the modifications in this request and any pending modifications
-    are asynchronously applied as soon as possible, regardless of the PreferredMaintenanceWindow setting for the DB instance.
-    * Default: "false"
   * RDSInstanceARN: (Required) Amazon RDS Instance ARN for which deletion protection needs to be enabled.
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * ApplyImmediately: (Optional) Whether modifications are applied immediately.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
   ## Output Parameters
-  * EnableRDSInstanceDeletionProtection.ModifyDBInstanceResponse - The standard HTTP response from the ModifyDBInstance API.
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
@@ -32,59 +40,76 @@ parameters:
     type: String
     description: (Required) ARN of the Amazon RDS instance for which deletion protection needs to be enabled.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):rds:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:db:.+$'
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+
 outputs:
-  - EnableRDSInstanceDeletionProtection.ModifyDBInstanceResponse
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  -
-    name: GetRDSInstanceIdentifier
-    action: "aws:executeAwsApi"
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
     description: |
-      ## GetRDSInstanceIdentifier
-      Makes DescribeDBInstances API call using Amazon RDS Instance ARN to get DBInstance Identifier.
-      ## Outputs
-      * DbInstanceIdentifier: DBInstance Identifier of the Amazon RDS Instance.
-    timeoutSeconds: 600
-    isEnd: false
-    inputs:
-      Service: rds
-      Api: DescribeDBInstances
-      DBInstanceIdentifier: "{{ RDSInstanceARN }}"
-    outputs:
-      - Name: DbInstanceIdentifier
-        Selector: $.DBInstances[0].DBInstanceIdentifier
-        Type: String
-  -
-    name: EnableRDSInstanceDeletionProtection
-    action: "aws:executeAwsApi"
-    description: |
-      ## EnableRDSInstanceDeletionProtection
-      Makes ModifyDBInstance API call to enable deletion protection on the Amazon RDS Instance using the DBInstanceId from the previous action.
-      ## Outputs
-      * DbInstance: The standard HTTP response from the ModifyDBInstance API.
-    timeoutSeconds: 600
-    isEnd: false
-    inputs:
-      Service: rds
-      Api: ModifyDBInstance
-      ApplyImmediately: "{{ ApplyImmediately }}"
-      DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DbInstanceIdentifier }}"
-      DeletionProtection: True
-    outputs:
-      - Name: ModifyDBInstanceResponse
-        Selector: $
-        Type: StringMap
-  -
-    name: VerifyDBInstanceModification
-    action: "aws:assertAwsResourceProperty"
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation deletion-protection state to S3, then enables deletion
+      protection. When Rollback=ROLLBACK, restores the pre-remediation state from the snapshot.
     timeoutSeconds: 600
     isEnd: true
-    description: |
-      ## VerifyDBInstanceModification
-      Checks whether deletion protection is enabled on Amazon RDS Instance.
     inputs:
-      Service: rds
-      Api: DescribeDBInstances
-      DBInstanceIdentifier: "{{ GetRDSInstanceIdentifier.DbInstanceIdentifier }}"
-      PropertySelector: "$.DBInstances[0].DeletionProtection"
-      DesiredValues:
-        - "True"
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        RDSInstanceARN: "{{ RDSInstanceARN }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
+        ApplyImmediately: "{{ ApplyImmediately }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
+      Script: |-
+        %%SCRIPT=EnableRDSInstanceDeletionProtection_rollback.py%%
+    outputs:
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

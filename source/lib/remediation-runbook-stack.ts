@@ -29,6 +29,7 @@ import NamespaceParam from './parameters/namespace-param';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import { MemberRolesStack } from './member-roles-stack';
 import { REMEDIATION_CONFIG_BUCKET_ACCESS_POLICY_NAME_PREFIX } from './member/remediation-configuration-bucket';
+import { stripDevelopmentPrefix } from './config/cdk-config';
 
 export interface StackProps extends cdk.StackProps {
   readonly solutionId: string;
@@ -63,7 +64,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       ssmdocs = props.ssmdocs;
     }
 
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
+    const RESOURCE_PREFIX = stripDevelopmentPrefix(props.solutionId); // prefix on every resource name
     const remediationRoleNameBase = `${RESOURCE_PREFIX}-`;
 
     //-----------------------
@@ -189,6 +190,20 @@ export class RemediationRunbookStack extends cdk.Stack {
     ec2SecurityGroupRevokeIngressPerms.addActions('ec2:RevokeSecurityGroupIngress');
     ec2SecurityGroupRevokeIngressPerms.effect = Effect.ALLOW;
     ec2SecurityGroupRevokeIngressPerms.addResources(`arn:${this.partition}:ec2:*:${this.account}:security-group/*`);
+
+    // Shared by every rollback-enabled remediation: read/write the pre-remediation snapshot in the
+    // remediation config bucket, and resolve that bucket's name from its SSM parameter.
+    const snapshotBucketPerms = new PolicyStatement();
+    snapshotBucketPerms.addActions('s3:PutObject', 's3:GetObject', 's3:GetObjectVersion');
+    snapshotBucketPerms.effect = Effect.ALLOW;
+    snapshotBucketPerms.addResources(`arn:${this.partition}:s3:::so0111-asr-remediation-*-${this.account}/snapshots/*`);
+
+    const remediationConfigBucketParamPerms = new PolicyStatement();
+    remediationConfigBucketParamPerms.addActions('ssm:GetParameter');
+    remediationConfigBucketParamPerms.effect = Effect.ALLOW;
+    remediationConfigBucketParamPerms.addResources(
+      `arn:${this.partition}:ssm:*:${this.account}:parameter/Solutions/SO0111/RemediationConfigurationBucket`,
+    );
 
     //-----------------------
     // CreateCloudTrailMultiRegionTrail
@@ -1007,6 +1022,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       const s3Perms = new PolicyStatement();
       s3Perms.addActions(
         's3:CreateBucket',
+        's3:PutBucketPublicAccessBlock',
         's3:PutEncryptionConfiguration',
         's3:PutBucketAcl',
         's3:PutBucketOwnershipControls',
@@ -1402,10 +1418,14 @@ export class RemediationRunbookStack extends cdk.Stack {
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
       const remediationPolicy = new PolicyStatement();
-      remediationPolicy.addActions('s3:PutBucketPolicy', 's3:GetBucketPolicy');
+      remediationPolicy.addActions('s3:PutBucketPolicy', 's3:GetBucketPolicy', 's3:DeleteBucketPolicy');
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:s3:::*`);
       inlinePolicy.addStatements(remediationPolicy);
+
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -2189,6 +2209,10 @@ export class RemediationRunbookStack extends cdk.Stack {
         inlinePolicy.addStatements(rdsDependentIamRolePerms);
       }
 
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
@@ -2238,12 +2262,23 @@ export class RemediationRunbookStack extends cdk.Stack {
       remediationPerms.addResources(`arn:${this.partition}:kms:*:${this.account}:key/*`);
       inlinePolicy.addStatements(remediationPerms);
 
+      const disableRotationPerms = new PolicyStatement();
+      disableRotationPerms.addActions('kms:DisableKeyRotation');
+      disableRotationPerms.effect = Effect.ALLOW;
+      disableRotationPerms.addResources(`arn:${this.partition}:kms:*:${this.account}:key/*`);
+      inlinePolicy.addStatements(disableRotationPerms);
+
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
         remediationPolicy: inlinePolicy,
         remediationRoleName: `${remediationRoleNameBase}${remediationName}`,
       });
+
+      addCfnGuardSuppression(inlinePolicy, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
 
       RunbookFactory.createRemediationRunbook(this, 'ASR ' + remediationName, {
         ssmDocName: remediationName,
@@ -2301,6 +2336,10 @@ export class RemediationRunbookStack extends cdk.Stack {
       // Dependent permissions for rds:ModifyDBInstance & rds:ModifyDBCluster
       inlinePolicy.addStatements(rdsDependentPerms);
       inlinePolicy.addStatements(rdsDependentIamRolePerms);
+
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -2364,6 +2403,9 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(rdsDependentPerms);
       inlinePolicy.addStatements(rdsDependentIamRolePerms);
 
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
@@ -2419,6 +2461,10 @@ export class RemediationRunbookStack extends cdk.Stack {
       // Dependent permissions for rds:ModifyDBInstance
       inlinePolicy.addStatements(rdsDependentPerms);
       inlinePolicy.addStatements(rdsDependentIamRolePerms);
+
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -2755,6 +2801,10 @@ export class RemediationRunbookStack extends cdk.Stack {
       inlinePolicy.addStatements(rdsDependentPerms);
       inlinePolicy.addStatements(rdsDependentIamRolePerms);
 
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
@@ -2797,6 +2847,9 @@ export class RemediationRunbookStack extends cdk.Stack {
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:sns:*:${this.account}:*`);
       inlinePolicy.addStatements(remediationPolicy);
+
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -3121,6 +3174,10 @@ export class RemediationRunbookStack extends cdk.Stack {
       );
       inlinePolicy.addStatements(remediationPolicy);
 
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
+
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
         ssmDocName: remediationName,
@@ -3138,6 +3195,9 @@ export class RemediationRunbookStack extends cdk.Stack {
         solutionId: props.solutionId,
         namespace: namespace,
       });
+      // snapshotBucketPerms uses a wildcard S3 resource ARN; suppress the wildcard-resource guard to
+      // match the other rollback-enabled blocks (the snapshots/* prefix scopes it to this solution).
+      addCfnGuardSuppression(inlinePolicy, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
     }
 
     //-----------------------
@@ -3437,10 +3497,15 @@ export class RemediationRunbookStack extends cdk.Stack {
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
       const remediationPolicy = new PolicyStatement();
-      remediationPolicy.addActions('dynamodb:UpdateTable');
+      // UpdateTable enables (remediation) and restores (rollback); DescribeTable reads the
+      // pre-remediation DeletionProtectionEnabled state for the snapshot. Both are resource-scoped.
+      remediationPolicy.addActions('dynamodb:UpdateTable', 'dynamodb:DescribeTable');
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:dynamodb:*:${this.account}:table/*`);
       inlinePolicy.addStatements(remediationPolicy);
+
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -3470,7 +3535,7 @@ export class RemediationRunbookStack extends cdk.Stack {
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
       const clusterPolicy = new PolicyStatement();
-      clusterPolicy.addActions('elasticache:ModifyCacheCluster');
+      clusterPolicy.addActions('elasticache:ModifyCacheCluster', 'elasticache:DescribeCacheClusters');
       clusterPolicy.effect = Effect.ALLOW;
       clusterPolicy.addResources(`arn:${this.partition}:elasticache:*:${this.account}:cluster:*`);
       inlinePolicy.addStatements(clusterPolicy);
@@ -3480,6 +3545,10 @@ export class RemediationRunbookStack extends cdk.Stack {
       replicationGroupPolicy.effect = Effect.ALLOW;
       replicationGroupPolicy.addResources(`arn:${this.partition}:elasticache:*:${this.account}:replicationgroup:*`);
       inlinePolicy.addStatements(replicationGroupPolicy);
+
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -3672,6 +3741,18 @@ export class RemediationRunbookStack extends cdk.Stack {
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:elasticache:*:${this.account}:cluster:*`);
       inlinePolicy.addStatements(remediationPolicy);
+
+      // Rollback reads the cluster's current AutoMinorVersionUpgrade. DescribeCacheClusters supports
+      // the cluster resource type, so scope it to the account's ElastiCache clusters.
+      const describePolicy = new PolicyStatement();
+      describePolicy.addActions('elasticache:DescribeCacheClusters');
+      describePolicy.effect = Effect.ALLOW;
+      describePolicy.addResources(`arn:${this.partition}:elasticache:*:${this.account}:cluster:*`);
+      inlinePolicy.addStatements(describePolicy);
+
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,
@@ -4204,10 +4285,18 @@ export class RemediationRunbookStack extends cdk.Stack {
       const inlinePolicy = new Policy(props.roleStack, `ASR-Remediation-Policy-${remediationName}`);
 
       const remediationPolicy = new PolicyStatement();
-      remediationPolicy.addActions('secretsmanager:DeleteSecret', 'secretsmanager:DescribeSecret');
+      remediationPolicy.addActions(
+        'secretsmanager:DeleteSecret',
+        'secretsmanager:DescribeSecret',
+        'secretsmanager:RestoreSecret',
+      );
       remediationPolicy.effect = Effect.ALLOW;
       remediationPolicy.addResources(`arn:${this.partition}:secretsmanager:*:${this.account}:secret:*`);
       inlinePolicy.addStatements(remediationPolicy);
+
+      // Rollback: read/write the pre-remediation snapshot and resolve the config bucket name.
+      inlinePolicy.addStatements(snapshotBucketPerms);
+      inlinePolicy.addStatements(remediationConfigBucketParamPerms);
 
       new SsmRole(props.roleStack, 'RemediationRole ' + remediationName, {
         solutionId: props.solutionId,

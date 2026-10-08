@@ -20,7 +20,6 @@ import { getConfig } from './config/cdk-config';
 import { NotificationDispatcherEnvironmentConfig } from '@asr/data-models';
 
 export interface NotificationDispatcherProps {
-  readonly solutionId: string;
   readonly solutionVersion: string;
   readonly solutionsBucket: IBucket;
   readonly solutionTMN: string;
@@ -119,7 +118,7 @@ export class NotificationDispatcherConstruct extends Construct {
     props.resourceFiltersTable.grantReadData(this.dispatcherFunction);
 
     // SSM access for publishing anonymous usage metrics via sendMetrics()
-    addMetricsSsmPermissions(this.dispatcherFunction, props.solutionId);
+    addMetricsSsmPermissions(this.dispatcherFunction, props.resourceNamePrefix);
 
     this.channelFanoutTopic.grantPublish(this.dispatcherFunction);
 

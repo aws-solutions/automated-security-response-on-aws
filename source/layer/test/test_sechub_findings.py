@@ -811,3 +811,18 @@ def test_get_control_id_from_finding_id_resolves_consolidated_standard():
         "finding/00000000-1111-2222-3333-444444444444"
     )
     assert findings.get_control_id_from_finding_id(arn) == "security-control/Lambda.3"
+
+
+@pytest.mark.parametrize(
+    "finding_id",
+    [
+        "arn:aws:securityhub:us-east-1:111111111111:security-control/Lambda.3/finding/",
+        "arn:aws:securityhub:us-east-1:111111111111:/finding/finding-id",
+        "arn:aws:securityhub:us-east-1:111111111111:security-control/"
+        + ("A" * 100_000),
+    ],
+)
+def test_get_control_id_from_finding_id_rejects_incomplete_values(
+    finding_id: str,
+) -> None:
+    assert findings.get_control_id_from_finding_id(finding_id) is None

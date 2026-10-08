@@ -175,6 +175,59 @@ def test_build_finding_update_item_without_error():
     assert ":err" not in result["Update"]["ExpressionAttributeValues"]
 
 
+def test_build_finding_update_item_clears_a_previous_attempts_error_on_success() -> (
+    None
+):
+    """A retry that succeeds must REMOVE the error from the FINDINGS row too.
+
+    This is the row the findings list reads. `SET` alone never removes an attribute, so
+    without this the row reports SUCCESS beside the failed attempt's message — the same
+    defect the history row had, on the copy a customer actually sees.
+    """
+    result = build_update_item("S3.17", "test-finding-id", "SUCCESS", "exec-123")
+
+    expression = result["Update"]["UpdateExpression"]
+    assert "REMOVE #err" in expression
+    # DynamoDB rejects the expression outright if REMOVE precedes a SET assignment.
+    assert expression.index("SET") < expression.index("REMOVE")
+    assert result["Update"]["ExpressionAttributeNames"]["#err"] == "error"
+    assert ":err" not in result["Update"]["ExpressionAttributeValues"]
+
+
+def test_build_finding_update_item_clears_the_error_on_rollback_success() -> None:
+    """The rollback path writes its own success status and can also follow a failure."""
+    result = build_update_item(
+        "S3.17", "test-finding-id", "ROLLBACK_SUCCESS", "exec-123"
+    )
+
+    assert "REMOVE #err" in result["Update"]["UpdateExpression"]
+
+
+def test_build_finding_update_item_keeps_a_stored_error_on_a_failed_status() -> None:
+    """Re-asserting a failed status without a message must not discard why it failed.
+
+    This is why the clear is scoped to the success statuses rather than to "no error was
+    passed": a partial update that re-states FAILED would otherwise wipe the reason.
+    """
+    result = build_update_item("S3.17", "test-finding-id", "FAILED", "exec-123")
+
+    assert "REMOVE" not in result["Update"]["UpdateExpression"]
+
+
+def test_build_finding_update_item_prefers_an_explicit_error_over_the_clear() -> None:
+    """An explicitly supplied message wins, so callers keep control."""
+    result = build_update_item(
+        "S3.17", "test-finding-id", "SUCCESS", "exec-123", "partial success detail"
+    )
+
+    expression = result["Update"]["UpdateExpression"]
+    assert "#err = :err" in expression
+    assert "REMOVE" not in expression
+    assert result["Update"]["ExpressionAttributeValues"][":err"] == {
+        "S": "partial success detail"
+    }
+
+
 @mock_aws
 def test_update_finding_with_error():
     # ARRANGE

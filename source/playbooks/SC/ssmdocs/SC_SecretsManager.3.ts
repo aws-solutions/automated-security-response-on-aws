@@ -6,7 +6,11 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { AutomationStep, DataTypeEnum, HardCodedString, Output, StringListVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RemoveUnusedSecretDocument(scope, id, { ...props, controlId: 'SecretsManager.3' });
+  return new RemoveUnusedSecretDocument(scope, id, {
+    ...props,
+    controlId: 'SecretsManager.3',
+    isRollbackEnabled: true,
+  });
 }
 
 export class RemoveUnusedSecretDocument extends ControlRunbookDocument {

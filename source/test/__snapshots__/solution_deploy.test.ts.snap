@@ -3,6 +3,14 @@
 exports[`Test if the Stack has all the resources. 1`] = `
 {
   "Conditions": {
+    "agentCoreGatewayEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnableMcpServer",
+        },
+        "yes",
+      ],
+    },
     "apiRateLimitAlarmsEnabled": {
       "Fn::And": [
         {
@@ -20,6 +28,26 @@ exports[`Test if the Stack has all the resources. 1`] = `
         },
         {
           "Condition": "webUIEnabled",
+        },
+      ],
+    },
+    "coreServicesEnabled": {
+      "Fn::Or": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ShouldDeployWebUI",
+            },
+            "yes",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "EnableMcpServer",
+            },
+            "yes",
+          ],
         },
       ],
     },
@@ -120,6 +148,16 @@ exports[`Test if the Stack has all the resources. 1`] = `
         "yes",
       ],
     },
+    "mcpServerAlarmsEnabled": {
+      "Fn::And": [
+        {
+          "Condition": "isUsingCloudWatchMetricsAlarms",
+        },
+        {
+          "Condition": "agentCoreGatewayEnabled",
+        },
+      ],
+    },
     "orchestratorTicketingEnabledConditionEE999626": {
       "Fn::Not": [
         {
@@ -128,6 +166,21 @@ exports[`Test if the Stack has all the resources. 1`] = `
               "Ref": "TicketGenFunctionName",
             },
             "",
+          ],
+        },
+      ],
+    },
+    "rollbackAlarmEnabled": {
+      "Fn::And": [
+        {
+          "Condition": "isUsingCloudWatchMetricsAlarms",
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "EnableRollback",
+            },
+            "yes",
           ],
         },
       ],
@@ -192,11 +245,21 @@ exports[`Test if the Stack has all the resources. 1`] = `
         },
         {
           "Label": {
+            "default": "(Optional) MCP Server",
+          },
+          "Parameters": [
+            "EnableMcpServer",
+            "AdditionalMcpCallbackUrls",
+          ],
+        },
+        {
+          "Label": {
             "default": "CloudWatch Metrics",
           },
           "Parameters": [
             "UseCloudWatchMetrics",
             "UseCloudWatchMetricsAlarms",
+            "RollbackRateLimitThreshold",
           ],
         },
         {
@@ -237,29 +300,9 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Condition": "webUIEnabled",
       "Description": "API Gateway endpoint URL",
       "Value": {
-        "Fn::Join": [
-          "",
-          [
-            "https://",
-            {
-              "Fn::GetAtt": [
-                "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                "Outputs.stackWebUINestedStackApiConstructAutomatedSecurityResponseApiCAC24F89Ref",
-              ],
-            },
-            ".execute-api.eu-west-1.",
-            {
-              "Ref": "AWS::URLSuffix",
-            },
-            "/",
-            {
-              "Fn::GetAtt": [
-                "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                "Outputs.stackWebUINestedStackApiConstructAutomatedSecurityResponseApiDeploymentStageprodDB008E36Ref",
-              ],
-            },
-            "/",
-          ],
+        "Fn::GetAtt": [
+          "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
+          "Outputs.ApiEndpoint",
         ],
       },
     },
@@ -283,6 +326,50 @@ exports[`Test if the Stack has all the resources. 1`] = `
             {
               "Ref": "TicketGenFunctionName",
             },
+          ],
+        ],
+      },
+    },
+    "McpCodexCallbackUrl": {
+      "Condition": "agentCoreGatewayEnabled",
+      "Description": "Exact Codex OAuth callback URL registered for this MCP gateway deployment.",
+      "Value": {
+        "Fn::GetAtt": [
+          "McpGatewayNestedStackNestedStackMcpGatewayNestedStackNestedStackResource8AA8EED2",
+          "Outputs.stackMcpGatewayNestedStackMcpGatewayMcpNativeClientCallbackRegistration127FBCE6CodexCallbackUrl",
+        ],
+      },
+    },
+    "McpGatewayClientId": {
+      "Condition": "agentCoreGatewayEnabled",
+      "Description": "Public Cognito OAuth client ID for native MCP clients.",
+      "Value": {
+        "Fn::GetAtt": [
+          "McpGatewayNestedStackNestedStackMcpGatewayNestedStackNestedStackResource8AA8EED2",
+          "Outputs.stackMcpGatewayNestedStackMcpGatewayMcpGatewayClientF9523C58Ref",
+        ],
+      },
+    },
+    "McpGatewayScopes": {
+      "Condition": "agentCoreGatewayEnabled",
+      "Description": "Space-delimited OAuth scopes native MCP clients must request during login.",
+      "Value": "openid email profile",
+    },
+    "McpGatewayUrl": {
+      "Condition": "agentCoreGatewayEnabled",
+      "Description": "MCP server endpoint URL. Register this in your MCP client / DevOps Agent console.",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Fn::GetAtt": [
+                "McpGatewayNestedStackNestedStackMcpGatewayNestedStackNestedStackResource8AA8EED2",
+                "Outputs.stackMcpGatewayNestedStackMcpGatewayB944BFD9GatewayIdentifier",
+              ],
+            },
+            ".gateway.bedrock-agentcore.eu-west-1.amazonaws.com/mcp",
           ],
         ],
       },
@@ -330,7 +417,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
             {
               "Fn::GetAtt": [
                 "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                "Outputs.FrontendDistributionDomainName",
               ],
             },
           ],
@@ -339,6 +426,11 @@ exports[`Test if the Stack has all the resources. 1`] = `
     },
   },
   "Parameters": {
+    "AdditionalMcpCallbackUrls": {
+      "Default": "",
+      "Description": "Additional OAuth callback URLs for MCP clients. Each URL must use HTTPS, or HTTP on a loopback host. Leave blank to use only the built-in Kiro, Claude Code, and Codex callbacks.",
+      "Type": "CommaDelimitedList",
+    },
     "AdminUserEmail": {
       "Default": "",
       "Description": "Email address for the initial admin user. This user will have full administrative access to the ASR Web UI. Required when Web UI is enabled.",
@@ -351,6 +443,24 @@ exports[`Test if the Stack has all the resources. 1`] = `
       ],
       "Default": "no",
       "Description": "Enable collection of metrics per Control ID in addition to standard metrics. You must also select 'yes' for UseCloudWatchMetrics to enable enhanced metric collection. The added cost of these additional custom metrics could be up to $67.20/month.",
+      "Type": "String",
+    },
+    "EnableMcpServer": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Deploy the optional MCP server (AgentCore Gateway) as an MCP front door for AI agents. Requires an AWS Region that supports Amazon Bedrock AgentCore.",
+      "Type": "String",
+    },
+    "EnableRollback": {
+      "AllowedValues": [
+        "yes",
+        "no",
+      ],
+      "Default": "no",
+      "Description": "Enable the rollback feature. When set to "no", the API rejects rollback requests, the Orchestrator refuses to start a rollback execution, and the UI hides rollback controls. Remediations still record a pre-remediation snapshot in each member account. Select "yes" to allow one-click rollback for supported controls.",
       "Type": "String",
     },
     "LoadAFSBPAdminStack": {
@@ -416,6 +526,16 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Description": "If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.",
       "Type": "String",
     },
+    "MFAConfiguration": {
+      "AllowedValues": [
+        "OFF",
+        "OPTIONAL",
+        "REQUIRED",
+      ],
+      "Default": "OFF",
+      "Description": "MFA configuration for the ASR Web UI. OFF: no MFA. OPTIONAL: users can self-enroll in TOTP MFA. REQUIRED: all users must have MFA (recommended only for new deployments).",
+      "Type": "String",
+    },
     "Namespace": {
       "AllowedPattern": "(?!(^xn--|^sthree-|^sthree-configurator|^amzn-s3-demo-|.+-s3alias|.+--ol-s3|.+.mrap|.+--x-s3$))^[a-z0-9][a-z0-9-]{1,7}[a-z0-9]$",
       "ConstraintDescription": "The Namespace parameter must follow naming restrictions for S3 buckets and have a minimum length of 3 and a maximum length of 9. https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html",
@@ -438,6 +558,11 @@ exports[`Test if the Stack has all the resources. 1`] = `
       "Description": "Reuse existing Orchestrator Log Group? Choose "yes" if the log group already exists, else "no".
        If you are upgrading to v2.3.0+ from an earlier version choose "no".",
       "Type": "String",
+    },
+    "RollbackRateLimitThreshold": {
+      "Default": 10,
+      "Description": "Number of rollback executions in one period (1 day) to trigger the rollback rate-limit alarm. E.g., to alarm on 10 or more rollbacks per day, enter 10.",
+      "Type": "Number",
     },
     "ShouldDeployWebUI": {
       "AllowedValues": [
@@ -1848,7 +1973,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
                       {
                         "Fn::GetAtt": [
                           "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                          "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                          "Outputs.FrontendDistributionDomainName",
                         ],
                       },
                     ],
@@ -3738,7 +3863,7 @@ def sort_filter_rules(json_obj):
       "Type": "AWS::CloudWatch::Alarm",
     },
     "CloudTrailEventsLogGroup94AE6D1A": {
-      "DeletionPolicy": "Delete",
+      "DeletionPolicy": "Retain",
       "Metadata": {
         "guard": {
           "SuppressedRules": [
@@ -3751,7 +3876,7 @@ def sort_filter_rules(json_obj):
         "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
+      "UpdateReplacePolicy": "Retain",
     },
     "CloudWatch10remediationfailureA1CC894D": {
       "Condition": "enhancedAlarmsEnabled",
@@ -5361,6 +5486,169 @@ def sort_filter_rules(json_obj):
         "RetentionInDays": 3653,
       },
       "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CustomRunbookBucketAC061A1F": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "BucketKeyEnabled": true,
+              "ServerSideEncryptionByDefault": {
+                "KMSMasterKeyID": {
+                  "Fn::GetAtt": [
+                    "SHARRkeyE6BD0F56",
+                    "Arn",
+                  ],
+                },
+                "SSEAlgorithm": "aws:kms",
+              },
+            },
+          ],
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 90,
+              },
+              "Status": "Enabled",
+            },
+          ],
+        },
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
+            "Ref": "CSVExportAccessLogs748A02F4",
+          },
+          "LogFilePrefix": "custom-runbooks/",
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled",
+        },
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CustomRunbookBucketPolicyE80366B2": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "CustomRunbookBucketAC061A1F",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "CustomRunbookBucketAC061A1F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "CustomRunbookBucketAC061A1F",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "CustomRunbookTable1728569E": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "DYNAMODB_TABLE_ENCRYPTED_KMS",
+          ],
+        },
+      },
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "runbookId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "version",
+            "AttributeType": "N",
+          },
+          {
+            "AttributeName": "controlId",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "status",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "DeletionProtectionEnabled": true,
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "controlId-status-index",
+            "KeySchema": [
+              {
+                "AttributeName": "controlId",
+                "KeyType": "HASH",
+              },
+              {
+                "AttributeName": "status",
+                "KeyType": "RANGE",
+              },
+            ],
+            "Projection": {
+              "ProjectionType": "ALL",
+            },
+          },
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "runbookId",
+            "KeyType": "HASH",
+          },
+          {
+            "AttributeName": "version",
+            "KeyType": "RANGE",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "SSESpecification": {
+          "SSEEnabled": false,
+        },
+      },
+      "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
     },
     "DynamoDB1remediationfailureC2826724": {
@@ -9893,6 +10181,127 @@ def sort_filter_rules(json_obj):
       },
       "Type": "AWS::CloudWatch::Alarm",
     },
+    "McpGatewayNestedStackNestedStackMcpGatewayNestedStackNestedStackResource8AA8EED2": {
+      "Condition": "agentCoreGatewayEnabled",
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
+      ],
+      "Properties": {
+        "Parameters": {
+          "AdditionalMcpCallbackUrls": {
+            "Fn::Join": [
+              "
+",
+              {
+                "Ref": "AdditionalMcpCallbackUrls",
+              },
+            ],
+          },
+          "referencetostackASRRemediationHistoryTableF2F7B13BArn": {
+            "Fn::GetAtt": [
+              "ASRRemediationHistoryTable3CA12E73",
+              "Arn",
+            ],
+          },
+          "referencetostackASRRemediationHistoryTableF2F7B13BRef": {
+            "Ref": "ASRRemediationHistoryTable3CA12E73",
+          },
+          "referencetostackCustomRunbookTableAA75F52BArn": {
+            "Fn::GetAtt": [
+              "CustomRunbookTable1728569E",
+              "Arn",
+            ],
+          },
+          "referencetostackCustomRunbookTableAA75F52BRef": {
+            "Ref": "CustomRunbookTable1728569E",
+          },
+          "referencetostackRemediationBoundaryPolicy77DAC86CRef": {
+            "Ref": "RemediationBoundaryPolicyC4F27B34",
+          },
+          "referencetostackSHARRkey90015D24Arn": {
+            "Fn::GetAtt": [
+              "SHARRkeyE6BD0F56",
+              "Arn",
+            ],
+          },
+          "referencetostackWebUINestedStackNestedStackWebUINestedStackNestedStackResource3967D040OutputsstackWebUINestedStackCognitoConstructASRUserPool94855260Ref": {
+            "Fn::GetAtt": [
+              "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
+              "Outputs.stackWebUINestedStackCognitoConstructASRUserPool94855260Ref",
+            ],
+          },
+          "referencetostackWebUINestedStackNestedStackWebUINestedStackNestedStackResource3967D040OutputsstackWebUINestedStackUserAccountMappingTable54BAD24BArn": {
+            "Fn::GetAtt": [
+              "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
+              "Outputs.stackWebUINestedStackUserAccountMappingTable54BAD24BArn",
+            ],
+          },
+          "referencetostackWebUINestedStackNestedStackWebUINestedStackNestedStackResource3967D040OutputsstackWebUINestedStackUserAccountMappingTable54BAD24BRef": {
+            "Fn::GetAtt": [
+              "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
+              "Outputs.stackWebUINestedStackUserAccountMappingTable54BAD24BRef",
+            ],
+          },
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "S3Bucket",
+                ],
+              },
+              "-reference.s3.amazonaws.com/",
+              {
+                "Fn::FindInMap": [
+                  "SourceCode",
+                  "General",
+                  "KeyPrefix",
+                ],
+              },
+              "/automated-security-response-mcp-gateway-nested-stack.template",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "McpToolErrorAlarmEE3C7CA5": {
+      "Condition": "mcpServerAlarmsEnabled",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "Automated Security Response on AWS: An unusually high number of MCP tool invocations failed with server errors within five minutes. This can indicate a misbehaving MCP client, a broken tool, an attempt to probe the MCP server, or a transient dependency failure (for example, being unable to read the Cognito signing keys or the caller's authorization data).",
+        "AlarmName": "ASR-Mcp-ToolErrorSpike",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "MetricName": "McpToolError",
+        "Namespace": "ASR",
+        "Period": 300,
+        "Statistic": "Sum",
+        "Threshold": 5,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
     "MetricResourcesASRDeploymentCustomResourceLambda02CE6550": {
       "DependsOn": [
         "MetricResourcesMetricResourcesRoleC49ABA6D",
@@ -9978,11 +10387,28 @@ def sort_filter_rules(json_obj):
           ],
         },
         "StackParameters": {
+          "AdditionalMcpCallbackUrls": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AdditionalMcpCallbackUrls",
+              },
+            ],
+          },
           "AdminUserEmail": {
             "Ref": "AdminUserEmail",
           },
           "EnableEnhancedCloudWatchMetrics": {
             "Ref": "EnableEnhancedCloudWatchMetrics",
+          },
+          "EnableMcpServer": {
+            "Ref": "EnableMcpServer",
+          },
+          "EnableRollback": {
+            "Ref": "EnableRollback",
+          },
+          "MFAConfiguration": {
+            "Ref": "MFAConfiguration",
           },
           "ShouldDeployWebUI": {
             "Ref": "ShouldDeployWebUI",
@@ -10567,7 +10993,7 @@ def sort_filter_rules(json_obj):
                       {
                         "Fn::GetAtt": [
                           "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                          "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                          "Outputs.FrontendDistributionDomainName",
                         ],
                       },
                     ],
@@ -11020,7 +11446,7 @@ def sort_filter_rules(json_obj):
                       {
                         "Fn::GetAtt": [
                           "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                          "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                          "Outputs.FrontendDistributionDomainName",
                         ],
                       },
                     ],
@@ -11461,7 +11887,7 @@ def sort_filter_rules(json_obj):
                       {
                         "Fn::GetAtt": [
                           "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                          "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                          "Outputs.FrontendDistributionDomainName",
                         ],
                       },
                     ],
@@ -11902,7 +12328,7 @@ def sort_filter_rules(json_obj):
                       {
                         "Fn::GetAtt": [
                           "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                          "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                          "Outputs.FrontendDistributionDomainName",
                         ],
                       },
                     ],
@@ -12387,7 +12813,7 @@ def sort_filter_rules(json_obj):
                       {
                         "Fn::GetAtt": [
                           "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB",
-                          "Outputs.stackWebUINestedStackWebUIHostingWebCloudFrontDistributionEBA16E0ADomainName",
+                          "Outputs.FrontendDistributionDomainName",
                         ],
                       },
                     ],
@@ -12751,6 +13177,58 @@ def sort_filter_rules(json_obj):
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
+    },
+    "NotificationDLQAlarmC1060D21": {
+      "Condition": "isUsingCloudWatchMetricsAlarms",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "Automated Security Response on AWS: Messages have been sent to the notification dispatcher Dead Letter Queue. This indicates that the notification dispatcher Lambda function failed to deliver notification events after multiple retry attempts.",
+        "AlarmName": "ASR-NotificationDLQ",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Id": "m1",
+            "Label": "Automated Security Response on AWS: Notification dispatcher DLQ Messages",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "QueueName",
+                    "Value": {
+                      "Fn::GetAtt": [
+                        "NotificationDispatcherConstructNotificationDLQ5AF0A402",
+                        "QueueName",
+                      ],
+                    },
+                  },
+                ],
+                "MetricName": "ApproximateNumberOfMessagesVisible",
+                "Namespace": "AWS/SQS",
+              },
+              "Period": 60,
+              "Stat": "Maximum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "Threshold": 1,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
     },
     "NotificationDispatcherConstructChannelFanoutTopicDDB6FA79": {
       "Properties": {
@@ -14308,11 +14786,35 @@ def sort_filter_rules(json_obj):
             },
             {
               "Action": "sqs:SendMessage",
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":events:eu-west-1:111111111111:rule/SO0111_automated-security-response-on-aws_AutoTrigger",
+                      ],
+                    ],
+                  },
+                },
+                "StringEquals": {
+                  "aws:SourceAccount": "111111111111",
+                },
+              },
               "Effect": "Allow",
               "Principal": {
                 "Service": "events.amazonaws.com",
               },
-              "Resource": "*",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "PreProcessorConstructPreProcessorQueue8068A6BD",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -14363,11 +14865,11 @@ def sort_filter_rules(json_obj):
                     },
                   },
                 ],
-                "MetricName": "NumberOfMessagesSent",
+                "MetricName": "ApproximateNumberOfMessagesVisible",
                 "Namespace": "AWS/SQS",
               },
-              "Period": 300,
-              "Stat": "Sum",
+              "Period": 60,
+              "Stat": "Maximum",
             },
             "ReturnData": true,
           },
@@ -15555,6 +16057,71 @@ def sort_filter_rules(json_obj):
       },
       "Type": "AWS::Events::Rule",
     },
+    "RemediationBoundaryPolicyC4F27B34": {
+      "Condition": "agentCoreGatewayEnabled",
+      "Metadata": {
+        "cfn_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "F5",
+              "reason": "A permissions boundary grants nothing: it caps what an identity policy can grant. Action: * here is a ceiling, not a privilege, and the Deny statements are what constrain the role.",
+            },
+            {
+              "id": "W12",
+              "reason": "A boundary that caps any remediation role cannot enumerate resources; the Deny statements bound it.",
+            },
+            {
+              "id": "W28",
+              "reason": "Static name chosen intentionally: the consumers attach this boundary by a fixed ARN.",
+            },
+          ],
+        },
+        "guard": {
+          "SuppressedRules": [
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+            "IAM_MANAGEDPOLICY_NO_STATEMENTS_WITH_FULL_ACCESS",
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "Description": "Permissions boundary for ASR custom-runbook remediation roles. Caps their effective permissions: allows service actions in general, denies the sts and organizations namespaces wholesale, and denies iam except passing a role to SSM Automation (so the role's own scoped PassRole survives), capping the escalation primitives available to a custom remediation role.",
+        "ManagedPolicyName": "SO0111-ASR-Custom-Runbook-Test-Boundary",
+        "Path": "/",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "*",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "AllowServiceActions",
+            },
+            {
+              "Action": [
+                "sts:*",
+                "organizations:*",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "DenyEscalationNamespaces",
+            },
+            {
+              "Action": "iam:*",
+              "Condition": {
+                "StringNotEquals": {
+                  "iam:PassedToService": "ssm.amazonaws.com",
+                },
+              },
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "DenyIamExceptPassRoleToSsm",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::ManagedPolicy",
+    },
     "RemediationConfigPolicy4FBFA72E": {
       "Properties": {
         "PolicyDocument": {
@@ -15876,7 +16443,15 @@ def sort_filter_rules(json_obj):
               {
                 "Ref": "AWS::Region",
               },
-              "","query":"SOURCE 'some-loggroup-name' | fields @timestamp, eventSource, eventName, awsRegion, recipientAccountId, resources.0.ARN, @message\\n| sort @timestamp desc\\n| limit 20"}}]}",
+              "","query":"SOURCE 'some-loggroup-name' | fields @timestamp, eventSource, eventName, awsRegion, recipientAccountId, resources.0.ARN, @message\\n| sort @timestamp desc\\n| limit 20"}},{"type":"text","width":24,"height":2,"x":0,"y":50,"properties":{"markdown":"\\n## Rollback\\nPre-remediation snapshot capture and one-click rollback execution activity. Populated only when rollback is enabled (EnableRollback=yes). The Snapshot Capture Outcomes widget sums the per-ControlId series, so it also requires EnableEnhancedCloudWatchMetrics=yes; without it only the aggregate SnapshotCaptureFailure alarm is populated.\\n"}},{"type":"metric","width":12,"height":6,"x":0,"y":52,"properties":{"view":"timeSeries","title":"Snapshot Capture Outcomes","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[[{"label":"Captured","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureSuccess\\"', 'Sum', 300))"}],[{"label":"Failed","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureFailure\\"', 'Sum', 300))"}],[{"label":"Skipped (not eligible)","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureSkipped\\"', 'Sum', 300))"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":52,"properties":{"view":"timeSeries","title":"Rollback Executions by Outcome","region":"",
+              {
+                "Ref": "AWS::Region",
+              },
+              "","metrics":[["ASR","RollbackExecutionOutcome","Outcome","Success",{"label":"Success","stat":"Sum"}],["ASR","RollbackExecutionOutcome","Outcome","Failed",{"label":"Failed","stat":"Sum"}]],"yAxis":{}}}]}",
             ],
           ],
         },
@@ -15935,6 +16510,125 @@ def sort_filter_rules(json_obj):
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
+    },
+    "RollbackExecutionFailureAlarmD7966D4D": {
+      "Condition": "rollbackAlarmEnabled",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "Automated Security Response on AWS: More than 20% of rollback executions failed over a 15-minute window. This can indicate a broken rollback path, missing member-account permissions, or snapshot drift.",
+        "AlarmName": "ASR-Rollback-ExecutionFailureRate",
+        "ComparisonOperator": "GreaterThanThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Expression": "IF((FILL(failed,0) + FILL(succeeded,0)) >= 3, 100 * FILL(failed,0) / (FILL(failed,0) + FILL(succeeded,0)), 0)",
+            "Id": "expr_1",
+            "Label": "Rollback failure rate (%)",
+            "ReturnData": true,
+          },
+          {
+            "Id": "failed",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "Outcome",
+                    "Value": "Failed",
+                  },
+                ],
+                "MetricName": "RollbackExecutionOutcome",
+                "Namespace": "ASR",
+              },
+              "Period": 900,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+          {
+            "Id": "succeeded",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "Outcome",
+                    "Value": "Success",
+                  },
+                ],
+                "MetricName": "RollbackExecutionOutcome",
+                "Namespace": "ASR",
+              },
+              "Period": 900,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+        ],
+        "Threshold": 20,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
+    "RollbackRateLimitAlarm99E93693": {
+      "Condition": "rollbackAlarmEnabled",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "Automated Security Response on AWS: Unusual rollback activity detected. The daily rollback count exceeded the configured threshold, which may indicate unauthorized or automated rollback abuse.",
+        "AlarmName": "ASR-RollbackRateLimit",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Id": "m1",
+            "Label": "Daily Rollback Executions",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "Outcome",
+                    "Value": "Success",
+                  },
+                ],
+                "MetricName": "RollbackExecutionOutcome",
+                "Namespace": "ASR",
+              },
+              "Period": 86400,
+              "Stat": "Sum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "Threshold": {
+          "Ref": "RollbackRateLimitThreshold",
+        },
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
     },
     "S311remediationfailure33527D1F": {
       "Condition": "enhancedAlarmsEnabled",
@@ -16854,6 +17548,11 @@ def sort_filter_rules(json_obj):
                 "kms:GenerateDataKey*",
                 "kms:Describe*",
               ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": "111111111111",
+                },
+              },
               "Effect": "Allow",
               "Principal": {
                 "Service": [
@@ -17339,6 +18038,58 @@ def sort_filter_rules(json_obj):
         "Threshold": {
           "Ref": "RemediationFailureAlarmThreshold",
         },
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
+    "SchedulingDLQAlarmFD8EB77D": {
+      "Condition": "isUsingCloudWatchMetricsAlarms",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "Automated Security Response on AWS: Messages have been sent to the remediation scheduling Dead Letter Queue. This indicates that scheduled remediations failed to reach the Orchestrator after multiple retry attempts.",
+        "AlarmName": "ASR-SchedulingDLQ",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Id": "m1",
+            "Label": "Automated Security Response on AWS: Scheduling DLQ Messages",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "QueueName",
+                    "Value": {
+                      "Fn::GetAtt": [
+                        "deadLetterSchedulingQueue9BCE9EA8",
+                        "QueueName",
+                      ],
+                    },
+                  },
+                ],
+                "MetricName": "ApproximateNumberOfMessagesVisible",
+                "Namespace": "AWS/SQS",
+              },
+              "Period": 60,
+              "Stat": "Maximum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "Threshold": 1,
         "TreatMissingData": "notBreaching",
       },
       "Type": "AWS::CloudWatch::Alarm",
@@ -17965,6 +18716,47 @@ def sort_filter_rules(json_obj):
         "Threshold": {
           "Ref": "RemediationFailureAlarmThreshold",
         },
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
+    "SnapshotCaptureFailureAlarm00B4291C": {
+      "Condition": "rollbackAlarmEnabled",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CFN_NO_EXPLICIT_RESOURCE_NAMES",
+          ],
+        },
+      },
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Ref": "ASRAlarmTopic7CEFBDF9",
+          },
+        ],
+        "AlarmDescription": "Automated Security Response on AWS: A pre-remediation snapshot capture failed, so the affected remediation is not rollback-capable. Remediation still proceeds (fail-open); this alarm surfaces the loss of rollback coverage.",
+        "AlarmName": "ASR-Rollback-SnapshotCaptureFailure",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "DatapointsToAlarm": 1,
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Id": "m1",
+            "Label": "Snapshot Capture Failures",
+            "MetricStat": {
+              "Metric": {
+                "MetricName": "SnapshotCaptureFailure",
+                "Namespace": "ASR",
+              },
+              "Period": 300,
+              "Stat": "Sum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "Threshold": 1,
         "TreatMissingData": "notBreaching",
       },
       "Type": "AWS::CloudWatch::Alarm",
@@ -18991,7 +19783,7 @@ def sort_filter_rules(json_obj):
       "Type": "AWS::IAM::Policy",
     },
     "WebUINestedStackNestedStackWebUINestedStackNestedStackResourceEF0A1EDB": {
-      "Condition": "webUIEnabled",
+      "Condition": "coreServicesEnabled",
       "DeletionPolicy": "Delete",
       "Properties": {
         "Parameters": {
@@ -19019,6 +19811,30 @@ def sort_filter_rules(json_obj):
           "referencetostackCSVExportBucketBFE83E74Ref": {
             "Ref": "CSVExportBucket8BA09C35",
           },
+          "referencetostackCustomRunbookBucketB319A9BCArn": {
+            "Fn::GetAtt": [
+              "CustomRunbookBucketAC061A1F",
+              "Arn",
+            ],
+          },
+          "referencetostackCustomRunbookBucketB319A9BCRef": {
+            "Ref": "CustomRunbookBucketAC061A1F",
+          },
+          "referencetostackCustomRunbookTableAA75F52BArn": {
+            "Fn::GetAtt": [
+              "CustomRunbookTable1728569E",
+              "Arn",
+            ],
+          },
+          "referencetostackCustomRunbookTableAA75F52BRef": {
+            "Ref": "CustomRunbookTable1728569E",
+          },
+          "referencetostackEnableMcpServer304D2C31Ref": {
+            "Ref": "EnableMcpServer",
+          },
+          "referencetostackEnableRollbackC14C3C15Ref": {
+            "Ref": "EnableRollback",
+          },
           "referencetostackIaCTemplatesBucketResource93766344Arn": {
             "Fn::GetAtt": [
               "IaCTemplatesBucketResourceF771E4F3",
@@ -19027,6 +19843,9 @@ def sort_filter_rules(json_obj):
           },
           "referencetostackIaCTemplatesBucketResource93766344Ref": {
             "Ref": "IaCTemplatesBucketResourceF771E4F3",
+          },
+          "referencetostackMFAConfiguration0CCA1EFDRef": {
+            "Ref": "MFAConfiguration",
           },
           "referencetostackMetricResourcesASRDeploymentMetricsCustomResourceB2B3C844securityhubv2enabled": {
             "Fn::GetAtt": [
@@ -19075,6 +19894,9 @@ def sort_filter_rules(json_obj):
               "SHARRkeyE6BD0F56",
               "Arn",
             ],
+          },
+          "referencetostackShouldDeployWebUIC0B21A1ARef": {
+            "Ref": "ShouldDeployWebUI",
           },
           "referencetostackorchestratorStateMachine2E178CA7Ref": {
             "Ref": "orchestratorStateMachine77C3F8FB",
@@ -19145,6 +19967,9 @@ def sort_filter_rules(json_obj):
             "AWS_ACCOUNT_ID": "111111111111",
             "AWS_PARTITION": {
               "Ref": "AWS::Partition",
+            },
+            "CUSTOM_RUNBOOK_TABLE_NAME": {
+              "Ref": "CustomRunbookTable1728569E",
             },
             "POWERTOOLS_LOGGER_LOG_EVENT": "false",
             "POWERTOOLS_LOG_LEVEL": "INFO",
@@ -19408,6 +20233,9 @@ def sort_filter_rules(json_obj):
             "AWS_ACCOUNT_ID": "111111111111",
             "AWS_PARTITION": {
               "Ref": "AWS::Partition",
+            },
+            "ENABLE_ROLLBACK": {
+              "Ref": "EnableRollback",
             },
             "POWERTOOLS_LOGGER_LOG_EVENT": "false",
             "POWERTOOLS_LOG_LEVEL": "INFO",
@@ -19845,6 +20673,40 @@ def sort_filter_rules(json_obj):
                   "Arn",
                 ],
               },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigTable24F19C3B",
+                    "Arn",
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "RemediationConfigTable24F19C3B",
+                    "Arn",
+                  ],
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -20351,10 +21213,44 @@ def sort_filter_rules(json_obj):
                 "Service": "lambda.amazonaws.com",
               },
             },
+            {
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::111111111111:role/SO0111-ASR-APIs-Role",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::111111111111:root",
+                    ],
+                  ],
+                },
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
-        "Description": "Lambda role to allow cross account read-only ASR orchestrator functions",
+        "Description": "Lambda role for ASR orchestrator functions: writes solution SSM parameters and assumes the cross-account Orchestrator-Member role to run remediations",
         "RoleName": "SO0111-ASR-Orchestrator-Admin",
       },
       "Type": "AWS::IAM::Role",
@@ -20370,6 +21266,68 @@ def sort_filter_rules(json_obj):
               ],
               "Effect": "Allow",
               "Resource": "*",
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "CustomRunbookTable1728569E",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "CustomRunbookTable1728569E",
+                          "Arn",
+                        ],
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "CustomRunbookTable1728569E",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "CustomRunbookTable1728569E",
+                          "Arn",
+                        ],
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -20479,7 +21437,7 @@ def sort_filter_rules(json_obj):
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"Wait for Remediation":{"Type":"Wait","Seconds":10,"Next":"execMonitor"},"Remediation completed?":{"Type":"Choice","Choices":[{"Variable":"$.Remediation.RemediationState","StringEquals":"Failed","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Success","Next":"Remediation Succeeded"},{"Variable":"$.Remediation.ExecState","StringEquals":"TimedOut","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelling","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelled","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Failed","Next":"Remediation Failed"}],"Default":"Wait for Remediation"},"Remediation Failed":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","SSMExecution.$":"$.SSMExecution","AutomationDocument.$":"$.AutomationDocument","Notification":{"Message.$":"States.Format('Remediation failed for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","RemediationOutput.$":"$.Remediation.RemediationOutput","State.$":"$.Remediation.ExecState","Details.$":"$.Remediation.LogData","SSMExecutionId.$":"$.Remediation.SSMExecutionId","StepFunctionsExecutionId.$":"$$.Execution.Id","AffectedObject.$":"$.Remediation.AffectedObject"}},"Next":"notify"},"Remediation Succeeded":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","CustomActionName.$":"$.CustomActionName","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion","Notification":{"Message.$":"States.Format('Remediation succeeded for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","RemediationOutput.$":"$.Remediation.RemediationOutput","State.$":"States.Format('SUCCESS')","Details.$":"$.Remediation.LogData","SSMExecutionId.$":"$.Remediation.SSMExecutionId","StepFunctionsExecutionId.$":"$$.Execution.Id","AffectedObject.$":"$.Remediation.AffectedObject","BackupS3Key.$":"$.Remediation.BackupS3Key"}},"Next":"Which custom action triggered this workflow?"},"Which custom action triggered this workflow?":{"Type":"Choice","Choices":[{"Variable":"$.CustomActionName","StringEquals":"ASR:Remediate&Ticket","Next":"Generate Ticket"}],"Default":"notify"},"Generate Ticket":{"Next":"notify","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.ErrorInfo","Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Create ticket using ticket generator function ARN passed to the stack during deployment. The ARN in this step will be a placeholder string unless you filled in the Ticket Generator Function ARN parameter during Admin stack deployment.","TimeoutSeconds":300,"HeartbeatSeconds":60,"ResultPath":"$.GenerateTicket","ResultSelector":{"TicketURL.$":"$.Payload.TicketURL","Ok.$":"$.Payload.Ok","ResponseCode.$":"$.Payload.ResponseCode","ResponseReason.$":"$.Payload.ResponseReason"},"Resource":"arn:",
+              "","Payload.$":"$"}},"Wait for Remediation":{"Type":"Wait","Seconds":10,"Next":"execMonitor"},"Remediation completed?":{"Type":"Choice","Choices":[{"Variable":"$.Remediation.RemediationState","StringEquals":"Failed","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Success","Next":"Remediation Succeeded"},{"Variable":"$.Remediation.ExecState","StringEquals":"TimedOut","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelling","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Cancelled","Next":"Remediation Failed"},{"Variable":"$.Remediation.ExecState","StringEquals":"Failed","Next":"Remediation Failed"}],"Default":"Wait for Remediation"},"Remediation Failed":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","CustomActionName.$":"$.CustomActionName","SSMExecution.$":"$.SSMExecution","AutomationDocument.$":"$.AutomationDocument","Notification":{"Message.$":"States.Format('Remediation failed for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","RemediationOutput.$":"$.Remediation.RemediationOutput","State.$":"$.Remediation.ExecState","Details.$":"$.Remediation.LogData","SSMExecutionId.$":"$.Remediation.SSMExecutionId","StepFunctionsExecutionId.$":"$$.Execution.Id","AffectedObject.$":"$.Remediation.AffectedObject"}},"Next":"notify"},"Remediation Succeeded":{"Type":"Pass","Comment":"Set parameters for notification","Parameters":{"EventType.$":"$.EventType","Finding.$":"$.Finding","CustomActionName.$":"$.CustomActionName","AccountId.$":"$.AutomationDocument.AccountId","AutomationDocId.$":"$.AutomationDocument.AutomationDocId","RemediationRole.$":"$.AutomationDocument.RemediationRole","ControlId.$":"$.AutomationDocument.ControlId","SecurityStandard.$":"$.AutomationDocument.SecurityStandard","SecurityStandardVersion.$":"$.AutomationDocument.SecurityStandardVersion","Notification":{"Message.$":"States.Format('Remediation succeeded for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)","RemediationOutput.$":"$.Remediation.RemediationOutput","State.$":"States.Format('SUCCESS')","Details.$":"$.Remediation.LogData","SSMExecutionId.$":"$.Remediation.SSMExecutionId","StepFunctionsExecutionId.$":"$$.Execution.Id","AffectedObject.$":"$.Remediation.AffectedObject","BackupS3Key.$":"$.Remediation.BackupS3Key"}},"Next":"Which custom action triggered this workflow?"},"Which custom action triggered this workflow?":{"Type":"Choice","Choices":[{"Variable":"$.CustomActionName","StringEquals":"ASR:Remediate&Ticket","Next":"Generate Ticket"}],"Default":"notify"},"Generate Ticket":{"Next":"notify","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.ErrorInfo","Next":"Orchestrator Failed"}],"Type":"Task","Comment":"Create ticket using ticket generator function ARN passed to the stack during deployment. The ARN in this step will be a placeholder string unless you filled in the Ticket Generator Function ARN parameter during Admin stack deployment.","TimeoutSeconds":300,"HeartbeatSeconds":60,"ResultPath":"$.GenerateTicket","ResultSelector":{"TicketURL.$":"$.Payload.TicketURL","Ok.$":"$.Payload.Ok","ResponseCode.$":"$.Payload.ResponseCode","ResponseReason.$":"$.Payload.ResponseReason"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -20674,6 +21632,9 @@ def sort_filter_rules(json_obj):
               "Ref": "AWS::Partition",
             },
             "DISABLE_ACCOUNT_ALIAS_LOOKUP": "false",
+            "ENABLE_ROLLBACK": {
+              "Ref": "EnableRollback",
+            },
             "ENHANCED_METRICS": {
               "Ref": "EnableEnhancedCloudWatchMetrics",
             },
@@ -20692,6 +21653,9 @@ def sort_filter_rules(json_obj):
             "POWERTOOLS_SERVICE_NAME": "send_notifications",
             "POWERTOOLS_TRACER_CAPTURE_ERROR": "true",
             "POWERTOOLS_TRACER_CAPTURE_RESPONSE": "true",
+            "REMEDIATION_CONFIG_TABLE_NAME": {
+              "Ref": "RemediationConfigTable24F19C3B",
+            },
             "SECURITY_HUB_V2_ENABLED": {
               "Fn::GetAtt": [
                 "MetricResourcesASRDeploymentMetricsCustomResource0940D9B2",
@@ -20785,15 +21749,27 @@ def sort_filter_rules(json_obj):
               },
             ],
           },
-          "AssertDescription": "AdminUserEmail is required when Web UI deployment is enabled",
+          "AssertDescription": "AdminUserEmail is required when the Web UI or the MCP server is enabled",
         },
       ],
       "RuleCondition": {
-        "Fn::Equals": [
+        "Fn::Or": [
           {
-            "Ref": "ShouldDeployWebUI",
+            "Fn::Equals": [
+              {
+                "Ref": "ShouldDeployWebUI",
+              },
+              "yes",
+            ],
           },
-          "yes",
+          {
+            "Fn::Equals": [
+              {
+                "Ref": "EnableMcpServer",
+              },
+              "yes",
+            ],
+          },
         ],
       },
     },

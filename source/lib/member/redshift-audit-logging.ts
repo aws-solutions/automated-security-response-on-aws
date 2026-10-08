@@ -10,7 +10,7 @@ import ChoiceParam from '../cdk-helper/choice-param';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
 
 export interface RedshiftAuditLoggingProps {
-  readonly solutionId: string;
+  readonly resourceNamePrefix: string;
 }
 
 export class RedshiftAuditLogging extends Construct {
@@ -76,7 +76,7 @@ export class RedshiftAuditLogging extends Construct {
     const ssmParam = new StringParameter(scope, 'SSMParameterForS3BucketNameForREDSHIFT4', {
       description:
         'Parameter to store the S3 bucket name for the remediation FSBP.REDSHIFT.4, the default value is bucket-name which has to be updated by the user before using the remediation.',
-      parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging`,
+      parameterName: `/Solutions/${props.resourceNamePrefix}/afsbp/1.0.0/REDSHIFT.4/S3BucketNameForAuditLogging`,
       stringValue: bucket.bucketName,
     });
     setCondition(ssmParam, condition);

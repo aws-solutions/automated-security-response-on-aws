@@ -492,7 +492,7 @@ describe('FiltersRepository', () => {
       expect(dbItem.Item?.modifiedBy).toBe('editor@example.com');
     });
 
-    it('should throw ConditionalCheckFailedException when version does not match', async () => {
+    it('should throw VersionConflictError carrying the current version when version does not match', async () => {
       // ARRANGE
       await dynamoDBDocumentClient.send(
         new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER, version: 5 } }),
@@ -501,14 +501,14 @@ describe('FiltersRepository', () => {
       // ACT & ASSERT
       await expect(
         repository.updateFilter(FILTER_ID, VALID_UPDATE_REQUEST, 'editor@example.com', '2025-03-20T00:00:00Z'),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ name: 'VersionConflictError', statusCode: 409, currentVersion: 5 });
     });
 
-    it('should throw ConditionalCheckFailedException when filter does not exist', async () => {
+    it('should throw NotFoundError (not a conflict) when filter does not exist', async () => {
       // ACT & ASSERT
       await expect(
         repository.updateFilter('nonexistent-id', VALID_UPDATE_REQUEST, 'editor@example.com', '2025-03-20T00:00:00Z'),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ name: 'NotFoundError', statusCode: 404 });
     });
 
     it('should remove accountIds attribute when empty array is provided', async () => {
@@ -841,12 +841,15 @@ describe('FiltersRepository', () => {
       expect(dbItem.Item).toBeUndefined();
     });
 
-    it('should not throw when deleting a non-existent filter', async () => {
-      // ACT & ASSERT
-      await expect(repository.deleteFilter('non-existent-filter-id')).resolves.not.toThrow();
+    it('should report deleted: false when deleting a non-existent filter, without throwing', async () => {
+      // ACT
+      const result = await repository.deleteFilter('non-existent-filter-id');
+
+      // ASSERT
+      expect(result).toEqual({ deleted: false });
     });
 
-    it('should return void on successful deletion', async () => {
+    it('should report deleted: true on successful deletion', async () => {
       // ARRANGE
       await dynamoDBDocumentClient.send(
         new PutCommand({ TableName: resourceFiltersTableName, Item: { ...SEED_FILTER } }),
@@ -856,7 +859,7 @@ describe('FiltersRepository', () => {
       const result = await repository.deleteFilter(FILTER_ID);
 
       // ASSERT
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ deleted: true });
     });
 
     it('should not affect other filters in the table', async () => {

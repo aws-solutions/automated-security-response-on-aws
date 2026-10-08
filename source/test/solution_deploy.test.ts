@@ -48,6 +48,82 @@ test('Test if the Stack has all the resources.', () => {
   expect(Template.fromStack(getTestStack())).toMatchSnapshot();
 });
 
+test('APIEndpoint output reads the nested stack conditioned ApiEndpoint output, not the frontend-gated API directly', () => {
+  // Regression guard for the MCP-only (ShouldDeployWebUI=no + EnableMcpServer=yes) shape.
+  // Referencing webUINestedStack.api.url from the parent makes CDK emit UNconditioned
+  // nested-stack outputs over the frontend-gated REST API and its stage. Those outputs
+  // cannot resolve when the frontend is off, so the WebUI nested stack (which still deploys
+  // for its shared core services) fails with "Unresolved resource dependencies [...Api] in
+  // the Outputs block". The parent must instead read the nested stack's own ApiEndpoint
+  // output, which is conditioned on frontendEnabled inside the nested template.
+  const template = Template.fromStack(getTestStack());
+  const apiEndpointOutput = Object.values(template.findOutputs('APIEndpoint'))[0];
+  expect(apiEndpointOutput.Value).toHaveProperty('Fn::GetAtt');
+  const [, attribute] = apiEndpointOutput.Value['Fn::GetAtt'];
+  expect(attribute).toBe('Outputs.ApiEndpoint');
+});
+
+test('MCP parameters expose optional callbacks without a whole-list regex', () => {
+  const template = Template.fromStack(getTestStack());
+  const synthesizedTemplate = template.toJSON();
+
+  template.hasParameter('EnableMcpServer', {
+    Type: 'String',
+    Description:
+      'Deploy the optional MCP server (AgentCore Gateway) as an MCP front door for AI agents. Requires an AWS Region that supports Amazon Bedrock AgentCore.',
+    Default: 'no',
+    AllowedValues: ['yes', 'no'],
+  });
+  template.hasParameter('AdditionalMcpCallbackUrls', {
+    Type: 'CommaDelimitedList',
+    Description:
+      'Additional OAuth callback URLs for MCP clients. Each URL must use HTTPS, or HTTP on a loopback host. Leave blank to use only the built-in Kiro, Claude Code, and Codex callbacks.',
+    Default: '',
+  });
+  expect(synthesizedTemplate.Parameters.AdditionalMcpCallbackUrls).not.toHaveProperty('AllowedPattern');
+
+  const parameterGroups = synthesizedTemplate.Metadata['AWS::CloudFormation::Interface'].ParameterGroups;
+  expect(parameterGroups).toContainEqual({
+    Label: { default: '(Optional) MCP Server' },
+    Parameters: ['EnableMcpServer', 'AdditionalMcpCallbackUrls'],
+  });
+
+  const deploymentMetricsResources = template.findResources('Custom::DeploymentMetrics');
+  const deploymentMetricsResource = Object.values(deploymentMetricsResources)[0];
+  expect(deploymentMetricsResource.Properties.StackParameters.AdditionalMcpCallbackUrls).toEqual({
+    'Fn::Join': [',', { Ref: 'AdditionalMcpCallbackUrls' }],
+  });
+
+  const nestedStacks = template.findResources('AWS::CloudFormation::Stack');
+  const mcpNestedStack = Object.values(nestedStacks).find(
+    (resource) => resource.Condition === 'agentCoreGatewayEnabled',
+  );
+  expect(mcpNestedStack?.Properties.Parameters.AdditionalMcpCallbackUrls).toEqual({
+    'Fn::Join': ['\n', { Ref: 'AdditionalMcpCallbackUrls' }],
+  });
+
+  template.hasOutput('McpGatewayUrl', {
+    Condition: 'agentCoreGatewayEnabled',
+    Description: 'MCP server endpoint URL. Register this in your MCP client / DevOps Agent console.',
+    Value: Match.anyValue(),
+  });
+  template.hasOutput('McpGatewayClientId', {
+    Condition: 'agentCoreGatewayEnabled',
+    Description: 'Public Cognito OAuth client ID for native MCP clients.',
+    Value: Match.anyValue(),
+  });
+  template.hasOutput('McpGatewayScopes', {
+    Condition: 'agentCoreGatewayEnabled',
+    Description: 'Space-delimited OAuth scopes native MCP clients must request during login.',
+    Value: Match.anyValue(),
+  });
+  template.hasOutput('McpCodexCallbackUrl', {
+    Condition: 'agentCoreGatewayEnabled',
+    Description: 'Exact Codex OAuth callback URL registered for this MCP gateway deployment.',
+    Value: Match.anyValue(),
+  });
+});
+
 test('Lambda log groups use ten-year retention and none is left at one year', () => {
   // ARRANGE
   const template = Template.fromStack(getTestStack());
@@ -335,4 +411,57 @@ test('Admin stack defines API rate-limiting and write-anomaly alarms', () => {
 
   // The sensitive-write alarm uses metric math, so assert on its alarm name.
   template.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'ASR-Api-SensitiveWriteSpike' });
+});
+
+interface SynthesizedAlarm {
+  Condition?: string;
+  Properties?: {
+    AlarmName?: string;
+    Namespace?: string;
+    MetricName?: string;
+    TreatMissingData?: string;
+    AlarmActions?: unknown;
+    Metrics?: { MetricStat?: { Metric?: { MetricName?: string; Namespace?: string } } }[];
+  };
+}
+
+test('Admin stack defines DLQ message alarms for the notification-dispatcher and scheduling queues', () => {
+  const template = Template.fromStack(getTestStack());
+
+  const alarms = template.findResources('AWS::CloudWatch::Alarm') as Record<string, SynthesizedAlarm>;
+  const findAlarmByName = (alarmName: string): SynthesizedAlarm | undefined =>
+    Object.values(alarms).find((alarm) => alarm.Properties?.AlarmName === alarmName);
+
+  // These alarms carry a label, so CloudWatch renders them as a Metrics query array
+  // rather than top-level Namespace/MetricName. Read the metric from either shape.
+  const getMetricName = (alarm: SynthesizedAlarm): string | undefined =>
+    alarm.Properties?.MetricName ?? alarm.Properties?.Metrics?.[0]?.MetricStat?.Metric?.MetricName;
+  const getNamespace = (alarm: SynthesizedAlarm): string | undefined =>
+    alarm.Properties?.Namespace ?? alarm.Properties?.Metrics?.[0]?.MetricStat?.Metric?.Namespace;
+
+  const preProcessorAlarm = findAlarmByName('ASR-PreProcessorDLQ');
+  const notificationAlarm = findAlarmByName('ASR-NotificationDLQ');
+  const schedulingAlarm = findAlarmByName('ASR-SchedulingDLQ');
+
+  // The pre-processor DLQ alarm already existed; the two new ones close the gap for
+  // the remaining SQS-backed pipelines that redrive to a DLQ.
+  if (!preProcessorAlarm || !notificationAlarm || !schedulingAlarm) {
+    throw new Error(
+      'Expected DLQ alarms ASR-PreProcessorDLQ, ASR-NotificationDLQ, and ASR-SchedulingDLQ to be defined',
+    );
+  }
+
+  for (const alarm of [notificationAlarm, schedulingAlarm]) {
+    // Watches messages sitting in the DLQ. ApproximateNumberOfMessagesVisible (not
+    // NumberOfMessagesSent) is used because SQS does not count redriven messages toward
+    // NumberOfMessagesSent, and redrive is the only path onto these DLQs.
+    expect(getNamespace(alarm)).toEqual('AWS/SQS');
+    expect(getMetricName(alarm)).toEqual('ApproximateNumberOfMessagesVisible');
+    // Silent until a message is actually redriven to the DLQ.
+    expect(alarm.Properties?.TreatMissingData).toEqual('notBreaching');
+    // Gated by the same alarm opt-in condition as the other operational alarms.
+    expect(alarm.Condition).toEqual('isUsingCloudWatchMetricsAlarms');
+    // Notifies operators via the shared SNS alarm topic, matching the pre-processor DLQ alarm.
+    expect(alarm.Properties?.AlarmActions).toEqual(preProcessorAlarm.Properties?.AlarmActions);
+  }
 });

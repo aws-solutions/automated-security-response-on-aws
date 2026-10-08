@@ -125,6 +125,7 @@ describe('CognitoService', () => {
         status: 'Invited',
         type: 'account-operator',
         accountIds: ['123456789012'],
+        allowedMcpTools: [],
       });
     });
 
@@ -255,6 +256,59 @@ describe('CognitoService', () => {
       expect(result).toHaveLength(0);
     });
 
+    it('should read every Cognito page and batch-load non-admin authorization data', async () => {
+      // ARRANGE
+      mockCognitoClient
+        .on(ListUsersCommand)
+        .resolvesOnce({
+          Users: [
+            {
+              Username: 'user1',
+              Attributes: [
+                { Name: 'email', Value: 'admin@example.com' },
+                { Name: 'custom:invitedBy', Value: 'system@example.com' },
+              ],
+            },
+          ],
+          PaginationToken: 'next-page',
+        })
+        .resolves({
+          Users: [
+            {
+              Username: 'user2',
+              Attributes: [
+                { Name: 'email', Value: 'delegated@example.com' },
+                { Name: 'custom:invitedBy', Value: 'admin@example.com' },
+              ],
+            },
+          ],
+        });
+      mockCognitoClient
+        .on(AdminListGroupsForUserCommand, { Username: 'user1' })
+        .resolves({ Groups: [{ GroupName: 'AdminGroup' }] });
+      mockCognitoClient
+        .on(AdminListGroupsForUserCommand, { Username: 'user2' })
+        .resolves({ Groups: [{ GroupName: 'DelegatedAdminGroup' }] });
+      await userAccountMappingRepository.putUserAllowedMcpTools('delegated@example.com', ['list_controls']);
+      const batchAuthorizationSpy = jest.spyOn(userAccountMappingRepository, 'findUserAuthorizations');
+
+      // ACT
+      const result = await service.getAllUsers();
+
+      // ASSERT
+      expect(mockCognitoClient.commandCalls(ListUsersCommand)).toHaveLength(2);
+      expect(mockCognitoClient.commandCalls(ListUsersCommand)[1]?.args[0].input.PaginationToken).toBe('next-page');
+      expect(batchAuthorizationSpy).toHaveBeenCalledWith(['delegated@example.com']);
+      expect(result).toEqual([
+        expect.objectContaining({ email: 'admin@example.com', type: 'admin' }),
+        expect.objectContaining({
+          email: 'delegated@example.com',
+          type: 'delegated-admin',
+          allowedMcpTools: ['list_controls'],
+        }),
+      ]);
+    });
+
     it('should throw error when Cognito fails', async () => {
       // ARRANGE
       const error = new Error('Cognito error');
@@ -376,6 +430,7 @@ describe('CognitoService', () => {
         status: 'Invited',
         type: 'account-operator',
         accountIds: ['123456789012', '987654321098'],
+        allowedMcpTools: [],
       });
     });
   });

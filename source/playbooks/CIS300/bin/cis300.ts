@@ -23,6 +23,7 @@ const adminStack = new PlaybookPrimaryStack(app, 'CIS300Stack', {
   synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${config.solution.id}P) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${config.build.distVersion}`,
   solutionId: config.solution.id,
+  resourceNamePrefix: config.solution.resourceNamePrefix,
   solutionVersion: config.build.distVersion,
   solutionDistBucket: config.build.distOutputBucket,
   solutionDistName: config.solution.trademarkedName,

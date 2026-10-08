@@ -2232,6 +2232,12 @@ def sort_filter_rules(json_obj):
               "Prefix": "install-overrides/",
               "Status": "Enabled",
             },
+            {
+              "ExpirationInDays": 365,
+              "Id": "RollbackSnapshotRetention",
+              "Prefix": "snapshots/",
+              "Status": "Enabled",
+            },
           ],
         },
         "LoggingConfiguration": {

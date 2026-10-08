@@ -13,11 +13,14 @@ import { Function as LambdaFunction } from 'aws-cdk-lib/aws-lambda';
  * - read on all three parameters (solution version, current and deprecated UUID),
  * - write only on the current `metrics_uuid` parameter (set when not already present),
  * - delete only on the deprecated `anonymous_metrics_uuid` parameter (cleanup).
+ *
+ * `resourceNamePrefix` must be the DEV-stripped prefix: `metricsUtils.ts` spells these
+ * paths as production literals, so a raw `DEV-` prefix here denies every call.
  */
-export function addMetricsSsmPermissions(fn: LambdaFunction, solutionId: string): void {
+export function addMetricsSsmPermissions(fn: LambdaFunction, resourceNamePrefix: string): void {
   const stack = Stack.of(fn);
   const parameterArn = (parameterName: string): string =>
-    `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${solutionId}/${parameterName}`;
+    `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/Solutions/${resourceNamePrefix}/${parameterName}`;
 
   const deprecatedUuidArn = parameterArn('anonymous_metrics_uuid');
   const metricsUuidArn = parameterArn('metrics_uuid');

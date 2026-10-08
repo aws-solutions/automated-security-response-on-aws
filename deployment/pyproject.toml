@@ -17,14 +17,14 @@ pytest = "9.0.3"
 pytest-cov = "5.0.0"
 pytest-env = "1.1.5"
 pytest-mock = "3.14.1"
-werkzeug = "3.1.6"
+werkzeug = "3.1.9"
 tox = "4.28.4"
-virtualenv = "20.36.1"
-filelock = "3.20.3"
+virtualenv = "21.14.4"
+filelock = "3.32.7"
 boto3-stubs-lite = { extras = ["cloudfront", "cloudformation", "cloudwatch", "ec2", "iam", "s3", "sns", "ssm", "sts", "dynamodb"], version = "^1.40.0" }
 moto = { extras = ["cloudfront", "dynamodb", "s3", "resourcegroupstaggingapi"], version = "5.2.2" }
 types-urllib3 = "1.26.25.14"
-urllib3 = "2.7.0"
+urllib3 = "2.8.0"
 aws-lambda-powertools = {extras = ["tracer"], version = "3.29.0"}
 aws_lambda_context = "1.1.0"
 openapi_spec_validator = "0.7.2"

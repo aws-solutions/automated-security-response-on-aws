@@ -83,6 +83,7 @@ export interface PlaybookProps {
   standardVersion: string;
   runtimePython: Runtime;
   solutionId: string;
+  resourceNamePrefix: string;
   solutionAcronym: string;
   solutionVersion: string;
   remediations: IControl[];

@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { EnableCopyTagsToSnapshotOnRDSClusterDocument } from '../../SC/ssmdocs/SC_RDS.16';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableCopyTagsToSnapshotOnRDSClusterDocument(stage, id, { ...props, controlId: 'RDS.16' });
+  return new EnableCopyTagsToSnapshotOnRDSClusterDocument(stage, id, {
+    ...props,
+    controlId: 'RDS.16',
+    isRollbackEnabled: true,
+  });
 }

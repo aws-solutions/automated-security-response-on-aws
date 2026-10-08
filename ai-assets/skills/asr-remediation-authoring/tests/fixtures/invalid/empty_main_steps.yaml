@@ -1,0 +1,8 @@
+schemaVersion: "0.3"
+description: Empty main steps.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+mainSteps: []

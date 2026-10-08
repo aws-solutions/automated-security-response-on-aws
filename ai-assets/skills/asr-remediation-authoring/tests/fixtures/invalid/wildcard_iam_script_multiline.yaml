@@ -1,0 +1,28 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# privilege-escalation, block scalar, wildcard NOT on the first line.
+# Guards the regression where only the first line of a `Script: |` block was
+# scanned, so a wildcard below line 1 was silently missed.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-TEST.1
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+mainSteps:
+  - name: VerifyAndGrant
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      Script: |-
+        import boto3
+        import json
+
+        def handler(event, context):
+            policy = {"Effect": "Allow", "Action": "*", "Resource": "*"}
+            return {"policy": json.dumps(policy)}

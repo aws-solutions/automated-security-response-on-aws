@@ -13,6 +13,7 @@ import {
   CreateNotificationConfigurationRequestSchema,
   DeliveryChannelConfig,
   NotificationConfigurationItem,
+  NotificationConfigurationItemSchema,
   UpdateNotificationConfigurationRequest,
   UpdateNotificationConfigurationRequestSchema,
   ToggleStatusRequest,
@@ -191,7 +192,7 @@ async function getNotificationConfigurationsHandler(event: APIGatewayProxyEvent)
   // Every authorized role — including account operators — may list all configurations. Edit
   // authority is creator-based and enforced on the mutation paths; visibility is unrestricted.
   const result = await notificationConfigService.getAllConfigurations();
-  return createResponse(200, result, API_HEADERS.NOTIFICATIONS);
+  return createResponse(200, { configurations: result.configurations.map(toClientConfig) }, API_HEADERS.NOTIFICATIONS);
 }
 
 async function getNotificationConfigurationHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -208,7 +209,7 @@ async function getNotificationConfigurationHandler(event: APIGatewayProxyEvent):
   // admins. Edit authority is creator-based and enforced only on the mutation paths
   // (assertOperatorHasCreatorAccess); read access is intentionally unrestricted so operators retain
   // full visibility while acting only on configurations they created.
-  return createResponse(200, config, API_HEADERS.NOTIFICATIONS);
+  return createResponse(200, toClientConfig(config), API_HEADERS.NOTIFICATIONS);
 }
 
 async function createNotificationConfigurationHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -235,7 +236,40 @@ async function createNotificationConfigurationHandler(event: APIGatewayProxyEven
     actorGroups: user.groups,
   });
 
-  return createResponse(201, created, API_HEADERS.NOTIFICATIONS);
+  return createResponse(201, toClientConfig(created), API_HEADERS.NOTIFICATIONS);
+}
+
+/**
+ * Projects a stored configuration onto the notification model before it leaves the API.
+ *
+ * The configuration table carries storage-index attributes that are not part of the model:
+ * `CONFIG_CONSTANT` (the AllConfigsIndex partition key, always the literal "CONFIG") and
+ * `enabledType` (the EnabledTypeIndex partition key, a duplicate of `notificationType`). Read
+ * straight through from DynamoDB they reach the client, which then resubmits storage internals
+ * when it round-trips a returned object into an update.
+ *
+ * `z.object` strips undeclared keys, so a successful parse is the projection — typed and unable
+ * to drift from the model. A row that fails validation (a legacy or hand-edited item) must not
+ * take the whole listing down with a 500, so it falls back to dropping only the two known
+ * storage attributes and is logged for follow-up.
+ */
+function toClientConfig(config: NotificationConfigurationItem): NotificationConfigurationItem {
+  const parsed = NotificationConfigurationItemSchema.safeParse(config);
+  if (parsed.success) return parsed.data;
+
+  logger.warn(
+    'Stored notification configuration does not match the item schema; returning it minus storage attributes',
+    {
+      configId: config.configId,
+      issues: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+    },
+  );
+  const {
+    CONFIG_CONSTANT: _configConstant,
+    enabledType: _enabledType,
+    ...clientConfig
+  } = config as NotificationConfigurationItem & { CONFIG_CONSTANT?: unknown; enabledType?: unknown };
+  return clientConfig;
 }
 
 async function deleteNotificationConfigurationHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -247,14 +281,48 @@ async function deleteNotificationConfigurationHandler(event: APIGatewayProxyEven
 
   const configId = baseHandler.extractValidatedPathId<ConfigId>(event, 'id');
 
-  await assertOperatorHasCreatorAccess(user, configId);
+  // DELETE has to be idempotent for every caller, so the absent-config check comes first, with a
+  // non-throwing lookup: only a configuration that exists can have a creator to compare against.
+  // Running the operator creator check first would turn an already-removed configuration into a
+  // 404 for operators while admins get the no-op 200 below.
+  const existing = await notificationConfigService.findConfigurationById(configId);
+  if (!existing) {
+    return createResponse(
+      200,
+      { message: `Configuration ${configId} did not exist; nothing to delete`, deleted: false },
+      API_HEADERS.NOTIFICATIONS,
+    );
+  }
+  if (isOperator(user)) {
+    NotificationConfigurationService.assertOperatorIsCreator(user.email, existing);
+  }
 
-  await notificationConfigService.deleteConfiguration(configId, {
-    actorEmail: user.email,
-    actorGroups: user.groups,
-  });
+  const deleted = await notificationConfigService.deleteConfiguration(
+    configId,
+    { actorEmail: user.email, actorGroups: user.groups },
+    existing,
+  );
 
-  return createResponse(200, { message: 'Configuration deleted successfully' }, API_HEADERS.NOTIFICATIONS);
+  // `deleteConfiguration` returns null when the configuration vanished between the read above
+  // and the delete — another tab or user got there first. That stays a 200: DELETE is
+  // idempotent, so calling it on an already-removed configuration is not an error
+  // (.kiro/steering/code-review-patterns.md), and the WebUI's mutation is typed <void, string>
+  // so a 404 would surface as a failure toast. The `deleted` flag is what keeps the body
+  // truthful: a cleanup script checking only the status cannot tell a completed teardown from
+  // one that matched nothing, and a typo'd id must not read as success.
+  if (!deleted) {
+    return createResponse(
+      200,
+      { message: `Configuration ${configId} did not exist; nothing to delete`, deleted: false },
+      API_HEADERS.NOTIFICATIONS,
+    );
+  }
+
+  return createResponse(
+    200,
+    { message: 'Configuration deleted successfully', deleted: true },
+    API_HEADERS.NOTIFICATIONS,
+  );
 }
 
 async function updateNotificationConfigurationHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -289,7 +357,7 @@ async function updateNotificationConfigurationHandler(event: APIGatewayProxyEven
     existingConfig,
   );
 
-  return createResponse(200, updated, API_HEADERS.NOTIFICATIONS);
+  return createResponse(200, toClientConfig(updated), API_HEADERS.NOTIFICATIONS);
 }
 
 async function toggleNotificationConfigurationStatusHandler(
@@ -316,7 +384,7 @@ async function toggleNotificationConfigurationStatusHandler(
     actorGroups: user.groups,
   });
 
-  return createResponse(200, updated, API_HEADERS.NOTIFICATIONS);
+  return createResponse(200, toClientConfig(updated), API_HEADERS.NOTIFICATIONS);
 }
 
 async function getEmailSubscriptionsHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {

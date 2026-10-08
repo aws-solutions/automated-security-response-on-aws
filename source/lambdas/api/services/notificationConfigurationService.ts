@@ -202,6 +202,11 @@ export class NotificationConfigurationService {
     return await this.getRepository().getConfigById(configId);
   }
 
+  /** Like {@link getConfigurationById}, but resolves to `undefined` instead of throwing 404. */
+  async findConfigurationById(configId: ConfigId): Promise<NotificationConfigurationItem | undefined> {
+    return await this.getRepository().findConfigById(configId);
+  }
+
   async createConfiguration(
     request: CreateNotificationConfigurationRequest,
     actor: AdminActorContext,
@@ -262,11 +267,23 @@ export class NotificationConfigurationService {
     return item;
   }
 
+  /**
+   * Deletes the configuration and releases its name. Returns the deleted item, or null when
+   * there was nothing to delete.
+   *
+   * `preRead` lets a caller that has already fetched the item (the handler does, for the
+   * operator creator check) hand it over instead of paying a second GetItem on every delete.
+   * The name-release transaction is conditioned on the item's current name, so a stale
+   * `preRead` cannot delete the wrong thing: if the item changed underneath it the transaction
+   * is cancelled and, when the item has simply vanished, that is reported as "nothing to
+   * delete" rather than a conflict.
+   */
   async deleteConfiguration(
     configId: ConfigId,
     actor: AdminActorContext,
+    preRead?: NotificationConfigurationItem,
   ): Promise<NotificationConfigurationItem | null> {
-    const existing = await this.getRepository().findConfigById(configId);
+    const existing = preRead ?? (await this.getRepository().findConfigById(configId));
     if (!existing) {
       this.logger.info('Configuration not found, nothing to delete', { configId });
       return null;
@@ -278,6 +295,13 @@ export class NotificationConfigurationService {
       await this.getRepository().deleteWithNameRelease(configId, existing.name);
     } catch (error) {
       if ((error as Error).name === 'TransactionCanceledException') {
+        // The condition can fail because the item changed or because it is already gone. Only
+        // the first is a conflict; the second is the idempotent no-op the handler promises.
+        const current = await this.getRepository().findConfigById(configId);
+        if (!current) {
+          this.logger.info('Configuration vanished before it could be deleted; nothing to delete', { configId });
+          return null;
+        }
         throw new ConflictError('Configuration was modified by another request during deletion. Please retry.');
       }
       throw error;

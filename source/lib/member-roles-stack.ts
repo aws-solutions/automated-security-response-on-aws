@@ -4,8 +4,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { InspectorAutomationRole } from './inspector-automation-role';
 import { OrchestratorMemberRole } from './orchestrator_roles-construct';
+import { RemediationBoundaryPolicy } from './member/remediation-boundary-policy';
 import AdminAccountParam from './parameters/admin-account-param';
 import NamespaceParam from './parameters/namespace-param';
+import { stripDevelopmentPrefix } from './config/cdk-config';
 
 export interface MemberRolesStackProps extends cdk.StackProps {
   readonly solutionId: string;
@@ -22,7 +24,7 @@ export class MemberRolesStack extends cdk.Stack {
     /********************
      ** Parameters
      ********************/
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
+    const RESOURCE_PREFIX = stripDevelopmentPrefix(props.solutionId); // prefix on every resource name
     const adminRoleName = `${RESOURCE_PREFIX}-ASR-Orchestrator-Admin`;
     const adminAccount = new AdminAccountParam(this, 'AdminAccountParameter');
     this.namespace = new NamespaceParam(this, 'Namespace');
@@ -42,6 +44,10 @@ export class MemberRolesStack extends cdk.Stack {
       adminAccountId: adminAccount.value,
       adminRoleName: adminRoleName,
       namespace: this.namespace.value,
+    });
+
+    new RemediationBoundaryPolicy(this, 'RemediationBoundaryPolicy', {
+      solutionId: props.solutionId,
     });
   }
   getOrchestratorMemberRole(): OrchestratorMemberRole {

@@ -17,6 +17,7 @@ interface ControlsEditingState {
   hasUnsavedChanges: boolean;
   changedControlIds: string[];
   handleToggle: (controlId: string, isEnabled: boolean) => void;
+  handleRollbackToggle: (controlId: string, isEnabled: boolean) => void;
   handleDisableAll: () => void;
   handleSave: () => Promise<void>;
   handleDiscard: () => void;
@@ -35,12 +36,21 @@ interface BulkEditResult {
   readonly updatedCount?: number;
   readonly successCount?: number;
   readonly failedControlIds?: string[];
+  /** Controls refused outright rather than failing a version check — see BatchAggregation. */
+  readonly rejectedControlIds?: string[];
   readonly message: string;
 }
 
 interface BatchAggregation {
   readonly totalSuccess: number;
   readonly allFailedControlIds: string[];
+  /**
+   * Controls the API refused for a structural reason: a custom-runbook control cannot have
+   * automated remediation enabled. Tracked apart from the rest because "refresh and retry"
+   * is the right advice for a version conflict and the wrong advice for these — retrying
+   * produces the same refusal.
+   */
+  readonly allRejectedControlIds: string[];
   readonly hasConflict: boolean;
   readonly lastErrorMessage: string | undefined;
 }
@@ -51,6 +61,7 @@ function aggregateBatchOutcomes(
 ): BatchAggregation {
   let totalSuccess = 0;
   const allFailedControlIds: string[] = [];
+  const allRejectedControlIds: string[] = [];
   let hasConflict = false;
   let lastErrorMessage: string | undefined;
 
@@ -61,6 +72,7 @@ function aggregateBatchOutcomes(
       if (result.failedControlIds) {
         totalSuccess += result.successCount ?? 0;
         allFailedControlIds.push(...result.failedControlIds);
+        allRejectedControlIds.push(...(result.rejectedControlIds ?? []));
       } else {
         totalSuccess += result.updatedCount ?? 0;
       }
@@ -74,7 +86,7 @@ function aggregateBatchOutcomes(
     }
   }
 
-  return { totalSuccess, allFailedControlIds, hasConflict, lastErrorMessage };
+  return { totalSuccess, allFailedControlIds, allRejectedControlIds, hasConflict, lastErrorMessage };
 }
 
 export const useControlsEditing = (isReadOnly: boolean): ControlsEditingState => {
@@ -92,6 +104,7 @@ export const useControlsEditing = (isReadOnly: boolean): ControlsEditingState =>
         const server = serverMap.get(local.controlId);
         if (!server) return false;
         if (local.automatedRemediationEnabled !== server.automatedRemediationEnabled) return true;
+        if ((local.rollbackEnabled !== false) !== (server.rollbackEnabled !== false)) return true;
         if (local.filterMode !== server.filterMode) return true;
         if (local.filters.length !== server.filters.length) return true;
         return local.filters.some((f, i) => f !== server.filters[i]);
@@ -127,6 +140,16 @@ export const useControlsEditing = (isReadOnly: boolean): ControlsEditingState =>
     [isReadOnly],
   );
 
+  const handleRollbackToggle = useCallback(
+    (controlId: string, isEnabled: boolean) => {
+      if (isReadOnly) return;
+      setLocalControls((prev) =>
+        prev.map((c) => (c.controlId === controlId ? { ...c, rollbackEnabled: isEnabled } : c)),
+      );
+    },
+    [isReadOnly],
+  );
+
   const handleDisableAll = useCallback(() => {
     if (isReadOnly) return;
     setLocalControls((prev) => prev.map((c) => ({ ...c, automatedRemediationEnabled: false })));
@@ -145,10 +168,8 @@ export const useControlsEditing = (isReadOnly: boolean): ControlsEditingState =>
       batches.map((batch) => bulkEdit({ operation: 'update', data: batch }).unwrap()),
     );
 
-    const { totalSuccess, allFailedControlIds, hasConflict, lastErrorMessage } = aggregateBatchOutcomes(
-      batchOutcomes,
-      batches,
-    );
+    const { totalSuccess, allFailedControlIds, allRejectedControlIds, hasConflict, lastErrorMessage } =
+      aggregateBatchOutcomes(batchOutcomes, batches);
 
     if (allFailedControlIds.length === 0) {
       dispatch(
@@ -178,10 +199,21 @@ export const useControlsEditing = (isReadOnly: boolean): ControlsEditingState =>
     }
 
     if (totalSuccess > 0) {
+      // Only the ids that failed a version check are worth retrying. A rejected custom
+      // control is refused every time, so it is named with its reason instead.
+      const retryableFailedIds = allFailedControlIds.filter((id) => !allRejectedControlIds.includes(id));
+      const retryAdvice =
+        retryableFailedIds.length > 0
+          ? ` Failed: ${retryableFailedIds.join(', ')}. Please refresh and retry the failed controls.`
+          : '';
+      const rejectionAdvice =
+        allRejectedControlIds.length > 0
+          ? ` Automated remediation cannot be enabled for ${allRejectedControlIds.join(', ')}: a custom runbook runs only on a manual trigger.`
+          : '';
       dispatch(
         addNotification({
           type: 'warning',
-          content: `Saved ${totalSuccess} control${totalSuccess === 1 ? '' : 's'}. Failed: ${allFailedControlIds.join(', ')}. Please refresh and retry the failed controls.`,
+          content: `Saved ${totalSuccess} control${totalSuccess === 1 ? '' : 's'}.${retryAdvice}${rejectionAdvice}`,
           id: `save-partial-${Date.now()}`,
         }),
       );
@@ -261,6 +293,7 @@ export const useControlsEditing = (isReadOnly: boolean): ControlsEditingState =>
     hasUnsavedChanges,
     changedControlIds,
     handleToggle,
+    handleRollbackToggle,
     handleDisableAll,
     handleSave,
     handleDiscard,

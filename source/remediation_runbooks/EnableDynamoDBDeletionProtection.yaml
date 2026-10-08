@@ -7,18 +7,28 @@ description: |
   ## Overview
   This document enables deletion protection on a DynamoDB Table.
 
+  When invoked with Rollback=ROLLBACK, it restores the deletion protection
+  setting to its pre-remediation state using a snapshot stored in S3.
+
   ## Pre-requisites
   None.
 
   ## What does this document do?
-  Enables deletion protection the given DynamoDB Table.
+  Enables deletion protection on the given DynamoDB Table.
 
   ## Input Parameters
-  * ResourceArn: (Required) DynamoDB Table to be tagged.
+  * ResourceArn: (Required) The DynamoDB Table resource ARN.
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
   ## Output Parameters
-  * EnableDynamoDBDeletionProtection.Output
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
@@ -31,18 +41,75 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+
 outputs:
-  - EnableDynamoDBDeletionProtection.Output
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  - name: EnableDynamoDBDeletionProtection
-    action: aws:executeAwsApi
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
+    description: |
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation deletion-protection state to S3, then enables deletion
+      protection. When Rollback=ROLLBACK, restores the pre-remediation state from the snapshot.
+    timeoutSeconds: 600
     isEnd: true
     inputs:
-      Service: dynamodb
-      Api: UpdateTable
-      TableName: '{{ ResourceArn }}'
-      DeletionProtectionEnabled: true
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        ResourceArn: "{{ ResourceArn }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
+      Script: |-
+        %%SCRIPT=EnableDynamoDBDeletionProtection_rollback.py%%
     outputs:
-      - Name: Output
-        Selector: $.Payload.response
-        Type: StringMap
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

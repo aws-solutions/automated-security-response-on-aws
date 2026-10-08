@@ -3,7 +3,12 @@
 
 import { ApiLambdaEnvironmentConfig } from '@asr/data-models';
 import { MissingEnvironmentVariableError } from '../../common/utils/env-variables';
-import { apiLambdaEnvironment, resetApiLambdaEnvironmentCache } from '../apiLambdaEnvironment';
+import {
+  apiLambdaEnvironment,
+  assertCustomRunbooksConfigured,
+  optionalCustomRunbookEnvironment,
+  resetApiLambdaEnvironmentCache,
+} from '../apiLambdaEnvironment';
 
 const VALID_ENV: ApiLambdaEnvironmentConfig = {
   SOLUTION_ID: 'SO0111',
@@ -21,16 +26,20 @@ const VALID_ENV: ApiLambdaEnvironmentConfig = {
   ORCHESTRATOR_ARN: 'arn:aws:states:us-east-1:123456789012:stateMachine:orchestrator',
   WEB_UI_URL: 'https://d1234abcd.cloudfront.net',
   AWS_ACCOUNT_ID: '123456789012',
+  AWS_PARTITION: 'aws',
   STACK_ID: 'test-stack-id',
   SECURITY_HUB_V2_ENABLED: 'false',
   EXPORT_MAX_TIME_MS: '26000',
   EXPORT_MAX_RECORDS: '50000',
   NOTIFICATION_CONFIG_TABLE_NAME: 'test-notification-config-table',
-  AWS_PARTITION: 'aws',
   RESOURCE_NAME_PREFIX: 'SO0111',
   IAC_TEMPLATES_BUCKET: 'test-iac-templates-bucket',
   ADMIN_NOTIFICATION_TOPIC_ARN: 'arn:aws:sns:us-east-1:123456789012:SO0111-ASR-AdminSecurityNotifications',
+  ENABLE_ROLLBACK: 'yes',
+  FINDINGS_TTL_DAYS: '8',
   NOTIFICATION_BATCHES_TABLE_NAME: 'test-notification-batches-table',
+  CUSTOM_RUNBOOK_BUCKET_NAME: 'test-custom-runbook-bucket',
+  CUSTOM_RUNBOOK_TABLE_NAME: 'test-custom-runbook-table',
 };
 
 describe('apiLambdaEnvironment', () => {
@@ -68,6 +77,25 @@ describe('apiLambdaEnvironment', () => {
     expect(second).toBe(first);
   });
 
+  it('keeps the core API available when the MCP blueprint is not configured', () => {
+    delete process.env.CUSTOM_RUNBOOK_BUCKET_NAME;
+    delete process.env.CUSTOM_RUNBOOK_TABLE_NAME;
+
+    const environment = apiLambdaEnvironment();
+
+    expect(environment.CUSTOM_RUNBOOK_BUCKET_NAME).toBeUndefined();
+    expect(environment.CUSTOM_RUNBOOK_TABLE_NAME).toBeUndefined();
+    expect(optionalCustomRunbookEnvironment()).toBeUndefined();
+
+    try {
+      assertCustomRunbooksConfigured();
+      fail('Expected NotImplementedError');
+    } catch (error) {
+      expect((error as { statusCode: number }).statusCode).toBe(501);
+      expect((error as Error).message).toContain('not available');
+    }
+  });
+
   it('should return fresh values after cache reset', () => {
     apiLambdaEnvironment();
     resetApiLambdaEnvironmentCache();
@@ -77,22 +105,31 @@ describe('apiLambdaEnvironment', () => {
   });
 
   it('should throw MissingEnvironmentVariableError when a required variable is missing', () => {
-    delete process.env.WEB_UI_URL;
+    delete process.env.FINDINGS_TABLE_NAME;
     expect(() => apiLambdaEnvironment()).toThrow(MissingEnvironmentVariableError);
   });
 
   it('should list all missing variables in the error', () => {
-    delete process.env.WEB_UI_URL;
     delete process.env.FINDINGS_TABLE_NAME;
+    delete process.env.REMEDIATION_HISTORY_TABLE_NAME;
     try {
       apiLambdaEnvironment();
       fail('Expected MissingEnvironmentVariableError');
     } catch (error) {
       expect(error).toBeInstanceOf(MissingEnvironmentVariableError);
       const missing = (error as MissingEnvironmentVariableError).missingVariables;
-      expect(missing).toContain('WEB_UI_URL');
       expect(missing).toContain('FINDINGS_TABLE_NAME');
+      expect(missing).toContain('REMEDIATION_HISTORY_TABLE_NAME');
       expect(missing).toHaveLength(2);
     }
+  });
+
+  it('treats WEB_UI_URL as optional so an MCP-only deployment still starts', () => {
+    delete process.env.WEB_UI_URL;
+    const env = apiLambdaEnvironment();
+    expect(env.WEB_UI_URL).toBeUndefined();
+    // Required variables remain present, so the absent frontend URL does not
+    // fail the accessor.
+    expect(env.FINDINGS_TABLE_NAME).toBe('test-findings-table');
   });
 });

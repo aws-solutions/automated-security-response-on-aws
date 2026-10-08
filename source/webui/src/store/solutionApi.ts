@@ -64,4 +64,5 @@ export enum ApiEndpoints {
   FILTERS = 'filters',
   CONTROLS = 'controls',
   NOTIFICATIONS = 'notifications',
+  MCP_TOOLS = 'mcp/tools',
 }

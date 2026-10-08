@@ -21,7 +21,7 @@ import {
   FindingConfigEvaluation,
   emptyFindingConfigEvaluation,
 } from './findingNotificationConfigEvaluator';
-import { mapFindingType, UnverifiedProductArnError } from './findingTypeMapper';
+import { isSecurityHubCoverageFinding, mapFindingType, UnverifiedProductArnError } from './findingTypeMapper';
 import {
   ASFFFinding,
   FindingTableItem,
@@ -483,6 +483,7 @@ export class PreProcessor implements LambdaInterface {
       false,
       eventBridgeTime,
       this.toMetricEnrichment(evaluation),
+      currentNormalized.findingTypeIdentifier.value,
     );
 
     if (triggerRemediation && syncResult.status === 'SUCCESS') {
@@ -540,6 +541,7 @@ export class PreProcessor implements LambdaInterface {
       false,
       eventBridgeTime,
       this.toMetricEnrichment(evaluation),
+      normalized.findingTypeIdentifier.value,
     );
 
     if (triggerRemediation && syncResult.status === 'SUCCESS') {
@@ -684,6 +686,17 @@ export class PreProcessor implements LambdaInterface {
     }
 
     try {
+      // Security Hub V2 Coverage findings carry no control and have no remediation.
+      // Drop them here, before schema detection, so they produce neither a
+      // PRE_PROCESSOR_FAILED metric nor an ERROR log on every coverage refresh.
+      if (isSecurityHubCoverageFinding(unprocessedFinding)) {
+        logger.debug('Dropping Security Hub Coverage finding: coverage findings have no remediation', {
+          findingId: unprocessedFinding?.finding_info?.uid ?? unprocessedFinding?.Id ?? 'unknown',
+          sqsMessageId: record.messageId,
+        });
+        return;
+      }
+
       const findingNormalizer = new FindingEventNormalizer(logger);
       const findingLogger = {
         info: (msg: string, extra?: Record<string, unknown>) => logger.info(msg, extra ?? {}),

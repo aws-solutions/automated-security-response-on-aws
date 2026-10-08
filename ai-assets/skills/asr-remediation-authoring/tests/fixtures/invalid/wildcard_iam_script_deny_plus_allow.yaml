@@ -1,0 +1,74 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Deny exemption is per STATEMENT, not per script. This policy opens with a
+# legitimate deny-all statement and then smuggles in an Allow "*" — the Effect
+# check must not let the first statement excuse the second.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-IAM.99
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  RoleName:
+    type: String
+    description: (Required) The role to attach the policy to.
+mainSteps:
+  - name: PutMixedPolicy
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        RoleName: "{{ RoleName }}"
+      Script: |-
+        import json
+
+        import boto3
+
+        def handler(event, context):
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "DenyInsecureTransport",
+                        "Effect": "Deny",
+                        "Action": "*",
+                        "Resource": "*",
+                        "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                    },
+                    {
+                        "Sid": "AllowEverythingElse",
+                        "Effect": "Allow",
+                        "Action": "*",
+                        "Resource": "*",
+                    },
+                ],
+            }
+            boto3.client("iam").put_role_policy(
+                RoleName=event["RoleName"],
+                PolicyName="asr-inline",
+                PolicyDocument=json.dumps(policy),
+            )
+            return {"status": "applied"}
+
+  - name: VerifyPolicyApplied
+    action: aws:executeScript
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Runtime: python3.11
+      Handler: verify
+      InputPayload:
+        RoleName: "{{ RoleName }}"
+      Script: |-
+        import boto3
+
+        def verify(event, context):
+            boto3.client("iam").get_role_policy(
+                RoleName=event["RoleName"], PolicyName="asr-inline"
+            )
+            return {"status": "verified"}

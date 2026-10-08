@@ -92,6 +92,63 @@ export function getControlIdFromFindingId(findingId: string): string | undefined
   return undefined;
 }
 
+/**
+ * Matches a finding ARN and captures its 12-digit account segment
+ * (`arn:partition:service:region:ACCOUNT:...`).
+ *
+ * The partition (`aws(?:-[a-z]+)*`) and region (`[a-z0-9-]+\d`) segments are broad enough to
+ * cover the isolated and sovereign partitions the rest of the solution handles —
+ * `aws-iso`/`aws-iso-b`/`aws-eusc` with regions like `us-iso-east-1` and `eusc-de-east-1` —
+ * not just the three commercial-adjacent ones. Narrowing them would make {@link
+ * tryAccountIdFromFindingId} return undefined for a legitimate finding in those partitions, and
+ * since callers fail closed on undefined, that would deny an Account Operator there access to
+ * findings they own. The 12-digit account form is still required, so a genuinely non-ARN id
+ * yields undefined rather than a wrong account.
+ *
+ * Hoisted to module scope so it is compiled once rather than on every call, matching the other
+ * finding-id regexes in this file.
+ */
+const FINDING_ARN_ACCOUNT_REGEX = /^arn:aws(?:-[a-z]+)*:[a-z0-9-]+:[a-z0-9-]+\d:(\d{12}):/;
+
+/**
+ * Extracts the AWS account id from a finding id, or undefined when the id does not encode one.
+ *
+ * Every finding id ASR persists that carries an account is an ARN, and an ARN's account is its
+ * fifth colon-separated segment (`arn:partition:service:region:ACCOUNT:...`). This reads that
+ * segment for the same Security Hub and native multi-service ARN families {@link
+ * getControlIdFromFindingId} recognizes, requiring the standard 12-digit account form so a
+ * malformed or non-ARN id (e.g. a bare Security Hub V2 uid) yields undefined rather than a wrong
+ * account.
+ *
+ * Fails closed by design: callers authorize account access with the result, so an id whose account
+ * cannot be proven must not be treated as belonging to any account. The `try` prefix marks the
+ * graceful contract — it returns undefined instead of throwing. See ADR 0010.
+ */
+export function tryAccountIdFromFindingId(findingId: string): string | undefined {
+  const match = FINDING_ARN_ACCOUNT_REGEX.exec(findingId);
+  return match ? match[1] : undefined;
+}
+
+/** Companion to {@link FINDING_ARN_ACCOUNT_REGEX} capturing the region instead of the account. */
+const FINDING_ARN_REGION_REGEX = /^arn:aws(?:-[a-z]+)*:[a-z0-9-]+:([a-z0-9-]+\d):\d{12}:/;
+
+/**
+ * Extracts the AWS region from a finding id, or undefined when the id does not encode one.
+ *
+ * A finding ARN's region is its fourth colon-separated segment
+ * (`arn:partition:service:REGION:account:...`), and it names the region that owns the
+ * finding — which is not necessarily the region ASR is deployed in, because a findings
+ * search returns rows from every aggregated region.
+ *
+ * Fails closed the same way {@link tryAccountIdFromFindingId} does: the 12-digit account
+ * segment must follow, so a malformed or non-ARN id yields undefined rather than a wrong
+ * region, and the caller decides what to fall back to. See ADR 0010.
+ */
+export function tryRegionFromFindingId(findingId: string): string | undefined {
+  const match = FINDING_ARN_REGION_REGEX.exec(findingId);
+  return match ? match[1] : undefined;
+}
+
 /** Thrown when the findings-table partition key cannot be resolved: the finding
  * id does not encode it and no explicit findingType was supplied. Writing an
  * empty key to DynamoDB would be rejected with a `ValidationException`; failing

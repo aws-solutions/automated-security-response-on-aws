@@ -12,6 +12,16 @@ else:
 
 logger = get_logger("findings_repository")
 
+# Statuses that mean the remediation finished cleanly, so any `error` left on the
+# row belongs to an earlier attempt and must not survive the update. Mirrors the
+# success values in `layer/metrics.py`; the forward and rollback paths write
+# different ones, and both can follow a failed attempt on the same row.
+#
+# Defined here rather than in `history_repository`, which imports this module: both
+# rows of `transact_update_finding_and_history` need the same rule, and one
+# definition is what keeps them from drifting apart.
+SUCCESS_STATUSES = frozenset({"SUCCESS", "ROLLBACK_SUCCESS"})
+
 
 class PartialFindingData(TypedDict, total=False):
     """Subset of fields from a Finding table item used for history record creation."""
@@ -131,6 +141,7 @@ def build_update_item(
     error: Optional[str] = None,
 ) -> dict[str, Any]:
     update_expression = "SET remediationStatus = :rs"
+    remove_expression = ""
     expression_values = {
         ":rs": {"S": remediation_status},
     }
@@ -144,6 +155,21 @@ def build_update_item(
         update_expression += ", #err = :err"
         expression_names["#err"] = "error"
         expression_values[":err"] = {"S": error}
+    elif remediation_status in SUCCESS_STATUSES:
+        # The same clear the history row gets, for the same reason: `SET` never removes
+        # an attribute, so a failed attempt's `error` would survive a successful retry
+        # and leave this row reporting SUCCESS beside a stale message. This is the row
+        # the findings list reads, so fixing only the history row left the defect on the
+        # copy a customer actually sees.
+        #
+        # Scoped to the success statuses rather than to "no error was passed", because
+        # partial updates legitimately re-assert a failed status without resupplying the
+        # message; removing it there would discard why it failed.
+        remove_expression = " REMOVE #err"
+        expression_names["#err"] = "error"
+
+    # REMOVE is its own clause and has to follow every SET assignment.
+    update_expression += remove_expression
 
     finding_update_item: dict[str, Any] = {
         "Update": {

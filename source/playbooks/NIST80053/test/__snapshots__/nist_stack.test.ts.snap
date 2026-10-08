@@ -142,30 +142,20 @@ This document changes all public EC2 snapshots to private
                   "resource_index": 2,
                 },
                 "Runtime": "python3.11",
-                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-# NOTE: Comments are kept minimal to reduce CloudFormation template size.
-# This script is embedded inline in every control runbook SSM document.
-import json
+                "Script": "import json
 import re
 from typing import Any
-
 import boto3
 from botocore.config import Config
-
-
+ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+AWS_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\\d")
+AWS_SERVICE_PATTERN = re.compile(r"[a-z][a-z0-9-]*")
 def connect_to_config(boto_config):
     return boto3.client("config", config=boto_config)
-
-
 def connect_to_ssm(boto_config):
     return boto3.client("ssm", config=boto_config)
-
-
 def get_solution_id():
     return "SO0111"
-
-
 def get_solution_version():
     ssm = connect_to_ssm(
         Config(
@@ -183,8 +173,6 @@ def get_solution_version():
         print(e)
         print("ERROR getting solution version")
     return solution_version
-
-
 def get_shortname(long_name):
     short_name = {
         "aws-foundational-security-best-practices": "AFSBP",
@@ -193,8 +181,6 @@ def get_shortname(long_name):
         "security-control": "SC",
     }
     return short_name.get(long_name, None)
-
-
 def get_config_rule(rule_name):
     boto_config = Config(
         retries={"mode": "standard"},
@@ -210,27 +196,20 @@ def get_config_rule(rule_name):
         print(e)
         exit(f"ERROR getting config rule {rule_name}")
     return config_rule
-
-
 class FindingEvent:
-
     product_arn: str | None
-
     def _get_resource_id(self, parse_id_pattern, resource_index):
         identifier_raw = self.finding_json["Resources"][0]["Id"]
         self.resource_id = identifier_raw
         self.resource_id_matches = []
-
         if parse_id_pattern:
             identifier_match = re.match(parse_id_pattern, identifier_raw)
-
             if identifier_match:
                 for group in range(1, len(identifier_match.groups()) + 1):
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f"ERROR: Invalid resource Id {identifier_raw}")
-
     def _get_sc_check(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
@@ -240,9 +219,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname("security-control")
             self.control_id = match_finding_id.group(1)
-
         return match_finding_id
-
     def _get_standard_info(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
@@ -260,7 +237,6 @@ class FindingEvent:
                 self.invalid_finding_reason = (
                     f'Finding Id is invalid: {self.finding_json["Id"]}'
                 )
-
     def _fetch_aws_config_rule(self) -> tuple[str | None, dict[str, Any]]:
         product_fields = self.finding_json.get("ProductFields", {})
         if (
@@ -272,17 +248,20 @@ class FindingEvent:
         if not rule_name:
             return None, {}
         return rule_name, get_config_rule(rule_name)
-
-    def _get_region_from_resource_id(self):
-        check_for_region = re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
-            self.finding_json["Resources"][0]["Id"],
-        )
-        if check_for_region:
-            self.resource_region = check_for_region.group(1)
-        else:
-            self.resource_region = self.finding_json["Resources"][0]["Region"]
-
+    def _get_region_from_resource_id(self) -> None:
+        resource = self.finding_json["Resources"][0]
+        arn_parts = resource["Id"].split(":", 5)
+        if len(arn_parts) == 6:
+            arn_label, partition, service, region, _, _ = arn_parts
+            if (
+                arn_label == "arn"
+                and partition in ARN_PARTITIONS
+                and AWS_SERVICE_PATTERN.fullmatch(service) is not None
+                and AWS_REGION_PATTERN.fullmatch(region) is not None
+            ):
+                self.resource_region = region
+                return
+        self.resource_region = resource["Region"]
     def _resolve_product_arn(self) -> None:
         if not self.valid_finding:
             return
@@ -299,7 +278,6 @@ class FindingEvent:
             return
         self.valid_finding = False
         self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
-
     def __init__(
         self,
         finding_json: dict[str, Any],
@@ -313,11 +291,9 @@ class FindingEvent:
         self.aws_config_rule_id: str | None = None
         self.aws_config_rule: dict[str, Any] = {}
         self.input_params = {}
-
         self.finding_json: Any = dict(finding_json)
         self._get_resource_id(parse_id_pattern, resource_index)
         self._get_standard_info()
-
         self.account_id = self.finding_json.get("AwsAccountId", None)
         if not re.match(r"^\\d{12}$", self.account_id or "") and self.valid_finding:
             self.valid_finding = False
@@ -330,16 +306,13 @@ class FindingEvent:
         self.resource = self.finding_json["Resources"][0]
         self._get_region_from_resource_id()
         self.aws_config_rule_id, self.aws_config_rule = self._fetch_aws_config_rule()
-
         if "InputParameters" in self.aws_config_rule:
             self.input_params = json.loads(self.aws_config_rule["InputParameters"])
-
         self.affected_object = {
             "Type": self.resource["Type"],
             "Id": self.resource_id,
             "OutputKey": "Remediation.Output",
         }
-
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -347,21 +320,16 @@ class FindingEvent:
         elif self.control_id not in expected_control_id and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
-
         if not self.resource_id and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = (
                 "Resource Id is missing from the finding json Resources (Id)"
             )
-
         if not self.valid_finding:
             msg = f"ERROR: {self.invalid_finding_reason}"
             exit(msg)
-
     def __str__(self):
         return json.dumps(self.__dict__)
-
-
 def parse_event(event, _):
     finding_event = FindingEvent(
         event["Finding"],
@@ -369,10 +337,8 @@ def parse_event(event, _):
         event["expected_control_id"],
         event.get("resource_index", 1),
     )
-
     if not finding_event.valid_finding:
         exit("ERROR: Finding is not valid")
-
     return {
         "account_id": finding_event.account_id,
         "resource_id": finding_event.resource_id,
@@ -388,8 +354,7 @@ def parse_event(event, _):
         "finding": finding_event.finding_json,
         "aws_config_rule": finding_event.aws_config_rule,
         "input_params": finding_event.input_params,
-    }
-",
+    }",
               },
               "name": "ParseInput",
               "outputs": [
@@ -467,15 +432,9 @@ def parse_event(event, _):
                   "execution_id": "{{ Remediation.ExecutionId }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-# NOTE: Intentionally minified to reduce CloudFormation template size.
-import json
+                "Script": "import json
 import re
-
 import boto3
-
-
 def is_wrapper(execution):
     steps = execution.get("StepExecutions", [])
     if len(steps) != 1:
@@ -484,13 +443,9 @@ def is_wrapper(execution):
     return step.get("Action") == "aws:executeAutomation" and bool(
         re.match(r"^\\d+_[\\w-]+$", step.get("StepName", ""))
     )
-
-
 def get_child_id(execution):
     steps = execution.get("StepExecutions", [])
     return steps[0].get("Outputs", {}).get("ExecutionId", [None])[0] if steps else None
-
-
 def get_remediation_details(event, _):
     execution_id, region = event["execution_id"], event.get("target_region")
     client = boto3.client("ssm", region_name=region) if region else boto3.client("ssm")
@@ -506,8 +461,7 @@ def get_remediation_details(event, _):
     return {
         "outputs": json.dumps(execution.get("Outputs", {})),
         "failure_message": execution.get("FailureMessage", ""),
-    }
-",
+    }",
               },
               "isEnd": true,
               "name": "GetRemediationDetails",
@@ -607,30 +561,20 @@ function. The remediation is to remove the SID of the public policy.
                   "parse_id_pattern": "^arn:(?:aws|aws-us-gov|aws-cn):lambda:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:function:([a-zA-Z0-9\\-_]{1,64})$",
                 },
                 "Runtime": "python3.11",
-                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-# NOTE: Comments are kept minimal to reduce CloudFormation template size.
-# This script is embedded inline in every control runbook SSM document.
-import json
+                "Script": "import json
 import re
 from typing import Any
-
 import boto3
 from botocore.config import Config
-
-
+ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+AWS_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\\d")
+AWS_SERVICE_PATTERN = re.compile(r"[a-z][a-z0-9-]*")
 def connect_to_config(boto_config):
     return boto3.client("config", config=boto_config)
-
-
 def connect_to_ssm(boto_config):
     return boto3.client("ssm", config=boto_config)
-
-
 def get_solution_id():
     return "SO0111"
-
-
 def get_solution_version():
     ssm = connect_to_ssm(
         Config(
@@ -648,8 +592,6 @@ def get_solution_version():
         print(e)
         print("ERROR getting solution version")
     return solution_version
-
-
 def get_shortname(long_name):
     short_name = {
         "aws-foundational-security-best-practices": "AFSBP",
@@ -658,8 +600,6 @@ def get_shortname(long_name):
         "security-control": "SC",
     }
     return short_name.get(long_name, None)
-
-
 def get_config_rule(rule_name):
     boto_config = Config(
         retries={"mode": "standard"},
@@ -675,27 +615,20 @@ def get_config_rule(rule_name):
         print(e)
         exit(f"ERROR getting config rule {rule_name}")
     return config_rule
-
-
 class FindingEvent:
-
     product_arn: str | None
-
     def _get_resource_id(self, parse_id_pattern, resource_index):
         identifier_raw = self.finding_json["Resources"][0]["Id"]
         self.resource_id = identifier_raw
         self.resource_id_matches = []
-
         if parse_id_pattern:
             identifier_match = re.match(parse_id_pattern, identifier_raw)
-
             if identifier_match:
                 for group in range(1, len(identifier_match.groups()) + 1):
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f"ERROR: Invalid resource Id {identifier_raw}")
-
     def _get_sc_check(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
@@ -705,9 +638,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname("security-control")
             self.control_id = match_finding_id.group(1)
-
         return match_finding_id
-
     def _get_standard_info(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
@@ -725,7 +656,6 @@ class FindingEvent:
                 self.invalid_finding_reason = (
                     f'Finding Id is invalid: {self.finding_json["Id"]}'
                 )
-
     def _fetch_aws_config_rule(self) -> tuple[str | None, dict[str, Any]]:
         product_fields = self.finding_json.get("ProductFields", {})
         if (
@@ -737,17 +667,20 @@ class FindingEvent:
         if not rule_name:
             return None, {}
         return rule_name, get_config_rule(rule_name)
-
-    def _get_region_from_resource_id(self):
-        check_for_region = re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
-            self.finding_json["Resources"][0]["Id"],
-        )
-        if check_for_region:
-            self.resource_region = check_for_region.group(1)
-        else:
-            self.resource_region = self.finding_json["Resources"][0]["Region"]
-
+    def _get_region_from_resource_id(self) -> None:
+        resource = self.finding_json["Resources"][0]
+        arn_parts = resource["Id"].split(":", 5)
+        if len(arn_parts) == 6:
+            arn_label, partition, service, region, _, _ = arn_parts
+            if (
+                arn_label == "arn"
+                and partition in ARN_PARTITIONS
+                and AWS_SERVICE_PATTERN.fullmatch(service) is not None
+                and AWS_REGION_PATTERN.fullmatch(region) is not None
+            ):
+                self.resource_region = region
+                return
+        self.resource_region = resource["Region"]
     def _resolve_product_arn(self) -> None:
         if not self.valid_finding:
             return
@@ -764,7 +697,6 @@ class FindingEvent:
             return
         self.valid_finding = False
         self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
-
     def __init__(
         self,
         finding_json: dict[str, Any],
@@ -778,11 +710,9 @@ class FindingEvent:
         self.aws_config_rule_id: str | None = None
         self.aws_config_rule: dict[str, Any] = {}
         self.input_params = {}
-
         self.finding_json: Any = dict(finding_json)
         self._get_resource_id(parse_id_pattern, resource_index)
         self._get_standard_info()
-
         self.account_id = self.finding_json.get("AwsAccountId", None)
         if not re.match(r"^\\d{12}$", self.account_id or "") and self.valid_finding:
             self.valid_finding = False
@@ -795,16 +725,13 @@ class FindingEvent:
         self.resource = self.finding_json["Resources"][0]
         self._get_region_from_resource_id()
         self.aws_config_rule_id, self.aws_config_rule = self._fetch_aws_config_rule()
-
         if "InputParameters" in self.aws_config_rule:
             self.input_params = json.loads(self.aws_config_rule["InputParameters"])
-
         self.affected_object = {
             "Type": self.resource["Type"],
             "Id": self.resource_id,
             "OutputKey": "Remediation.Output",
         }
-
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -812,21 +739,16 @@ class FindingEvent:
         elif self.control_id not in expected_control_id and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
-
         if not self.resource_id and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = (
                 "Resource Id is missing from the finding json Resources (Id)"
             )
-
         if not self.valid_finding:
             msg = f"ERROR: {self.invalid_finding_reason}"
             exit(msg)
-
     def __str__(self):
         return json.dumps(self.__dict__)
-
-
 def parse_event(event, _):
     finding_event = FindingEvent(
         event["Finding"],
@@ -834,10 +756,8 @@ def parse_event(event, _):
         event["expected_control_id"],
         event.get("resource_index", 1),
     )
-
     if not finding_event.valid_finding:
         exit("ERROR: Finding is not valid")
-
     return {
         "account_id": finding_event.account_id,
         "resource_id": finding_event.resource_id,
@@ -853,8 +773,7 @@ def parse_event(event, _):
         "finding": finding_event.finding_json,
         "aws_config_rule": finding_event.aws_config_rule,
         "input_params": finding_event.input_params,
-    }
-",
+    }",
               },
               "name": "ParseInput",
               "outputs": [
@@ -948,15 +867,9 @@ def parse_event(event, _):
                   "target_region": "{{ ParseInput.RemediationRegion }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-# NOTE: Intentionally minified to reduce CloudFormation template size.
-import json
+                "Script": "import json
 import re
-
 import boto3
-
-
 def is_wrapper(execution):
     steps = execution.get("StepExecutions", [])
     if len(steps) != 1:
@@ -965,13 +878,9 @@ def is_wrapper(execution):
     return step.get("Action") == "aws:executeAutomation" and bool(
         re.match(r"^\\d+_[\\w-]+$", step.get("StepName", ""))
     )
-
-
 def get_child_id(execution):
     steps = execution.get("StepExecutions", [])
     return steps[0].get("Outputs", {}).get("ExecutionId", [None])[0] if steps else None
-
-
 def get_remediation_details(event, _):
     execution_id, region = event["execution_id"], event.get("target_region")
     client = boto3.client("ssm", region_name=region) if region else boto3.client("ssm")
@@ -987,8 +896,7 @@ def get_remediation_details(event, _):
     return {
         "outputs": json.dumps(execution.get("Outputs", {})),
         "failure_message": execution.get("FailureMessage", ""),
-    }
-",
+    }",
               },
               "isEnd": true,
               "name": "GetRemediationDetails",
@@ -1086,30 +994,20 @@ This document changes public RDS snapshot to private
                   "resource_index": 2,
                 },
                 "Runtime": "python3.11",
-                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-# NOTE: Comments are kept minimal to reduce CloudFormation template size.
-# This script is embedded inline in every control runbook SSM document.
-import json
+                "Script": "import json
 import re
 from typing import Any
-
 import boto3
 from botocore.config import Config
-
-
+ARN_PARTITIONS = frozenset(("aws", "aws-cn", "aws-us-gov"))
+AWS_REGION_PATTERN = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\\d")
+AWS_SERVICE_PATTERN = re.compile(r"[a-z][a-z0-9-]*")
 def connect_to_config(boto_config):
     return boto3.client("config", config=boto_config)
-
-
 def connect_to_ssm(boto_config):
     return boto3.client("ssm", config=boto_config)
-
-
 def get_solution_id():
     return "SO0111"
-
-
 def get_solution_version():
     ssm = connect_to_ssm(
         Config(
@@ -1127,8 +1025,6 @@ def get_solution_version():
         print(e)
         print("ERROR getting solution version")
     return solution_version
-
-
 def get_shortname(long_name):
     short_name = {
         "aws-foundational-security-best-practices": "AFSBP",
@@ -1137,8 +1033,6 @@ def get_shortname(long_name):
         "security-control": "SC",
     }
     return short_name.get(long_name, None)
-
-
 def get_config_rule(rule_name):
     boto_config = Config(
         retries={"mode": "standard"},
@@ -1154,27 +1048,20 @@ def get_config_rule(rule_name):
         print(e)
         exit(f"ERROR getting config rule {rule_name}")
     return config_rule
-
-
 class FindingEvent:
-
     product_arn: str | None
-
     def _get_resource_id(self, parse_id_pattern, resource_index):
         identifier_raw = self.finding_json["Resources"][0]["Id"]
         self.resource_id = identifier_raw
         self.resource_id_matches = []
-
         if parse_id_pattern:
             identifier_match = re.match(parse_id_pattern, identifier_raw)
-
             if identifier_match:
                 for group in range(1, len(identifier_match.groups()) + 1):
                     self.resource_id_matches.append(identifier_match.group(group))
                 self.resource_id = identifier_match.group(resource_index)
             else:
                 exit(f"ERROR: Invalid resource Id {identifier_raw}")
-
     def _get_sc_check(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
@@ -1184,9 +1071,7 @@ class FindingEvent:
         if match_finding_id:
             self.standard_id = get_shortname("security-control")
             self.control_id = match_finding_id.group(1)
-
         return match_finding_id
-
     def _get_standard_info(self):
         match_finding_id = re.match(
             r"^arn:(?:aws|aws-cn|aws-us-gov):securityhub:(?:[a-z]{2}(?:-gov)?-[a-z]+-\\d):\\d{12}:"
@@ -1204,7 +1089,6 @@ class FindingEvent:
                 self.invalid_finding_reason = (
                     f'Finding Id is invalid: {self.finding_json["Id"]}'
                 )
-
     def _fetch_aws_config_rule(self) -> tuple[str | None, dict[str, Any]]:
         product_fields = self.finding_json.get("ProductFields", {})
         if (
@@ -1216,17 +1100,20 @@ class FindingEvent:
         if not rule_name:
             return None, {}
         return rule_name, get_config_rule(rule_name)
-
-    def _get_region_from_resource_id(self):
-        check_for_region = re.match(
-            r"^arn:(?:aws|aws-cn|aws-us-gov):[a-zA-Z0-9]+:([a-z]{2}(?:-gov)?-[a-z]+-\\d):.*:.*$",
-            self.finding_json["Resources"][0]["Id"],
-        )
-        if check_for_region:
-            self.resource_region = check_for_region.group(1)
-        else:
-            self.resource_region = self.finding_json["Resources"][0]["Region"]
-
+    def _get_region_from_resource_id(self) -> None:
+        resource = self.finding_json["Resources"][0]
+        arn_parts = resource["Id"].split(":", 5)
+        if len(arn_parts) == 6:
+            arn_label, partition, service, region, _, _ = arn_parts
+            if (
+                arn_label == "arn"
+                and partition in ARN_PARTITIONS
+                and AWS_SERVICE_PATTERN.fullmatch(service) is not None
+                and AWS_REGION_PATTERN.fullmatch(region) is not None
+            ):
+                self.resource_region = region
+                return
+        self.resource_region = resource["Region"]
     def _resolve_product_arn(self) -> None:
         if not self.valid_finding:
             return
@@ -1243,7 +1130,6 @@ class FindingEvent:
             return
         self.valid_finding = False
         self.invalid_finding_reason = f"ProductArn is invalid: {self.product_arn}"
-
     def __init__(
         self,
         finding_json: dict[str, Any],
@@ -1257,11 +1143,9 @@ class FindingEvent:
         self.aws_config_rule_id: str | None = None
         self.aws_config_rule: dict[str, Any] = {}
         self.input_params = {}
-
         self.finding_json: Any = dict(finding_json)
         self._get_resource_id(parse_id_pattern, resource_index)
         self._get_standard_info()
-
         self.account_id = self.finding_json.get("AwsAccountId", None)
         if not re.match(r"^\\d{12}$", self.account_id or "") and self.valid_finding:
             self.valid_finding = False
@@ -1274,16 +1158,13 @@ class FindingEvent:
         self.resource = self.finding_json["Resources"][0]
         self._get_region_from_resource_id()
         self.aws_config_rule_id, self.aws_config_rule = self._fetch_aws_config_rule()
-
         if "InputParameters" in self.aws_config_rule:
             self.input_params = json.loads(self.aws_config_rule["InputParameters"])
-
         self.affected_object = {
             "Type": self.resource["Type"],
             "Id": self.resource_id,
             "OutputKey": "Remediation.Output",
         }
-
         if not self.control_id:
             if self.valid_finding:
                 self.valid_finding = False
@@ -1291,21 +1172,16 @@ class FindingEvent:
         elif self.control_id not in expected_control_id and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = f"Control Id from input ({self.control_id}) does not match {str(expected_control_id)}"
-
         if not self.resource_id and self.valid_finding:
             self.valid_finding = False
             self.invalid_finding_reason = (
                 "Resource Id is missing from the finding json Resources (Id)"
             )
-
         if not self.valid_finding:
             msg = f"ERROR: {self.invalid_finding_reason}"
             exit(msg)
-
     def __str__(self):
         return json.dumps(self.__dict__)
-
-
 def parse_event(event, _):
     finding_event = FindingEvent(
         event["Finding"],
@@ -1313,10 +1189,8 @@ def parse_event(event, _):
         event["expected_control_id"],
         event.get("resource_index", 1),
     )
-
     if not finding_event.valid_finding:
         exit("ERROR: Finding is not valid")
-
     return {
         "account_id": finding_event.account_id,
         "resource_id": finding_event.resource_id,
@@ -1332,8 +1206,7 @@ def parse_event(event, _):
         "finding": finding_event.finding_json,
         "aws_config_rule": finding_event.aws_config_rule,
         "input_params": finding_event.input_params,
-    }
-",
+    }",
               },
               "name": "ParseInput",
               "outputs": [
@@ -1433,15 +1306,9 @@ def parse_event(event, _):
                   "target_region": "{{ ParseInput.RemediationRegion }}",
                 },
                 "Runtime": "python3.11",
-                "Script": "# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-# NOTE: Intentionally minified to reduce CloudFormation template size.
-import json
+                "Script": "import json
 import re
-
 import boto3
-
-
 def is_wrapper(execution):
     steps = execution.get("StepExecutions", [])
     if len(steps) != 1:
@@ -1450,13 +1317,9 @@ def is_wrapper(execution):
     return step.get("Action") == "aws:executeAutomation" and bool(
         re.match(r"^\\d+_[\\w-]+$", step.get("StepName", ""))
     )
-
-
 def get_child_id(execution):
     steps = execution.get("StepExecutions", [])
     return steps[0].get("Outputs", {}).get("ExecutionId", [None])[0] if steps else None
-
-
 def get_remediation_details(event, _):
     execution_id, region = event["execution_id"], event.get("target_region")
     client = boto3.client("ssm", region_name=region) if region else boto3.client("ssm")
@@ -1472,8 +1335,7 @@ def get_remediation_details(event, _):
     return {
         "outputs": json.dumps(execution.get("Outputs", {})),
         "failure_message": execution.get("FailureMessage", ""),
-    }
-",
+    }",
               },
               "isEnd": true,
               "name": "GetRemediationDetails",

@@ -99,6 +99,89 @@ describe('BaseHandler', () => {
     });
   });
 
+  describe('createRequestScopedAccessRules', () => {
+    const operator = (authorizedAccounts: string[]): AuthenticatedUser => ({
+      username: 'op',
+      email: 'op@example.com',
+      groups: ['AccountOperatorGroup'],
+      authorizedAccounts,
+    });
+
+    // Mirrors how findings.ts and remediations.ts authorize a search request.
+    const rulesForRequest = (request: Parameters<typeof baseHandler.createRequestScopedAccessRules>[0]) =>
+      baseHandler.createRequestScopedAccessRules(request);
+
+    const rootLevelAccountFilter = (accountId: string, comparison = 'EQUALS') => ({
+      Filters: { StringFilters: [{ FieldName: 'accountId', Filter: { Value: accountId, Comparison: comparison } }] },
+    });
+
+    it('denies an operator requesting an unauthorized account via a root-level filter', async () => {
+      await expect(
+        rulesForRequest(rootLevelAccountFilter('999988887777')).validator!(operator(['111122223333'])),
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows an operator requesting their own account via a root-level filter', async () => {
+      await expect(
+        rulesForRequest(rootLevelAccountFilter('111122223333')).validator!(operator(['111122223333'])),
+      ).resolves.toBeUndefined();
+    });
+
+    it('denies an operator negating their own account to read every other account', async () => {
+      // The filter value is authorized, so a check that reads only values admits
+      // it, while the query it produces excludes that account and returns the
+      // rest. The appended ceiling cannot narrow this: filters on one field are
+      // combined with OR.
+      await expect(
+        rulesForRequest(rootLevelAccountFilter('111122223333', 'NOT_EQUALS')).validator!(operator(['111122223333'])),
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('denies an operator whose accountId filter carries no comparison', async () => {
+      const request = {
+        Filters: { StringFilters: [{ FieldName: 'accountId', Filter: { Value: '111122223333' } }] },
+      };
+      await expect(rulesForRequest(request).validator!(operator(['111122223333']))).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows an admin to use a negated accountId filter', async () => {
+      const admin: AuthenticatedUser = {
+        username: 'admin',
+        email: 'admin@example.com',
+        groups: ['AdminGroup'],
+        authorizedAccounts: [],
+      };
+      await expect(
+        rulesForRequest(rootLevelAccountFilter('111122223333', 'NOT_EQUALS')).validator!(admin),
+      ).resolves.toBeUndefined();
+    });
+
+    it('denies an operator whose accountId filter carries no value', async () => {
+      // Conversion drops a filter with no value, so admitting it would authorize
+      // a request that reaches the query with no account scope.
+      const request = {
+        Filters: { StringFilters: [{ FieldName: 'accountId', Filter: { Comparison: 'EQUALS' } }] },
+      };
+      await expect(rulesForRequest(request).validator!(operator(['111122223333']))).rejects.toThrow(ForbiddenError);
+    });
+
+    it('denies rather than throwing when an accountId filter has no Filter object', async () => {
+      const request = { Filters: { StringFilters: [{ FieldName: 'accountId' }] } };
+      await expect(rulesForRequest(request).validator!(operator(['111122223333']))).rejects.toThrow(ForbiddenError);
+    });
+
+    it('denies an operator requesting an unauthorized account via a composite filter', async () => {
+      const request = {
+        Filters: {
+          CompositeFilters: [
+            { StringFilters: [{ FieldName: 'accountId', Filter: { Value: '999988887777', Comparison: 'EQUALS' } }] },
+          ],
+        },
+      };
+      await expect(rulesForRequest(request).validator!(operator(['111122223333']))).rejects.toThrow(ForbiddenError);
+    });
+  });
+
   describe('validateAccess', () => {
     const claims = { username: 'u@example.com', 'cognito:groups': ['AdminGroup'] } as any;
     const authedUser: AuthenticatedUser = {
@@ -193,30 +276,77 @@ describe('BaseHandler', () => {
     });
   });
 
-  describe('extractAccountIdsFromRequest', () => {
-    it('returns an empty array when there are no composite filters', () => {
-      expect(baseHandler.extractAccountIdsFromRequest({})).toEqual([]);
-      expect(baseHandler.extractAccountIdsFromRequest({ Filters: {} })).toEqual([]);
+  describe('extractAccountScopeFromRequest', () => {
+    const equals = (fieldName: string, value: string) => ({
+      FieldName: fieldName,
+      Filter: { Value: value, Comparison: 'EQUALS' },
+    });
+
+    it('returns an empty scope when there are no filters at all', () => {
+      expect(baseHandler.extractAccountScopeFromRequest({})).toEqual({
+        accountIds: [],
+        hasUnusableAccountFilter: false,
+      });
+      expect(baseHandler.extractAccountScopeFromRequest({ Filters: {} })).toEqual({
+        accountIds: [],
+        hasUnusableAccountFilter: false,
+      });
+    });
+
+    it('extracts an accountId supplied as a root-level string filter', () => {
+      // A root-level filter previously returned an empty list, which let the
+      // per-account authorization check pass without narrowing the request.
+      const request = {
+        Filters: { StringFilters: [equals('accountId', '999988887777'), equals('region', 'us-east-1')] },
+      };
+      expect(baseHandler.extractAccountScopeFromRequest(request)).toEqual({
+        accountIds: ['999988887777'],
+        hasUnusableAccountFilter: false,
+      });
+    });
+
+    it('extracts accountIds from both filter shapes and de-duplicates across them', () => {
+      const request = {
+        Filters: {
+          StringFilters: [equals('accountId', '999988887777')],
+          CompositeFilters: [
+            { StringFilters: [equals('accountId', '111122223333')] },
+            { StringFilters: [equals('accountId', '999988887777')] },
+          ],
+        },
+      };
+      const scope = baseHandler.extractAccountScopeFromRequest(request);
+      expect(scope.accountIds.sort()).toEqual(['111122223333', '999988887777']);
+      expect(scope.hasUnusableAccountFilter).toBe(false);
+    });
+
+    it('flags a negated accountId filter, which cannot be narrowed to authorized accounts', () => {
+      const request = {
+        Filters: {
+          StringFilters: [{ FieldName: 'accountId', Filter: { Value: '111122223333', Comparison: 'NOT_EQUALS' } }],
+        },
+      };
+      expect(baseHandler.extractAccountScopeFromRequest(request).hasUnusableAccountFilter).toBe(true);
+    });
+
+    it('flags an accountId filter with no comparison, which is dropped before it reaches the query', () => {
+      const request = {
+        Filters: { StringFilters: [{ FieldName: 'accountId', Filter: { Value: '111122223333' } }] },
+      };
+      expect(baseHandler.extractAccountScopeFromRequest(request).hasUnusableAccountFilter).toBe(true);
     });
 
     it('extracts and de-duplicates accountId string filters', () => {
       const request = {
         Filters: {
           CompositeFilters: [
-            {
-              StringFilters: [
-                { FieldName: 'accountId', Filter: { Value: '111122223333' } },
-                { FieldName: 'region', Filter: { Value: 'us-east-1' } },
-              ],
-            },
-            {
-              StringFilters: [{ FieldName: 'accountId', Filter: { Value: '111122223333' } }],
-            },
+            { StringFilters: [equals('accountId', '111122223333'), equals('region', 'us-east-1')] },
+            { StringFilters: [equals('accountId', '111122223333')] },
             {}, // composite filter with no StringFilters
           ],
         },
       };
-      expect(baseHandler.extractAccountIdsFromRequest(request)).toEqual(['111122223333']);
+      expect(baseHandler.extractAccountScopeFromRequest(request).accountIds).toEqual(['111122223333']);
     });
   });
 

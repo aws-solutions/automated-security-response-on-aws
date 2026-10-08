@@ -23,6 +23,7 @@ import { Timeout } from 'aws-cdk-lib/aws-stepfunctions';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import TicketingFunctionNameParam from './parameters/ticketing-function-name-param';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { stripDevelopmentPrefix } from './config/cdk-config';
 
 export interface ConstructProps {
   roleArn: string;
@@ -52,7 +53,7 @@ export class OrchestratorConstruct extends Construct {
     super(scope, id);
 
     const stack = Stack.of(this);
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
+    const RESOURCE_PREFIX = stripDevelopmentPrefix(props.solutionId); // prefix on every resource name
 
     const ticketGenFunctionNameParam = new TicketingFunctionNameParam(this, 'TicketGenFunctionName');
 
@@ -431,6 +432,7 @@ export class OrchestratorConstruct extends Construct {
       parameters: {
         'EventType.$': '$.EventType',
         'Finding.$': '$.Finding',
+        'CustomActionName.$': '$.CustomActionName',
         'SSMExecution.$': '$.SSMExecution',
         'AutomationDocument.$': '$.AutomationDocument',
         Notification: {

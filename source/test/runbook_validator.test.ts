@@ -72,8 +72,12 @@ class RunbookTestHelper {
           this._validVariables.add(variable);
         }
       }
+      if (step.action === 'aws:executeAutomation') {
+        this._validVariables.add(`${name}.ExecutionId`);
+        this._validVariables.add(`${name}.Output`);
+      }
     }
-    const globals: string[] = ['global:ACCOUNT_ID', 'global:REGION', 'global:AWS_PARTITION'];
+    const globals: string[] = ['global:ACCOUNT_ID', 'global:REGION', 'global:AWS_PARTITION', 'automation:EXECUTION_ID'];
     for (const global of globals) {
       this._validVariables.add(global);
     }
@@ -528,5 +532,50 @@ test.skip.each(runbooks)('%s has valid output variables', (runbook: RunbookTestH
     for (const output of runbook.getObject().outputs) {
       expect(runbook.getValidVariables()).toContain(output);
     }
+  }
+});
+
+interface RunbookStep {
+  name: string;
+  action: string;
+  inputs?: { Script?: string; InputPayload?: Record<string, unknown> };
+  outputs?: { Selector: string }[];
+}
+
+function getRunbookByFileName(fileName: string): RunbookTestHelper {
+  const runbook = runbooks.find((candidate) => path.basename(candidate.getFile()) === fileName);
+  if (!runbook) {
+    throw Error(`Runbook not found: ${fileName}`);
+  }
+  return runbook;
+}
+
+// A BatchGetProjects response embeds every environment variable value, so the project is read inside the
+// script and no declared output may carry project data. The Python tests cannot see the document's outputs.
+test('ReplaceCodeBuildClearTextCredentials publishes no CodeBuild project data', () => {
+  const runbook = getRunbookByFileName('ReplaceCodeBuildClearTextCredentials.yaml');
+  const steps: RunbookStep[] = runbook.getObject().mainSteps;
+
+  const replaceCredentialsStep = steps.find((step) => step.name === 'ReplaceCredentials');
+  expect(replaceCredentialsStep).toBeDefined();
+  expect(Object.keys(replaceCredentialsStep?.inputs?.InputPayload ?? {})).toStrictEqual(['ProjectName']);
+
+  // An allowlist, because a selector such as `$.Payload` names neither "project" nor "environment".
+  expect((replaceCredentialsStep?.outputs ?? []).map((output) => output.Selector)).toStrictEqual([
+    '$.Payload.ParameterNames',
+    '$.Payload.Policy',
+    '$.Payload.AttachResponse',
+    '$.Payload.ResourceArn',
+    '$.Payload.TaggingResult',
+  ]);
+
+  const otherSteps = steps.filter((step) => step.name !== 'ReplaceCredentials');
+  const otherScripts = otherSteps
+    .filter((step) => step.action === 'aws:executeScript')
+    .map((step) => step.inputs?.Script?.trim());
+  expect(otherScripts).toStrictEqual(['%%SCRIPT=common/tag_resource.py%%']);
+
+  for (const selector of otherSteps.flatMap((step) => (step.outputs ?? []).map((output) => output.Selector))) {
+    expect(selector).not.toMatch(/project|environment/i);
   }
 });

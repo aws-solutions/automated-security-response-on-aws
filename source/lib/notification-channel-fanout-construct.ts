@@ -20,7 +20,6 @@ import { getConfig } from './config/cdk-config';
 import { ChannelLambdaEnvironmentConfig } from '@asr/data-models';
 
 export interface NotificationChannelFanoutProps {
-  readonly solutionId: string;
   readonly solutionVersion: string;
   readonly solutionsBucket: IBucket;
   readonly solutionTMN: string;
@@ -112,7 +111,7 @@ export class NotificationChannelFanoutConstruct extends Construct {
       const iamPolicies = Array.isArray(options.iamPolicy) ? options.iamPolicy : [options.iamPolicy];
       iamPolicies.forEach((policy) => fn.addToRolePolicy(policy));
       // SSM access for publishing anonymous usage metrics via sendMetrics()
-      addMetricsSsmPermissions(fn, props.solutionId);
+      addMetricsSsmPermissions(fn, props.resourceNamePrefix);
       props.channelFanoutTopic.addSubscription(
         new snsSubscriptions.LambdaSubscription(fn, {
           filterPolicy: { channelType: sns.SubscriptionFilter.stringFilter({ allowlist: [options.channelType] }) },

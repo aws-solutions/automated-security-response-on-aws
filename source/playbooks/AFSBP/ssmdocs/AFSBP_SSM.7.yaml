@@ -31,9 +31,33 @@ parameters:
     type: 'String'
     default: '%%ROLE=SO0111-EnableSSMDocumentBlockPublicSharing%%'
     allowedPattern: '^[\w+=,.@-]+$'
+  Rollback:
+    type: String
+    default: ''
+    description: '(Optional) Set to ROLLBACK to execute rollback instead of remediation.'
+    allowedValues:
+      - ''
+      - 'ROLLBACK'
+  ExecutionId:
+    type: String
+    default: ''
+    description: '(Optional) Original SSM Automation execution ID for snapshot lookup during rollback.'
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  RemediationConfigBucket:
+    type: String
+    default: '{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}'
+    description: '(Optional) S3 bucket name for snapshot storage. Resolved from SSM parameter by default.'
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+  SnapshotVersionId:
+    type: String
+    default: ''
+    description: '(Optional) S3 version ID of the snapshot object for tamper-proof reads during rollback.'
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
 outputs:
   - ParseInput.AffectedObject
   - Remediation.Output
+  - GetRemediationDetails.Output
+  - GetRemediationDetails.FailureMessage
 
 mainSteps:
   -
@@ -71,6 +95,7 @@ mainSteps:
 
   - name: Remediation
     action: 'aws:executeAutomation'
+    onFailure: 'step:GetRemediationDetails'
     inputs:
       DocumentName: ASR-EnableSSMDocumentBlockPublicSharing
       TargetLocations:
@@ -80,6 +105,23 @@ mainSteps:
       RuntimeParameters:
         AutomationAssumeRole: 'arn:{{global:AWS_PARTITION}}:iam::{{global:ACCOUNT_ID}}:role/{{RemediationRoleName}}'
         AccountId: '{{ParseInput.AccountId}}'
+        ControlExecutionId: '{{automation:EXECUTION_ID}}'
+        Rollback: '{{Rollback}}'
+        ExecutionId: '{{ExecutionId}}'
+        RemediationConfigBucket: '{{RemediationConfigBucket}}'
+        SnapshotVersionId: '{{SnapshotVersionId}}'
+  - name: CheckRollback
+    action: 'aws:branch'
+    description: >-
+      Route the rollback path past UpdateFinding. The Orchestrator posts the authoritative rollback note
+      (UpdatedBy 'ASR-Rollback') and resets the finding to NEW, so the remediation-worded note and
+      RESOLVED status below would mislabel a rolled-back finding.
+    inputs:
+      Choices:
+      - NextStep: GetRemediationDetails
+        Variable: '{{Rollback}}'
+        StringEquals: 'ROLLBACK'
+      Default: UpdateFinding
   - name: UpdateFinding
     action: 'aws:executeAwsApi'
     inputs:
@@ -94,3 +136,26 @@ mainSteps:
       Workflow:
         Status: RESOLVED
     description: Update finding
+    isEnd: false
+  - name: GetRemediationDetails
+    action: 'aws:executeScript'
+    description: >-
+      Query the child remediation execution for its outputs (snapshotStored, snapshotVersionId,
+      rollbackDescription) and failure message so the Orchestrator can determine rollback
+      availability. Terminal step on both the remediation and rollback paths.
+    inputs:
+      InputPayload:
+        execution_id: '{{Remediation.ExecutionId}}'
+        target_region: '{{ParseInput.RemediationRegion}}'
+      Runtime: python3.11
+      Handler: get_remediation_details
+      Script: |-
+        %%SCRIPT=common/get_remediation_details.py%%
+    outputs:
+      - Name: Output
+        Selector: $.Payload.outputs
+        Type: String
+      - Name: FailureMessage
+        Selector: $.Payload.failure_message
+        Type: String
+    isEnd: true

@@ -1,0 +1,20 @@
+# Trips [verify-step] and nothing else. The advisory tier is what is under test
+# here — `--lenient` has to bring this fixture all the way to exit 0 — so it must
+# satisfy every hard rule, including the [orchestrator-parameters] contract.
+schemaVersion: "0.3"
+description: No verification step present.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+  Finding:
+    type: StringMap
+    description: (Required) The ASFF finding, passed by the ASR Orchestrator.
+mainSteps:
+  - name: EnableVersioning
+    action: aws:executeAwsApi
+    timeoutSeconds: 600
+    inputs:
+      Service: s3
+      Api: PutBucketVersioning

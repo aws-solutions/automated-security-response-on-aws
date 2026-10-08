@@ -3,23 +3,32 @@
 ---
 schemaVersion: "0.3"
 description: |
-   ### Document Name - AWSConfigRemediation-EnableEnhancedMonitoringOnRDSInstance
+  ### Document Name - ASR-EnableEnhancedMonitoringOnRDSInstance
 
-   ## What does this document do?
-   This document is used to enable enhanced monitoring on an RDS Instance using the input parameter DB Instance ARN.
+  ## What does this document do?
+  This document enables Enhanced Monitoring on a given Amazon RDS instance using the [ModifyDBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_ModifyDBInstance.html) API.
 
-   ## Input Parameters
-   * RDSInstanceARN: (Required) ARN of the RDS DB Instance.
-   * MonitoringInterval: (Optional)
-      * The interval, in seconds, between points when Enhanced Monitoring metrics are collected for the DB instance.
-      * If MonitoringRoleArn is specified, then you must also set MonitoringInterval to a value other than 0.
-      * Valid Values: 1, 5, 10, 15, 30, 60
-      * Default: 60
-   * MonitoringRoleArn: (Required) The ARN for the IAM role that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs.
-   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  When invoked with Rollback=ROLLBACK, it restores the MonitoringInterval to its
+  pre-remediation state using a snapshot stored in S3.
 
-   ## Output Parameters
-   * EnableEnhancedMonitoring.DbInstance - The standard HTTP response from the ModifyDBInstance API.
+  ## Input Parameters
+  * RDSInstanceARN: (Required) ARN of the Amazon RDS instance for which Enhanced Monitoring needs to be enabled.
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * MonitoringInterval: (Optional) The interval, in seconds, between points when Enhanced Monitoring metrics are collected. Valid Values: 1, 5, 10, 15, 30, 60. Default: 60.
+  * MonitoringRoleArn: (Required) The ARN for the IAM role that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs.
+  * ApplyImmediately: (Optional) Whether modifications are applied immediately.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * ControlExecutionId: (Optional) Level 1 control-runbook execution ID, used as the S3 snapshot key during remediation.
+  * SnapshotVersionId: (Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
+
+  ## Output Parameters
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
@@ -45,84 +54,83 @@ parameters:
   MonitoringRoleArn:
     type: String
     description: (Required) The ARN for the IAM role that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs.
-    allowedPattern: ^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[a-zA-Z0-9+=,.@_/-]+$
+    allowedPattern: '^arn:(aws[a-zA-Z-]*)?:iam::\d{12}:role/[a-zA-Z0-9+=,.@_/-]+$'
+  ApplyImmediately:
+    type: Boolean
+    description: (Optional) Whether the modification is applied immediately. Defaults to true so the change takes effect now (a security remediation should not wait for the maintenance window), which the post-modify verification relies on.
+    default: true
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+
 outputs:
-  - EnableEnhancedMonitoring.DbInstance
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  -
-    name: DescribeDBInstances
-    action: "aws:executeAwsApi"
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
     description: |
-      ## DescribeDBInstances
-        Makes describeDBInstances API call using RDS Instance ARN.
-      ## Outputs
-      * DbInstanceIdentifier: DBInstance Identifier of the RDS Instance.
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation MonitoringInterval to S3, then enables Enhanced Monitoring by
+      setting the target interval. When Rollback=ROLLBACK, restores the pre-remediation interval from the snapshot.
     timeoutSeconds: 600
-    isEnd: false
-    inputs:
-      Service: rds
-      Api: DescribeDBInstances
-      DBInstanceIdentifier: "{{ RDSInstanceARN }}"
-    outputs:
-      - Name: DbInstanceIdentifier
-        Selector: $.DBInstances[0].DBInstanceIdentifier
-        Type: String
-  -
-    name: VerifyDBInstanceStatus
-    action: "aws:assertAwsResourceProperty"
-    timeoutSeconds: 600
-    isEnd: false
-    description: |
-      ## VerifyDBInstanceStatus
-      Verifies if DB Instance status is available before enabling enhanced monitoring.
-    inputs:
-      Service: rds
-      Api: DescribeDBInstances
-      DBInstanceIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
-      PropertySelector: "$.DBInstances[0].DBInstanceStatus"
-      DesiredValues:
-        - "available"
-  -
-    name: EnableEnhancedMonitoring
-    action: "aws:executeAwsApi"
-    description: |
-      ## EnableEnhancedMonitoring
-        Makes ModifyDBInstance API call to enable Enhanced Monitoring on the RDS Instance
-        using the DBInstanceId from the previous action.
-      ## Outputs
-        * DbInstance: The standard HTTP response from the ModifyDBInstance API.
-    timeoutSeconds: 600
-    isEnd: false
-    inputs:
-       Service: rds
-       Api: ModifyDBInstance
-       ApplyImmediately: False
-       DBInstanceIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
-       MonitoringInterval: "{{ MonitoringInterval }}"
-       MonitoringRoleArn: "{{ MonitoringRoleArn }}"
-    outputs:
-      - Name: DbInstance
-        Selector: $
-        Type: StringMap
-  -
-    name: VerifyEnhancedMonitoringEnabled
-    action: "aws:executeScript"
-    description: |
-      ## VerifyEnhancedMonitoringEnabled
-      Checks that the enhanced monitoring is enabled on RDS Instance in the previous step exists.
-      ## Outputs
-      * Output: The standard HTTP response from the ModifyDBInstance API.
     isEnd: true
-    timeoutSeconds: 600
     inputs:
       Runtime: python3.11
       Handler: handler
       InputPayload:
+        RDSInstanceARN: "{{ RDSInstanceARN }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
         MonitoringInterval: "{{ MonitoringInterval }}"
-        DBIdentifier: "{{ DescribeDBInstances.DbInstanceIdentifier }}"
+        MonitoringRoleArn: "{{ MonitoringRoleArn }}"
+        ApplyImmediately: "{{ ApplyImmediately }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
       Script: |-
-        %%SCRIPT=EnableEnhancedMonitoringOnRDSInstance.py%%
+        %%SCRIPT=EnableEnhancedMonitoringOnRDSInstance_rollback.py%%
     outputs:
-      - Name: Output
-        Selector: $.Payload
-        Type: StringMap
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

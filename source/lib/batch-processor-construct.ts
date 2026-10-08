@@ -18,7 +18,6 @@ import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { BatchProcessorEnvironmentConfig } from '@asr/data-models';
 
 export interface BatchProcessorProps {
-  readonly solutionId: string;
   readonly solutionVersion: string;
   readonly solutionsBucket: IBucket;
   readonly solutionTMN: string;
@@ -123,7 +122,7 @@ export class BatchProcessorConstruct extends Construct {
     props.channelFanoutTopic.grantPublish(this.batchProcessorFunction);
 
     // SSM access for publishing anonymous usage metrics via sendMetrics()
-    addMetricsSsmPermissions(this.batchProcessorFunction, props.solutionId);
+    addMetricsSsmPermissions(this.batchProcessorFunction, props.resourceNamePrefix);
 
     // S3 put for batch CSV upload, read for pre-signed download URLs. Avoid grantReadWrite
     // so the Lambda does not receive s3:DeleteObject permissions it never exercises.

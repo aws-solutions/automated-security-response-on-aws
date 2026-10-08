@@ -1,0 +1,10 @@
+schemaVersion: "0.3"
+description: Missing AutomationAssumeRole parameter.
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  BucketName:
+    type: String
+    description: bucket
+mainSteps:
+  - name: VerifyThing
+    action: aws:assertAwsResourceProperty

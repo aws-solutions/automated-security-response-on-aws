@@ -1,0 +1,25 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# privilege-escalation in the serialization `ssm:GetDocument` actually returns:
+# a double-quoted scalar with escaped newlines, not a block scalar. Any rule
+# keyed on `Script:\s*\|` sees zero script blocks here, so drift and verify
+# checks against a deployed document skipped this rule entirely.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-TEST.2
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+mainSteps:
+  - name: VerifyAndGrant
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      Script: "import json\n\n\ndef handler(event, context):\n    policy = {\"Effect\"\
+        : \"Allow\", \"Action\": \"*\", \"Resource\": \"*\"}\n    return {\"policy\"\
+        : json.dumps(policy)}\n"

@@ -73,12 +73,28 @@ export class PreProcessorConstruct extends Construct {
       dataKeyReuse: sqsDataKeyReuse,
     });
 
+    // The only EventBridge rule that sends to this queue is the AutoTrigger rule
+    // created by the Trigger construct (ssmplaybook.ts) via EventbridgeToSqs. Its
+    // name is deterministic, so the ARN is built here from the same inputs rather
+    // than referencing the rule object, which would create a cyclic dependency
+    // (the rule targets this queue). Scoping to that ARN prevents any other
+    // in-account EventBridge rule from writing to the queue.
+    const autoTriggerRuleArn = stack.formatArn({
+      service: 'events',
+      resource: 'rule',
+      resourceName: `${props.solutionId}_${props.solutionTMN}_AutoTrigger`,
+    });
+
     this.queue.addToResourcePolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         principals: [new ServicePrincipal('events.amazonaws.com')],
         actions: ['sqs:SendMessage'],
-        resources: ['*'],
+        resources: [this.queue.queueArn],
+        conditions: {
+          ArnEquals: { 'aws:SourceArn': autoTriggerRuleArn },
+          StringEquals: { 'aws:SourceAccount': stack.account },
+        },
       }),
     );
 

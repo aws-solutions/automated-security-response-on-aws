@@ -1,6 +1,7 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "4.0.2",
+  "version": "4.1.0",
+  "workspaces": [],
   "description": "Automated remediation for AWS Security Hub (SO0111)",
   "bin": {
     "solution_deploy": "bin/solution_deploy.js"
@@ -58,6 +59,7 @@
   },
   "dependencies": {
     "@asr/data-models": "file:data-models",
+    "@aws-cdk/aws-bedrock-agentcore-alpha": "2.248.0-alpha.0",
     "@aws-solutions-constructs/aws-cloudfront-s3": "2.100.1",
     "@aws-solutions-constructs/aws-eventbridge-sqs": "2.100.1",
     "compare-versions": "6.1.1"
@@ -66,7 +68,6 @@
     "babel-plugin-istanbul": "Dependency hygiene, no longer a CVE workaround. @jest/transform 30.2.0 pins babel-plugin-istanbul ^7.0.1, whose test-exclude 6.x drags in the legacy glob 7 -> minimatch 3 -> brace-expansion 1.x branch. Forcing babel-plugin-istanbul 8 pairs it with test-exclude 7, keeping that whole branch out of the tree. This override originally worked around CVE-2026-14257 (GHSA-mh99-v99m-4gvg) when the brace-expansion 1.x line had no patched release; that is now fixed upstream in 1.1.18, which also covers CVE-2026-69152, so dropping the override would no longer expose a known CVE. It is retained because dropping it re-adds five superseded transitive packages (babel-plugin-istanbul 7, test-exclude 6, glob 7, minimatch 3, brace-expansion 1.x) that are recurring advisory targets. Safe to remove once @jest/transform depends on babel-plugin-istanbul ^8."
   },
   "overrides": {
-    "babel-plugin-istanbul": "^8.0.0",
-    "browserslist": "^4.28.7"
+    "babel-plugin-istanbul": "^8.0.0"
   }
 }

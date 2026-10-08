@@ -110,7 +110,7 @@ describe('FindingRepository', () => {
 
       const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
 
-      expect(result).toBe('ACQUIRED');
+      expect(result).toEqual({ outcome: 'ACQUIRED', previousStatus: 'SUCCESS' });
       const item = await readStatus();
       expect(item?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
       expect(item?.rollbackStartedAt).toBe(NOW);
@@ -121,7 +121,7 @@ describe('FindingRepository', () => {
 
       const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
 
-      expect(result).toBe('ACQUIRED');
+      expect(result).toEqual({ outcome: 'ACQUIRED', previousStatus: 'ROLLBACK_FAILED' });
     });
 
     it('rejects a second rollback while a fresh lock is held (double-rollback guard)', async () => {
@@ -129,7 +129,7 @@ describe('FindingRepository', () => {
 
       const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
 
-      expect(result).toBe('IN_PROGRESS');
+      expect(result).toEqual({ outcome: 'IN_PROGRESS' });
     });
 
     it('re-acquires the lock when the in-progress lock is stale', async () => {
@@ -138,30 +138,84 @@ describe('FindingRepository', () => {
 
       const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
 
-      expect(result).toBe('ACQUIRED');
+      expect(result).toEqual({ outcome: 'ACQUIRED', previousStatus: 'ROLLBACK_IN_PROGRESS' });
       const item = await readStatus();
       expect(item?.rollbackStartedAt).toBe(NOW);
     });
 
-    it('returns INELIGIBLE for a non-initiable status (e.g. FAILED remediation)', async () => {
+    it('returns INELIGIBLE with the observed status for a non-initiable status (e.g. FAILED remediation)', async () => {
       await seed({ remediationStatus: 'FAILED' });
 
       const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
 
-      expect(result).toBe('INELIGIBLE');
+      expect(result).toEqual({ outcome: 'INELIGIBLE', remediationStatus: 'FAILED' });
       const item = await readStatus();
       expect(item?.remediationStatus).toBe('FAILED');
     });
 
-    it('returns INELIGIBLE for an already rolled-back finding', async () => {
+    it('returns INELIGIBLE with the observed status for an already rolled-back finding', async () => {
       await seed({ remediationStatus: 'ROLLBACK_SUCCESS' });
 
       const result = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
 
-      expect(result).toBe('INELIGIBLE');
+      expect(result).toEqual({ outcome: 'INELIGIBLE', remediationStatus: 'ROLLBACK_SUCCESS' });
     });
   });
 
+  describe('releaseRollbackLock', () => {
+    const guardDutyType = 'GuardDuty.IAMUser';
+    const lockFindingId = asFindingId('rollback-release-test');
+    const NOW = '2024-06-01T12:00:00.000Z';
+    const STALE_BEFORE = '2024-06-01T11:30:00.000Z';
+
+    const readItem = async () => {
+      const result = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: findingsTableName, Key: { findingType: guardDutyType, findingId: lockFindingId } }),
+      );
+      return result.Item;
+    };
+
+    it('restores the status the lock replaced and clears rollbackStartedAt', async () => {
+      await repository.put(
+        createMockFinding({ findingType: guardDutyType, findingId: lockFindingId, remediationStatus: 'SUCCESS' }),
+      );
+      const acquired = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+      expect(acquired.outcome).toBe('ACQUIRED');
+
+      const released = await repository.releaseRollbackLock(guardDutyType, lockFindingId, NOW, 'SUCCESS', NOW);
+
+      expect(released).toBe(true);
+      const item = await readItem();
+      expect(item?.remediationStatus).toBe('SUCCESS');
+      expect(item?.rollbackStartedAt).toBeUndefined();
+      // ...and the finding is lockable again.
+      const again = await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+      expect(again.outcome).toBe('ACQUIRED');
+    });
+
+    it('leaves a lock alone that is no longer the one it took', async () => {
+      // Our lock went stale and another caller re-acquired it with a later timestamp. Releasing
+      // "our" lock must not knock theirs out from under a rollback that is actually running.
+      await repository.put(
+        createMockFinding({ findingType: guardDutyType, findingId: lockFindingId, remediationStatus: 'SUCCESS' }),
+      );
+      await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, '2024-06-01T10:00:00.000Z', STALE_BEFORE);
+      await repository.tryAcquireRollbackLock(guardDutyType, lockFindingId, NOW, STALE_BEFORE);
+
+      const released = await repository.releaseRollbackLock(
+        guardDutyType,
+        lockFindingId,
+        '2024-06-01T10:00:00.000Z',
+        'SUCCESS',
+        NOW,
+      );
+
+      expect(released).toBe(false);
+      const item = await readItem();
+      expect(item?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+      expect(item?.rollbackStartedAt).toBe(NOW);
+    });
+  });
   describe('updateFinding', () => {
     it('should update existing finding successfully', async () => {
       const finding = createMockFinding({ findingId: asFindingId('update-test') });

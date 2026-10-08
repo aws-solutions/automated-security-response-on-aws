@@ -8,12 +8,21 @@ description: |
   ## What does this document do?
   This document enables automatic key rotation for the given AWS Key Management Service (KMS) symmetric customer master key(CMK) using [EnableKeyRotation](https://docs.aws.amazon.com/kms/latest/APIReference/API_EnableKeyRotation.html) API.
 
+  When invoked with Rollback=ROLLBACK, it restores the key rotation setting to its pre-remediation state using a snapshot stored in S3.
+
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
   * KeyId: (Required) The Key ID of the AWS KMS symmetric CMK.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
   ## Output Parameters
-  * EnableKeyRotation.EnableKeyRotationResponse: The standard HTTP response from the EnableKeyRotation API.
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
@@ -25,40 +34,75 @@ parameters:
     type: String
     description: (Required) The Key ID of the AWS KMS symmetric CMK.
     allowedPattern: "[a-z0-9-]{1,2048}"
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
 
 outputs:
-  - EnableKeyRotation.EnableKeyRotationResponse
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  -
-    name: EnableKeyRotation
-    action: aws:executeAwsApi
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
     description: |
-      ## EnableKeyRotation
-      Enables automatic key rotation for the given AWS KMS CMK.
-      ## Outputs
-      * EnableKeyRotationResponse: The standard HTTP response from the EnableKeyRotation API.
-    timeoutSeconds: 600
-    isEnd: false
-    inputs:
-      Service: kms
-      Api: EnableKeyRotation
-      KeyId: "{{ KeyId }}"
-    outputs:
-      - Name: EnableKeyRotationResponse
-        Selector: $
-        Type: StringMap
-  -
-    name: VerifyKeyRotation
-    action: "aws:assertAwsResourceProperty"
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation key rotation state to S3, then enables key rotation.
+      When Rollback=ROLLBACK, restores the pre-remediation state from the snapshot.
     timeoutSeconds: 600
     isEnd: true
-    description: |
-      ## VerifyKeyRotation
-      Verifies that the KeyRotationEnabled is set to true for the given AWS KMS CMK.
     inputs:
-      Service: kms
-      Api: GetKeyRotationStatus
-      KeyId: "{{ KeyId }}"
-      PropertySelector: $.KeyRotationEnabled
-      DesiredValues:
-        - "True"
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        KeyId: "{{ KeyId }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
+      Script: |-
+        %%SCRIPT=EnableKeyRotation_rollback.py%%
+    outputs:
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

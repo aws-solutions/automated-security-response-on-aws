@@ -12,9 +12,15 @@ const isAdminOrDelegatedAdmin = (groups: string[] | null): boolean => {
 
 export const canAccessUsers = isAdminOrDelegatedAdmin;
 
+/** Whether the current user is a full Admin (not a Delegated Admin). Admin-only actions,
+ *  such as managing per-user MCP tool permissions, gate on this. */
+export const isAdmin = (groups: string[] | null): boolean => getHighestUserGroup(groups) === 'AdminGroup';
+
 export const canEditControls = isAdminOrDelegatedAdmin;
 
 export const canManageNotifications = isAdminOrDelegatedAdmin;
+
+export const canRollback = isAdminOrDelegatedAdmin;
 
 export const canAccessControlPanel = (groups: string[] | null): boolean => {
   const highestGroup = getHighestUserGroup(groups);

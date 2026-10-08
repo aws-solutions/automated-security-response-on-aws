@@ -17,6 +17,12 @@ export const GeneralUserSchema = z.object({
   invitationTimestamp: z.string().datetime(),
   status: z.enum(['Invited', 'Confirmed']),
   type: z.string(),
+  /**
+   * MCP tools explicitly granted to a Delegated Admin or Account Operator.
+   * AdminGroup receives every tool automatically, so this field is absent.
+   * For grant-managed roles, missing and empty both mean no MCP access.
+   */
+  allowedMcpTools: z.array(z.string()).optional(),
 });
 
 // Specific user type schemas
@@ -34,14 +40,31 @@ export const AdminUserSchema = GeneralUserSchema.extend({
 });
 
 // User account mapping schema (from lambda)
+//
+// `accountIds`, `invitedBy`, and `invitationTimestamp` are optional because this
+// table holds two record shapes keyed by user email: a full mapping written when an
+// Account Operator is invited (with assigned accounts and invite provenance), and a
+// grant-only record created when an admin grants MCP tools to a Delegated Admin —
+// who legitimately has no assigned accounts and whose row is upserted by the tool
+// grant alone. A reader that needs assigned accounts must treat their absence as
+// "no accounts" rather than assume the field is present.
 export const UserAccountMappingSchema = z.object({
   userId: z.string().email(),
-  accountIds: accountIdsSchema,
-  invitedBy: z.union([z.string().email(), z.literal('system')]),
-  invitationTimestamp: z.string().datetime(),
+  accountIds: accountIdsSchema.optional(),
+  allowedMcpTools: z.array(z.string()).optional(),
+  invitedBy: z.union([z.string().email(), z.literal('system')]).optional(),
+  invitationTimestamp: z.string().datetime().optional(),
   lastModifiedBy: z.string().email().optional(),
   lastModifiedTimestamp: z.string().datetime().optional(),
 });
+
+// Request body for replacing a user's MCP tool grant. Empty revokes all tools.
+export const PutUserMcpToolsRequestSchema = z
+  .object({
+    allowedTools: z.array(z.string().min(1)),
+  })
+  .strict();
+export type PutUserMcpToolsRequest = z.infer<typeof PutUserMcpToolsRequestSchema>;
 
 // Request schemas
 export const InviteUserRequest = z

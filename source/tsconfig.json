@@ -38,6 +38,7 @@
     "**/*.spec.ts",
     "webui",
     "lambdas",
+    "mcp",
     "lib/member/cloud-trail-event-processor",
     "eslint.config.mjs",
     "iac-templates"

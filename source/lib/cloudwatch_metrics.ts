@@ -27,11 +27,12 @@ import { ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
 import { IControl } from './playbook-construct';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
-import { getConfig } from './config/cdk-config';
+import { getConfig, stripDevelopmentPrefix } from './config/cdk-config';
 import {
   ASR_METRIC_NAMESPACE,
   CONTROL_STATE_CHANGE_METRIC,
   M2M_FORBIDDEN_AUTHORIZATION_METRIC,
+  MCP_TOOL_ERROR_METRIC,
   SENSITIVE_WRITE_METRIC,
   USER_POOL_DIMENSION,
   WRITE_CATEGORY_DIMENSION,
@@ -46,9 +47,25 @@ export interface CloudWatchMetricsProps {
   actionLogLogGroupName: string;
   enhancedMetricsEnabled: CfnCondition;
   webUIEnabled: CfnCondition;
+  /**
+   * The EnableMcpServer=yes condition (agentCoreGatewayEnabled). The MCP server
+   * Lambda that emits the McpTool* metrics only exists when it is true, so the
+   * MCP alarm is gated on it.
+   */
+  mcpEnabled: CfnCondition;
   userPoolId?: string;
   preProcessorDLQName: string;
+  notificationDLQName: string;
+  schedulingDLQName: string;
   synchronizationLambdaName?: string;
+  enableRollback: string;
+}
+
+interface DLQAlarmConfig {
+  readonly queueName: string;
+  readonly alarmName: string;
+  readonly metricLabel: string;
+  readonly alarmDescription: string;
 }
 
 export class CloudWatchMetrics {
@@ -74,7 +91,7 @@ export class CloudWatchMetrics {
   public readonly alarmTopicCondition: CfnCondition;
 
   constructor(scope: Construct, props: CloudWatchMetricsProps) {
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
+    const RESOURCE_PREFIX = stripDevelopmentPrefix(props.solutionId); // prefix on every resource name
 
     props.kmsKey.grantEncryptDecrypt(new ServicePrincipal('cloudwatch.amazonaws.com'));
 
@@ -116,6 +133,14 @@ export class CloudWatchMetrics {
       default: 5,
     });
     this.enhancedMetricParameters.push(remediationFailureAlarmThreshold);
+
+    const rollbackRateLimitThreshold = new CfnParameter(scope, 'RollbackRateLimitThreshold', {
+      type: 'Number',
+      description:
+        'Number of rollback executions in one period (1 day) to trigger the rollback rate-limit alarm. E.g., to alarm on 10 or more rollbacks per day, enter 10.',
+      default: 10,
+    });
+    this.standardMetricParameters.push(rollbackRateLimitThreshold);
 
     const sendCloudwatchMetricsParameter = new StringParameter(scope, 'ASR_SendCloudWatchMetrics', {
       description: 'Flag to enable or disable sending cloudwatch metrics.',
@@ -263,29 +288,47 @@ export class CloudWatchMetrics {
     failedAssumeRoleAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
     addCfnGuardSuppression(failedAssumeRoleAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
 
-    const preProcessorDLQMetric = new Metric({
-      namespace: 'AWS/SQS',
-      metricName: 'NumberOfMessagesSent',
-      statistic: 'Sum',
-      period: Duration.minutes(5),
-      dimensionsMap: { QueueName: props.preProcessorDLQName },
-      label: 'Automated Security Response on AWS: Pre-processor DLQ Messages',
-    });
+    // DLQ monitoring: alarm whenever a message is redriven to one of the SQS-backed
+    // pipelines' dead-letter queues, which means retries were exhausted and the message
+    // would otherwise be lost silently.
+    this.createDLQAlarm(
+      scope,
+      'PreProcessorDLQAlarm',
+      {
+        queueName: props.preProcessorDLQName,
+        alarmName: 'ASR-PreProcessorDLQ',
+        metricLabel: 'Automated Security Response on AWS: Pre-processor DLQ Messages',
+        alarmDescription:
+          'Automated Security Response on AWS: Messages have been sent to the Pre-processor Dead Letter Queue. This indicates that the Pre-processor Lambda function failed to process Security Hub findings after multiple retry attempts.',
+      },
+      snsAlarmTopic,
+    );
 
-    const preProcessorDLQAlarm = preProcessorDLQMetric.createAlarm(scope, 'PreProcessorDLQAlarm', {
-      alarmName: 'ASR-PreProcessorDLQ',
-      evaluationPeriods: 1,
-      threshold: 1,
-      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      alarmDescription:
-        'Automated Security Response on AWS: Messages have been sent to the Pre-processor Dead Letter Queue. This indicates that the Pre-processor Lambda function failed to process Security Hub findings after multiple retry attempts.',
-      treatMissingData: TreatMissingData.NOT_BREACHING,
-      datapointsToAlarm: 1,
-      actionsEnabled: true,
-    });
-    setCondition(preProcessorDLQAlarm, this.isUsingCloudWatchMetricsAlarms);
-    preProcessorDLQAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
-    addCfnGuardSuppression(preProcessorDLQAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+    this.createDLQAlarm(
+      scope,
+      'NotificationDLQAlarm',
+      {
+        queueName: props.notificationDLQName,
+        alarmName: 'ASR-NotificationDLQ',
+        metricLabel: 'Automated Security Response on AWS: Notification dispatcher DLQ Messages',
+        alarmDescription:
+          'Automated Security Response on AWS: Messages have been sent to the notification dispatcher Dead Letter Queue. This indicates that the notification dispatcher Lambda function failed to deliver notification events after multiple retry attempts.',
+      },
+      snsAlarmTopic,
+    );
+
+    this.createDLQAlarm(
+      scope,
+      'SchedulingDLQAlarm',
+      {
+        queueName: props.schedulingDLQName,
+        alarmName: 'ASR-SchedulingDLQ',
+        metricLabel: 'Automated Security Response on AWS: Scheduling DLQ Messages',
+        alarmDescription:
+          'Automated Security Response on AWS: Messages have been sent to the remediation scheduling Dead Letter Queue. This indicates that scheduled remediations failed to reach the Orchestrator after multiple retry attempts.',
+      },
+      snsAlarmTopic,
+    );
 
     if (props.synchronizationLambdaName) {
       const synchronizationErrorMetric = new Metric({
@@ -312,6 +355,94 @@ export class CloudWatchMetrics {
       synchronizationErrorAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
       addCfnGuardSuppression(synchronizationErrorAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
     }
+
+    const rollbackAlarmEnabled = new CfnCondition(scope, 'rollbackAlarmEnabled', {
+      expression: Fn.conditionAnd(this.isUsingCloudWatchMetricsAlarms, Fn.conditionEquals(props.enableRollback, 'yes')),
+    });
+
+    // Gate on rollback being enabled, wire to the alarm topic, and suppress the
+    // explicit-name guard — the triplet every rollback alarm below needs.
+    const finalizeRollbackAlarm = (alarm: Alarm): void => {
+      setCondition(alarm, rollbackAlarmEnabled);
+      alarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+      addCfnGuardSuppression(alarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
+    };
+
+    const rollbackExecutionMetric = new Metric({
+      namespace: 'ASR',
+      metricName: 'RollbackExecutionOutcome',
+      statistic: 'Sum',
+      period: Duration.days(1),
+      dimensionsMap: { Outcome: 'Success' },
+      label: 'Daily Rollback Executions',
+    });
+
+    const rollbackRateLimitAlarm = rollbackExecutionMetric.createAlarm(scope, 'RollbackRateLimitAlarm', {
+      alarmName: 'ASR-RollbackRateLimit',
+      evaluationPeriods: 1,
+      threshold: rollbackRateLimitThreshold.valueAsNumber,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Automated Security Response on AWS: Unusual rollback activity detected. The daily rollback count exceeded the configured threshold, which may indicate unauthorized or automated rollback abuse.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    finalizeRollbackAlarm(rollbackRateLimitAlarm);
+
+    const snapshotCaptureFailureAlarm = new Metric({
+      namespace: 'ASR',
+      metricName: 'SnapshotCaptureFailure',
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+      label: 'Snapshot Capture Failures',
+    }).createAlarm(scope, 'SnapshotCaptureFailureAlarm', {
+      alarmName: 'ASR-Rollback-SnapshotCaptureFailure',
+      evaluationPeriods: 1,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        'Automated Security Response on AWS: A pre-remediation snapshot capture failed, so the affected remediation is not rollback-capable. Remediation still proceeds (fail-open); this alarm surfaces the loss of rollback coverage.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    finalizeRollbackAlarm(snapshotCaptureFailureAlarm);
+
+    const rollbackFailureRateAlarm = new MathExpression({
+      expression:
+        'IF((FILL(failed,0) + FILL(succeeded,0)) >= 3, ' +
+        '100 * FILL(failed,0) / (FILL(failed,0) + FILL(succeeded,0)), 0)',
+      usingMetrics: {
+        failed: new Metric({
+          namespace: 'ASR',
+          metricName: 'RollbackExecutionOutcome',
+          statistic: 'Sum',
+          period: Duration.minutes(15),
+          dimensionsMap: { Outcome: 'Failed' },
+        }),
+        succeeded: new Metric({
+          namespace: 'ASR',
+          metricName: 'RollbackExecutionOutcome',
+          statistic: 'Sum',
+          period: Duration.minutes(15),
+          dimensionsMap: { Outcome: 'Success' },
+        }),
+      },
+      period: Duration.minutes(15),
+      label: 'Rollback failure rate (%)',
+    }).createAlarm(scope, 'RollbackExecutionFailureAlarm', {
+      alarmName: 'ASR-Rollback-ExecutionFailureRate',
+      evaluationPeriods: 1,
+      threshold: 20,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+      alarmDescription:
+        'Automated Security Response on AWS: More than 20% of rollback executions failed over a 15-minute window. This can indicate a broken rollback path, missing member-account permissions, or snapshot drift.',
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    finalizeRollbackAlarm(rollbackFailureRateAlarm);
 
     // Deprecated controls keep their runbook SSM document but produce no findings,
     // so exclude them from per-control failure-rate alarms.
@@ -497,6 +628,58 @@ The actions shown are based on CloudTrail management events in the member accoun
       }),
     );
 
+    const snapshotCaptureSearch = (metricName: string, label: string): MathExpression =>
+      new MathExpression({
+        expression: `SUM(SEARCH('{ASR,ControlId} MetricName="${metricName}"', 'Sum', 300))`,
+        usingMetrics: {},
+        label,
+        period: Duration.minutes(5),
+      });
+
+    remediationDashboard.addWidgets(
+      new TextWidget({
+        markdown: `
+## Rollback
+Pre-remediation snapshot capture and one-click rollback execution activity. Populated only when rollback is enabled (EnableRollback=yes). The Snapshot Capture Outcomes widget sums the per-ControlId series, so it also requires EnableEnhancedCloudWatchMetrics=yes; without it only the aggregate SnapshotCaptureFailure alarm is populated.
+`,
+        height: 2,
+        width: 24,
+      }),
+      new GraphWidget({
+        title: 'Snapshot Capture Outcomes',
+        left: [
+          snapshotCaptureSearch('SnapshotCaptureSuccess', 'Captured'),
+          snapshotCaptureSearch('SnapshotCaptureFailure', 'Failed'),
+          snapshotCaptureSearch('SnapshotCaptureSkipped', 'Skipped (not eligible)'),
+        ],
+        height: 6,
+        width: 12,
+      }),
+      new GraphWidget({
+        title: 'Rollback Executions by Outcome',
+        left: [
+          new Metric({
+            namespace: 'ASR',
+            metricName: 'RollbackExecutionOutcome',
+            statistic: 'Sum',
+            period: Duration.minutes(5),
+            dimensionsMap: { Outcome: 'Success' },
+            label: 'Success',
+          }),
+          new Metric({
+            namespace: 'ASR',
+            metricName: 'RollbackExecutionOutcome',
+            statistic: 'Sum',
+            period: Duration.minutes(5),
+            dimensionsMap: { Outcome: 'Failed' },
+            label: 'Failed',
+          }),
+        ],
+        height: 6,
+        width: 12,
+      }),
+    );
+
     // Cognito Threat Protection Alarms
     if (props.userPoolId) {
       this.createCognitoThreatProtectionAlarms(scope, snsAlarmTopic, props.userPoolId, props.webUIEnabled);
@@ -505,6 +688,41 @@ The actions shown are based on CloudTrail management events in the member accoun
     // API rate-limiting and write-anomaly alarms (gated on the WebUI being
     // enabled, since the API Lambda that emits these metrics only exists then).
     this.createApiRateLimitAlarms(scope, snsAlarmTopic, props.webUIEnabled);
+
+    // MCP server tool-error alarm (gated on EnableMcpServer=yes, since the MCP
+    // server Lambda that emits McpToolError only exists then).
+    this.createMcpServerAlarms(scope, snsAlarmTopic, props.mcpEnabled);
+  }
+
+  /**
+   * Creates a CloudWatch alarm that fires when messages are present in a dead-letter
+   * queue (the `ApproximateNumberOfMessagesVisible` SQS metric). All DLQ alarms share the
+   * same threshold, missing-data handling, opt-in condition, and SNS action so they behave
+   * consistently across the solution's SQS-backed pipelines.
+   */
+  private createDLQAlarm(scope: Construct, id: string, config: DLQAlarmConfig, snsAlarmTopic: Topic): void {
+    const metric = new Metric({
+      namespace: 'AWS/SQS',
+      metricName: 'ApproximateNumberOfMessagesVisible',
+      statistic: 'Maximum',
+      period: Duration.minutes(1),
+      dimensionsMap: { QueueName: config.queueName },
+      label: config.metricLabel,
+    });
+
+    const alarm = metric.createAlarm(scope, id, {
+      alarmName: config.alarmName,
+      evaluationPeriods: 1,
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription: config.alarmDescription,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    setCondition(alarm, this.isUsingCloudWatchMetricsAlarms);
+    alarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(alarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
   }
 
   private createAlarmsByControlId(
@@ -766,5 +984,38 @@ The actions shown are based on CloudTrail management events in the member accoun
       actionsEnabled: true,
     });
     finalizeAlarm(sensitiveWriteAlarm);
+  }
+
+  /**
+   * Alarm on a spike in MCP tool errors (5xx tool failures). Watches the
+   * dimensionless McpToolError total emitted alongside the per-ToolName series
+   * so a single alarm covers every tool; CloudWatch alarms cannot roll up a
+   * dimension with SEARCH. Gated on EnableMcpServer=yes because the MCP server
+   * Lambda that emits McpToolError only exists then.
+   */
+  private createMcpServerAlarms(scope: Construct, snsAlarmTopic: Topic, mcpEnabled: CfnCondition): void {
+    const mcpAlarmsCondition = new CfnCondition(scope, 'mcpServerAlarmsEnabled', {
+      expression: Fn.conditionAnd(this.isUsingCloudWatchMetricsAlarms, mcpEnabled),
+    });
+
+    const toolErrorAlarm = new Metric({
+      namespace: ASR_METRIC_NAMESPACE,
+      metricName: MCP_TOOL_ERROR_METRIC,
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+    }).createAlarm(scope, 'McpToolErrorAlarm', {
+      alarmName: 'ASR-Mcp-ToolErrorSpike',
+      evaluationPeriods: 1,
+      threshold: 5,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      alarmDescription:
+        "Automated Security Response on AWS: An unusually high number of MCP tool invocations failed with server errors within five minutes. This can indicate a misbehaving MCP client, a broken tool, an attempt to probe the MCP server, or a transient dependency failure (for example, being unable to read the Cognito signing keys or the caller's authorization data).",
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+      datapointsToAlarm: 1,
+      actionsEnabled: true,
+    });
+    setCondition(toolErrorAlarm, mcpAlarmsCondition);
+    toolErrorAlarm.addAlarmAction(new SnsAction(snsAlarmTopic));
+    addCfnGuardSuppression(toolErrorAlarm, 'CFN_NO_EXPLICIT_RESOURCE_NAMES');
   }
 }

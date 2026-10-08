@@ -47,7 +47,7 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     const docInputs: Input[] = [
       Input.ofTypeString('LogGroupName', {
         description: 'The name of the Log group to be used to create filters and metric alarms',
-        defaultValue: `{{ssm:/Solutions/${props.solutionId}/Metrics_LogGroupName}}`,
+        defaultValue: `{{ssm:/Solutions/${props.resourceNamePrefix}/Metrics_LogGroupName}}`,
         allowedPattern: allowAnyRegex,
       }),
       Input.ofTypeString('MetricNamespace', {
@@ -57,12 +57,12 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
       }),
       Input.ofTypeString('KMSKeyArn', {
         description: `The ARN of the KMS key created by ${props.solutionAcronym} for remediations`,
-        defaultValue: `{{ssm:/Solutions/${props.solutionId}/CMK_REMEDIATION_ARN}}`,
+        defaultValue: `{{ssm:/Solutions/${props.resourceNamePrefix}/CMK_REMEDIATION_ARN}}`,
         allowedPattern: String.raw`^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:^(alias\/)[a-zA-Z0-9:/_-]+$)|(?:key\/(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})))$`,
       }),
     ];
 
-    const snsTopicName = getSNSTopicName(props.solutionId, props.solutionAcronym);
+    const snsTopicName = getSNSTopicName(props.resourceNamePrefix, props.solutionAcronym);
 
     super(scope, id, {
       ...props,
@@ -155,13 +155,13 @@ export class CreateLogMetricFilterAndAlarmDocument extends ControlRunbookDocumen
     params.AlarmDesc = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmDesc');
     params.AlarmThreshold = StringVariable.of('GetMetricFilterAndAlarmInputValue.AlarmThreshold');
     params.LogGroupName = StringVariable.of('LogGroupName');
-    params.SNSTopicName = getSNSTopicName(this.solutionId, 'ASR');
+    params.SNSTopicName = getSNSTopicName(this.resourceNamePrefix, 'ASR');
     params.KMSKeyArn = StringVariable.of('KMSKeyArn');
 
     return params;
   }
 }
 
-function getSNSTopicName(solutionId: string, solutionAcronym: string) {
-  return `${solutionId}-${solutionAcronym}-LocalAlarmNotification`;
+function getSNSTopicName(resourceNamePrefix: string, solutionAcronym: string) {
+  return `${resourceNamePrefix}-${solutionAcronym}-LocalAlarmNotification`;
 }
