@@ -13,6 +13,7 @@ import {
 } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { stripDevelopmentPrefix } from './config/cdk-config';
 
 export interface InspectorAutomationRoleProps {
   solutionId: string;
@@ -46,7 +47,7 @@ export interface InspectorAutomationRoleProps {
 export class InspectorAutomationRole extends Construct {
   constructor(scope: Construct, id: string, props: InspectorAutomationRoleProps) {
     super(scope, id);
-    const resourcePrefix = props.solutionId.replace(/^DEV-/, '');
+    const resourcePrefix = stripDevelopmentPrefix(props.solutionId);
     const stack = Stack.of(this);
     const roleName = `${resourcePrefix}-ASR-Inspector-Automation`;
     const perControlRoleArn = `arn:${stack.partition}:iam::${stack.account}:role/${resourcePrefix}-Inspector.InstanceVulnerability-${props.namespace}`;

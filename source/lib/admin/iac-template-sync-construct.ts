@@ -11,6 +11,7 @@ import { getLambdaCode } from '../cdk-helper/lambda-code-manifest';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { CustomResource, Duration, Stack } from 'aws-cdk-lib';
+import { stripDevelopmentPrefix } from '../config/cdk-config';
 
 export interface IaCTemplateSyncConstructProps {
   readonly solutionId: string;
@@ -27,7 +28,7 @@ export class IaCTemplateSyncConstruct extends Construct {
     super(scope, id);
 
     const stack = Stack.of(this);
-    const RESOURCE_NAME_PREFIX = props.solutionId.replace(/^DEV-/, '');
+    const RESOURCE_NAME_PREFIX = stripDevelopmentPrefix(props.solutionId);
 
     //---------------------------------------------------------------------
     // IaC Template Sync Lambda Role and Policy

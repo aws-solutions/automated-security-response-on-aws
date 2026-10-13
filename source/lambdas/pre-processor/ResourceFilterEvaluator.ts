@@ -14,6 +14,23 @@ export interface ResourceFilterEvaluationResult {
 }
 
 /**
+ * Signals that the parent-OU lookup for an account could not be completed — for example a transient
+ * Organizations error that survived the client's retries. It marks OU membership as *indeterminate*,
+ * which is distinct from a definitive "the account is in no matching OU". Callers translate it into a
+ * fail-closed decision so an exclusion filter is never silently bypassed while Organizations is
+ * unavailable.
+ */
+export class OrganizationalUnitLookupError extends Error {
+  constructor(
+    readonly accountId: string,
+    options?: { cause?: unknown },
+  ) {
+    super(`Unable to determine organizational unit membership for account ${accountId}`, options);
+    this.name = 'OrganizationalUnitLookupError';
+  }
+}
+
+/**
  * Optional per-caller cache of filter-definition lookups, keyed by the requested filter-id set. A
  * `batchFindByIds` result depends only on the filter IDs (not on the finding being evaluated), so a
  * caller that evaluates many findings against the same filter set — for example reconciliation
@@ -125,10 +142,25 @@ export class ResourceFilterEvaluator {
       return { passed: false, reason: 'incomplete_filter_retrieval_in_include_mode' };
     }
 
-    if (filterMode === 'include') {
-      return this.evaluateIncludeMode(finding, filters);
-    } else {
-      return this.evaluateExcludeMode(finding, filters);
+    try {
+      if (filterMode === 'include') {
+        return await this.evaluateIncludeMode(finding, filters);
+      }
+      return await this.evaluateExcludeMode(finding, filters);
+    } catch (error) {
+      // Indeterminate OU membership must fail closed in both modes, consistent with the
+      // incomplete-filter-retrieval handling above. In exclude mode this is the case that would
+      // otherwise fail open: an exclusion whose OU could not be resolved would be skipped and
+      // remediation would proceed.
+      if (error instanceof OrganizationalUnitLookupError) {
+        this.logger.error('Unable to determine OU membership, blocking remediation as fail-safe', {
+          findingId: finding.id,
+          accountId: error.accountId,
+          filterMode,
+        });
+        return { passed: false, reason: 'ou_lookup_failed' };
+      }
+      throw error;
     }
   }
 
@@ -219,15 +251,14 @@ export class ResourceFilterEvaluator {
       return true;
     }
 
+    // Evaluate the synchronous, always-determinate criteria first. If any of them already fails, the
+    // filter cannot match regardless of OU membership, so we skip the Organizations lookup entirely —
+    // both an optimization and it avoids failing closed on an OU lookup whose outcome could not change
+    // the result.
     const results: boolean[] = [];
 
     if (hasAccountCriteria) {
       results.push(this.matchesAccountId(finding.accountId, accountIds));
-    }
-
-    if (hasOUCriteria) {
-      const ouMatch = await this.matchesOrganizationalUnit(finding.accountId, organizationalUnits);
-      results.push(ouMatch);
     }
 
     if (hasTagCriteria) {
@@ -239,6 +270,17 @@ export class ResourceFilterEvaluator {
 
     if (hasArnCriteria) {
       results.push(this.matchesArnPatterns(finding, arnPatterns));
+    }
+
+    if (results.some((result) => !result)) {
+      return false;
+    }
+
+    // The OU criterion is the only one requiring an Organizations API call, and it throws
+    // OrganizationalUnitLookupError when membership cannot be determined. Evaluating it last means a
+    // definite non-match above never triggers an avoidable lookup or an avoidable fail-closed block.
+    if (hasOUCriteria) {
+      results.push(await this.matchesOrganizationalUnit(finding.accountId, organizationalUnits));
     }
 
     if (results.length === 0) {
@@ -295,8 +337,11 @@ export class ResourceFilterEvaluator {
         this.parentOUCache.set(accountId, []);
         return [];
       }
-      this.logger.error('Transient error retrieving account OUs, treating as no OU match', { accountId, error });
-      return [];
+      this.logger.error('Transient error retrieving account OUs, unable to determine OU membership', {
+        accountId,
+        error,
+      });
+      throw new OrganizationalUnitLookupError(accountId, { cause: error });
     }
   }
 

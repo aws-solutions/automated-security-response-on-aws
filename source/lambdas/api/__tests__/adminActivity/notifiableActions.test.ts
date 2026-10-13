@@ -16,6 +16,8 @@ describe('notifiableActions', () => {
       'CHANNEL_TOGGLED',
       'CONTROL_REMEDIATION_SET',
       'CONTROL_REMEDIATION_ENABLED',
+      'CONTROL_ROLLBACK_SET',
+      'CONTROL_ROLLBACK_ENABLED',
       'BULK_FILTER_CHANGE',
     ];
     const allChannelTypes = DeliveryChannelTypeSchema.options;

@@ -1,11 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import copy
+import gzip
 import json
 import os
 import urllib.parse
 from datetime import datetime, timedelta
 from typing import Any, cast
+from unittest.mock import Mock
 
 import boto3
 import pytest
@@ -30,13 +32,19 @@ from layer.sechub_findings import (
 )
 from layer.test.conftest import create_dynamodb_tables
 from moto import mock_aws
+from pytest_mock import MockerFixture
 from send_notifications import (
+    _compress_finding_for_history,
+    _emit_rollback_metrics,
     _enrich_notification_with_finding_info,
     _get_followup_message,
+    _non_empty_str,
     _publish_notification_event,
+    _resolve_rollback_state,
     _set_if_present,
     _translate_ocsf_packages,
     create_and_send_cloudwatch_metrics,
+    extract_failure_reason,
     format_failure_message,
     format_remediation_output,
     lambda_handler,
@@ -831,6 +839,44 @@ def test_update_finding_remediation_status_with_finding_type(mocker):
     assert call_args.account_id == "123456789012"
     assert call_args.region == "us-east-1"
     assert call_args.severity == "HIGH"
+
+
+@mock_aws
+def test_update_finding_remediation_status_rollback_failed_captures_reason(mocker):
+    # A rollback failure (e.g. the drift abort) must persist its reason to the
+    # history `error` field so the UI shows WHY it failed, not a bare status.
+    setup_ssm_parameters()
+    setup_dynamodb_tables()
+
+    os.environ["ENHANCED_METRICS"] = "no"
+
+    mock_update = mocker.patch(
+        "send_notifications.update_remediation_status_and_history"
+    )
+    setup(mocker)
+
+    drift_reason = (
+        "Rollback aborted for table my-table: current deletion protection (False) "
+        "does not match the post-remediation state ASR applied (True). "
+        "The resource was modified after the ASR remediation."
+    )
+
+    event = copy.deepcopy(default_event)
+    # A user-triggered rollback whose SSM outcome is FAILED resolves to ROLLBACK_FAILED.
+    event["CustomActionName"] = "ASR:Rollback"
+    event["Notification"]["State"] = "FAILED"
+    event["Notification"]["Details"] = drift_reason
+    event["Notification"][
+        "StepFunctionsExecutionId"
+    ] = "arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:test-execution-id"
+
+    lambda_handler(event, {})
+
+    mock_update.assert_called_once()
+    call_args = mock_update.call_args.args[0]
+
+    assert call_args.remediation_status == "ROLLBACK_FAILED"
+    assert call_args.error == drift_reason
 
 
 @mock_aws
@@ -2800,3 +2846,619 @@ def test_translate_ocsf_packages_skips_non_dict_and_maps_fields():
     assert _translate_ocsf_packages(packages) == [
         {"Name": "openssl", "Architecture": "x86_64", "Version": "1.1.1"}
     ]
+
+
+# ═══════════════════════════════════════════════════════════════
+# Rollback helper tests
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestFirstElement:
+    def test_none_returns_none(self):
+        from send_notifications import _first_element
+
+        assert _first_element(None) is None
+
+    def test_empty_list_returns_none(self):
+        from send_notifications import _first_element
+
+        assert _first_element([]) is None
+
+    def test_list_with_string(self):
+        from send_notifications import _first_element
+
+        assert _first_element(["hello"]) == "hello"
+
+    def test_list_with_non_string(self):
+        from send_notifications import _first_element
+
+        assert _first_element([123]) is None
+
+    def test_string_passthrough(self):
+        from send_notifications import _first_element
+
+        assert _first_element("direct") == "direct"
+
+    def test_non_string_non_list(self):
+        from send_notifications import _first_element
+
+        assert _first_element(123) is None  # type: ignore[arg-type]
+
+
+class TestGetOutputField:
+    def test_flat_field(self):
+        from send_notifications import _get_output_field
+
+        output = {"snapshotStored": "true"}
+        assert _get_output_field(output, "snapshotStored") == "true"
+
+    def test_prefixed_field(self):
+        from send_notifications import _get_output_field
+
+        output = {"SnapshotRemediateOrRollback.snapshotStored": ["true"]}
+        assert _get_output_field(output, "snapshotStored") == "true"
+
+    def test_missing_field_returns_none(self):
+        from send_notifications import _get_output_field
+
+        assert _get_output_field({}, "snapshotStored") is None
+
+    def test_flat_takes_priority(self):
+        from send_notifications import _get_output_field
+
+        output = {
+            "snapshotStored": "flat",
+            "SnapshotRemediateOrRollback.snapshotStored": ["prefixed"],
+        }
+        assert _get_output_field(output, "snapshotStored") == "flat"
+
+
+class TestIsControlRollbackEnabled:
+    def test_no_table_configured_returns_true(self, monkeypatch):
+        import send_notifications
+        from send_notifications import _is_control_rollback_enabled
+
+        monkeypatch.setattr(send_notifications, "_rollback_config_table", None)
+        monkeypatch.delenv("REMEDIATION_CONFIG_TABLE_NAME", raising=False)
+        assert _is_control_rollback_enabled("KMS.4") is True
+
+    def test_control_not_in_table_returns_true(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import send_notifications
+        from send_notifications import _is_control_rollback_enabled
+
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {}
+        monkeypatch.setattr(send_notifications, "_rollback_config_table", mock_table)
+        assert _is_control_rollback_enabled("KMS.4") is True
+
+    def test_rollback_enabled_true(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import send_notifications
+        from send_notifications import _is_control_rollback_enabled
+
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {"Item": {"rollbackEnabled": True}}
+        monkeypatch.setattr(send_notifications, "_rollback_config_table", mock_table)
+        assert _is_control_rollback_enabled("KMS.4") is True
+
+    def test_rollback_enabled_false(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import send_notifications
+        from send_notifications import _is_control_rollback_enabled
+
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {"Item": {"rollbackEnabled": False}}
+        monkeypatch.setattr(send_notifications, "_rollback_config_table", mock_table)
+        assert _is_control_rollback_enabled("KMS.4") is False
+
+    def test_exception_returns_true(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import send_notifications
+        from send_notifications import _is_control_rollback_enabled
+
+        mock_table = MagicMock()
+        mock_table.get_item.side_effect = Exception("DynamoDB error")
+        monkeypatch.setattr(send_notifications, "_rollback_config_table", mock_table)
+        assert _is_control_rollback_enabled("KMS.4") is True
+
+
+class TestExtractRollbackMetadata:
+    def test_snapshot_stored_true(self):
+        from send_notifications import _extract_rollback_metadata
+
+        event: dict[str, Any] = {
+            "Notification": {
+                "RemediationOutput": json.dumps(
+                    {
+                        "SnapshotRemediateOrRollback.snapshotStored": ["true"],
+                        "SnapshotRemediateOrRollback.rollbackDescription": [
+                            "Disable key rotation"
+                        ],
+                        "SnapshotRemediateOrRollback.snapshotVersionId": ["ver-123"],
+                    }
+                )
+            },
+            "Finding": {},
+        }
+        available, desc, vid = _extract_rollback_metadata(event)  # type: ignore[arg-type]
+        assert available is True
+        assert desc == "Disable key rotation"
+        assert vid == "ver-123"
+
+    def test_snapshot_stored_false(self):
+        from send_notifications import _extract_rollback_metadata
+
+        event: dict[str, Any] = {
+            "Notification": {
+                "RemediationOutput": json.dumps(
+                    {
+                        "SnapshotRemediateOrRollback.snapshotStored": ["false"],
+                    }
+                )
+            },
+            "Finding": {},
+        }
+        available, desc, vid = _extract_rollback_metadata(event)  # type: ignore[arg-type]
+        assert available is False
+        assert desc is None
+        assert vid is None
+
+    def test_no_snapshot_field_returns_none(self):
+        from send_notifications import _extract_rollback_metadata
+
+        event: dict[str, Any] = {
+            "Notification": {
+                "RemediationOutput": json.dumps({"someOtherField": "value"})
+            },
+            "Finding": {},
+        }
+        available, desc, vid = _extract_rollback_metadata(event)  # type: ignore[arg-type]
+        assert available is None
+
+    def test_empty_output_returns_none(self):
+        from send_notifications import _extract_rollback_metadata
+
+        event: dict[str, Any] = {
+            "Notification": {"RemediationOutput": ""},
+            "Finding": {},
+        }
+        available, desc, vid = _extract_rollback_metadata(event)  # type: ignore[arg-type]
+        assert available is None
+
+    def test_invalid_json_returns_none(self):
+        from send_notifications import _extract_rollback_metadata
+
+        event: dict[str, Any] = {
+            "Notification": {"RemediationOutput": "not-json"},
+            "Finding": {},
+        }
+        available, desc, vid = _extract_rollback_metadata(event)  # type: ignore[arg-type]
+        assert available is None
+
+
+def test_get_sechub_client_is_lazy_and_cached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Security Hub client is built on first use and reused thereafter.
+
+    Only the rollback path calls _get_sechub_client(), so cold starts that never
+    run a rollback must not construct the client.
+    """
+    import send_notifications
+
+    calls: list[tuple[str, Any]] = []
+
+    def fake_client(service_name: str, *args: Any, **kwargs: Any) -> Any:
+        calls.append((service_name, kwargs.get("config")))
+        return object()
+
+    # send_notifications calls boto3.client on the shared boto3 module, so patching it here
+    # intercepts the lazy construction.
+    monkeypatch.setattr(boto3, "client", fake_client)
+    # Reset to the not-yet-created state; monkeypatch restores the original on teardown.
+    monkeypatch.setattr(send_notifications, "_sechub_client", None)
+
+    first = send_notifications._get_sechub_client()
+    second = send_notifications._get_sechub_client()
+
+    # Cached: the second call reuses the instance instead of building a new one.
+    assert first is second
+    securityhub_calls = [call for call in calls if call[0] == "securityhub"]
+    # Constructed exactly once, with the shared boto config.
+    assert len(securityhub_calls) == 1
+    assert securityhub_calls[0][1] is send_notifications._BOTO_CONFIG
+
+
+@mock_aws
+def test_rollback_failed_keeps_rollback_available_for_retry(mocker):
+    # A rollback runs as its own execution and writes its own history row, so the row has to
+    # carry rollbackAvailable itself for the UI to offer Retry Rollback.
+    setup_ssm_parameters()
+    setup_dynamodb_tables()
+
+    os.environ["ENHANCED_METRICS"] = "no"
+
+    mock_update = mocker.patch(
+        "send_notifications.update_remediation_status_and_history"
+    )
+    setup(mocker)
+
+    event = copy.deepcopy(default_event)
+    event["CustomActionName"] = "ASR:Rollback"
+    event["Notification"]["State"] = "FAILED"
+    event["Notification"][
+        "StepFunctionsExecutionId"
+    ] = "arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:test-execution-id"
+
+    lambda_handler(event, {})
+
+    call_args = mock_update.call_args.args[0]
+    assert call_args.remediation_status == "ROLLBACK_FAILED"
+    assert call_args.rollback_available is True
+
+
+ROLLBACK_FAILURE_MESSAGE = (
+    "Step fails when it is Poll action status for completion. "
+    "Traceback (most recent call last):\n"
+    '  File "/tmp/abc/customer_script.py", line 439, in execute_rollback\n'
+    "    raise SnapshotValidationError(\n"
+    "customer_script.SnapshotValidationError: Rollback aborted for table my-table: "
+    "the resource was modified after the ASR remediation.\n"
+)
+ROLLBACK_FAILURE_REASON = (
+    "SnapshotValidationError: Rollback aborted for table my-table: "
+    "the resource was modified after the ASR remediation."
+)
+
+
+class TestExtractFailureReason:
+    def test_a_traceback_yields_only_the_exception_the_script_raised(self):
+        reason = extract_failure_reason(ROLLBACK_FAILURE_MESSAGE)
+        assert reason == ROLLBACK_FAILURE_REASON
+        assert "Traceback" not in reason
+        assert "customer_script.py" not in reason
+
+    def test_the_outermost_exception_of_a_chain_is_reported(self):
+        raw = (
+            "Traceback (most recent call last):\n"
+            "json.decoder.JSONDecodeError: Expecting property name\n"
+            "During handling of the above exception, another exception occurred:\n"
+            "Traceback (most recent call last):\n"
+            "customer_script.RollbackError: could not restore the bucket policy\n"
+        )
+        assert (
+            extract_failure_reason(raw)
+            == "RollbackError: could not restore the bucket policy"
+        )
+
+    def test_the_execution_log_dump_is_unwrapped(self):
+        # check_ssm_execution json.dumps its log list into Details, and the last element is
+        # a placeholder rather than the failure.
+        raw = json.dumps(
+            [
+                ROLLBACK_FAILURE_MESSAGE,
+                "No output available yet because the step is not successfully executed",
+            ]
+        )
+        assert extract_failure_reason(raw) == ROLLBACK_FAILURE_REASON
+
+    def test_a_message_holding_no_exception_is_left_alone(self):
+        # SSM caps each message at 1024 characters and can cut the exception off entirely;
+        # there is no reason to recover, so do not invent one.
+        raw = "ASR playbook for (cis-aws-foundations-benchmark) v1.2.0 is not enabled."
+        assert extract_failure_reason(raw) == raw
+
+    def test_a_truncated_traceback_reports_where_the_script_broke(self):
+        # SSM caps each message at 1024 characters and often cuts it off before the exception.
+        raw = json.dumps(
+            [
+                "Step fails when it is Poll action status for completion. "
+                "Traceback (most recent call last):\n"
+                '  File "/tmp/abc/customer_script.py", line 28, in execute_rollback\n'
+                "    snapshot = read_snapshot(\n"
+                '  File "/var/lang/lib/python3.11/site-packages/botocore/client.py", line 1051, in _make_api_call\n'
+                "    request_dict = self._convert_to_request_...",
+                "No output available yet because the step is not successfully executed",
+            ]
+        )
+        reason = extract_failure_reason(raw)
+        # The outermost frame is the script's own entry point, not whichever library it reached.
+        assert reason.startswith("Failed in execute_rollback at line 28.")
+        assert "_make_api_call" not in reason
+
+    def test_a_message_with_neither_exception_nor_frames_is_still_readable(self):
+        # Whatever happens, the popover must not be handed the serialized log array.
+        raw = json.dumps(
+            [
+                "Step fails when it is Executing. Fail to start automation, "
+                "errorMessage: Undefined execution inputs: [Rollback].",
+                "No output available yet because the step is not successfully executed",
+            ]
+        )
+        reason = extract_failure_reason(raw)
+        assert not reason.startswith("[")
+        assert "\\n" not in reason
+        assert reason.startswith("Step fails when it is Executing.")
+
+    def test_frames_are_read_in_order_even_when_the_log_arrives_one_line_per_element(
+        self,
+    ):
+        raw = json.dumps(
+            [
+                "Traceback (most recent call last):",
+                '  File "/tmp/abc/customer_script.py", line 439, in execute_rollback',
+                "    snapshot = read_snapshot(",
+                '  File "/var/lang/lib/python3.11/site-packages/botocore/client.py", line 1051, in _make_api_call',
+            ]
+        )
+        reason = extract_failure_reason(raw)
+        assert reason.startswith("Failed in execute_rollback at line 439.")
+        assert "_make_api_call" not in reason
+
+    def test_a_details_field_that_is_already_a_list_does_not_raise(self):
+        assert extract_failure_reason(["RollbackError: boom"]) == "RollbackError: boom"
+        assert extract_failure_reason([]) == ""
+
+    def test_non_string_elements_do_not_raise(self):
+        raw = json.dumps([17, None, {"a": 1}, "RollbackError: boom"])
+        assert extract_failure_reason(raw) == "RollbackError: boom"
+
+    def test_a_lambda_error_cause_yields_the_exception_from_its_trace(self):
+        raw = "Cause: " + json.dumps(
+            {
+                "errorMessage": "Task timed out after 900.00 seconds",
+                "errorType": "Function.Timeout",
+                "trace": [
+                    "Traceback (most recent call last):",
+                    '  File "/var/task/handler.py", line 3, in handler',
+                    "RuntimeError: boom",
+                ],
+            }
+        )
+        assert extract_failure_reason(raw) == "RuntimeError: boom"
+
+    def test_a_lambda_error_cause_without_a_trace_yields_its_message(self):
+        raw = "Cause: " + json.dumps(
+            {
+                "errorMessage": "Task timed out after 900.00 seconds",
+                "errorType": "Function.Timeout",
+            }
+        )
+        assert extract_failure_reason(raw) == "Task timed out after 900.00 seconds"
+
+    def test_a_cause_that_is_not_json_keeps_its_text(self):
+        assert extract_failure_reason("Cause: States.Timeout") == "States.Timeout"
+
+    def test_empty_message(self):
+        assert extract_failure_reason("") == ""
+
+
+@mock_aws
+def test_rollback_failed_error_is_the_reason_not_the_traceback(mocker):
+    setup_ssm_parameters()
+    setup_dynamodb_tables()
+
+    os.environ["ENHANCED_METRICS"] = "no"
+
+    mock_update = mocker.patch(
+        "send_notifications.update_remediation_status_and_history"
+    )
+    setup(mocker)
+
+    event = copy.deepcopy(default_event)
+    event["CustomActionName"] = "ASR:Rollback"
+    event["Notification"]["State"] = "FAILED"
+    event["Notification"]["Details"] = ROLLBACK_FAILURE_MESSAGE
+    event["Notification"][
+        "StepFunctionsExecutionId"
+    ] = "arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:test-execution-id"
+
+    lambda_handler(event, {})
+
+    call_args = mock_update.call_args.args[0]
+    assert call_args.remediation_status == "ROLLBACK_FAILED"
+    assert call_args.error == ROLLBACK_FAILURE_REASON
+
+
+class TestCompressFindingForHistory:
+    def test_compresses_the_finding_to_gzipped_asff(self):
+        event = copy.deepcopy(default_event)
+        compressed = _compress_finding_for_history(event)
+        assert compressed is not None
+        assert json.loads(gzip.decompress(compressed).decode("utf-8"))["Id"]
+
+    def test_an_unserialisable_finding_is_logged_and_skipped(self, mocker):
+        # gzip.compress cannot run on a finding json.dumps rejects; the history row is still
+        # written, just without findingJSON, so the remediation is not lost over a rendering aid.
+        mocker.patch(
+            "send_notifications._build_asff_for_history",
+            return_value={"Resources": {object()}},
+        )
+        warning = mocker.patch("send_notifications.logger.warning")
+
+        assert _compress_finding_for_history(copy.deepcopy(default_event)) is None
+        assert "Failed to compress finding" in warning.call_args.args[0]
+
+
+class TestNonEmptyStr:
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("s3-key", "s3-key"),
+            ("", None),
+            (None, None),
+            (17, None),
+            ({"not": "a string"}, None),
+        ],
+    )
+    def test_only_a_non_empty_string_survives(self, value, expected):
+        assert _non_empty_str(value) == expected
+
+
+class TestEmitRollbackMetrics:
+    """_emit_rollback_metrics maps snapshot/rollback outcomes to CloudWatch metrics.
+
+    The ControlId-free aggregates the alarms watch are always emitted; the
+    per-ControlId breakdowns are gated on ENHANCED_METRICS, matching how
+    RemediationOutcome is treated at _process_metrics.
+    """
+
+    @staticmethod
+    def _emitted(cloudwatch: Mock) -> list[dict[str, Any]]:
+        # Each send_metric call's single positional metric dict.
+        return [call.args[0] for call in cloudwatch.send_metric.call_args_list]
+
+    # -- ENHANCED_METRICS=yes: per-ControlId breakdowns present --
+
+    def test_snapshot_capture_success_controlid_series_when_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "yes"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "SUCCESS", True)
+        assert self._emitted(cloudwatch) == [
+            {
+                "MetricName": "SnapshotCaptureSuccess",
+                "Dimensions": [{"Name": "ControlId", "Value": "KMS.4"}],
+                "Unit": "Count",
+                "Value": 1,
+            }
+        ]
+
+    def test_snapshot_capture_failure_emits_controlid_and_aggregate_when_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "yes"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "SUCCESS", False)
+        emitted = self._emitted(cloudwatch)
+        assert all(m["MetricName"] == "SnapshotCaptureFailure" for m in emitted)
+        dims = [m["Dimensions"] for m in emitted]
+        assert [{"Name": "ControlId", "Value": "KMS.4"}] in dims
+        assert [] in dims  # ControlId-free aggregate the alarm evaluates
+        assert len(emitted) == 2
+
+    def test_snapshot_capture_skipped_when_no_snapshot_and_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "yes"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "EC2.1", "SUCCESS", None)
+        assert self._emitted(cloudwatch) == [
+            {
+                "MetricName": "SnapshotCaptureSkipped",
+                "Dimensions": [{"Name": "ControlId", "Value": "EC2.1"}],
+                "Unit": "Count",
+                "Value": 1,
+            }
+        ]
+
+    def test_rollback_success_emits_controlid_and_aggregate_when_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "yes"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "ROLLBACK_SUCCESS", None)
+        emitted = self._emitted(cloudwatch)
+        assert all(m["MetricName"] == "RollbackExecutionOutcome" for m in emitted)
+        dims = [m["Dimensions"] for m in emitted]
+        assert [
+            {"Name": "ControlId", "Value": "KMS.4"},
+            {"Name": "Outcome", "Value": "Success"},
+        ] in dims
+        # Aggregate series the rate-limit alarm (Outcome=Success) watches.
+        assert [{"Name": "Outcome", "Value": "Success"}] in dims
+        assert len(emitted) == 2
+
+    # -- ENHANCED_METRICS=no: only the aggregates the alarms depend on --
+
+    def test_snapshot_capture_failure_emits_only_aggregate_when_not_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "no"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "SUCCESS", False)
+        assert self._emitted(cloudwatch) == [
+            {
+                "MetricName": "SnapshotCaptureFailure",
+                "Dimensions": [],  # the alarm-backing aggregate still fires
+                "Unit": "Count",
+                "Value": 1,
+            }
+        ]
+
+    def test_snapshot_success_and_skipped_emit_nothing_when_not_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "no"})
+        cloudwatch = mocker.Mock()
+        # SnapshotCaptureSuccess / Skipped are dashboard-only, no aggregate/alarm.
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "SUCCESS", True)
+        _emit_rollback_metrics(cloudwatch, "EC2.1", "SUCCESS", None)
+        assert self._emitted(cloudwatch) == []
+
+    def test_rollback_outcome_emits_only_aggregate_when_not_enhanced(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "no"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "ROLLBACK_FAILED", None)
+        assert self._emitted(cloudwatch) == [
+            {
+                "MetricName": "RollbackExecutionOutcome",
+                "Dimensions": [{"Name": "Outcome", "Value": "Failed"}],
+                "Unit": "Count",
+                "Value": 1,
+            }
+        ]
+
+    def test_failed_remediation_emits_no_snapshot_metric(
+        self, mocker: MockerFixture
+    ) -> None:
+        # A failed remediation (not SUCCESS, not a rollback) emits nothing here.
+        mocker.patch.dict("os.environ", {"ENHANCED_METRICS": "yes"})
+        cloudwatch = mocker.Mock()
+        _emit_rollback_metrics(cloudwatch, "KMS.4", "FAILED", None)
+        assert self._emitted(cloudwatch) == []
+
+    def test_resolve_rollback_state_success_without_snapshot_stored_marks_skipped(
+        self, mocker: MockerFixture
+    ) -> None:
+        # The gate in _resolve_rollback_state is what turns SnapshotCaptureSkipped
+        # on: a SUCCESS whose RemediationOutput carries no snapshotStored resolves
+        # to rollback_available=None and emits Skipped (when enhanced).
+        mocker.patch.dict(
+            "os.environ", {"ENABLE_ROLLBACK": "yes", "ENHANCED_METRICS": "yes"}
+        )
+        cloudwatch = mocker.Mock()
+        mocker.patch("send_notifications.CloudWatchMetrics", return_value=cloudwatch)
+        mocker.patch(
+            "send_notifications._is_control_rollback_enabled", return_value=True
+        )
+
+        event = {
+            "Notification": {
+                "State": "SUCCESS",
+                "RemediationOutput": json.dumps({"status": "done"}),
+            },
+            "Finding": {"Compliance": {"SecurityControlId": "S3.1"}},
+        }
+        event_dict = {"Finding": {"Compliance": {"SecurityControlId": "S3.1"}}}
+
+        available, description, version = _resolve_rollback_state(
+            cast(Event, event), event_dict, "SUCCESS"
+        )
+        assert (available, description, version) == (None, None, None)
+        assert self._emitted(cloudwatch) == [
+            {
+                "MetricName": "SnapshotCaptureSkipped",
+                "Dimensions": [{"Name": "ControlId", "Value": "S3.1"}],
+                "Unit": "Count",
+                "Value": 1,
+            }
+        ]

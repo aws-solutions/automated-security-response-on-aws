@@ -7,7 +7,11 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { StringFormat, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableDynamoDBDeletionProtection(scope, id, { ...props, controlId: 'DynamoDB.6' });
+  return new EnableDynamoDBDeletionProtection(scope, id, {
+    ...props,
+    controlId: 'DynamoDB.6',
+    isRollbackEnabled: true,
+  });
 }
 
 export class EnableDynamoDBDeletionProtection extends ControlRunbookDocument {

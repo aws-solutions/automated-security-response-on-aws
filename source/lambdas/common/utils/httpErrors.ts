@@ -8,11 +8,17 @@ export const BAD_REQUEST_ERROR_MESSAGE = 'Bad request';
 
 export class HttpError extends Error {
   public readonly statusCode: number;
+  /** Machine-readable error code (e.g. VERSION_CONFLICT) for clients to branch on. */
+  public readonly code?: string;
+  /** Structured detail a client needs to act on the error (e.g. the currentVersion to refresh to). */
+  public readonly context?: Record<string, unknown>;
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, options?: { code?: string; context?: Record<string, unknown> }) {
     super(message);
     this.statusCode = statusCode;
     this.name = 'HttpError';
+    this.code = options?.code;
+    this.context = options?.context;
   }
 }
 
@@ -71,14 +77,9 @@ export class VersionConflictError extends HttpError {
 }
 
 export class ConflictError extends HttpError {
-  public readonly code?: string;
-  public readonly context?: Record<string, unknown>;
-
   constructor(message = CONFLICT_ERROR_MESSAGE, options?: { code?: string; context?: Record<string, unknown> }) {
-    super(409, message);
+    super(409, message, options);
     this.name = 'ConflictError';
-    this.code = options?.code;
-    this.context = options?.context;
   }
 }
 

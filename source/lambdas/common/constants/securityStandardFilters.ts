@@ -60,7 +60,19 @@ export function getOptimizedFindingFilters(): NonNullable<GetFindingsCommandInpu
 }
 
 /**
- * Enhanced version that fetches controlIds from REMEDIATION_CONFIG_TABLE and applies them as filters
+ * Applies the caller-resolved supported controlIds (from REMEDIATION_CONFIG_TABLE) as
+ * Security Hub filters on top of the base finding filters.
+ *
+ * Fails CLOSED: the finding sweep must only ever pull findings for controls ASR supports.
+ * An EMPTY `controlIds` list returns a filter that matches NOTHING (a
+ * `ComplianceSecurityControlId` that cannot exist), never the broad base filter.
+ * Omitting the control filter would fall back to `GeneratorId`/`ProductArn` PREFIX
+ * matching and pull EVERY Security Hub control finding on the enabled standards —
+ * including controls the solution does not support — and persist them.
+ *
+ * The caller resolves `controlIds` (from REMEDIATION_CONFIG_TABLE); any failure doing
+ * so surfaces there rather than being swallowed into an empty, match-everything filter.
+ *
  * @param controlIds Supported control ids
  * @param awsAccountId When set, scopes the query to a single member account (AwsAccountId EQUALS)
  * @returns Promise with optimized filters including controlId filters
@@ -69,25 +81,23 @@ export async function getOptimizedFindingFiltersByControlId(
   controlIds: string[],
   awsAccountId?: string,
 ): Promise<NonNullable<GetFindingsCommandInput['Filters']>> {
-  try {
-    const baseFilters = getOptimizedFindingFilters();
+  const baseFilters = getOptimizedFindingFilters();
 
-    return {
-      ...baseFilters,
-      ...(controlIds.length > 0 && {
-        ComplianceSecurityControlId: controlIds.map((controlId) => ({
-          Value: controlId,
-          Comparison: 'EQUALS',
-        })),
-      }),
-      ...(awsAccountId && {
-        AwsAccountId: [{ Value: awsAccountId, Comparison: 'EQUALS' }],
-      }),
-    };
-  } catch (error) {
-    console.warn('Failed to process controlIds, returning empty filters:', error);
-    return {};
-  }
+  // No supported controls to query → match nothing. `__ASR_NO_SUPPORTED_CONTROLS__`
+  // is not a valid Security Hub control id, so the EQUALS filter returns zero findings
+  // instead of the whole standard.
+  const controlIdFilter =
+    controlIds.length > 0
+      ? controlIds.map((controlId) => ({ Value: controlId, Comparison: 'EQUALS' as const }))
+      : [{ Value: '__ASR_NO_SUPPORTED_CONTROLS__', Comparison: 'EQUALS' as const }];
+
+  return {
+    ...baseFilters,
+    ComplianceSecurityControlId: controlIdFilter,
+    ...(awsAccountId && {
+      AwsAccountId: [{ Value: awsAccountId, Comparison: 'EQUALS' }],
+    }),
+  };
 }
 
 /**

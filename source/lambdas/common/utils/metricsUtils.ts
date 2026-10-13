@@ -3,6 +3,7 @@
 import https from 'https';
 import { DeleteParameterCommand, PutParameterCommand } from '@aws-sdk/client-ssm';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import { ASFFSchema, OCSFComplianceSchema } from '@asr/data-models';
 import { tryResolveControlId } from './findingUtils';
 import { getLogger } from './logger';
@@ -18,10 +19,30 @@ interface FailureMetric {
   status_reason: string;
   control_id: string | undefined;
   product_arn: string | undefined;
+  class_uid: number | undefined;
   region: string | undefined;
   error: string | undefined;
   truncatedRecordBody: string | undefined;
 }
+
+/**
+ * The few identifying fields read off a finding that matches no known schema, so
+ * the next unrecognized shape can be diagnosed from central metrics alone. Each
+ * field recovers on its own, so one malformed field cannot suppress the others.
+ */
+const UnrecognizedFindingShapeHintSchema = z.looseObject({
+  class_uid: z.number().optional().catch(undefined),
+  ProductArn: z.string().optional().catch(undefined),
+  metadata: z
+    .looseObject({
+      product: z
+        .looseObject({ uid: z.string().optional().catch(undefined) })
+        .optional()
+        .catch(undefined),
+    })
+    .optional()
+    .catch(undefined),
+});
 
 interface UsageData {
   Solution: string;
@@ -43,16 +64,13 @@ const DEFAULT_FAILURE_METRIC: FailureMetric = {
   status_reason: 'PRE_PROCESSOR_FAILED',
   control_id: undefined,
   product_arn: undefined,
+  class_uid: undefined,
   region: undefined,
   error: undefined,
   truncatedRecordBody: undefined,
 };
 
-export function buildFailureMetric(
-  error: unknown,
-  truncatedRecord?: string,
-  finding?: Record<any, any>,
-): FailureMetric {
+export function buildFailureMetric(error: unknown, truncatedRecord?: string, finding?: unknown): FailureMetric {
   const errorMessage = error instanceof Error ? error.message : String(error);
   if (!finding)
     return {
@@ -79,14 +97,18 @@ export function buildFailureMetric(
       ...DEFAULT_FAILURE_METRIC,
       control_id: ocsfResult.data.compliance.control,
       product_arn: ocsfResult.data.metadata?.product?.uid,
+      class_uid: ocsfResult.data.class_uid,
       region: ocsfResult.data.cloud.region,
       error: errorMessage,
       truncatedRecordBody: truncatedRecord,
     };
   }
 
+  const shapeHint = UnrecognizedFindingShapeHintSchema.safeParse(finding);
   return {
     ...DEFAULT_FAILURE_METRIC,
+    product_arn: shapeHint.success ? (shapeHint.data.ProductArn ?? shapeHint.data.metadata?.product?.uid) : undefined,
+    class_uid: shapeHint.success ? shapeHint.data.class_uid : undefined,
     truncatedRecordBody: truncatedRecord,
     error: errorMessage,
   };

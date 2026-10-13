@@ -27,6 +27,15 @@ export interface CognitoConstructProps {
   adminUserEmail: string;
   userAccountMappingTableName: string;
   userAccountMappingTable: dynamodb.ITable;
+  /**
+   * Gates the frontend-only Web UI SPA app client (and its managed-login branding and
+   * client-id output). The client's OAuth callback/logout URLs are derived from the
+   * CloudFront distribution domain, which only exists when the frontend is deployed; in
+   * an MCP-only deployment that domain resolves to '', producing invalid `https:///callback`
+   * URLs that Cognito rejects. The user pool, its hosted-UI domain, and the resource server
+   * stay unconditional — the AgentCore Gateway and its own app client depend on them.
+   */
+  frontendEnabled: cdk.CfnCondition;
 }
 
 export class CognitoConstruct extends Construct {
@@ -90,9 +99,17 @@ export class CognitoConstruct extends Construct {
     addCfnGuardSuppression(preSignupTrigger, 'LAMBDA_CONCURRENCY_CHECK');
 
     const emailSubject = 'Welcome to Automated Security Response on AWS';
+    const multiFactorAuthentication = props.multiFactorAuthentication || cognito.Mfa.OPTIONAL;
 
-    const createInvitationEmailBody = (): string => {
-      return `
+    // The invitation email is sent whenever the user pool exists — including an MCP-only
+    // deployment, where the CloudFront frontend (and therefore distributionDomainName) is
+    // absent and resolves to ''. Choose the whole body at deploy time:
+    //   - frontend on  → link to the Web UI (CloudFront).
+    //   - frontend off → no Web UI link (there is none, and a bare Cognito hosted-UI
+    //     /login is not a usable login URL without client_id/response_type/scope/
+    //     redirect_uri); instead tell the user to sign in from their MCP client, which
+    //     drives the OAuth login flow itself.
+    const webUiEmailBody = `
         <p>Hello,</p>
         <p>You have been invited to access the Automated Security Response on AWS solution.</p>
         <p>Your username is: <strong>{username}</strong></p>
@@ -101,7 +118,20 @@ export class CognitoConstruct extends Construct {
         <p><a href="https://${props.distributionDomainName}">https://${props.distributionDomainName}</a></p>
         <p>Please use the above URL to sign in and change your password.</p>
       `;
-    };
+    const mcpOnlyEmailBody = `
+        <p>Hello,</p>
+        <p>You have been invited to access the Automated Security Response on AWS solution.</p>
+        <p>Your username is: <strong>{username}</strong></p>
+        <p>Your temporary password is: <strong>{####}</strong></p>
+        <p>This deployment has no Web UI. Sign in from your MCP client (for example Kiro, Claude Code, or Codex): start the ASR gateway login when prompted and enter the username and temporary password above. You will be asked to set a new password on first sign-in.</p>
+      `;
+    const invitationEmailBody = cdk.Fn.conditionIf(
+      props.frontendEnabled.logicalId,
+      webUiEmailBody,
+      mcpOnlyEmailBody,
+    ).toString();
+
+    const createInvitationEmailBody = (): string => invitationEmailBody;
 
     this.userPool = new cognito.UserPool(this, 'ASRUserPool', {
       userPoolName: `${props.resourceNamePrefix}-ASR-UserPool`,
@@ -121,7 +151,7 @@ export class CognitoConstruct extends Construct {
         emailSubject: emailSubject,
         emailBody: createInvitationEmailBody(),
       },
-      mfa: (props.multiFactorAuthentication as cognito.Mfa) || cognito.Mfa.OPTIONAL,
+      mfa: multiFactorAuthentication as cognito.Mfa,
       mfaSecondFactor: {
         sms: false,
         otp: true,
@@ -139,6 +169,30 @@ export class CognitoConstruct extends Construct {
       },
     });
 
+    const isMultiFactorAuthenticationOff = new cdk.CfnCondition(this, 'IsMultiFactorAuthenticationOff', {
+      expression: cdk.Fn.conditionEquals(multiFactorAuthentication, cognito.Mfa.OFF),
+    });
+    const userPoolCloudFormationResource = this.userPool.node.defaultChild as cognito.CfnUserPool;
+    userPoolCloudFormationResource.addPropertyOverride(
+      'EnabledMfas',
+      cdk.Fn.conditionIf(isMultiFactorAuthenticationOff.logicalId, cdk.Aws.NO_VALUE, ['SOFTWARE_TOKEN_MFA']),
+    );
+
+    // The MFAConfiguration parameter accepts OFF | OPTIONAL | REQUIRED, but the CloudFormation
+    // AWS::Cognito::UserPool.MfaConfiguration property only accepts OFF | ON | OPTIONAL. Because
+    // multiFactorAuthentication is an unresolved CFN token, CDK cannot map REQUIRED -> ON at
+    // synth (that mapping only happens for the resolved cognito.Mfa.REQUIRED enum), so the raw
+    // 'REQUIRED' string would be emitted and rejected at deploy. Override MfaConfiguration to
+    // translate REQUIRED -> ON at deploy time; OFF/OPTIONAL pass through unchanged. Compare
+    // against the literal 'REQUIRED' (the parameter value), not cognito.Mfa.REQUIRED (== 'ON').
+    const isMultiFactorAuthenticationRequired = new cdk.CfnCondition(this, 'IsMultiFactorAuthenticationRequired', {
+      expression: cdk.Fn.conditionEquals(multiFactorAuthentication, 'REQUIRED'),
+    });
+    userPoolCloudFormationResource.addPropertyOverride(
+      'MfaConfiguration',
+      cdk.Fn.conditionIf(isMultiFactorAuthenticationRequired.logicalId, 'ON', multiFactorAuthentication),
+    );
+
     const resourceServer = new cognito.UserPoolResourceServer(this, 'ASRResourceServer', {
       userPool: this.userPool,
       identifier: 'asr-api',
@@ -154,6 +208,14 @@ export class CognitoConstruct extends Construct {
           // (see docs/m2m-authentication.md), so the feature is inert by default.
           scopeName: 'full-access',
           scopeDescription: 'Full administrative access to the ASR API for machine-to-machine clients',
+        },
+        {
+          // Scope required on tokens that reach the API via the (optional,
+          // parameter-gated) AgentCore Gateway. Its inbound JWT authorizer
+          // validates this scope; the ACG app client is granted it. Kept
+          // distinct from full-access so gateway traffic is separately grantable.
+          scopeName: 'gateway',
+          scopeDescription: 'Access to the ASR API through the AgentCore Gateway',
         },
       ],
     });
@@ -190,6 +252,9 @@ export class CognitoConstruct extends Construct {
         logoutUrls,
       },
     });
+    // Frontend-only: the callback/logout URLs above are meaningless (and invalid) without
+    // the CloudFront distribution, so the SPA client is created only when the frontend is.
+    (this.userPoolClient.node.defaultChild as cognito.CfnUserPoolClient).cfnOptions.condition = props.frontendEnabled;
 
     this.userPoolDomain = new cognito.UserPoolDomain(this, 'ASRUserPoolDomain', {
       userPool: this.userPool,
@@ -290,6 +355,8 @@ export class CognitoConstruct extends Construct {
       assets: transformedAssets,
       useCognitoProvidedValues: false,
     });
+    // Branding is bound to the frontend SPA client, so it must disappear with it.
+    managedLoginBranding.cfnOptions.condition = props.frontendEnabled;
 
     // avoid race condition where customization is attempting to be applied before domain is active
     managedLoginBranding.addResourceDependency(this.userPoolDomain.node.defaultChild as cognito.CfnUserPoolDomain);
@@ -315,6 +382,9 @@ export class CognitoConstruct extends Construct {
       value: this.userPoolClient.userPoolClientId,
       description: 'Cognito User Pool Client ID',
       exportName: `${cdk.Stack.of(this).stackName}-UserPoolClientId`,
+      // References the frontend-only SPA client, so it is gated with it — otherwise the
+      // output resolves an attribute of a resource that does not exist in MCP-only mode.
+      condition: props.frontendEnabled,
     });
   }
 }

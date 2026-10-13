@@ -5,23 +5,41 @@
 
 body,
 html {
-    margin: 0;
-    height: 100%;
+  margin: 0;
+  height: 100%;
 }
 .amplify-button--primary {
-    background-color: #eb5f07;
+  background-color: #eb5f07;
 }
 
-.amplify-tabs-item[data-state="active"] {
-    color: black;
-    border-color: #eb5f07;
+.amplify-tabs-item[data-state='active'] {
+  color: black;
+  border-color: #eb5f07;
+}
+
+/*
+ * Grey rule separating the sections of a form, e.g. the Manage User modal.
+ * Cloudscape 3.0.1208 ships no Divider component and @cloudscape-design/design-tokens
+ * is not a dependency, so this uses a half-transparent neutral rather than a hashed
+ * Cloudscape token: it reads as grey against both the light and dark backgrounds and
+ * cannot break when Cloudscape rehashes its custom property names.
+ *
+ * Applied to the section itself rather than rendered as a separate <hr>: the sections are
+ * laid out by a Cloudscape SpaceBetween, which spaces its direct children, and a fragment
+ * holding an <hr> plus the section would collapse into a single child and lose the gap
+ * between the rule and the section's label. SpaceBetween supplies the space above the
+ * rule; padding-top supplies the smaller gap below it.
+ */
+.form-section-divider {
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  padding-top: 1rem;
 }
 
 /* Keep a sticky top navigation bar at the top of the screen when scrolling down */
 #top-nav {
-    position: sticky;
-    left: 0;
-    top: 0;
-    right: 0;
-    z-index: 1000;
+  position: sticky;
+  left: 0;
+  top: 0;
+  right: 0;
+  z-index: 1000;
 }

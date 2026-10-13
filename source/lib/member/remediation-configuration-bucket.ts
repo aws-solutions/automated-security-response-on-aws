@@ -36,7 +36,7 @@ export function buildRemediationConfigBucketAccessPolicyName(region: string): st
 }
 
 export interface RemediationConfigurationBucketProps {
-  readonly solutionId: string;
+  readonly resourceNamePrefix: string;
   readonly solutionVersion: string;
   readonly solutionTMN: string;
   readonly solutionDistBucket: string;
@@ -94,6 +94,12 @@ export class RemediationConfigurationBucket extends Construct {
           id: 'InstallOverrideListExpiration',
           prefix: 'install-overrides/',
           expiration: Duration.days(7),
+          enabled: true,
+        },
+        {
+          id: 'RollbackSnapshotRetention',
+          prefix: 'snapshots/',
+          expiration: Duration.days(365),
           enabled: true,
         },
       ],
@@ -205,7 +211,7 @@ export class RemediationConfigurationBucket extends Construct {
     // Store bucket name in SSM for use by control runbooks
     new StringParameter(scope, 'RemediationConfigurationBucketNameParam', {
       description: 'S3 bucket name for ASR remediation configuration files (patch overrides, GuardDuty backups)',
-      parameterName: `/Solutions/${props.solutionId}/RemediationConfigurationBucket`,
+      parameterName: `/Solutions/${props.resourceNamePrefix}/RemediationConfigurationBucket`,
       stringValue: bucket.bucketName,
     });
 

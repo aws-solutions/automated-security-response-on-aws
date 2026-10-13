@@ -16,7 +16,7 @@ import {
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
 import { sendMetrics } from '../../common/utils/metricsUtils';
 import { ControlsService } from '../services/controlsService';
-import { FiltersService } from '../services/filtersService';
+import { FiltersService, type DeleteFilterResult } from '../services/filtersService';
 import { API_HEADERS, createResponse } from './apiHandler';
 import { BaseHandler, getClaims } from './baseHandler';
 
@@ -78,6 +78,13 @@ async function createFilterHandler(event: APIGatewayProxyEvent): Promise<APIGate
   return createResponse(201, createdFilter, API_HEADERS.FILTERS);
 }
 
+/** The 200 body's message for a filter delete that did not partially fail. */
+function deleteFilterMessage(result: DeleteFilterResult): string {
+  if (result.deleted) return 'Filter deleted successfully';
+  if (result.alreadyAbsent) return 'Filter already absent';
+  return 'Filter row was already absent; removed its dangling references from the listed controls';
+}
+
 async function deleteFilterHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   const claims = getClaims(event);
 
@@ -89,22 +96,36 @@ async function deleteFilterHandler(event: APIGatewayProxyEvent): Promise<APIGate
 
   const result = await filtersService.deleteFilter(filterId, user.email);
 
-  if (result.failedControlIds.length > 0) {
+  if (result.stillAttachedControlIds.length > 0) {
+    // Partial detach. The filter is kept so no control references a filter that does not
+    // exist, but the detached controls have already been widened — the body has to say both,
+    // and the WebUI must not read this as a completed deletion (it is a 207, not a 2xx success).
     return createResponse(
       207,
       {
-        message: 'Some controls failed to update. Filter was not deleted. Please retry.',
-        failedControlIds: result.failedControlIds,
+        message:
+          'Filter was NOT deleted: some controls still reference it. Controls listed in ' +
+          'detachedControlIds no longer apply this filter; retry to detach the rest and delete it.',
+        deleted: false,
+        detachedControlIds: result.detachedControlIds,
+        stillAttachedControlIds: result.stillAttachedControlIds,
       },
       API_HEADERS.FILTERS,
     );
   }
 
+  // Stays 200 when the filter was already gone: DELETE is idempotent, and the WebUI treats any
+  // non-2xx as a failure toast. Only the message and the `deleted` flag differ, so a cleanup
+  // script or an agent reading the body can tell a real teardown from a typo'd id — the same
+  // shape the notification DELETE returns. `affectedControlIds` is kept as the older name for
+  // `detachedControlIds`.
   return createResponse(
     200,
     {
-      message: 'Filter deleted successfully',
-      affectedControlIds: result.affectedControlIds,
+      message: deleteFilterMessage(result),
+      deleted: result.deleted,
+      detachedControlIds: result.detachedControlIds,
+      affectedControlIds: result.detachedControlIds,
     },
     API_HEADERS.FILTERS,
   );

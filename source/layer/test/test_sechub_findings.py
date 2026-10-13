@@ -811,3 +811,103 @@ def test_get_control_id_from_finding_id_resolves_consolidated_standard():
         "finding/00000000-1111-2222-3333-444444444444"
     )
     assert findings.get_control_id_from_finding_id(arn) == "security-control/Lambda.3"
+
+
+@pytest.mark.parametrize(
+    "finding_id",
+    [
+        "arn:aws:securityhub:us-east-1:111111111111:security-control/Lambda.3/finding/",
+        "arn:aws:securityhub:us-east-1:111111111111:/finding/finding-id",
+        "arn:aws:securityhub:us-east-1:111111111111:security-control/"
+        + ("A" * 100_000),
+    ],
+)
+def test_get_control_id_from_finding_id_rejects_incomplete_values(
+    finding_id: str,
+) -> None:
+    assert findings.get_control_id_from_finding_id(finding_id) is None
+
+
+def test_update_text_without_status_sends_no_workflow_or_status_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ARRANGE
+    monkeypatch.setenv("SECURITY_HUB_V2_ENABLED", "true")
+    finding_arn = "arn:aws:inspector2:us-east-1:111122223333:finding/abc123"
+    finding = findings.Finding(
+        {
+            "class_name": "Vulnerability Finding",
+            "finding_info": {"uid": finding_arn, "title": "t", "desc": "d"},
+            "metadata": {
+                "product": {
+                    "uid": "arn:aws:securityhub:us-east-1::productv2/aws/inspector"
+                }
+            },
+            "cloud": {"account": {"uid": "111122223333"}},
+            "resources": [{"uid": "resource-uid", "region": "us-east-1"}],
+        }
+    )
+    securityhub_client = boto3.client("securityhub", region_name="us-east-1")
+    stubbed_securityhub = Stubber(securityhub_client)
+    # moto does not implement BatchUpdateFindings or BatchUpdateFindingsV2. Stubber also validates
+    # each request against the botocore service model.
+    stubbed_securityhub.add_response(
+        "batch_update_findings_v2",
+        {"ProcessedFindings": [], "UnprocessedFindings": []},
+        expected_params={
+            "FindingIdentifiers": [
+                {
+                    "FindingInfoUid": finding_arn,
+                    "MetadataProductUid": "arn:aws:securityhub:us-east-1::productv2/aws/inspector",
+                    "CloudAccountUid": "111122223333",
+                }
+            ],
+            "Comment": "Test message",
+        },
+    )
+    stubbed_securityhub.add_response(
+        "batch_update_findings",
+        {"ProcessedFindings": [], "UnprocessedFindings": []},
+        expected_params={
+            "FindingIdentifiers": [
+                {
+                    "Id": finding_arn,
+                    "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/inspector",
+                }
+            ],
+            "Note": {"Text": "Test message", "UpdatedBy": "update_text_and_status"},
+        },
+    )
+    stubbed_securityhub.activate()
+    monkeypatch.setattr(findings, "securityhub", securityhub_client)
+
+    # ACT
+    finding.update_text_and_status("Test message")
+
+    # ASSERT
+    stubbed_securityhub.assert_no_pending_responses()
+    stubbed_securityhub.deactivate()
+
+
+@pytest.mark.parametrize(
+    "finding_rec, expected",
+    [
+        ({"Id": "asff-id", "Workflow": {"Status": "NEW"}}, True),
+        ({"Id": "asff-id", "Workflow": {"Status": "NOTIFIED"}}, False),
+        ({"Id": "asff-id", "Workflow": {"Status": "SUPPRESSED"}}, False),
+        ({"Id": "asff-id", "Workflow": {"Status": "RESOLVED"}}, False),
+        ({"Id": "asff-id"}, False),
+        ({"finding_info": {"uid": "ocsf-id"}}, True),
+        ({"finding_info": {"uid": "ocsf-id"}, "status_id": 0}, True),
+        ({"finding_info": {"uid": "ocsf-id"}, "status_id": 1}, True),
+        ({"finding_info": {"uid": "ocsf-id"}, "status_id": 2}, False),
+        ({"finding_info": {"uid": "ocsf-id"}, "status_id": 3}, False),
+        ({"finding_info": {"uid": "ocsf-id"}, "status_id": 4}, False),
+    ],
+)
+def test_is_new_workflow_status(finding_rec: dict[str, Any], expected: bool) -> None:
+    # ACT
+    result = findings.is_new_workflow_status(finding_rec)
+
+    # ASSERT
+    assert result is expected

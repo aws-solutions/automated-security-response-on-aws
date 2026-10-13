@@ -21,7 +21,7 @@ import {
   FindingConfigEvaluation,
   emptyFindingConfigEvaluation,
 } from './findingNotificationConfigEvaluator';
-import { mapFindingType, UnverifiedProductArnError } from './findingTypeMapper';
+import { isSecurityHubCoverageFinding, mapFindingType, UnverifiedProductArnError } from './findingTypeMapper';
 import {
   ASFFFinding,
   FindingTableItem,
@@ -36,6 +36,7 @@ import {
   ResolvedFindingType,
 } from '@asr/data-models';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { SecurityHubClient } from '@aws-sdk/client-securityhub';
 import {
   FindingDataService,
   FindingMetricEnrichment,
@@ -45,8 +46,9 @@ import { RemediationHistoryRepository } from '../common/repositories/remediation
 import { FiltersRepository } from '../common/repositories/filtersRepository';
 import { FindingRepository } from '../common/repositories/findingRepository';
 import { NotificationConfigurationRepository } from '../common/repositories/notificationConfigurationRepository';
-import { createDynamoDBClient } from '../common/utils/dynamodb';
+import { createDynamoDBClient, isItemCollectionSizeLimitError } from '../common/utils/dynamodb';
 import { executeOrchestrator } from '../common/utils/orchestrator';
+import { SecurityHubUtils } from '../common/utils/securityHub';
 import { triggerRemediationForFinding } from '../common/utils/remediationTrigger';
 import { buildFailureMetric, sendMetrics } from '../common/utils/metricsUtils';
 import { emitMetric } from '../common/utils/cloudWatchMetrics';
@@ -66,7 +68,6 @@ const processor = new BatchProcessor(EventType.SQS);
 const dynamoDBClient = tracer.captureAWSv3Client(createDynamoDBClient({ maxAttempts: 10 }));
 
 const sqsClient = tracer.captureAWSv3Client(new SQSClient({}));
-const findingDataService = new FindingDataService(env.FINDINGS_TABLE_NAME, dynamoDBClient, FINDING_PRINCIPAL);
 
 const remediationHistoryRepository = new RemediationHistoryRepository(
   FINDING_PRINCIPAL,
@@ -88,6 +89,11 @@ const findingNotificationConfigEvaluator = new FindingNotificationConfigEvaluato
   resourceFilterEvaluator,
   getClock(),
   logger,
+);
+
+const SECURITY_HUB_V2_DETAIL_TYPE = 'Findings Imported V2';
+const securityHubUtils = new SecurityHubUtils(
+  tracer.captureAWSv3Client(new SecurityHubClient({ retryMode: 'adaptive', maxAttempts: 5 })),
 );
 
 export class PreProcessor implements LambdaInterface {
@@ -237,6 +243,55 @@ export class PreProcessor implements LambdaInterface {
         findingId: historyItem.findingId,
         error,
       });
+    }
+  }
+
+  /**
+   * Whether to skip auto-remediation because the live finding is suppressed or reading its status is denied.
+   * The status is read live because an event can carry a stale one, and transient lookup errors propagate so
+   * the SQS record is retried.
+   */
+  private static async shouldSkipForLiveSuppression(
+    normalized: NormalizedFinding,
+    isSecurityHubV2Event: boolean,
+  ): Promise<boolean> {
+    const isSecurityControl = normalized.findingTypeIdentifier.type === 'securityControl';
+    try {
+      const shouldCheckSecurityHubV2 =
+        (normalized.format === 'OCSF' || isSecurityControl) &&
+        (isSecurityHubV2Event || (await securityHubUtils.isSecurityHubV2Enabled()));
+      const { suppressedFindingIds, unresolvedFindingIds } = await securityHubUtils.findSuppressedFindings([
+        {
+          findingId: normalized.id,
+          shouldCheckCspm: true,
+          shouldCheckSecurityHubV2,
+        },
+      ]);
+      if (suppressedFindingIds.has(normalized.id)) {
+        logger.info('Finding is suppressed in Security Hub CSPM or Security Hub V2; skipping auto-remediation', {
+          findingId: normalized.id,
+        });
+        emitMetric('RemediationSkippedSuppressed', 1, [{ name: 'Source', value: 'PreProcessor' }]);
+        return true;
+      }
+      if (unresolvedFindingIds.has(normalized.id)) {
+        logger.warn(
+          'Live finding status not found in Security Hub CSPM or Security Hub V2; using the status from the event',
+          {
+            findingId: normalized.id,
+          },
+        );
+        emitMetric('SuppressionLookupUnresolved', 1, [{ name: 'Source', value: 'PreProcessor' }]);
+      }
+      return false;
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== 'AccessDeniedException') throw error;
+      logger.error('Not authorized to read the live finding status; skipping auto-remediation', {
+        findingId: normalized.id,
+        error: error.message,
+      });
+      emitMetric('SuppressionLookupDenied', 1, [{ name: 'Source', value: 'PreProcessor' }]);
+      return true;
     }
   }
 
@@ -441,17 +496,19 @@ export class PreProcessor implements LambdaInterface {
   }
 
   private static async processNewFinding(
+    findingDataService: FindingDataService,
     normalized: NormalizedFinding,
     autoRemediationEnabled: boolean,
     isResourceRemediable: boolean,
     orchestratorInput: string,
+    isSecurityHubV2Event: boolean,
     eventBridgeTime?: string,
   ): Promise<void> {
     const asffShape = toAsffShape(normalized);
     const findingType = resolveFindingType(normalized);
     // A brand-new finding has no prior attempts, so the cap/cooldown never
     // applies here; only the base requirements and resource eligibility gate it.
-    const { shouldTrigger: triggerRemediation } = evaluateAutoRemediation({
+    const { shouldTrigger } = evaluateAutoRemediation({
       normalized,
       autoRemediationEnabled,
       isResourceRemediable,
@@ -462,6 +519,8 @@ export class PreProcessor implements LambdaInterface {
       retryPolicy: getRetryPolicy(env),
       now: getClock().now(),
     });
+    const triggerRemediation =
+      shouldTrigger && !(await this.shouldSkipForLiveSuppression(normalized, isSecurityHubV2Event));
     const status = triggerRemediation ? 'IN_PROGRESS' : 'NOT_STARTED';
     const notified = this.isNotified(normalized, orchestratorInput);
 
@@ -483,6 +542,7 @@ export class PreProcessor implements LambdaInterface {
       false,
       eventBridgeTime,
       this.toMetricEnrichment(evaluation),
+      currentNormalized.findingTypeIdentifier.value,
     );
 
     if (triggerRemediation && syncResult.status === 'SUCCESS') {
@@ -498,10 +558,12 @@ export class PreProcessor implements LambdaInterface {
   }
 
   private static async processExistingFinding(
+    findingDataService: FindingDataService,
     normalized: NormalizedFinding,
     autoRemediationEnabled: boolean,
     isResourceRemediable: boolean,
     orchestratorInput: string,
+    isSecurityHubV2Event: boolean,
     eventBridgeTime?: string,
   ): Promise<void> {
     const asffShape = toAsffShape(normalized);
@@ -512,7 +574,7 @@ export class PreProcessor implements LambdaInterface {
       findingDataService.getRemediationAttemptInfo(asffShape, findingType),
     ]);
 
-    const { shouldTrigger: triggerRemediation, capReached } = evaluateAutoRemediation({
+    const { shouldTrigger, capReached } = evaluateAutoRemediation({
       normalized,
       autoRemediationEnabled,
       isResourceRemediable,
@@ -530,6 +592,8 @@ export class PreProcessor implements LambdaInterface {
       });
       emitMetric('RemediationRetryCapReached', 1, [{ name: 'Source', value: 'PreProcessor' }]);
     }
+    const triggerRemediation =
+      shouldTrigger && !(await this.shouldSkipForLiveSuppression(normalized, isSecurityHubV2Event));
     const notified = this.isNotified(normalized, orchestratorInput);
     const status = triggerRemediation && !notified ? 'IN_PROGRESS' : undefined;
     const evaluation = await this.evaluateFindingConfigsSafely(normalized);
@@ -540,6 +604,7 @@ export class PreProcessor implements LambdaInterface {
       false,
       eventBridgeTime,
       this.toMetricEnrichment(evaluation),
+      normalized.findingTypeIdentifier.value,
     );
 
     if (triggerRemediation && syncResult.status === 'SUCCESS') {
@@ -666,6 +731,9 @@ export class PreProcessor implements LambdaInterface {
    * then runs a single pipeline regardless of finding format.
    */
   static async recordHandler(record: SQSRecord): Promise<void> {
+    // Records in a batch run in parallel, and the finding row is also written by the orchestrator and by
+    // other containers, so the service that caches finding reads is scoped to this record.
+    const findingDataService = new FindingDataService(env.FINDINGS_TABLE_NAME, dynamoDBClient, FINDING_PRINCIPAL);
     let unprocessedFinding: Record<any, any> = {};
     let payload: any;
 
@@ -684,6 +752,17 @@ export class PreProcessor implements LambdaInterface {
     }
 
     try {
+      // Security Hub V2 Coverage findings carry no control and have no remediation.
+      // Drop them here, before schema detection, so they produce neither a
+      // PRE_PROCESSOR_FAILED metric nor an ERROR log on every coverage refresh.
+      if (isSecurityHubCoverageFinding(unprocessedFinding)) {
+        logger.debug('Dropping Security Hub Coverage finding: coverage findings have no remediation', {
+          findingId: unprocessedFinding?.finding_info?.uid ?? unprocessedFinding?.Id ?? 'unknown',
+          sqsMessageId: record.messageId,
+        });
+        return;
+      }
+
       const findingNormalizer = new FindingEventNormalizer(logger);
       const findingLogger = {
         info: (msg: string, extra?: Record<string, unknown>) => logger.info(msg, extra ?? {}),
@@ -727,6 +806,7 @@ export class PreProcessor implements LambdaInterface {
       logger.debug(`Finding ${normalized.id} is ${isNewFinding ? 'new' : 'existing'}`);
 
       const orchestratorInput = PreProcessor.buildOrchestratorInput(normalized, payload);
+      const isSecurityHubV2Event = payload['detail-type'] === SECURITY_HUB_V2_DETAIL_TYPE;
 
       const eventBridgeTime = PreProcessor.resolveEventBridgeTime(payload, normalized.id);
 
@@ -745,49 +825,79 @@ export class PreProcessor implements LambdaInterface {
 
       if (isNewFinding) {
         await PreProcessor.processNewFinding(
+          findingDataService,
           normalized,
           autoRemediationEnabled,
           isResourceRemediable,
           orchestratorInput,
+          isSecurityHubV2Event,
           eventBridgeTime,
         );
       } else {
         await PreProcessor.processExistingFinding(
+          findingDataService,
           normalized,
           autoRemediationEnabled,
           isResourceRemediable,
           orchestratorInput,
+          isSecurityHubV2Event,
           eventBridgeTime,
         );
       }
     } catch (error) {
-      if (error instanceof UnverifiedProductArnError) {
-        // The finding claims a multi-service product but its ProductArn is not the reserved
-        // AWS service ARN we recognize. Drop it — do NOT fall through to standard
-        // SecurityControlId routing, which would otherwise honor an attacker-crafted control id.
-        logger.warn(
-          'Dropping finding: ProductArn is not the recognized reserved ARN for the claimed multi-service product',
-          {
-            findingId: unprocessedFinding?.Id ?? unprocessedFinding?.finding_info?.uid ?? 'unknown',
-            sqsMessageId: record.messageId,
-            productName: error.productName,
-            productArn: error.productArn,
-            expectedProductArnService: error.expectedProductArnService,
-            remediationId: error.remediationId,
-          },
-        );
-        return;
-      }
-      await sendMetrics(buildFailureMetric(error, undefined, unprocessedFinding));
-      logger.error(`Error processing finding from SQS Record ${record.messageId}`, {
-        findingId: unprocessedFinding?.Id ?? unprocessedFinding?.finding_info?.uid ?? 'unknown',
-        sqsMessageId: record.messageId,
-      });
-      if (error instanceof InvalidFindingSchemaError) {
-        return;
-      }
-      throw error;
+      await PreProcessor.handleRecordError(error, record, unprocessedFinding);
     }
+  }
+
+  /**
+   * Classifies a failure from {@link recordHandler}: deliberate drops (unverified product ARN,
+   * full findings-table item collection, unrecognized schema) return so the SQS record is deleted,
+   * anything else is rethrown so the record is retried and eventually dead-lettered.
+   */
+  private static async handleRecordError(
+    error: unknown,
+    record: SQSRecord,
+    unprocessedFinding: Record<string, unknown>,
+  ): Promise<void> {
+    const findingId = PreProcessor.rawFindingId(unprocessedFinding);
+    const sqsMessageId = record.messageId;
+
+    if (error instanceof UnverifiedProductArnError) {
+      // The finding claims a multi-service product but its ProductArn is not the reserved
+      // AWS service ARN we recognize. Drop it — do NOT fall through to standard
+      // SecurityControlId routing, which would otherwise honor an attacker-crafted control id.
+      logger.warn(
+        'Dropping finding: ProductArn is not the recognized reserved ARN for the claimed multi-service product',
+        {
+          findingId,
+          sqsMessageId,
+          productName: error.productName,
+          productArn: error.productArn,
+          expectedProductArnService: error.expectedProductArnService,
+          remediationId: error.remediationId,
+        },
+      );
+      return;
+    }
+    if (isItemCollectionSizeLimitError(error)) {
+      // The findings-table item collection for this finding type is at DynamoDB's 10 GB cap, so
+      // the write fails the same way on every retry until the collection shrinks. Retrying would
+      // only re-consume PreProcessor capacity (delaying every other control's findings) before
+      // landing in the DLQ anyway, so the record is dropped here with its own alarmable metric and
+      // deliberately not counted as a PRE_PROCESSOR_FAILED processing failure.
+      logger.error(
+        `Findings table item collection is full for SQS Record ${sqsMessageId}; dropping the finding instead of retrying`,
+        { findingId, sqsMessageId },
+      );
+      emitMetric('FindingsTableItemCollectionLimitExceeded', 1, [{ name: 'Source', value: 'PreProcessor' }]);
+      return;
+    }
+    await sendMetrics(buildFailureMetric(error, undefined, unprocessedFinding));
+    logger.error(`Error processing finding from SQS Record ${sqsMessageId}`, { findingId, sqsMessageId });
+    if (error instanceof InvalidFindingSchemaError) {
+      return;
+    }
+    throw error;
   }
 }
 

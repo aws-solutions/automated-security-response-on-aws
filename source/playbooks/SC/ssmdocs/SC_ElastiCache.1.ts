@@ -14,7 +14,7 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableElastiCacheBackups(scope, id, { ...props, controlId: 'ElastiCache.1' });
+  return new EnableElastiCacheBackups(scope, id, { ...props, controlId: 'ElastiCache.1', isRollbackEnabled: true });
 }
 
 export class EnableElastiCacheBackups extends ControlRunbookDocument {

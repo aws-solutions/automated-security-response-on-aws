@@ -287,6 +287,26 @@ export const getUserByIdHandler = (apiUrl: string) =>
     return user ? ok(user) : badRequest({ error: 'User not found' });
   });
 
+export const getGrantableToolsHandler = (apiUrl: string) =>
+  http.get(apiUrl + ApiEndpoints.MCP_TOOLS, () => {
+    // Two categories, and a category holding both a granted and an ungranted tool, so
+    // consumers can exercise the grouped rendering and the partial-group state.
+    return ok({
+      tools: [
+        { name: 'execute_finding_action', tier: 'AccountOperator', category: 'Remediation' },
+        { name: 'execute_runbook', tier: 'DelegatedAdmin', category: 'Remediation' },
+        { name: 'list_filters', tier: 'AccountOperator', category: 'Policy' },
+        { name: 'create_filter', tier: 'DelegatedAdmin', category: 'Policy' },
+      ],
+    });
+  });
+
+export const putUserMcpToolsHandler = (apiUrl: string) =>
+  http.put(`${apiUrl + ApiEndpoints.USERS}/:id/mcp-tools`, async ({ request, params }) => {
+    const body = (await request.json()) as { allowedTools: string[] };
+    return ok({ email: decodeURIComponent(params.id as string), allowedMcpTools: body.allowedTools });
+  });
+
 export const getFiltersHandler = (apiUrl: string) =>
   http.get(apiUrl + ApiEndpoints.FILTERS, () => {
     return ok({ filters: [] });
@@ -342,6 +362,8 @@ export const handlers = (apiUrl: string) => [
   getUserSelfHandler(apiUrl),
   getUsersHandler(apiUrl),
   getUserByIdHandler(apiUrl),
+  getGrantableToolsHandler(apiUrl),
+  putUserMcpToolsHandler(apiUrl),
   getRemediationsHandler(apiUrl),
   postRemediationHandler(apiUrl),
   postRemediationsSearchHandler(apiUrl),

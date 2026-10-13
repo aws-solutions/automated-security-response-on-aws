@@ -20,7 +20,8 @@ import {
   notificationConfigTableName,
 } from '../../../common/__tests__/envSetup';
 import { createMockEvent, createMockContext, TEST_REQUEST_CONTEXT } from '../utils';
-import { handler, createResponse } from '../../handlers/apiHandler';
+import { handler } from '../../handlers/apiHandler';
+import { createResponse } from '../../handlers/apiHandler';
 import { FORBIDDEN_ERROR_MESSAGE } from '../../../common/utils/httpErrors';
 import { setupMetricsMocks, cleanupMetricsMocks } from '../../../common/__tests__/metricsMockSetup';
 
@@ -1307,41 +1308,11 @@ describe('Top-level routing', () => {
       expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
     });
 
-    it('should authorize a machine (client_credentials) token with the full-access scope for GET /controls', async () => {
-      // ARRANGE: a client_credentials token carries neither `cognito:groups` nor
-      // `username` — only `sub`/`client_id`/`scope`. The full-access scope must be
-      // honored even though the human-claims are absent.
-      const clientId = 'machine-client-id';
-      const event = createMockEvent({
-        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-machine-token' },
-        httpMethod: 'GET',
-        path: '/controls',
-        requestContext: {
-          ...TEST_REQUEST_CONTEXT,
-          authorizer: {
-            claims: {
-              sub: clientId,
-              client_id: clientId,
-              scope: 'asr-api/api asr-api/full-access',
-            },
-          },
-        },
-      });
-      const context = createMockContext();
-
-      // ACT
-      const result = await handler(event, context);
-
-      // ASSERT
-      expect(result.statusCode).toBe(200);
-      expectCorsHeaders(result);
-      const body = JSON.parse(result.body);
-      expect(body.controls).toBeDefined();
-      expect(Array.isArray(body.controls)).toBe(true);
-    });
-
-    it('should reject a machine token without the full-access scope for GET /controls', async () => {
-      // ARRANGE: a machine token granted only the base scope must fail closed.
+    it('should reject a token without cognito:groups and username for GET /controls', async () => {
+      // ARRANGE: a client_credentials-shaped token — identity in `sub`/`client_id`,
+      // no human claims, and without the full-access scope. AuthorizationService
+      // classifies it as a machine principal and fails closed (ADR 0008), so the
+      // scopes it does carry are irrelevant.
       const clientId = 'machine-client-id';
       const event = createMockEvent({
         headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-machine-token' },
@@ -1364,10 +1335,15 @@ describe('Top-level routing', () => {
       const result = await handler(event, context);
 
       // ASSERT
+      // 403, not 401: the token authenticates fine, but a machine principal
+      // lacking asr-api/full-access is denied authorization. Per ADR 0008,
+      // tryResolveMachinePrincipal grants AdminGroup only on that scope and
+      // fails closed otherwise.
       expect(result.statusCode).toBe(403);
       expectCorsHeaders(result);
-      const body = JSON.parse(result.body);
-      expect(body.message).toBe(FORBIDDEN_ERROR_MESSAGE);
+      // Assert the body message too, not just the status: a regression that
+      // returned 403 with the wrong message would otherwise go undetected.
+      expect(JSON.parse(result.body).message).toBe(FORBIDDEN_ERROR_MESSAGE);
     });
 
     it('should route POST /controls/bulk-edit request successfully for AdminGroup', async () => {
@@ -1904,7 +1880,51 @@ describe('Top-level routing', () => {
       expect(result.statusCode).toBe(409);
       expectCorsHeaders(result);
       const body = JSON.parse(result.body);
+      expect(body.error).toBe('ConflictError');
       expect(body.message).toMatch(/Data was modified by another user/);
+      // The machine-readable detail has to survive serialization — it is the only way a client
+      // learns which version to refresh to without a second read.
+      expect(body.code).toBe('VERSION_CONFLICT');
+      expect(body.context).toEqual({ filterId, expectedVersion: 1, currentVersion: 5 });
+    });
+
+    it('should return 404 Not Found (not 409) when PUT /filters/{filterId} targets a missing filter', async () => {
+      // ARRANGE
+      const filterId = '550e8400-e29b-41d4-a716-446655440404';
+      const event = createMockEvent({
+        headers: { ...STANDARD_HEADERS, authorization: 'Bearer valid-token' },
+        httpMethod: 'PUT',
+        path: `/filters/${filterId}`,
+        pathParameters: { filterId },
+        body: JSON.stringify({
+          name: 'Updated Name',
+          accountIds: ['123456789012'],
+          organizationalUnits: [],
+          tags: [{ key: 'Env', value: 'Staging' }],
+          arnPatterns: [],
+          version: 1,
+        }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+      const context = createMockContext();
+
+      // ACT
+      const result = await handler(event, context);
+
+      // ASSERT
+      expect(result.statusCode).toBe(404);
+      expectCorsHeaders(result);
+      const body = JSON.parse(result.body);
+      expect(body.error).toBe('NotFoundError');
+      expect(body.message).toBe(`Filter ${filterId} not found`);
     });
 
     it('should route POST /filters request successfully for AdminGroup', async () => {

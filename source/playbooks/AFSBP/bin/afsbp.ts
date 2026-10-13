@@ -14,13 +14,18 @@ const MEMBER_STACK_LIMIT = getMemberStackLimit(standardShortName);
 const standardLongName = 'aws-foundational-security-best-practices';
 const standardVersion = '1.0.0'; // DO NOT INCLUDE 'V'
 
-const app = new cdk.App();
+const app = new cdk.App({
+  context: {
+    '@aws-cdk/core:suppressTemplateIndentation': true,
+  },
+});
 
 const adminStack = new PlaybookPrimaryStack(app, 'AFSBPStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
   synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${config.solution.id}P) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${config.build.distVersion}`,
   solutionId: config.solution.id,
+  resourceNamePrefix: config.solution.resourceNamePrefix,
   solutionVersion: config.build.distVersion,
   solutionDistBucket: config.build.distOutputBucket,
   solutionDistName: config.solution.trademarkedName,

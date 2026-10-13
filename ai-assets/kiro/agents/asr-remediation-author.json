@@ -1,0 +1,8 @@
+{
+  "name": "asr-remediation-author",
+  "description": "Author, validate, test, deploy, and verify ASR remediations in a non-production AWS account.",
+  "prompt": "file://asr-remediation-author-prompt.md",
+  "tools": ["read", "write", "shell", "@mcp"],
+  "resources": ["skill://.kiro/skills/asr-remediation-authoring/SKILL.md"],
+  "includeMcpJson": true
+}

@@ -10,13 +10,14 @@ import 'source-map-support/register';
 import { SC_REMEDIATIONS } from '../lib/sc_remediations';
 import { splitMemberStack } from '../../split_member_stacks';
 import { getConfig, getMemberStackLimit } from '../../../lib/config/cdk-config';
+import { SECURITY_CONTROL_STANDARD_VERSION } from '@asr/data-models';
 
 const config = getConfig();
 const MEMBER_STACK_LIMIT = getMemberStackLimit('SC');
 
 const standardShortName = 'SC';
 const standardLongName = 'security-control';
-const standardVersion = '2.0.0'; // DO NOT INCLUDE 'V'
+const standardVersion = SECURITY_CONTROL_STANDARD_VERSION;
 
 const app = new App();
 
@@ -25,6 +26,7 @@ const adminStack = new SecurityControlsPlaybookPrimaryStack(app, 'SCStack', {
   synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
   description: `(${config.solution.id}P) ${config.solution.name} ${standardShortName} ${standardVersion} Compliance Pack - Admin Account, ${config.build.distVersion}`,
   solutionId: config.solution.id,
+  resourceNamePrefix: config.solution.resourceNamePrefix,
   solutionVersion: config.build.distVersion,
   solutionDistBucket: config.build.distOutputBucket,
   solutionDistName: config.solution.trademarkedName,

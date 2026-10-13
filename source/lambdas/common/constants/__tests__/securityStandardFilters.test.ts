@@ -155,11 +155,23 @@ describe('SecurityStandardFilters', () => {
   });
 
   describe('getOptimizedFindingFiltersByControlId', () => {
-    it('should return base filters when no controlIds provided', async () => {
+    it('fails closed with a match-nothing control filter when no controlIds provided', async () => {
+      // Regression guard: an empty controlIds list must NOT fall back to the broad base
+      // filter (GeneratorId/ProductArn prefix), which would pull every Security Hub control
+      // finding on the enabled standards — including controls ASR does not support — and
+      // persist them. It must instead match nothing.
       const filters = await getOptimizedFindingFiltersByControlId([]);
       const baseFilters = getOptimizedFindingFilters();
 
-      expect(filters).toEqual(baseFilters);
+      // Base scoping is preserved...
+      expect(filters.RecordState).toEqual(baseFilters.RecordState);
+      expect(filters.ComplianceStatus).toEqual(baseFilters.ComplianceStatus);
+      expect(filters.ProductArn).toEqual(baseFilters.ProductArn);
+      expect(filters.GeneratorId).toEqual(baseFilters.GeneratorId);
+      // ...but the control filter is present and matches nothing (not omitted).
+      expect(filters.ComplianceSecurityControlId).toEqual([
+        { Value: '__ASR_NO_SUPPORTED_CONTROLS__', Comparison: 'EQUALS' },
+      ]);
     });
 
     it('should add ComplianceSecurityControlId filters when controlIds are provided', async () => {

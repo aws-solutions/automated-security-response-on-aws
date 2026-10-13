@@ -16,7 +16,7 @@ import * as path from 'node:path';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
 import { createLogGroup } from '../cdk-helper/log-group';
 import { CROSS_ACCOUNT_LOG_WRITER_EXTERNAL_ID } from '../action-log';
-import { getConfig } from '../config/cdk-config';
+import { getConfig, stripDevelopmentPrefix } from '../config/cdk-config';
 
 export const EVENT_FILTER_FUNCTION_NAME = `ASR-EventProcessor`;
 const config = getConfig();
@@ -26,7 +26,7 @@ export class MemberCloudTrailStack extends Stack {
     super(scope, id, props);
     const stack = Stack.of(this);
 
-    const resourceNamePrefix = config.solution.id.replace(/^DEV-/, '');
+    const resourceNamePrefix = stripDevelopmentPrefix(config.solution.id);
 
     const namespace = new CfnParameter(this, 'Namespace');
     const cloudTrailLogGroupName = new CfnParameter(this, 'CloudTrailLogGroupName');

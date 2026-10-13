@@ -14,6 +14,7 @@ export interface CDKConfig {
     id: string;
     name: string;
     trademarkedName: string;
+    resourceNamePrefix: string;
   };
   ttl: {
     findingsDays: number;
@@ -28,6 +29,13 @@ export interface CDKConfig {
   sqs: {
     retentionPeriodDays: number;
     dataKeyReuseMinutes: number;
+  };
+  preProcessor: {
+    /** Records per PreProcessor invocation (SQS event source batch size, 1–10 with the 5s batching window). */
+    sqsBatchSize: number;
+    /** Reserved concurrent executions. Bounds ingestion throughput to roughly batchSize × concurrency records/s. */
+    lambdaReservedConcurrency: number;
+    lambdaMemorySize: number;
   };
   export: {
     maxTimeMs: number;
@@ -74,11 +82,22 @@ export interface CDKConfig {
   };
 }
 
+/**
+ * Strips the pre-prod `DEV-` prefix that `build-s3-dist.sh -t` prepends to the solution ID.
+ *
+ * Use the result for any identifier one component produces and another consumes; use
+ * `solution.id` for build identity. See ADR 0012.
+ */
+export function stripDevelopmentPrefix(solutionId: string): string {
+  return solutionId.replace(/^DEV-/, '');
+}
+
 const DEFAULT_CONFIG: CDKConfig = {
   solution: {
     id: 'SO0111',
     name: 'Automated Security Response on AWS',
     trademarkedName: 'automated-security-response-on-aws',
+    resourceNamePrefix: stripDevelopmentPrefix('SO0111'),
   },
   ttl: {
     findingsDays: 8,
@@ -93,6 +112,15 @@ const DEFAULT_CONFIG: CDKConfig = {
   sqs: {
     retentionPeriodDays: 14,
     dataKeyReuseMinutes: 60,
+  },
+  // 10 × 20 ≈ 200 records/s ceiling. The previous fixed 10 × 5 (≈50/s) could not keep up once
+  // Inspector vulnerability findings were added to the auto-trigger rule, and a backlog on this
+  // queue delays every control's automatic remediation. Raise with care: each processed record may
+  // start a Step Functions execution and an SSM automation in a member account.
+  preProcessor: {
+    sqsBatchSize: 10,
+    lambdaReservedConcurrency: 20,
+    lambdaMemorySize: 1024,
   },
   export: {
     maxTimeMs: 26000,
@@ -255,6 +283,9 @@ export function getConfig(): CDKConfig {
     throw new Error('solution.id and solution.trademarkedName are required (via config or env vars)');
   }
 
+  // Derived after env overrides so a `-t` build's DEV- prefix is stripped exactly once.
+  withEnvOverrides.solution.resourceNamePrefix = stripDevelopmentPrefix(withEnvOverrides.solution.id);
+
   cachedConfig = withEnvOverrides;
   return cachedConfig;
 }
@@ -264,6 +295,16 @@ export function getMemberStackLimit(playbook: string): number {
   const key = playbook.toLowerCase() as keyof typeof config.memberStackLimits;
   return config.memberStackLimits[key] ?? Infinity;
 }
+
+/**
+ * Resource types that app-wide tags must skip. ScalableTarget: CloudFormation in aws-us-gov
+ * rejects its Tags property at CreateStack.
+ */
+export const TAG_EXCLUDED_RESOURCE_TYPES = [
+  'AWS::Events::Rule',
+  'AWS::Lambda::EventSourceMapping',
+  'AWS::ApplicationAutoScaling::ScalableTarget',
+];
 
 /**
  * Apply dynamic tags to a CDK app/construct from the DYNAMIC_TAGS environment variable.
@@ -279,7 +320,7 @@ export function applyDynamicTags(scope: IConstruct): void {
   for (const pair of tagsEnv.split(',')) {
     const [key, ...rest] = pair.split('=');
     if (key && rest.length > 0) {
-      Tags.of(scope).add(key.trim(), rest.join('=').trim());
+      Tags.of(scope).add(key.trim(), rest.join('=').trim(), { excludeResourceTypes: TAG_EXCLUDED_RESOURCE_TYPES });
     }
   }
 }

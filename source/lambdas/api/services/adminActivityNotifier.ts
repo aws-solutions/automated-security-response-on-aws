@@ -21,7 +21,12 @@ export type ChannelActivityAction =
   | 'CHANNEL_TOGGLED';
 
 /** Control-configuration actions that target one or more controls. */
-export type ControlActivityAction = 'CONTROL_REMEDIATION_SET' | 'CONTROL_REMEDIATION_ENABLED' | 'BULK_FILTER_CHANGE';
+export type ControlActivityAction =
+  | 'CONTROL_REMEDIATION_SET'
+  | 'CONTROL_REMEDIATION_ENABLED'
+  | 'CONTROL_ROLLBACK_SET'
+  | 'CONTROL_ROLLBACK_ENABLED'
+  | 'BULK_FILTER_CHANGE';
 
 /** Security-critical configuration changes that trigger an admin-activity notification. */
 export type AdminActivityAction = ChannelActivityAction | ControlActivityAction;

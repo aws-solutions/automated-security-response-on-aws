@@ -55,6 +55,7 @@ const createTestControl = (overrides: Partial<SecurityControl> = {}): SecurityCo
   version: 1,
   lastModified: '2025-01-01T00:00:00Z',
   modifiedBy: 'system',
+  rollbackSupported: false,
   ...overrides,
 });
 
@@ -317,6 +318,264 @@ describe('ControlsOverviewPage', () => {
       data: [expect.objectContaining({ controlId: 'S3.1' })],
     });
     expect(await screen.findByText(/controls saved successfully/i)).toBeInTheDocument();
+  });
+
+  it('explains a refused custom control instead of telling the operator to retry it', async () => {
+    // A mixed batch: the built-in saves, the custom one is refused because a custom runbook
+    // runs only on a manual trigger. The API reports that separately in rejectedControlIds,
+    // and the notification has to use it — the generic "please refresh and retry the failed
+    // controls" is advice that can never work for this control, since a retry is refused
+    // identically.
+    const controls = [
+      createTestControl({ controlId: 'S3.1', source: 'builtin' }),
+      createTestControl({ controlId: 'MCPProbe.1', source: 'custom', automatedRemediationEnabled: true }),
+    ];
+    server.use(
+      http.get(CONTROLS_URL, async () => await okControls(controls)),
+      http.post(BULK_EDIT_URL, async () =>
+        HttpResponse.json(
+          {
+            message:
+              'Some controls failed to update. Automated remediation cannot be enabled for controls served by a custom runbook. Controls: MCPProbe.1.',
+            successCount: 1,
+            failedControlIds: ['MCPProbe.1'],
+            rejectedControlIds: ['MCPProbe.1'],
+          },
+          { status: 207 },
+        ),
+      ),
+    );
+
+    renderControlsPage();
+    const withinMain = within(screen.getByTestId('main-content'));
+    await withinMain.findByRole('heading', { name: /Controls\s*\(2\)/ });
+
+    const table = await withinMain.findByRole('table');
+    await userEvent.click(await within(table).findByLabelText('Toggle automated remediation for S3.1'));
+    await userEvent.click(await withinMain.findByRole('button', { name: /save changes/i }));
+
+    // The reason reaches the operator, naming the control...
+    const notification = await screen.findByText(/manual trigger/i);
+    expect(notification).toHaveTextContent('MCPProbe.1');
+    // ...and it is not presented as something a refresh would fix.
+    expect(notification).not.toHaveTextContent(/retry the failed controls/i);
+  });
+
+  describe('rollback column', () => {
+    // The Rollback column is opt-in, so make it visible the way a user who selected it would.
+    const ROLLBACK_PREFERENCES = {
+      pageSize: 20,
+      visibleContent: ['controlId', 'description', 'isEnabled', 'rollbackEnabled'],
+      contentDensity: 'comfortable',
+    };
+
+    beforeEach(() => {
+      localStorage.setItem('controlsTablePreferences', JSON.stringify(ROLLBACK_PREFERENCES));
+    });
+
+    const renderWithControls = async (controls: SecurityControl[]) => {
+      server.use(http.get(CONTROLS_URL, async () => await okControls(controls)));
+      renderControlsPage();
+      const withinMain = within(screen.getByTestId('main-content'));
+      await withinMain.findByRole('heading', { name: new RegExp(`Controls\\s*\\(${controls.length}\\)`) });
+      return { withinMain, table: await withinMain.findByRole('table') };
+    };
+
+    it('treats an absent rollbackEnabled as enabled, matching the Orchestrator default', async () => {
+      // Controls carry no rollbackEnabled until someone toggles it, and the Orchestrator defaults the
+      // same way, so showing these as disabled would contradict what a rollback would actually do.
+      const { table } = await renderWithControls([createTestControl({ controlId: 'KMS.4', rollbackSupported: true })]);
+
+      const toggle = await within(table).findByLabelText('Toggle rollback for KMS.4');
+      expect(toggle).toBeChecked();
+      expect(toggle.closest('td')).toHaveTextContent('Enabled');
+    });
+
+    it('renders the toggle as disabled when rollbackEnabled is explicitly false', async () => {
+      const { table } = await renderWithControls([
+        createTestControl({ controlId: 'KMS.4', rollbackSupported: true, rollbackEnabled: false }),
+      ]);
+
+      const toggle = await within(table).findByLabelText('Toggle rollback for KMS.4');
+      expect(toggle).not.toBeChecked();
+      expect(toggle.closest('td')).toHaveTextContent('Disabled');
+    });
+
+    it('shows Not supported and no toggle for a control with no rollback capability', async () => {
+      const { table } = await renderWithControls([createTestControl({ controlId: 'S3.1' })]);
+
+      expect(await within(table).findByText('Not supported')).toBeInTheDocument();
+      expect(within(table).queryByLabelText('Toggle rollback for S3.1')).not.toBeInTheDocument();
+    });
+
+    it('reports the toggle as an unsaved change and sends rollbackEnabled on save', async () => {
+      let capturedBody: Record<string, unknown> | null = null;
+      server.use(
+        http.post(BULK_EDIT_URL, async ({ request }) => {
+          capturedBody = (await request.json()) as Record<string, unknown>;
+          return await ok({ message: 'Controls updated successfully', updatedCount: 1 });
+        }),
+      );
+      const { withinMain, table } = await renderWithControls([
+        createTestControl({ controlId: 'KMS.4', rollbackSupported: true }),
+      ]);
+
+      await userEvent.click(await within(table).findByLabelText('Toggle rollback for KMS.4'));
+
+      expect(await withinMain.findByText(/you have unsaved changes/i)).toBeInTheDocument();
+      expect(await withinMain.findByText(/1 control/)).toBeInTheDocument();
+
+      await userEvent.click(await withinMain.findByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(capturedBody).not.toBeNull();
+      });
+      expect(capturedBody).toMatchObject({
+        operation: 'update',
+        data: [expect.objectContaining({ controlId: 'KMS.4', rollbackEnabled: false })],
+      });
+    });
+  });
+
+  // A custom runbook runs only on a manual trigger: the Orchestrator's resolver checks the
+  // event type before it ever looks up a custom runbook, so an automatically triggered
+  // finding never reaches one. An actionable toggle here would let the page report
+  // "Enabled" for a control that is never remediated — the API refuses the write, and these
+  // cover the readable half of that guard.
+  describe('custom runbook controls', () => {
+    const CUSTOM_COLUMN_PREFERENCES = {
+      pageSize: 20,
+      visibleContent: ['controlId', 'description', 'isEnabled', 'source'],
+      contentDensity: 'comfortable',
+    };
+
+    beforeEach(() => {
+      localStorage.setItem('controlsTablePreferences', JSON.stringify(CUSTOM_COLUMN_PREFERENCES));
+    });
+
+    const renderWithControls = async (controls: SecurityControl[]) => {
+      server.use(http.get(CONTROLS_URL, async () => await okControls(controls)));
+      renderControlsPage();
+      const withinMain = within(screen.getByTestId('main-content'));
+      await withinMain.findByRole('heading', { name: new RegExp(`Controls\\s*\\(${controls.length}\\)`) });
+      return { withinMain, table: await withinMain.findByRole('table') };
+    };
+
+    it('offers no automated-remediation toggle for a custom control', async () => {
+      const { table } = await renderWithControls([createTestControl({ controlId: 'MCPProbe.1', source: 'custom' })]);
+
+      expect(await within(table).findByText('Manual trigger only')).toBeInTheDocument();
+      expect(within(table).queryByLabelText('Toggle automated remediation for MCPProbe.1')).not.toBeInTheDocument();
+    });
+
+    it('lets a custom control that is already enabled be turned off', async () => {
+      // The escape hatch for the inconsistent state: a control enabled before the guard
+      // existed reads "Enabled" while the resolver ignores it, so the customer needs a way
+      // to correct it. Hiding the switch entirely would trap them.
+      const { withinMain, table } = await renderWithControls([
+        createTestControl({
+          controlId: 'MCPProbe.1',
+          source: 'custom',
+          automatedRemediationEnabled: true,
+        }),
+      ]);
+
+      const toggle = await within(table).findByLabelText('Turn off automated remediation for MCPProbe.1');
+      expect(toggle).toBeChecked();
+      expect(toggle.closest('td')).toHaveTextContent('Enabled (no effect)');
+
+      await userEvent.click(toggle);
+
+      // Turning it off registers as an unsaved change, the same as any other control edit.
+      expect(await withinMain.findByText(/unsaved change/i)).toBeInTheDocument();
+    });
+
+    it('still offers the toggle for a built-in control', async () => {
+      const { table } = await renderWithControls([createTestControl({ controlId: 'S3.1', source: 'builtin' })]);
+
+      expect(await within(table).findByLabelText('Toggle automated remediation for S3.1')).toBeInTheDocument();
+      expect(within(table).queryByText('Manual trigger only')).not.toBeInTheDocument();
+    });
+
+    it('keeps the toggle for a control with no source, which predates the field', async () => {
+      // Controls stored before `source` existed carry no value and are built-ins; losing
+      // their toggle would disable automated remediation management for every one of them.
+      const { table } = await renderWithControls([createTestControl({ controlId: 'S3.1' })]);
+
+      expect(await within(table).findByLabelText('Toggle automated remediation for S3.1')).toBeInTheDocument();
+    });
+
+    it('scopes the table to custom runbooks only', async () => {
+      // A customer with a few custom runbooks among 100+ built-ins has no other way to see
+      // just theirs; the Control ID text filter cannot express "custom".
+      const { withinMain, table } = await renderWithControls([
+        createTestControl({ controlId: 'MCPProbe.1', source: 'custom' }),
+        createTestControl({ controlId: 'S3.1', source: 'builtin' }),
+        createTestControl({ controlId: 'LEGACY.1' }),
+      ]);
+
+      await userEvent.click(withinMain.getAllByLabelText('Filter by control source')[0]);
+      await userEvent.click(await screen.findByRole('option', { name: 'Custom runbooks only' }));
+
+      expect(await within(table).findByText('MCPProbe.1')).toBeInTheDocument();
+      expect(within(table).queryByText('S3.1')).not.toBeInTheDocument();
+      expect(within(table).queryByText('LEGACY.1')).not.toBeInTheDocument();
+    });
+
+    it('counts a control with no source as built-in when scoping', async () => {
+      // Controls stored before `source` existed are built-ins. Dropping them from both
+      // scopes would make them invisible under any filter but "All".
+      const { withinMain, table } = await renderWithControls([
+        createTestControl({ controlId: 'MCPProbe.1', source: 'custom' }),
+        createTestControl({ controlId: 'LEGACY.1' }),
+      ]);
+
+      await userEvent.click(withinMain.getAllByLabelText('Filter by control source')[0]);
+      await userEvent.click(await screen.findByRole('option', { name: 'Built-in only' }));
+
+      expect(await within(table).findByText('LEGACY.1')).toBeInTheDocument();
+      expect(within(table).queryByText('MCPProbe.1')).not.toBeInTheDocument();
+    });
+
+    it('names the runbook per row: type in one column, deployed version in another', async () => {
+      const { table } = await renderWithControls([
+        createTestControl({ controlId: 'MCPProbe.1', source: 'custom', version: 0, runbookVersion: 3 }),
+        createTestControl({ controlId: 'S3.1', source: 'builtin', version: 7 }),
+      ]);
+
+      const customRow = (await within(table).findByText('MCPProbe.1')).closest('tr');
+      const builtInRow = (await within(table).findByText('S3.1')).closest('tr');
+
+      // The version shown is `runbookVersion` (3), not the config row's `version`
+      // optimistic-lock counter (0 / 7), which would read as a meaningless "version".
+      expect(customRow).toHaveTextContent('Custom');
+      expect(customRow).toHaveTextContent('v3');
+      expect(customRow).not.toHaveTextContent('v0');
+      expect(builtInRow).toHaveTextContent('Built-in');
+      expect(builtInRow).not.toHaveTextContent('v7');
+    });
+
+    it('shows the live version, which after a rollback is the older one', async () => {
+      // After a rollback from v3 to v1 the API reports runbookVersion 1; the column shows it
+      // as-is and must not "correct" it upward.
+      const { table } = await renderWithControls([
+        createTestControl({ controlId: 'MCPProbe.1', source: 'custom', runbookVersion: 1 }),
+      ]);
+
+      const row = (await within(table).findByText('MCPProbe.1')).closest('tr');
+      expect(row).toHaveTextContent('Custom');
+      expect(row).toHaveTextContent('v1');
+    });
+
+    it('shows Custom with no version when the deployed version is not known', async () => {
+      // Deploy record unread (the API degrades to built-ins-only): still identifiable as
+      // custom, version column empty.
+      const { table } = await renderWithControls([createTestControl({ controlId: 'MCPProbe.1', source: 'custom' })]);
+
+      const row = (await within(table).findByText('MCPProbe.1')).closest('tr');
+      expect(row).toHaveTextContent('Custom');
+      expect(row).not.toHaveTextContent(/v\d/);
+    });
   });
 
   it('batches bulk edit requests when saving many controls', async () => {
@@ -637,6 +896,43 @@ describe('ControlsOverviewPage', () => {
     expect(await within(table).findByText('S3.1')).toBeInTheDocument();
   });
 
+  it('resets page index to 1 when the source scope narrows results below current page', async () => {
+    // The text filter already resets the page index. Narrowing by source shrinks the list
+    // the same way, so without its own reset the operator lands on a page that no longer
+    // exists and sees an empty table — with no indication that the filter matched anything.
+    localStorage.setItem(
+      'controlsTablePreferences',
+      JSON.stringify({
+        pageSize: 3,
+        visibleContent: ['controlId', 'description', 'isEnabled', 'source'],
+        contentDensity: 'comfortable',
+      }),
+    );
+    const controls = [
+      ...generateTestControls(8).map((control) => ({ ...control, source: 'builtin' as const })),
+      createTestControl({ controlId: 'MCPProbe.1', source: 'custom' }),
+    ];
+    server.use(http.get(CONTROLS_URL, async () => await okControls(controls)));
+
+    renderControlsPage();
+
+    const withinMain = within(screen.getByTestId('main-content'));
+    await withinMain.findByRole('heading', { name: /Controls\s*\(9\)/ });
+
+    // ACT - go to page 3, which only exists while all 9 controls are listed
+    await userEvent.click(withinMain.getByText('3'));
+    const table = await withinMain.findByRole('table');
+    expect(await within(table).findAllByRole('row')).toHaveLength(4); // header + 3
+
+    // ACT - narrow to the single custom runbook
+    await userEvent.click(withinMain.getAllByLabelText('Filter by control source')[0]);
+    await userEvent.click(await screen.findByRole('option', { name: 'Custom runbooks only' }));
+
+    // ASSERT - the one match is visible rather than a blank page 3
+    expect(await within(table).findByText('MCPProbe.1')).toBeInTheDocument();
+    expect(await within(table).findAllByRole('row')).toHaveLength(2); // header + 1
+  });
+
   it('disables all remediation locally when clicking "Disable all remediation" button', async () => {
     // ARRANGE - some controls have remediation enabled
     const controls = [
@@ -836,6 +1132,110 @@ describe('ControlDetailPanel integration', () => {
     expect(enabledElements.length).toBeGreaterThanOrEqual(1);
     const filterNames = await screen.findAllByText('Production Accounts');
     expect(filterNames.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('keeps the "no effect" qualification in the panel for an enabled custom control', async () => {
+    // The table calls this state "Enabled (no effect)": a custom-runbook control runs only
+    // on a manual trigger, so the stored flag changes nothing. The panel describing the
+    // same row must not upgrade that to a plain green "Enabled" — an operator reading the
+    // panel would believe automated remediation is active when the resolver ignores it.
+    server.use(
+      http.get(
+        CONTROLS_URL,
+        async () =>
+          await okControls([
+            createTestControl({ controlId: 'MCPProbe.1', source: 'custom', automatedRemediationEnabled: true }),
+          ]),
+      ),
+      http.get(FILTERS_URL, async () => await okFilters([])),
+    );
+    renderControlsPageWithSplitPanel();
+    const withinMain = within(screen.getByTestId('main-content'));
+    await withinMain.findByRole('heading', { name: /Controls\s*\(1\)/ });
+    const table = await withinMain.findByRole('table');
+    await userEvent.click(within(table).getByRole('radio'));
+
+    await screen.findByRole('heading', { name: /Control: MCPProbe\.1/ });
+    // The row's toggle label says it once; the panel must say it a second time, and a bare
+    // "Enabled" — the text the panel used to show — must appear nowhere on the page.
+    expect(await screen.findAllByText('Enabled (no effect)')).toHaveLength(2);
+    expect(screen.queryByText(/^Enabled$/)).not.toBeInTheDocument();
+  });
+
+  it('shows "Manual trigger only" in the panel for a custom control that is off, matching the table', async () => {
+    server.use(
+      http.get(
+        CONTROLS_URL,
+        async () =>
+          await okControls([
+            createTestControl({ controlId: 'MCPProbe.2', source: 'custom', automatedRemediationEnabled: false }),
+          ]),
+      ),
+      http.get(FILTERS_URL, async () => await okFilters([])),
+    );
+    renderControlsPageWithSplitPanel();
+    const withinMain = within(screen.getByTestId('main-content'));
+    await withinMain.findByRole('heading', { name: /Controls\s*\(1\)/ });
+    const table = await withinMain.findByRole('table');
+    await userEvent.click(within(table).getByRole('radio'));
+
+    await screen.findByRole('heading', { name: /Control: MCPProbe\.2/ });
+    // Both the row and the panel say it, so there are two; neither may say "Disabled",
+    // which would imply a switch the operator could turn on.
+    expect(await screen.findAllByText('Manual trigger only')).toHaveLength(2);
+    expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
+  });
+
+  it('names the live runbook version in the panel and states that only the latest deployed one runs', async () => {
+    server.use(
+      http.get(
+        CONTROLS_URL,
+        async () =>
+          await okControls([
+            createTestControl({
+              controlId: 'MCPProbe.1',
+              source: 'custom',
+              automatedRemediationEnabled: false,
+              runbookVersion: 2,
+            }),
+          ]),
+      ),
+      http.get(FILTERS_URL, async () => await okFilters([])),
+    );
+    renderControlsPageWithSplitPanel();
+    const withinMain = within(screen.getByTestId('main-content'));
+    await withinMain.findByRole('heading', { name: /Controls\s*\(1\)/ });
+    const table = await withinMain.findByRole('table');
+    await userEvent.click(within(table).getByRole('radio'));
+
+    await screen.findByRole('heading', { name: /Control: MCPProbe\.1/ });
+    // The panel keeps the combined label; the row now splits type and version into their own
+    // columns, so "Custom v2" as one string appears once (the panel), while the row carries
+    // "Custom" and "v2" in separate cells.
+    expect(await screen.findByText('Custom v2')).toBeInTheDocument();
+    const row = (await within(table).findByText('MCPProbe.1')).closest('tr');
+    expect(row).toHaveTextContent('Custom');
+    expect(row).toHaveTextContent('v2');
+    expect(screen.getByText(/Only the most recently deployed version runs/)).toBeInTheDocument();
+  });
+
+  it('does not attach the deployed-version note to a built-in control', async () => {
+    server.use(
+      http.get(
+        CONTROLS_URL,
+        async () => await okControls([createTestControl({ controlId: 'S3.1', source: 'builtin' })]),
+      ),
+      http.get(FILTERS_URL, async () => await okFilters([])),
+    );
+    renderControlsPageWithSplitPanel();
+    const withinMain = within(screen.getByTestId('main-content'));
+    await withinMain.findByRole('heading', { name: /Controls\s*\(1\)/ });
+    const table = await withinMain.findByRole('table');
+    await userEvent.click(within(table).getByRole('radio'));
+
+    await screen.findByRole('heading', { name: /Control: S3\.1/ });
+    expect(await screen.findAllByText('Built-in')).toHaveLength(2);
+    expect(screen.queryByText(/most recently deployed version/)).not.toBeInTheDocument();
   });
 
   it('shows "No filters" indicator in the detail panel when control has no filters', async () => {

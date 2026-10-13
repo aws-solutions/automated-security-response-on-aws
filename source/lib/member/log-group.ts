@@ -5,7 +5,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export interface MemberLogGroupProps {
-  readonly solutionId: string;
+  readonly resourceNamePrefix: string;
 }
 
 export class MemberLogGroup extends Construct {
@@ -26,7 +26,7 @@ export class MemberLogGroup extends Construct {
 
     new StringParameter(scope, 'SSMParameterLogGroupName', {
       description: 'Parameter to store log group name',
-      parameterName: `/Solutions/${props.solutionId}/Metrics_LogGroupName`,
+      parameterName: `/Solutions/${props.resourceNamePrefix}/Metrics_LogGroupName`,
       stringValue: templateParam.valueAsString,
     });
   }

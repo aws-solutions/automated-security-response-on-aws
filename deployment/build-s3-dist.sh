@@ -460,6 +460,7 @@ main() {
   mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/automated-security-response-orchestrator-log.template
   mv "$template_dist_dir"/MemberRolesStack.template "$template_dist_dir"/automated-security-response-member-roles.template
   mv "$template_dist_dir"/SolutionDeployStackWebUINestedStack*.template "$template_dist_dir"/automated-security-response-webui-nested-stack.template
+  mv "$template_dist_dir"/SolutionDeployStackMcpGatewayNestedStack*.template "$template_dist_dir"/automated-security-response-mcp-gateway-nested-stack.template
   rm "$template_dist_dir"/*.nested.template
 
   # Fix nested stack S3 URLs for non-commercial partitions.

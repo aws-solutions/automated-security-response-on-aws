@@ -38,6 +38,44 @@ export const USER_POOL_DIMENSION = 'UserPool';
  */
 export const WRITE_CATEGORY_DIMENSION = 'Category';
 
+/**
+ * MCP server tool metrics, all in namespace `ASR` and dimensioned by
+ * `ToolName`. Emitted from the MCP server handler's success and failure exit
+ * points; the CDK `ASR-Mcp-ToolErrorSpike` alarm watches `McpToolError`, so
+ * these names and the dimension below must stay aligned with that definition.
+ *
+ * - `McpToolInvocation` (Count): every invocation, success or failure.
+ * - `McpToolError` (Count): failures only, and only when the handler status is
+ *   >= 500 (a server fault, not a caller 4xx).
+ * - `McpToolLatency` (Milliseconds): every invocation, success or failure.
+ */
+export const MCP_TOOL_INVOCATION_METRIC = 'McpToolInvocation';
+export const MCP_TOOL_ERROR_METRIC = 'McpToolError';
+export const MCP_TOOL_LATENCY_METRIC = 'McpToolLatency';
+
+/**
+ * Emitted when a custom-runbook deploy succeeds overall but one or more member
+ * accounts failed role provisioning or document install (so the deployed version
+ * is not consistent across the fleet). The deploy returns HTTP 207 in that case,
+ * and both the REST write metrics and the MCP tool metrics key on the status
+ * code — so without this metric a partial failure is indistinguishable from a
+ * clean success in central metrics. Dimensioned by `ControlId`.
+ */
+export const DEPLOY_RUNBOOK_PARTIAL_FAILURE_METRIC = 'DeployRunbookPartialFailure';
+
+/** Dimension name tagging the deploy partial-failure metric with the control id. */
+export const CONTROL_ID_DIMENSION = 'ControlId';
+
+/**
+ * Dimension name tagging the MCP tool metrics with the bare tool name. The
+ * emitter bounds the value to real tool names plus two fixed sentinels
+ * (`'unknown'` when the invocation carried no name, `'unrecognized'` for a
+ * caller-supplied name that matches no tool) so an arbitrary name cannot inject
+ * unbounded metric cardinality. Shared so the Lambda emitter and the CDK alarm
+ * reference the same dimension key.
+ */
+export const MCP_TOOL_NAME_DIMENSION = 'ToolName';
+
 export interface MetricDimension {
   readonly name: string;
   readonly value: string;

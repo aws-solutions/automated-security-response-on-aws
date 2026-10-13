@@ -10,8 +10,21 @@ import { RemediationHistoryRepository } from '../../common/repositories/remediat
 import { executeOrchestrator } from '../../common/utils/orchestrator';
 import { Clock } from '../../common/utils/clock';
 import { IdGenerator } from '../../common/utils/idGenerator';
+import { SecurityHubUtils } from '../../common/utils/securityHub';
+import { asSecurityHubCspmFinding } from '../../common/__tests__/utils';
+import { mockClient } from 'aws-sdk-client-mock';
+import {
+  DescribeSecurityHubV2Command,
+  GetFindingsCommand,
+  GetFindingsV2Command,
+  ResourceNotFoundException,
+  SecurityHubClient,
+  ThrottlingException,
+} from '@aws-sdk/client-securityhub';
 
 jest.mock('../../common/utils/orchestrator');
+
+const securityHubMock = mockClient(SecurityHubClient);
 
 const executeOrchestratorMock = executeOrchestrator as jest.MockedFunction<typeof executeOrchestrator>;
 
@@ -87,6 +100,7 @@ describe('OverdueRemediationService', () => {
       logger,
       clock,
       perRunCap,
+      new SecurityHubUtils(new SecurityHubClient({})),
       idGenerator,
     );
 
@@ -108,6 +122,13 @@ describe('OverdueRemediationService', () => {
     idGenerator = { randomUUID: () => 'test-uuid' };
 
     executeOrchestratorMock.mockResolvedValue('arn:aws:states:us-east-1:111111111111:execution:orchestrator:exec');
+
+    securityHubMock.reset();
+    securityHubMock.on(GetFindingsCommand).resolves({ Findings: [] });
+    securityHubMock.on(GetFindingsV2Command).resolves({ Findings: [] });
+    securityHubMock
+      .on(DescribeSecurityHubV2Command)
+      .resolves({ HubV2Arn: 'arn:aws:securityhub:us-east-1:111111111111:hubv2/test' });
   });
 
   describe('Property 5: scan eligibility', () => {
@@ -383,10 +404,111 @@ describe('OverdueRemediationService', () => {
     });
   });
 
+  describe('live Security Hub CSPM and Security Hub V2 suppression', () => {
+    const findingArn = (suffix: string): string =>
+      `arn:aws:securityhub:us-east-1:111111111111:security-control/S3.1/finding/${suffix}`;
+
+    it('skips a finding whose stored payload is NEW but whose live status is suppressed, with one lookup per scan', async () => {
+      // ARRANGE: two overdue findings; the first is suppressed in Security Hub CSPM while Security Hub V2 still shows New
+      queryFindingsByDueBy.mockResolvedValueOnce({
+        items: [buildProjection({ findingId: 'finding-001' }), buildProjection({ findingId: 'finding-002' })],
+        lastEvaluatedKey: undefined,
+      });
+      findByKeys.mockResolvedValueOnce([
+        buildFindingItem('finding-001', { Id: findingArn('suppressed'), Workflow: { Status: 'NEW' } }),
+        buildFindingItem('finding-002', { Id: findingArn('open'), Workflow: { Status: 'NEW' } }),
+      ]);
+      securityHubMock.on(GetFindingsCommand).resolves({
+        Findings: [
+          asSecurityHubCspmFinding(
+            buildAsffFinding({ Id: findingArn('suppressed'), Workflow: { Status: 'SUPPRESSED' } }),
+          ),
+        ],
+      });
+      securityHubMock.on(GetFindingsV2Command).resolves({
+        Findings: [
+          { finding_info: { uid: findingArn('suppressed') }, status_id: 1 },
+          { finding_info: { uid: findingArn('open') }, status_id: 1 },
+        ],
+      });
+
+      // ACT
+      const result = await buildService(50).remediateOverdueFindings();
+
+      // ASSERT
+      expect(result.findingsSkippedSuppressedSH).toBe(1);
+      expect(result.remediationsTriggered).toBe(1);
+      expect(clearRemediationDueBy).toHaveBeenCalledWith('finding-001', 'security-control/S3.1');
+      expect(createRemediationHistoryWithFindingUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ findingId: 'finding-002' }),
+        expect.any(String),
+      );
+      expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(1);
+      expect(securityHubMock.commandCalls(GetFindingsCommand)[0].args[0].input.Filters?.Id).toHaveLength(2);
+    });
+
+    it('honors a Security Hub CSPM suppression of a multi-service finding when Security Hub V2 is disabled', async () => {
+      // ARRANGE
+      queryFindingsByDueBy.mockResolvedValueOnce({
+        items: [buildProjection({ findingId: 'finding-001', findingType: 'GuardDuty.IAMUser' })],
+        lastEvaluatedKey: undefined,
+      });
+      findByKeys.mockResolvedValueOnce([
+        buildFindingItem('finding-001', { Id: findingArn('guardduty') }, { findingType: 'GuardDuty.IAMUser' }),
+      ]);
+      securityHubMock
+        .on(DescribeSecurityHubV2Command)
+        .rejects(new ResourceNotFoundException({ message: 'not subscribed', $metadata: {} }));
+      securityHubMock.on(GetFindingsCommand).resolves({
+        Findings: [
+          asSecurityHubCspmFinding(
+            buildAsffFinding({ Id: findingArn('guardduty'), Workflow: { Status: 'SUPPRESSED' } }),
+          ),
+        ],
+      });
+
+      // ACT
+      const result = await buildService(50).remediateOverdueFindings();
+
+      // ASSERT
+      expect(result.findingsSkippedSuppressedSH).toBe(1);
+      expect(result.remediationsTriggered).toBe(0);
+      expect(securityHubMock.commandCalls(GetFindingsV2Command)).toHaveLength(0);
+    });
+
+    it('triggers nothing and keeps every deadline when the live status lookup fails', async () => {
+      // ARRANGE
+      queryFindingsByDueBy.mockResolvedValueOnce({
+        items: [buildProjection({ findingId: 'finding-001' })],
+        lastEvaluatedKey: undefined,
+      });
+      findByKeys.mockResolvedValueOnce([buildFindingItem('finding-001')]);
+      securityHubMock
+        .on(GetFindingsCommand)
+        .rejects(new ThrottlingException({ message: 'Rate exceeded', $metadata: {} }));
+
+      // ACT
+      const result = await buildService(50).remediateOverdueFindings();
+
+      // ASSERT
+      expect(result.findingsSkippedError).toBe(1);
+      expect(result.remediationsTriggered).toBe(0);
+      expect(executeOrchestratorMock).not.toHaveBeenCalled();
+      expect(clearRemediationDueBy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('construction', () => {
     it('defaults to the crypto id generator when one is not supplied', async () => {
       // ARRANGE — construct without the optional idGenerator argument
-      const service = new OverdueRemediationService(findingRepository, remediationHistoryRepository, logger, clock, 50);
+      const service = new OverdueRemediationService(
+        findingRepository,
+        remediationHistoryRepository,
+        logger,
+        clock,
+        50,
+        new SecurityHubUtils(new SecurityHubClient({})),
+      );
       queryFindingsByDueBy.mockResolvedValueOnce({
         items: [buildProjection({ findingId: 'finding-001' })],
         lastEvaluatedKey: undefined,

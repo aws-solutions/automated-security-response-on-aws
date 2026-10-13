@@ -35,6 +35,7 @@ export function splitMemberStack(props: SplitStackProps): any[] {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
       description: `(${config.solution.id}PM) ${config.solution.name} ${props.standardShortName} ${props.standardVersion} Compliance Pack ${stackIndex} - Member Account, ${config.build.distVersion}`,
       solutionId: config.solution.id,
+      resourceNamePrefix: config.solution.resourceNamePrefix,
       solutionVersion: config.build.distVersion,
       solutionDistBucket: config.build.distOutputBucket,
       securityStandard: props.standardShortName,

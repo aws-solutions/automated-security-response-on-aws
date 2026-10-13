@@ -7,9 +7,10 @@ import { addCfnGuardSuppression } from './add-cfn-guard-suppression';
 import { createLogGroup } from './log-group';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { getLambdaCode } from './lambda-code-manifest';
-import { PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { CfnPolicy, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { CfnParameter, Duration, Stack } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
+import { attachCommercialPartitionSecurityHubV2Policy } from './is-commercial-partition';
 
 interface MetricResourcesProps {
   solutionTMN: string;
@@ -42,10 +43,6 @@ export default class MetricResources extends Construct {
           actions: ['ssm:GetParameter', 'ssm:GetParameters', 'ssm:PutParameter', 'ssm:DeleteParameter'],
           resources: [`arn:${stack.partition}:ssm:*:${stack.account}:parameter/Solutions/SO0111/*`],
         }),
-        new PolicyStatement({
-          actions: ['securityhub:DescribeSecurityHubV2'],
-          resources: [`*`],
-        }),
       ],
     });
 
@@ -53,6 +50,20 @@ export default class MetricResources extends Construct {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       inlinePolicies: { LambdaPolicy: customResourceLambdaPolicyDocument },
     });
+
+    // securityhub:DescribeSecurityHubV2 (Security Hub V2 / OCSF) exists only in the aws
+    // (commercial) partition, so attaching it in aws-us-gov or aws-cn makes IAM reject this
+    // role at CREATE and rolls the whole admin stack back. Gate it on the stack-level
+    // commercial-partition condition, as the pre-processor and batch-processor roles already
+    // do. Where the policy is omitted, the custom resource's describe_security_hub_v2 call
+    // fails with AccessDeniedException, which is_securityhub_v2_enabled already treats as
+    // "V2 unavailable" and reports as securityhub_v2_enabled=false — the correct answer in a
+    // partition that has no Security Hub V2 — so the resource still succeeds.
+    const securityHubV2Policy = attachCommercialPartitionSecurityHubV2Policy(
+      this,
+      'MetricResourcesSecurityHubV2Policy',
+      customResourceLambdaRole,
+    );
 
     addCfnGuardSuppression(customResourceLambdaRole, 'IAM_NO_INLINE_POLICY_CHECK');
     addCfnGuardSuppression(customResourceLambdaRole, 'IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE');
@@ -94,6 +105,9 @@ export default class MetricResources extends Construct {
       properties: {
         StackParameters: MetricResources.getAllStackParameters(Stack.of(this)),
         Timestamp: Date.now().toString(), // Forces the custom resource to run on stack updates
+        // Orders the invoke after the gated policy so describe_security_hub_v2 does not run before the grant exists.
+        // A DependsOn would fail CreateStack in aws-us-gov and aws-cn, where the policy is not created.
+        SecurityHubV2PolicyDependency: MetricResources.conditionalReference(securityHubV2Policy),
       },
       resourceType: 'Custom::DeploymentMetrics',
       serviceToken: customResourceFunction.functionArn,
@@ -102,16 +116,32 @@ export default class MetricResources extends Construct {
     this.securityHubV2Enabled = deploymentMetricsCustomResource.getAtt('securityhub_v2_enabled').toString();
   }
 
-  private static getAllStackParameters(stack: Stack): { [key: string]: any } {
-    const parameters: { [key: string]: any } = {};
+  /** Resolves to a `Ref` to `policy` when its condition holds and to `AWS::NoValue` otherwise. */
+  private static conditionalReference(policy: Policy): string {
+    const cfnPolicy = policy.node.defaultChild;
+    const condition = cfnPolicy instanceof CfnPolicy ? cfnPolicy.cfnOptions.condition : undefined;
+    if (!(cfnPolicy instanceof CfnPolicy) || !condition) {
+      throw new Error(`${policy.node.id}: expected a conditioned AWS::IAM::Policy to reference`);
+    }
+    return cdk.Fn.conditionIf(condition.logicalId, cfnPolicy.ref, cdk.Aws.NO_VALUE).toString();
+  }
+
+  private static getAllStackParameters(stack: Stack): Record<string, string> {
+    const parameters: Record<string, string> = {};
 
     const children = stack.node.findAll();
     children.forEach((child) => {
       if (child instanceof CfnParameter) {
-        parameters[child.logicalId] = child.valueAsString;
+        parameters[child.logicalId] = MetricResources.getParameterValue(child);
       }
     });
 
     return parameters;
+  }
+
+  private static getParameterValue(parameter: CfnParameter): string {
+    const isListParameter = parameter.type.includes('List<') || parameter.type.includes('CommaDelimitedList');
+
+    return isListParameter ? cdk.Fn.join(',', parameter.valueAsList) : parameter.valueAsString;
   }
 }

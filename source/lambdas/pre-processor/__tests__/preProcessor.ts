@@ -11,8 +11,10 @@ const testClient = DynamoDBTestSetup.getDocClient();
 // Mock createDynamoDBClient before any imports - return the initialized test client
 const mockCreateDynamoDBClient = jest.fn(() => testClient);
 jest.mock('../../common/utils/dynamodb', () => {
+  const actual = jest.requireActual('../../common/utils/dynamodb');
   return {
     createDynamoDBClient: mockCreateDynamoDBClient,
+    isItemCollectionSizeLimitError: actual.isItemCollectionSizeLimitError,
   };
 });
 
@@ -38,9 +40,18 @@ jest.mock('../../common/utils/tracer', () => ({
 
 import { ASFFFinding, ASFFSeverity, OCSFComplianceFinding, NotificationConfigurationItem } from '@asr/data-models';
 import type { NormalizedFinding } from '@asr/data-models';
+import { ItemCollectionSizeLimitExceededException } from '@aws-sdk/client-dynamodb';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
+import {
+  DescribeSecurityHubV2Command,
+  GetFindingsCommand,
+  GetFindingsV2Command,
+  SecurityHubClient,
+  SecurityHubServiceException,
+  ThrottlingException,
+} from '@aws-sdk/client-securityhub';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { Context, SQSBatchResponse, SQSEvent, SQSRecord } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 import nock from 'nock';
@@ -73,13 +84,16 @@ import {
   mockSpoofedIamAccessAnalyzerAsffFindingWithControlId,
   mockSpoofedGuardDutyAsffFindingWithControlId,
 } from './fixtures/multiServiceFixtures';
-import { asFindingId, asConfigId, asResolvedFindingType } from '../../common/__tests__/utils';
+import { mockSecurityHubCoverageFinding } from './fixtures/securityHubCoverageFixtures';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { asFindingId, asConfigId, asResolvedFindingType, asSecurityHubCspmFinding } from '../../common/__tests__/utils';
 
 describe('PreProcessor Lambda', () => {
   let context: Context;
   let docClient: DynamoDBDocumentClient;
   let sfnMock = mockClient(SFNClient);
   const ssmMock = mockClient(SSMClient);
+  const securityHubMock = mockClient(SecurityHubClient);
   const securityHubFindingArn = (suffix: string) =>
     `arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/${suffix}`;
   const ASFFFindingId = securityHubFindingArn('asff-finding-id');
@@ -169,7 +183,7 @@ describe('PreProcessor Lambda', () => {
   };
 
   const createSQSRecord = (
-    finding: ASFFFinding | OCSFComplianceFinding,
+    finding: ASFFFinding | OCSFComplianceFinding | Record<string, unknown>,
     additionalPayload = {},
     messageId?: string,
   ): SQSRecord => ({
@@ -232,6 +246,12 @@ describe('PreProcessor Lambda', () => {
   beforeEach(async () => {
     sfnMock.restore();
     sfnMock = mockClient(SFNClient);
+    securityHubMock.reset();
+    securityHubMock.on(GetFindingsCommand).resolves({ Findings: [] });
+    securityHubMock.on(GetFindingsV2Command).resolves({ Findings: [] });
+    securityHubMock
+      .on(DescribeSecurityHubV2Command)
+      .resolves({ HubV2Arn: 'arn:aws:securityhub:us-east-1:123456789012:hubv2/test' });
     ssmMock.reset();
     nock.cleanAll();
     mockCreateDynamoDBClient.mockClear();
@@ -799,6 +819,181 @@ describe('PreProcessor Lambda', () => {
       expect(metricsScope.isDone()).toBe(true);
 
       ddbMock.restore();
+    });
+
+    describe('when the findings-table item collection is full', () => {
+      // A full item collection (DynamoDB's 10 GB cap per partition-key value on a table with an LSI)
+      // rejects every write to that partition until it shrinks. The record must be dropped — not
+      // rethrown — so the SQS poller does not retry it ten times before the DLQ.
+      const itemCollectionFullErrors = [
+        {
+          shape: 'the modeled SDK exception',
+          buildError: () =>
+            new ItemCollectionSizeLimitExceededException({
+              message: 'Collection size exceeded.',
+              $metadata: { httpStatusCode: 400 },
+            }),
+        },
+        {
+          shape: 'a ValidationException carrying the wire message',
+          buildError: () => Object.assign(new Error('Collection size exceeded'), { name: 'ValidationException' }),
+        },
+      ];
+
+      /**
+       * Rejects only writes to the findings table at the AWS SDK boundary (the Put for a new finding or
+       * the Update for an existing one — a full item collection refuses both). Every other command is
+       * forwarded to the real client, so reads still run against DynamoDB Local and the test exercises
+       * the real config and finding key schema.
+       */
+      const failFindingsTableWrite = (writeError: Error): jest.SpyInstance => {
+        const realSend = DynamoDBDocumentClient.prototype.send;
+        const isFindingsTableWrite = (command: object): command is PutCommand | UpdateCommand =>
+          (command instanceof PutCommand || command instanceof UpdateCommand) &&
+          command.input.TableName === findingsTableName;
+        return jest.spyOn(DynamoDBDocumentClient.prototype, 'send').mockImplementation(function (
+          this: DynamoDBDocumentClient,
+          ...args: Parameters<typeof realSend>
+        ) {
+          if (isFindingsTableWrite(args[0])) return Promise.reject(writeError);
+          return realSend.apply(this, args);
+        });
+      };
+
+      /** Records the `Data` payload of every usage metric posted, so a test can assert on which metrics were sent. */
+      const captureUsageMetrics = (): Record<string, unknown>[] => {
+        setupMetricsMocks();
+        nock.cleanAll();
+        const payloads: Record<string, unknown>[] = [];
+        nock('https://metrics.awssolutionsbuilder.com')
+          .post('/generic', (body: unknown) => {
+            const usageData: { Data: Record<string, unknown> } = JSON.parse(decodeURIComponent(String(body)));
+            payloads.push(usageData.Data);
+            return true;
+          })
+          .reply(200)
+          .persist();
+        return payloads;
+      };
+
+      it.each(itemCollectionFullErrors)('drops the record without retrying for $shape', async ({ buildError }) => {
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/collection-full-finding',
+        });
+        await setupControlConfig('S3.1', true);
+        const sendSpy = failFindingsTableWrite(buildError());
+        const errorLogSpy = jest.spyOn(Logger.prototype, 'error');
+        const usageMetrics = captureUsageMetrics();
+
+        try {
+          await expect(PreProcessor.recordHandler(createSQSRecord(finding))).resolves.toBeUndefined();
+
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          expect(errorLogSpy).toHaveBeenCalledWith(
+            expect.stringContaining('item collection is full'),
+            expect.objectContaining({ findingId: finding.Id }),
+          );
+          expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+          // A deliberate drop is not a processing failure, so it must not be reported as one.
+          expect(usageMetrics.filter((data) => data.status_reason === 'PRE_PROCESSOR_FAILED')).toHaveLength(0);
+        } finally {
+          errorLogSpy.mockRestore();
+          sendSpy.mockRestore();
+        }
+      });
+
+      it('still fails the record for an unrelated ValidationException', async () => {
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/other-validation-finding',
+        });
+        await setupControlConfig('S3.1', true);
+        const sendSpy = failFindingsTableWrite(
+          Object.assign(new Error('Item size has exceeded the maximum allowed size'), { name: 'ValidationException' }),
+        );
+        setupMetricsMocks();
+
+        try {
+          await expect(PreProcessor.recordHandler(createSQSRecord(finding))).rejects.toThrow(
+            'Item size has exceeded the maximum allowed size',
+          );
+        } finally {
+          sendSpy.mockRestore();
+        }
+      });
+    });
+  });
+
+  describe('Unrecognized finding shapes', () => {
+    let errorLogSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      errorLogSpy = jest.spyOn(Logger.prototype, 'error');
+    });
+
+    afterEach(() => {
+      errorLogSpy.mockRestore();
+    });
+
+    /** Decodes the url-encoded UsageData body sendMetrics posts and returns its Data payload. */
+    const captureMetricPayloads = (): Record<string, unknown>[] => {
+      ssmMock.reset();
+      nock.cleanAll();
+      ssmMock
+        .resolves({ Parameter: { Value: 'test-uuid' } })
+        .on(GetParameterCommand, { Name: '/Solutions/SO0111/version' })
+        .resolves({ Parameter: { Value: '1.0.0' } });
+      const payloads: Record<string, unknown>[] = [];
+      nock('https://metrics.awssolutionsbuilder.com')
+        .post('/generic', (body: unknown) => {
+          const usageData: { Data: Record<string, unknown> } = JSON.parse(decodeURIComponent(String(body)));
+          payloads.push(usageData.Data);
+          return true;
+        })
+        .reply(200)
+        .persist();
+      return payloads;
+    };
+
+    it('drops a Security Hub V2 Coverage finding silently: no metric, no ERROR log, not retried', async () => {
+      // ARRANGE
+      const metricPayloads = captureMetricPayloads();
+      const record = createSQSRecord(mockSecurityHubCoverageFinding);
+
+      // ACT: a resolved promise is what keeps the record out of batchItemFailures.
+      // recordHandler awaits every sendMetrics call, so once it resolves no metric can still be in flight.
+      await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+
+      // ASSERT
+      expect(metricPayloads).toEqual([]);
+      expect(errorLogSpy).not.toHaveBeenCalled();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('fails loudly on an unrecognized shape without retrying, and tags the metric with class_uid and product ARN', async () => {
+      // ARRANGE: a 2003-class finding whose product is not Coverage still has no control,
+      // so no accepted schema matches it
+      const metricPayloads = captureMetricPayloads();
+      const unrecognizedFinding = {
+        ...mockSecurityHubCoverageFinding,
+        metadata: { product: { uid: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product' } },
+      };
+      const record = createSQSRecord(unrecognizedFinding);
+
+      // ACT: recordHandler awaits sendMetrics, so its resolution guarantees the failure metric was posted
+      await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
+
+      // ASSERT
+      expect(errorLogSpy).toHaveBeenCalledTimes(1);
+      expect(metricPayloads).toContainEqual({ finding_schema: 'unknown' });
+      expect(metricPayloads).toContainEqual(
+        expect.objectContaining({
+          status: 'FAILED',
+          status_reason: 'PRE_PROCESSOR_FAILED',
+          class_uid: 2003,
+          product_arn: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product',
+        }),
+      );
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
     });
   });
 
@@ -3721,6 +3916,213 @@ describe('PreProcessor Lambda', () => {
 
       // ASSERT: the malformed time is ignored and the ASFF UpdatedAt drives ordering
       expect(await getStoredSecurityHubUpdatedAtTime(finding)).toBe(asffUpdatedAt);
+    });
+  });
+
+  describe('Live Security Hub CSPM and Security Hub V2 suppression', () => {
+    const findingType = 'aws-foundational-security-best-practices/v/1.0.0/S3.1';
+
+    const getStoredFinding = async (findingId: string): Promise<Record<string, unknown> | undefined> =>
+      (
+        await docClient.send(
+          new GetCommand({ TableName: findingsTableName, Key: { findingType, findingId: asFindingId(findingId) } }),
+        )
+      ).Item;
+
+    const putFailedFinding = async (finding: ASFFFinding): Promise<void> => {
+      await new FindingRepository('test', findingsTableName, docClient).put({
+        findingType,
+        findingId: asFindingId(finding.Id),
+        findingDescription: 'Old description',
+        accountId: finding.AwsAccountId,
+        resourceId: finding.Resources[0].Id,
+        resourceType: finding.Resources[0].Type,
+        resourceTypeNormalized: normalizeResourceType(finding.Resources[0].Type),
+        severity: 'MEDIUM',
+        severityNormalized: 2,
+        region: 'us-east-1',
+        remediationStatus: 'FAILED',
+        securityHubUpdatedAtTime: '2023-01-01T00:00:00.000Z',
+        lastUpdatedTime: '2023-01-01T00:00:00.000Z',
+        'securityHubUpdatedAtTime#findingId': '2023-01-01T00:00:00.000Z#' + finding.Id,
+        'severityNormalized#securityHubUpdatedAtTime#findingId': '2#2023-01-01T00:00:00.000Z#' + finding.Id,
+        findingJSON: new Uint8Array(),
+        findingIdControl: `${finding.Id}#${findingType}`,
+        FINDING_CONSTANT: 'finding',
+        suppressed: false,
+        creationTime: finding.CreatedAt,
+        expireAt: calculateTtlTimestamp('2023-01-01T00:00:00.000Z'),
+      });
+    };
+
+    beforeEach(() => {
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:live-suppression',
+      });
+    });
+
+    it('does not remediate a new finding that the event shows as NEW but Security Hub CSPM has suppressed', async () => {
+      // ARRANGE
+      const finding = createMockFinding({ Id: securityHubFindingArn('live-cspm-suppressed') });
+      await setupControlConfig('S3.1', true);
+      securityHubMock.on(GetFindingsCommand).resolves({ Findings: [asSecurityHubCspmFinding(finding, 'SUPPRESSED')] });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      const storedFinding = await getStoredFinding(finding.Id);
+      expect(storedFinding?.remediationStatus).toBe('NOT_STARTED');
+      expect(storedFinding?.remediationAttempts).toBeUndefined();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      expect(securityHubMock.commandCalls(GetFindingsCommand)[0].args[0].input.Filters?.Id).toEqual([
+        { Value: finding.Id, Comparison: 'EQUALS' },
+      ]);
+    });
+
+    it('does not retry a failed finding from a Security Hub V2 event whose stale status is New while CSPM has it suppressed', async () => {
+      // ARRANGE
+      const ocsfFinding = createMockOCSFFinding({
+        status_id: 1,
+        finding_info: { ...createMockOCSFFinding().finding_info, uid: securityHubFindingArn('live-stale-v2') },
+      });
+      const asffFinding = createMockFinding({ Id: ocsfFinding.finding_info.uid });
+      await setupControlConfig('S3.1', true);
+      await putFailedFinding(asffFinding);
+      securityHubMock
+        .on(GetFindingsCommand)
+        .resolves({ Findings: [asSecurityHubCspmFinding(asffFinding, 'SUPPRESSED')] });
+      securityHubMock
+        .on(GetFindingsV2Command)
+        .resolves({ Findings: [{ finding_info: { uid: ocsfFinding.finding_info.uid }, status_id: 1 }] });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(ocsfFinding, { 'detail-type': 'Findings Imported V2' }));
+
+      // ASSERT
+      const storedFinding = await getStoredFinding(ocsfFinding.finding_info.uid);
+      expect(storedFinding?.remediationStatus).toBe('FAILED');
+      expect(storedFinding?.remediationAttempts).toBeUndefined();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('does not remediate a finding suppressed only in Security Hub V2', async () => {
+      // ARRANGE
+      const finding = createMockFinding({ Id: securityHubFindingArn('live-v2-suppressed') });
+      await setupControlConfig('S3.1', true);
+      securityHubMock.on(GetFindingsCommand).resolves({ Findings: [asSecurityHubCspmFinding(finding, 'NEW')] });
+      securityHubMock
+        .on(GetFindingsV2Command)
+        .resolves({ Findings: [{ finding_info: { uid: finding.Id }, status_id: 3 }] });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      expect((await getStoredFinding(finding.Id))?.remediationStatus).toBe('NOT_STARTED');
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('remediates when neither Security Hub CSPM nor Security Hub V2 has the finding suppressed', async () => {
+      // ARRANGE
+      const finding = createMockFinding({ Id: securityHubFindingArn('live-not-suppressed') });
+      await setupControlConfig('S3.1', true);
+      securityHubMock.on(GetFindingsCommand).resolves({ Findings: [asSecurityHubCspmFinding(finding, 'NEW')] });
+      securityHubMock
+        .on(GetFindingsV2Command)
+        .resolves({ Findings: [{ finding_info: { uid: finding.Id }, status_id: 1 }] });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      expect((await getStoredFinding(finding.Id))?.remediationStatus).toBe('IN_PROGRESS');
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+    });
+
+    it('rethrows a throttled lookup so the record is retried, without writing the finding', async () => {
+      // ARRANGE
+      const finding = createMockFinding({ Id: securityHubFindingArn('live-throttled') });
+      await setupControlConfig('S3.1', true);
+      securityHubMock
+        .on(GetFindingsCommand)
+        .rejects(new ThrottlingException({ message: 'Rate exceeded', $metadata: {} }));
+
+      // ACT / ASSERT
+      await expect(PreProcessor.recordHandler(createSQSRecord(finding))).rejects.toThrow('Rate exceeded');
+      expect(await getStoredFinding(finding.Id)).toBeUndefined();
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('skips remediation without retrying when the lookup is not authorized', async () => {
+      // ARRANGE
+      const finding = createMockFinding({ Id: securityHubFindingArn('live-denied') });
+      await setupControlConfig('S3.1', true);
+      securityHubMock.on(GetFindingsCommand).rejects(
+        new SecurityHubServiceException({
+          name: 'AccessDeniedException',
+          $fault: 'client',
+          message: 'not authorized',
+          $metadata: {},
+        }),
+      );
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      expect((await getStoredFinding(finding.Id))?.remediationStatus).toBe('NOT_STARTED');
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('does not read live status when auto-remediation is disabled', async () => {
+      // ARRANGE
+      const finding = createMockFinding({ Id: securityHubFindingArn('live-disabled') });
+      await setupControlConfig('S3.1', false);
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+
+      // ASSERT
+      expect((await getStoredFinding(finding.Id))?.remediationStatus).toBe('NOT_STARTED');
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(0);
+      expect(securityHubMock.commandCalls(GetFindingsV2Command)).toHaveLength(0);
+    });
+  });
+
+  describe('Finding read cache', () => {
+    it('reads the finding row fresh for each record, so a status written elsewhere is not overwritten', async () => {
+      // ARRANGE: with auto-remediation off, the first record creates the row and the second reads it
+      const findingType = 'aws-foundational-security-best-practices/v/1.0.0/S3.1';
+      const finding = createMockFinding({ Id: securityHubFindingArn('cache-refresh') });
+      await setupControlConfig('S3.1', false);
+      await PreProcessor.recordHandler(createSQSRecord(finding));
+      await PreProcessor.recordHandler(createSQSRecord({ ...finding, UpdatedAt: '2024-01-15T00:00:00.000Z' }));
+
+      // ARRANGE: another process records a successful remediation, then auto-remediation is turned on
+      await docClient.send(
+        new UpdateCommand({
+          TableName: findingsTableName,
+          Key: { findingType, findingId: asFindingId(finding.Id) },
+          UpdateExpression: 'SET remediationStatus = :status',
+          ExpressionAttributeValues: { ':status': 'SUCCESS' },
+        }),
+      );
+      await setupControlConfig('S3.1', true);
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:cache-refresh',
+      });
+
+      // ACT
+      await PreProcessor.recordHandler(createSQSRecord({ ...finding, UpdatedAt: '2024-02-01T00:00:00.000Z' }));
+
+      // ASSERT
+      const storedFinding = await docClient.send(
+        new GetCommand({ TableName: findingsTableName, Key: { findingType, findingId: asFindingId(finding.Id) } }),
+      );
+      expect(storedFinding.Item?.remediationStatus).toBe('SUCCESS');
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
     });
   });
 });

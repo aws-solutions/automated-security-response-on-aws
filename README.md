@@ -342,6 +342,173 @@ export interface PlaybookProps {
 
 Follow steps in the [Custom Remediations in Existing Playbooks](#custom-remediations-in-existing-playbooks) section above to add remediations to your new playbook. If you would like to add existing remediations to the playbook, skip to **Step 2**.
 
+## Connect an AI client to the ASR MCP server
+
+The optional ASR MCP server exposes the deployed solution's tools through an
+Amazon Bedrock AgentCore Gateway. Deploy the administrator stack with
+`EnableMcpServer=yes` in an AWS Region that supports AgentCore, then read these
+values from the administrator stack's **Outputs** tab:
+
+- `McpGatewayUrl` — the HTTPS MCP endpoint.
+- `McpGatewayClientId` — the public Cognito OAuth client ID.
+- `McpGatewayScopes` — the OAuth scopes clients request at login (`openid email profile`).
+- `McpCodexCallbackUrl` — the exact callback URL required by Codex.
+
+The MCP server name is a client-local alias, not a deployed ASR resource name.
+Choose any name and use it consistently in that client's configuration and
+commands.
+
+Set the alias, URL, client ID, exact Codex callback, and comma-separated OAuth
+scopes in your shell:
+
+```bash
+export ASR_MCP_NAME='<your-local-server-alias>'
+export ASR_MCP_URL='<McpGatewayUrl output>'
+export ASR_MCP_CLIENT_ID='<McpGatewayClientId output>'
+export ASR_MCP_CODEX_CALLBACK_URL='<McpCodexCallbackUrl output>'
+export ASR_MCP_SCOPES='openid,email,profile'
+```
+
+The three OAuth scopes are always `openid`, `email`, and `profile`; only the
+delimiter differs per client. `ASR_MCP_SCOPES` is comma-separated because the
+Codex CLI expects that form. Kiro lists the same three scopes as a JSON array,
+and Claude Code discovers them automatically — so each client below expresses
+the identical scope set, just in the format that client requires.
+
+On first connect the browser opens the ASR Cognito sign-in page. Sign in with an
+ASR user (a new invitee may be prompted to set a password).
+
+### Claude Code
+
+Configure Claude Code to use the ASR-registered
+`http://localhost:8772/callback` redirect:
+
+```bash
+claude mcp add --transport http --scope local \
+  --client-id "$ASR_MCP_CLIENT_ID" \
+  --callback-port 8772 \
+  "$ASR_MCP_NAME" \
+  "$ASR_MCP_URL"
+claude mcp login "$ASR_MCP_NAME"
+claude mcp get "$ASR_MCP_NAME"
+```
+
+To disconnect later, run `claude mcp logout "$ASR_MCP_NAME"`.
+
+### Kiro
+
+Requires Kiro CLI v3 or newer. The OAuth-based MCP server configuration shown
+here relies on `oauth`/`oauthScopes` support in `.kiro/settings/mcp.json`,
+available in Kiro CLI v3+.
+
+Kiro CLI uses the built-in `http://localhost:8770` redirect. ASR also registers
+`http://localhost:8770/oauth/callback` for Kiro IDE compatibility.
+Add this to `.kiro/settings/mcp.json` (merge with any existing `mcpServers`).
+Replace `<your-local-server-alias>` with any name; the JSON object key is Kiro's
+local alias for the server. Unlike the Claude Code and Codex commands, this JSON
+file cannot read the exported shell variables, so paste the `McpGatewayUrl` and
+`McpGatewayClientId` output values directly:
+
+```json
+{
+  "mcpServers": {
+    "<your-local-server-alias>": {
+      "url": "<McpGatewayUrl output>",
+      "oauthScopes": ["openid", "email", "profile"],
+      "oauth": {
+        "clientId": "<McpGatewayClientId output>",
+        "redirectUri": "localhost:8770"
+      }
+    }
+  }
+}
+```
+
+Save the file, connect to the alias you chose, and complete the browser sign-in.
+`kiro-cli login` authenticates Kiro CLI itself; run it only if Kiro is not
+already signed in. Then check the MCP server connection:
+
+```bash
+kiro-cli mcp status --name "$ASR_MCP_NAME"
+```
+
+#### Kiro CLI sign-in steps
+
+1. Start the CLI from the directory that contains `.kiro/settings/mcp.json`.
+   Workspace MCP settings load only from the current directory:
+
+   ```bash
+   kiro-cli chat
+   ```
+
+2. On first connect, Kiro CLI opens the ASR Cognito sign-in page in your
+   browser. If no browser opens, copy the sign-in link that Kiro CLI shows for
+   the server and open it in a browser on the same machine. After sign-in,
+   Cognito redirects to `http://localhost:8770`, so a browser on another
+   machine cannot finish the flow.
+3. Run `/mcp` in the chat session and confirm that the alias is loaded. To
+   confirm that the gateway tools are available, ask the agent to list them.
+
+### OpenAI Codex CLI
+
+Codex derives a stable callback identifier from the gateway URL. Configure both
+the exact deployment callback and its fixed listener port when adding and
+authenticating the server:
+
+```bash
+codex mcp add \
+  --config "mcp_oauth_callback_url=\"$ASR_MCP_CODEX_CALLBACK_URL\"" \
+  --config mcp_oauth_callback_port=8780 \
+  "$ASR_MCP_NAME" \
+  --url "$ASR_MCP_URL" \
+  --oauth-client-id "$ASR_MCP_CLIENT_ID"
+codex mcp login \
+  --config "mcp_oauth_callback_url=\"$ASR_MCP_CODEX_CALLBACK_URL\"" \
+  --config mcp_oauth_callback_port=8780 \
+  "$ASR_MCP_NAME" \
+  --scopes "$ASR_MCP_SCOPES"
+codex mcp get "$ASR_MCP_NAME" --json
+```
+
+To disconnect later, run `codex mcp logout "$ASR_MCP_NAME"`.
+
+### Notes and troubleshooting
+
+- **Client ID is required.** Cognito has no Dynamic Client Registration, so every
+  client must pass the `McpGatewayClientId` output.
+- **Scopes:** Claude Code discovers `openid email profile` automatically. The
+  Codex example requests them explicitly, and Kiro must list them explicitly
+  because its default includes `offline_access`, which Cognito rejects.
+- **After redeploying the gateway**, remove or replace the stale entry under the
+  local alias you chose, then sign in again.
+- `redirect_mismatch` means the callback is not registered. For Codex, compare
+  `ASR_MCP_CODEX_CALLBACK_URL` against the current `McpCodexCallbackUrl` output.
+- `invalid_scope` means the client did not request `openid email profile`.
+- `invalid_grant` can mean the client is using an old gateway URL that is no
+  longer the registered Cognito OAuth resource. Configure the current
+  `McpGatewayUrl` output and sign in again.
+
+## Authoring remediations with an AI coding agent
+
+Customer-facing installation and usage instructions are maintained in
+[`ai-assets/README.md`](ai-assets/README.md). The package provides one shared
+remediation-authoring skill plus optional adapters for Claude Code, Kiro, and
+OpenAI Codex CLI.
+
+The local workflow uses any configured AWS-capable MCP server or the AWS CLI. A
+deployed ASR MCP server is optional, may use any client-local name, and adds only
+the managed operations documented by the shared skill.
+
+> ⚠️ **_IMPORTANT:_** The `test_runbook_yaml` and `test_remediation_script` tools
+> execute the candidate runbook **in the ASR administrator account** (the MCP
+> server's own account), under a role bounded only by the ASR remediation
+> permissions boundary. That boundary denies the `iam`, `sts`, and `organizations`
+> namespaces, but allows every other service action the runbook names, run against
+> that account's resources — so it limits blast radius, it is not isolation. Deploy
+> the ASR MCP server, and run these recorded tests, in a **non-production test
+> account** — never an account that is also your production Security Hub
+> administrator or holds production workloads.
+
 ## Build and Deploy
 
 AWS Solutions use two buckets: a bucket for global access to templates, which is accessed via HTTPS, and regional
@@ -515,10 +682,29 @@ deployment instructions and set all deployment parameters according to your need
 When following the instructions, keep in mind to use the URLs to the templates in your own bucket.
 
 If you anticipate that you will need to deploy multiple times during your development iterations, you can alternatively compose an `aws cloudformation create-stack` command with your desired parameter values, and deploy from the terminal.
+
+Before running the commands below, substitute the placeholder values for your
+environment. These are **not** optional and have constraints enforced by the
+templates:
+
+- `ADMIN_ACCOUNT` — the Security Hub admin account ID. Must be exactly 12 digits
+  (`^\d{12}$`); a non-numeric placeholder is rejected by CloudFormation. Used for
+  `SecHubAdminAccount` in the member and member-roles stacks.
+- `ADMIN_USER_EMAIL` — a valid email address for the initial Web UI admin user.
+  Required whenever `ShouldDeployWebUI=yes` or `EnableMcpServer=yes` (enforced by
+  a stack rule); leaving it empty fails stack creation.
+- `MEMBER_LOG_GROUP_NAME` — the name of an existing CloudWatch log group in the
+  member account. The value shown is only an example; replace it.
+
 For example:
 
 ```bash
   export NAMESPACE=$(date +%s | grep -oE '.{8}$')
+  # Replace these with real values before deploying (see constraints above).
+  export ADMIN_ACCOUNT=111111111111            # 12-digit Security Hub admin account ID
+  export ADMIN_USER_EMAIL=you@example.com       # valid email for the Web UI admin user
+  export MEMBER_LOG_GROUP_NAME=my-asr-log-group # existing CloudWatch log group name
+
   export ADMIN_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-admin.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -540,8 +726,13 @@ For example:
     ParameterKey=EnableEnhancedCloudWatchMetrics,ParameterValue=no \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
     ParameterKey=ShouldDeployWebUI,ParameterValue=yes \
-    ParameterKey=AdminUserEmail,ParameterValue={AdminUserEmail} \
-    ParameterKey=TicketGenFunctionName,ParameterValue=""
+    ParameterKey=AdminUserEmail,ParameterValue=$ADMIN_USER_EMAIL
+  # TicketGenFunctionName is omitted; its default is empty (ticketing disabled).
+  # To enable ticketing, add:
+  #   ParameterKey=TicketGenFunctionName,ParameterValue=<lambda-function-name>
+    ParameterKey=EnableRollback,ParameterValue=no \
+    ParameterKey=MFAConfiguration,ParameterValue=OFF \
+    
   export MEMBER_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -557,11 +748,11 @@ For example:
     ParameterKey=LoadNIST80053MemberStack,ParameterValue=no \
     ParameterKey=LoadPCI321MemberStack,ParameterValue=no \
     ParameterKey=CreateS3BucketForRedshiftAuditLogging,ParameterValue=no \
-    ParameterKey=LogGroupName,ParameterValue=random-log-group-123456789012 \
+    ParameterKey=LogGroupName,ParameterValue=$MEMBER_LOG_GROUP_NAME \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
-    ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount} \
+    ParameterKey=SecHubAdminAccount,ParameterValue=$ADMIN_ACCOUNT \
     ParameterKey=EnableCloudTrailForASRActionLog,ParameterValue=no
-    
+
   export MEMBER_ROLES_TEMPLATE_URL=https://$TEMPLATE_BUCKET_NAME.s3.$REGION.amazonaws.com/$SOLUTION_NAME/$SOLUTION_VERSION/automated-security-response-member-roles.template
   aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -570,8 +761,10 @@ For example:
   --region $REGION \
   --parameters \
     ParameterKey=Namespace,ParameterValue=$NAMESPACE \
-    ParameterKey=SecHubAdminAccount,ParameterValue={SecHubAdminAccount}
+    ParameterKey=SecHubAdminAccount,ParameterValue=$ADMIN_ACCOUNT
 ```
+
+> **_NOTE:_** The `EnableRollback` parameter (administrator stack, default `no`) controls the safe remediation rollback feature. When set to `no`, the API rejects rollback requests and the Web UI hides rollback controls, though remediations still capture a pre-remediation snapshot. Set it to `yes` to let an administrator or delegated administrator reverse a completed remediation for supported controls from the Web UI. See the solution's Implementation Guide for the operator rollback workflow.
 
 ## Customizing IaC Templates
 
@@ -651,6 +844,11 @@ You can find your Jira field IDs and account IDs by:
 
 <pre>
 |-.github/                [ GitHub pull request template, issue templates, and workflows ]
+|-ai-assets/              [ AI agent skill and host adapters for authoring remediations ]
+  |-skills/               [ The asr-remediation-authoring skill: SKILL.md, scripts, references, tests ]
+  |-claude-code/          [ Claude Code adapter (agent + slash command) ]
+  |-kiro/                 [ Kiro adapter (agent JSON + prompt) ]
+  |-codex/                [ OpenAI Codex CLI adapter (AGENTS.md) ]
 |-deployment/             [ Scripts used to build, test, and upload templates for the solution ]
   |-manifest-generator/   [ Manifest generation tool ]
   |-utils/                [ Utility scripts for deployment ]

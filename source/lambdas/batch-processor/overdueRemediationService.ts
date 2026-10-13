@@ -10,6 +10,7 @@ import { IdGenerator, getIdGenerator } from '../common/utils/idGenerator';
 import { extractASFFFinding, buildOrchestratorInput } from '../common/utils/findingExtraction';
 import { triggerRemediationForFinding } from '../common/utils/remediationTrigger';
 import { ErrorUtils } from '../common/utils/errorUtils';
+import { SecurityHubUtils, SuppressionLookupResult } from '../common/utils/securityHub';
 
 /**
  * Tally of what happened during a single overdue-remediation scan. Every overdue
@@ -72,6 +73,7 @@ export class OverdueRemediationService {
     private readonly logger: Logger,
     private readonly clock: Clock,
     private readonly perRunCap: number,
+    private readonly securityHubUtils: SecurityHubUtils,
     private readonly idGenerator: IdGenerator = getIdGenerator(),
   ) {}
 
@@ -98,7 +100,10 @@ export class OverdueRemediationService {
     }
 
     const fullItems = await this.fetchFullItems(eligibleFindings, result);
-    const remediableFindings = await this.filterRemediableFindings(fullItems, result);
+    const remediableFindings = await this.excludeLiveSuppressedFindings(
+      await this.filterRemediableFindings(fullItems, result),
+      result,
+    );
 
     for (const remediableFinding of remediableFindings) {
       const outcome = await this.triggerRemediation(remediableFinding);
@@ -256,23 +261,7 @@ export class OverdueRemediationService {
       }
 
       if (eligibility.status === 'suppressedSH') {
-        try {
-          // Clear the enforcement stamp so an SH-suppressed finding drops out of the sparse GSI.
-          // Otherwise it stays eligible at the projection and is re-fetched and re-decompressed on
-          // every future scan, only to be skipped here again.
-          await this.findingRepository.clearRemediationDueBy(finding.findingId, finding.findingType);
-        } catch (error) {
-          result.findingsSkippedError++;
-          this.logger.error('Failed to clear enforcement stamp for SH-suppressed finding; it retains its deadline', {
-            findingId: finding.findingId,
-            error: ErrorUtils.formatErrorMessage(error),
-          });
-          continue;
-        }
-        result.findingsSkippedSuppressedSH++;
-        this.logger.info('Skipping overdue finding suppressed in Security Hub; cleared its enforcement stamp', {
-          findingId: finding.findingId,
-        });
+        await this.skipSuppressedFinding(finding, result);
         continue;
       }
 
@@ -280,6 +269,86 @@ export class OverdueRemediationService {
     }
 
     return remediableFindings;
+  }
+
+  /**
+   * Drops findings whose live status is suppressed in Security Hub CSPM or Security Hub V2, since the stored
+   * payload misses a CSPM suppression once a later Security Hub V2 event overwrites it. A failed lookup leaves
+   * every finding with its deadline for the next scan.
+   */
+  private async excludeLiveSuppressedFindings(
+    remediableFindings: RemediableFinding[],
+    result: RemediationResult,
+  ): Promise<RemediableFinding[]> {
+    if (remediableFindings.length === 0) {
+      return [];
+    }
+
+    const lookup = await this.lookUpLiveSuppression(remediableFindings);
+    if (!lookup) {
+      result.findingsSkippedError += remediableFindings.length;
+      return [];
+    }
+
+    const liveRemediableFindings: RemediableFinding[] = [];
+    for (const remediableFinding of remediableFindings) {
+      const findingId = remediableFinding.asffFinding.Id;
+      if (lookup.suppressedFindingIds.has(findingId)) {
+        await this.skipSuppressedFinding(remediableFinding.finding, result);
+        continue;
+      }
+      if (lookup.unresolvedFindingIds.has(findingId)) {
+        this.logger.warn(
+          'Live finding status not found in Security Hub CSPM or Security Hub V2; using the stored status',
+          {
+            findingId,
+          },
+        );
+      }
+      liveRemediableFindings.push(remediableFinding);
+    }
+    return liveRemediableFindings;
+  }
+
+  /** Returns undefined when the lookup fails, after logging it. */
+  private async lookUpLiveSuppression(
+    remediableFindings: RemediableFinding[],
+  ): Promise<SuppressionLookupResult | undefined> {
+    try {
+      const shouldCheckSecurityHubV2 = await this.securityHubUtils.isSecurityHubV2Enabled();
+      return await this.securityHubUtils.findSuppressedFindings(
+        remediableFindings.map(({ asffFinding }) => ({
+          findingId: asffFinding.Id,
+          shouldCheckCspm: true,
+          shouldCheckSecurityHubV2,
+        })),
+      );
+    } catch (error) {
+      this.logger.error('Failed to read live finding status; overdue findings retain their deadline', {
+        error: ErrorUtils.formatErrorMessage(error),
+      });
+      return undefined;
+    }
+  }
+
+  private async skipSuppressedFinding(finding: FindingTableItem, result: RemediationResult): Promise<void> {
+    try {
+      // Clear the enforcement stamp so an SH-suppressed finding drops out of the sparse GSI.
+      // Otherwise it stays eligible at the projection and is re-fetched and re-decompressed on
+      // every future scan, only to be skipped here again.
+      await this.findingRepository.clearRemediationDueBy(finding.findingId, finding.findingType);
+    } catch (error) {
+      result.findingsSkippedError++;
+      this.logger.error('Failed to clear enforcement stamp for SH-suppressed finding; it retains its deadline', {
+        findingId: finding.findingId,
+        error: ErrorUtils.formatErrorMessage(error),
+      });
+      return;
+    }
+    result.findingsSkippedSuppressedSH++;
+    this.logger.info('Skipping overdue finding suppressed in Security Hub; cleared its enforcement stamp', {
+      findingId: finding.findingId,
+    });
   }
 
   /**

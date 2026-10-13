@@ -24,6 +24,8 @@ import { ResourceFilterEvaluator } from '../pre-processor/ResourceFilterEvaluato
 import { ErrorUtils } from '../common/utils/errorUtils';
 import { SNSClient } from '@aws-sdk/client-sns';
 import { S3Client } from '@aws-sdk/client-s3';
+import { SecurityHubClient } from '@aws-sdk/client-securityhub';
+import { SecurityHubUtils } from '../common/utils/securityHub';
 
 const BATCH_PROCESSOR_PRINCIPAL = 'BatchProcessor';
 const DEFAULT_ENFORCEMENT_PER_RUN_CAP = 50;
@@ -80,6 +82,7 @@ const overdueRemediationService = new OverdueRemediationService(
   logger,
   getClock(),
   parseEnforcementPerRunCap(env.ENFORCEMENT_PER_RUN_CAP),
+  new SecurityHubUtils(tracer.captureAWSv3Client(new SecurityHubClient({ retryMode: 'adaptive', maxAttempts: 5 }))),
 );
 
 const notificationConfigurationRepository = new NotificationConfigurationRepository(configTableName, dynamoDBClient);

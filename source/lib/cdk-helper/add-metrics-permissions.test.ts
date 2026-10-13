@@ -4,6 +4,7 @@ import { Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { Code, Function as LambdaFunction, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { addMetricsSsmPermissions } from './add-metrics-permissions';
+import { stripDevelopmentPrefix } from '../config/cdk-config';
 
 interface PolicyStatementJson {
   Action: string | string[];
@@ -11,8 +12,10 @@ interface PolicyStatementJson {
 }
 
 describe('addMetricsSsmPermissions', function () {
-  it('grants least-privilege SSM access scoped per parameter', function () {
+  // A pre-prod build must still scope the grant to the stripped prefix.
+  it.each([['SO0111'], ['DEV-SO0111']])('scopes SSM access to the stripped prefix for %s', function (solutionId) {
     // ARRANGE
+    const resourceNamePrefix = stripDevelopmentPrefix(solutionId);
     const stack = new Stack(undefined, 'TestStack', { env: { account: '111111111111', region: 'us-east-1' } });
     const fn = new LambdaFunction(stack, 'Fn', {
       runtime: Runtime.NODEJS_24_X,
@@ -21,7 +24,7 @@ describe('addMetricsSsmPermissions', function () {
     });
 
     // ACT
-    addMetricsSsmPermissions(fn, 'SO0111');
+    addMetricsSsmPermissions(fn, resourceNamePrefix);
 
     // ASSERT
     const template = Template.fromStack(stack);
@@ -40,6 +43,7 @@ describe('addMetricsSsmPermissions', function () {
 
     // Read is required on all three parameters.
     const getStatement = serializeStatementForAction('ssm:GetParameter');
+    expect(getStatement).not.toContain('/Solutions/DEV-SO0111/');
     expect(getStatement).toContain('/Solutions/SO0111/version');
     expect(getStatement).toContain('/Solutions/SO0111/metrics_uuid');
     expect(getStatement).toContain('/Solutions/SO0111/anonymous_metrics_uuid');

@@ -84,6 +84,38 @@ def test_handle_s3_bucket():
 
 
 @mock_aws
+def test_handle_s3_bucket_asserts_bucket_ownership(mocker):
+    # The bucket-level put must carry ExpectedBucketOwner = the caller account, so
+    # a bucket renamed away between finding and remediation cannot have another
+    # account's bucket reconfigured. Spy on the real S3 client call.
+    bucket = setup_bucket()
+    real_client = boto3.client("s3", config=BOTO_CONFIG)
+    put_spy = mocker.spy(real_client, "put_public_access_block")
+    mocker.patch(
+        "ConfigureS3PublicAccessBlock.connect_to_service",
+        side_effect=lambda service: (
+            real_client
+            if service == "s3"
+            else boto3.client(service, config=BOTO_CONFIG)
+        ),
+    )
+
+    result = remediation.handle_s3_bucket(
+        {
+            "Bucket": bucket,
+            "RestrictPublicBuckets": TEST_POLICY["RestrictPublicBuckets"],
+            "BlockPublicAcls": TEST_POLICY["BlockPublicAcls"],
+            "IgnorePublicAcls": TEST_POLICY["IgnorePublicAcls"],
+            "BlockPublicPolicy": TEST_POLICY["BlockPublicPolicy"],
+        },
+        None,
+    )
+
+    assert result["Status"] == "Success"
+    assert put_spy.call_args.kwargs["ExpectedBucketOwner"] == MOTO_ACCOUNT_ID
+
+
+@mock_aws
 def test_handle_s3_bucket_with_invalid_bucket_policy(mocker):
     bucket = setup_bucket()
     invalid_bucket_policy = {
@@ -190,6 +222,7 @@ def test_put_s3_bucket_public_access_block_error(mocker):
                 "IgnorePublicAcls": True,
                 "BlockPublicPolicy": True,
             },
+            "111111111111",
         )
 
     assert re.match(
@@ -212,6 +245,7 @@ def test_validate_bucket_public_access_block_error(mocker):
                 "IgnorePublicAcls": True,
                 "BlockPublicPolicy": True,
             },
+            "111111111111",
         )
 
     assert re.match(

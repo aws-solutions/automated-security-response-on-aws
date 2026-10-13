@@ -167,6 +167,70 @@ describe('FindingDataService', () => {
     });
   });
 
+  /** remediationConfigTableKey: stamped at ingestion, survives updates that omit it. */
+  describe('remediationConfigTableKey persistence', () => {
+    const readStoredItem = async (findingType: string, findingId: string) => {
+      const response = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: findingsTableName, Key: { findingType, findingId } }),
+      );
+      return response.Item;
+    };
+
+    it('adds the key on an update to a finding created without one', async () => {
+      // ARRANGE
+      const service = new FindingDataService(findingsTableName, dynamoDBDocumentClient, principal, fakeClock);
+
+      // ACT: create with no key (a finding written before this shipped), then update supplying one
+      const created = await service.updateWithIncomingData(createMinimalFinding(), SECURITY_CONTROL_FINDING_TYPE);
+      const updated = await service.updateWithIncomingData(
+        createMinimalFinding({ UpdatedAt: '2024-01-20T00:00:00Z' }),
+        SECURITY_CONTROL_FINDING_TYPE,
+        undefined,
+        false,
+        undefined,
+        undefined,
+        'KMS.4',
+      );
+      const storedItem = await readStoredItem(
+        created.findingTableItem!.findingType,
+        created.findingTableItem!.findingId,
+      );
+
+      // ASSERT: the putIfNewer update writes the key onto the existing row
+      expect(created.findingTableItem!.remediationConfigTableKey).toBeUndefined();
+      expect(updated.status).toBe('SUCCESS');
+      expect(storedItem?.remediationConfigTableKey).toBe('KMS.4');
+    });
+
+    it('preserves a stored key when a later update omits it', async () => {
+      // ARRANGE
+      const service = new FindingDataService(findingsTableName, dynamoDBDocumentClient, principal, fakeClock);
+
+      // ACT: create with a key, then apply a newer update that supplies none (the sync path)
+      const created = await service.updateWithIncomingData(
+        createMinimalFinding(),
+        SECURITY_CONTROL_FINDING_TYPE,
+        undefined,
+        false,
+        undefined,
+        undefined,
+        'KMS.4',
+      );
+      const updated = await service.updateWithIncomingData(
+        createMinimalFinding({ UpdatedAt: '2024-01-20T00:00:00Z' }),
+        SECURITY_CONTROL_FINDING_TYPE,
+      );
+      const storedItem = await readStoredItem(
+        created.findingTableItem!.findingType,
+        created.findingTableItem!.findingId,
+      );
+
+      // ASSERT
+      expect(updated.status).toBe('SUCCESS');
+      expect(storedItem?.remediationConfigTableKey).toBe('KMS.4');
+    });
+  });
+
   /**
    * Metric-enrichment flags (hasFindingNotificationsEnabled / hasFindingRemediationDeadlineConfigured)
    * are supplied by the ingestion handlers from notification-config matching and must be persisted

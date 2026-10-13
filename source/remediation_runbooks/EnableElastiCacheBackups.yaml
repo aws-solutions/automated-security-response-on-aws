@@ -5,29 +5,39 @@ description: |
   ### Document Name - ASR-EnableElastiCacheBackups
 
   ## Overview
-  This document enables automatic backups for the given ElastiCache cluster.
-
-  ## Pre-requisites
-  None.
+  Enables automatic backups for an ElastiCache cluster or replication group by setting
+  SnapshotRetentionLimit. When invoked with Rollback=ROLLBACK, restores SnapshotRetentionLimit to its
+  pre-remediation value from a snapshot stored in S3.
 
   ## What does this document do?
-  Takes the SnapshotRetentionPeriod provided by Security Hub control ElastiCache.1 and enables automatic backups for the given ElastiCache cluster/replication group.
-  If the resource is a replication group with Cluster Mode disabled, the first cluster listed in the group will be used as the SnapshottingClusterId.
+  Takes the SnapshotRetentionPeriod provided by Security Hub control ElastiCache.1 and enables automatic
+  backups for the given ElastiCache cluster/replication group. If the resource is a replication group with
+  Cluster Mode disabled, the first cluster listed in the group is used as the SnapshottingClusterId.
 
   ## Input Parameters
-  * ResourceARN: (Required) ID of the ElastiCache cluster.
+  * ResourceARN: (Required) ARN of the ElastiCache cluster or replication group.
+  * SnapshotRetentionPeriod: (Required) Minimum snapshot retention period in days.
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * ControlExecutionId: (Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation.
+  * SnapshotVersionId: (Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
   ## Output Parameters
-  * EnableAutomaticBackups.Output
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
 
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   ResourceARN:
     type: String
-    description: (Required) ID of the ElastiCache cluster.
-    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):(?:replicationgroup|serverlesscache|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)'
+    description: (Required) ARN of the ElastiCache cluster or replication group.
+    allowedPattern: '^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):(?:replicationgroup|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)'
   SnapshotRetentionPeriod:
     type: Integer
     description: (Required) Minimum snapshot retention period in days.
@@ -35,24 +45,75 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
 outputs:
-  - EnableAutomaticBackups.Output
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  - name: EnableAutomaticBackups
-    action: 'aws:executeScript'
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
     description: |
-      ## Remediation
-      Enables automatic backups for the given ElastiCache Cluster.
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation SnapshotRetentionLimit to S3, then enables automatic backups by setting
+      the target retention. When Rollback=ROLLBACK, restores the pre-remediation retention from the snapshot.
     timeoutSeconds: 600
+    isEnd: true
     inputs:
-      InputPayload:
-        ResourceARN: '{{ResourceARN}}'
-        SnapshotRetentionPeriod: '{{SnapshotRetentionPeriod}}'
       Runtime: python3.11
       Handler: handler
+      InputPayload:
+        ResourceARN: "{{ ResourceARN }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
+        SnapshotRetentionPeriod: "{{ SnapshotRetentionPeriod }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
       Script: |-
-        %%SCRIPT=EnableElastiCacheBackups.py%%
+        %%SCRIPT=EnableElastiCacheBackups_rollback.py%%
     outputs:
-      - Name: Output
-        Selector: $.Payload
-        Type: StringMap
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

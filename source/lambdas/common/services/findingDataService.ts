@@ -37,6 +37,7 @@ interface BuildFindingTableItemParams {
   finding: ASFFFinding;
   sanitizedFindingId: FindingId;
   sanitizedControlId: string;
+  remediationConfigTableKey?: string;
   suppressed: boolean;
   remediationStatus: remediationStatus;
   remediationStatusDetail?: string;
@@ -163,6 +164,7 @@ export class FindingDataService {
       remediationStatusDetail,
       eventBridgeTime,
       metricEnrichment,
+      remediationConfigTableKey,
     } = params;
     const now = this.clock.now().toISOString();
     const securityHubUpdate = this.getSecurityHubTimestamp(finding, eventBridgeTime);
@@ -192,6 +194,7 @@ export class FindingDataService {
       findingType: sanitizedControlId,
       findingId: sanitizedFindingId,
       findingIdControl: `${sanitizedFindingId}#${sanitizedControlId}`,
+      ...(remediationConfigTableKey ? { remediationConfigTableKey } : {}),
       creationTime: finding.CreatedAt,
       suppressed: suppressed,
       expireAt: calculateTtlTimestamp(now),
@@ -269,6 +272,7 @@ export class FindingDataService {
     isFull: boolean = false,
     eventBridgeTime?: string,
     metricEnrichment?: FindingMetricEnrichment,
+    remediationConfigTableKey?: string,
   ): Promise<{ status: 'SUCCESS' | 'FAILED' | 'ERROR'; findingTableItem?: FindingTableItem }> {
     const { sanitizedFindingId, sanitizedControlId } = this.getSanitizedFindingAndControl(finding, findingType);
 
@@ -308,6 +312,7 @@ export class FindingDataService {
         remediationStatusDetail,
         eventBridgeTime,
         metricEnrichment,
+        remediationConfigTableKey,
       });
     } catch (error) {
       this.logger.error(
