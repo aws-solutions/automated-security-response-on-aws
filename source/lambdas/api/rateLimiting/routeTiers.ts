@@ -47,17 +47,26 @@ export const RATE_LIMIT_ROUTES: readonly RouteDefinition[] = [
   { method: 'POST', pathTemplate: '/findings/action', tier: 'critical' },
   { method: 'DELETE', pathTemplate: '/notifications/{id}', tier: 'critical' },
   { method: 'PATCH', pathTemplate: '/notifications/{id}', tier: 'critical' },
+  // Deploying a runbook registers/updates an SSM Automation document, and
+  // executing one starts a remediation — same blast radius as a finding action.
+  // `drift-detection` is here too: its `push` action writes an SSM document in a
+  // member account and its `execute` action starts an automation there.
+  { method: 'POST', pathTemplate: '/runbooks/deploy', tier: 'critical' },
+  { method: 'POST', pathTemplate: '/runbooks/execute', tier: 'critical' },
+  { method: 'POST', pathTemplate: '/runbooks/drift-detection', tier: 'critical' },
 
   // ─── sensitiveWrite ──────────────────────────────────────────────────────
   { method: 'POST', pathTemplate: '/filters', tier: 'sensitiveWrite' },
   { method: 'PUT', pathTemplate: '/filters/{filterId}', tier: 'sensitiveWrite' },
   { method: 'PUT', pathTemplate: '/users/{id}', tier: 'sensitiveWrite' },
+  { method: 'PUT', pathTemplate: '/users/{id}/mcp-tools', tier: 'sensitiveWrite' },
   { method: 'POST', pathTemplate: '/notifications', tier: 'sensitiveWrite' },
   { method: 'PUT', pathTemplate: '/notifications/{id}', tier: 'sensitiveWrite' },
 
   // ─── read ────────────────────────────────────────────────────────────────
   { method: 'GET', pathTemplate: '/controls', tier: 'read' },
   { method: 'GET', pathTemplate: '/filters', tier: 'read' },
+  { method: 'GET', pathTemplate: '/mcp/tools', tier: 'read' },
   { method: 'GET', pathTemplate: '/users', tier: 'read' },
   { method: 'POST', pathTemplate: '/findings', tier: 'read' },
   { method: 'POST', pathTemplate: '/remediations', tier: 'read' },
@@ -69,6 +78,11 @@ export const RATE_LIMIT_ROUTES: readonly RouteDefinition[] = [
   { method: 'POST', pathTemplate: '/export', tier: 'read' },
   { method: 'POST', pathTemplate: '/notifications/{id}/subscriptions/resend', tier: 'read' },
   { method: 'POST', pathTemplate: '/notifications/{id}/test', tier: 'read' },
+  { method: 'POST', pathTemplate: '/runbooks/generate', tier: 'read' },
+  { method: 'POST', pathTemplate: '/runbooks/list', tier: 'read' },
+  { method: 'POST', pathTemplate: '/runbooks/get', tier: 'read' },
+  { method: 'POST', pathTemplate: '/runbooks/validate', tier: 'read' },
+  { method: 'POST', pathTemplate: '/runbooks/execution-status', tier: 'read' },
 ];
 
 /**

@@ -11,8 +11,13 @@ import { mockClient } from 'aws-sdk-client-mock';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { AdminActivityNotification } from '../../services/adminActivityNotifier';
+import { SecurityControl } from '@asr/data-models';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
-import { remediationConfigTableName, userAccountMappingTableName } from '../../../common/__tests__/envSetup';
+import {
+  customRunbookTableName,
+  remediationConfigTableName,
+  userAccountMappingTableName,
+} from '../../../common/__tests__/envSetup';
 import {
   setupMetricsMocks,
   cleanupMetricsMocks,
@@ -158,6 +163,8 @@ describe('ControlsHandler Integration Tests', () => {
         version: 1,
         lastModified: '2024-01-01T00:00:00Z',
         modifiedBy: 'admin-user@example.com',
+        rollbackSupported: false,
+        source: 'builtin',
       });
     });
 
@@ -212,6 +219,8 @@ describe('ControlsHandler Integration Tests', () => {
         version: 1,
         lastModified: '',
         modifiedBy: '',
+        rollbackSupported: false,
+        source: 'builtin',
       });
     });
 
@@ -1604,6 +1613,467 @@ describe('ControlsHandler Integration Tests', () => {
       expect(controlIds).toContain('SCAN.1');
       expect(controlIds).toContain('SCAN.25');
       expect(controlIds).toContain('SCAN.50');
+    });
+  });
+
+  // The outer suite runs without a custom-runbook table, which already covers the
+  // degrade-to-built-ins path. This block creates the table so the merge itself is
+  // exercised against DynamoDB Local, including the status filter the query relies
+  // on and the highest-version tie-break.
+  describe('getControls with custom runbooks', () => {
+    const customRunbookItem = (overrides: Record<string, unknown> = {}) => ({
+      runbookId: 'a3f9c1e2-0000-4000-8000-000000000001',
+      version: 1,
+      controlId: 'Custom.1',
+      serviceName: 'Custom',
+      description: 'Custom remediation',
+      remediationAction: 'Custom remediation',
+      status: 'DEPLOYED',
+      s3Key: 'runbooks/a3f9c1e2-0000-4000-8000-000000000001/v1/runbook.yaml',
+      createdBy: 'author@example.com',
+      createdAt: '2026-02-01T00:00:00Z',
+      ...overrides,
+    });
+
+    async function putCustomRunbook(overrides: Record<string, unknown> = {}): Promise<void> {
+      await dynamoDBDocumentClient.send(
+        new PutCommand({ TableName: customRunbookTableName, Item: customRunbookItem(overrides) }),
+      );
+    }
+
+    async function listControls(): Promise<SecurityControl[]> {
+      const event = createMockEvent({
+        httpMethod: 'GET',
+        path: '/controls',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: 'Bearer valid-token',
+        },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin-user@example.com',
+            },
+          },
+        },
+      });
+
+      const result = await getControls(event, createMockContext());
+      expect(result.statusCode).toBe(200);
+      return JSON.parse(result.body).controls as SecurityControl[];
+    }
+
+    beforeAll(async () => {
+      await DynamoDBTestSetup.createCustomRunbookTable(customRunbookTableName);
+    });
+
+    afterAll(async () => {
+      await DynamoDBTestSetup.deleteTable(customRunbookTableName);
+    });
+
+    beforeEach(async () => {
+      await DynamoDBTestSetup.clearTable(customRunbookTableName, 'customRunbook');
+    });
+
+    it('adds a control served by a deployed custom runbook, tagged as custom', async () => {
+      await putCustomRunbook();
+
+      const controls = await listControls();
+
+      expect(controls).toEqual([
+        expect.objectContaining({
+          controlId: 'Custom.1',
+          description: 'Custom remediation',
+          source: 'custom',
+          automatedRemediationEnabled: false,
+          modifiedBy: 'author@example.com',
+          lastModified: '2026-02-01T00:00:00Z',
+        }),
+      ]);
+    });
+
+    it('saves an edit to a deployed custom control, whose config row starts at version 0', async () => {
+      await putCustomRunbook();
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'Custom.1',
+            description: 'Custom remediation',
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 0,
+            lastModified: '2026-02-01T00:00:00Z',
+            modifiedBy: 'author@example.com',
+            source: 'custom',
+          },
+        }),
+      );
+
+      expect((await listControls()).find(({ controlId }) => controlId === 'Custom.1')).toEqual(
+        expect.objectContaining({
+          controlId: 'Custom.1',
+          source: 'custom',
+          automatedRemediationEnabled: false,
+          version: 0,
+        }),
+      );
+
+      const updateEvent = createMockEvent({
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'update',
+          data: [
+            {
+              controlId: 'Custom.1',
+              description: 'Custom remediation',
+              automatedRemediationEnabled: false,
+              filters: [],
+              filterMode: 'exclude',
+              version: 0,
+              lastModified: '2026-02-01T00:00:00Z',
+              modifiedBy: 'author@example.com',
+              source: 'custom',
+            },
+          ],
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: 'Bearer valid-token',
+        },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin-user@example.com',
+            },
+          },
+        },
+      });
+
+      const updateResult = await bulkEditControls(updateEvent, createMockContext());
+      expect(updateResult.statusCode).toBe(200);
+
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({
+          TableName: remediationConfigTableName,
+          Key: { controlId: 'Custom.1' },
+        }),
+      );
+      expect(stored.Item).toMatchObject({
+        controlId: 'Custom.1',
+        filterMode: 'exclude',
+        automatedRemediationEnabled: false,
+        source: 'custom',
+        version: 1,
+        modifiedBy: 'admin-user@example.com',
+      });
+    });
+
+    it('refuses to enable automated remediation for a deployed custom control', async () => {
+      // A custom runbook runs only on a manual trigger: resolve_ssm_doc_for_finding checks
+      // the event type before it looks up the custom-runbook table, so an automatically
+      // triggered finding never reaches one. Storing the flag would leave the console
+      // reporting "Enabled" for a control nothing remediates, so the write is refused here
+      // — not only hidden in the Web UI, since the MCP `update_controls` tool posts to this
+      // same route.
+      await putCustomRunbook();
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'Custom.1',
+            description: 'Custom remediation',
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 0,
+            lastModified: '2026-02-01T00:00:00Z',
+            modifiedBy: 'author@example.com',
+            source: 'custom',
+          },
+        }),
+      );
+
+      const updateEvent = createMockEvent({
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        body: JSON.stringify({
+          operation: 'update',
+          data: [
+            {
+              controlId: 'Custom.1',
+              description: 'Custom remediation',
+              automatedRemediationEnabled: true,
+              filters: [],
+              filterMode: 'include',
+              version: 0,
+              lastModified: '2026-02-01T00:00:00Z',
+              modifiedBy: 'author@example.com',
+              source: 'custom',
+            },
+          ],
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: 'Bearer valid-token',
+        },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin-user@example.com',
+            },
+          },
+        },
+      });
+
+      await expect(bulkEditControls(updateEvent, createMockContext())).rejects.toThrow(/custom runbook/i);
+
+      // The stored row is untouched: a refusal that still wrote the flag would be the same
+      // defect with a different status code.
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'Custom.1' } }),
+      );
+      expect(stored.Item).toMatchObject({ automatedRemediationEnabled: false, version: 0 });
+    });
+
+    it('names the refused custom control in a mixed batch, instead of advising a refresh', async () => {
+      // A batch with one built-in and one rejected custom control returns 207, not 400 — the
+      // built-in did apply. Before, that 207 carried only the generic "data may have been
+      // modified, please refresh and try again", which is untrue for the custom control: it
+      // will be refused however many times the operator retries. The reason and the ids have
+      // to survive into the response body, which is the only thing the console can read.
+      await putCustomRunbook();
+      for (const [controlId, source] of [
+        ['Custom.1', 'custom'],
+        ['S3.1', 'builtin'],
+      ] as const) {
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: {
+              controlId,
+              description: `Description for ${controlId}`,
+              automatedRemediationEnabled: false,
+              filterMode: 'include',
+              version: 0,
+              lastModified: '2026-02-01T00:00:00Z',
+              modifiedBy: 'author@example.com',
+              source,
+            },
+          }),
+        );
+      }
+
+      const enable = (controlId: string) => ({
+        controlId,
+        description: `Description for ${controlId}`,
+        automatedRemediationEnabled: true,
+        filters: [],
+        filterMode: 'include' as const,
+        version: 0,
+        lastModified: '2026-02-01T00:00:00Z',
+        modifiedBy: 'author@example.com',
+      });
+
+      const result = await bulkEditControls(
+        createMockEvent({
+          httpMethod: 'POST',
+          path: '/controls/bulk-edit',
+          body: JSON.stringify({ operation: 'update', data: [enable('Custom.1'), enable('S3.1')] }),
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: {
+              claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' },
+            },
+          },
+        }),
+        createMockContext(),
+      );
+
+      expect(result.statusCode).toBe(207);
+      const body = JSON.parse(result.body);
+      expect(body.successCount).toBe(1);
+      expect(body.failedControlIds).toEqual(['Custom.1']);
+      expect(body.rejectedControlIds).toEqual(['Custom.1']);
+      expect(body.message).toMatch(/custom runbook/i);
+      expect(body.message).toMatch(/Custom\.1/);
+      // No refresh advice: every failure in this batch is a rejection, and a retry is
+      // refused identically. The console re-derives this split for its own notification,
+      // but the MCP `update_controls` tool gets this message verbatim.
+      expect(body.message).not.toMatch(/refresh/i);
+
+      // The built-in applied and the custom one did not — a message alone would not prove it.
+      const storedBuiltIn = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'S3.1' } }),
+      );
+      expect(storedBuiltIn.Item).toMatchObject({ automatedRemediationEnabled: true });
+      const storedCustom = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'Custom.1' } }),
+      );
+      expect(storedCustom.Item).toMatchObject({ automatedRemediationEnabled: false });
+    });
+
+    it('keeps the rejection reason when everything fails for mixed reasons', async () => {
+      // successCount === 0 with one structural rejection and one ordinary failure. The
+      // equality check that routes an all-rejected batch to a 400 does not hold here, so
+      // this used to fall through to a bare 409 "data may have been modified ... refresh
+      // and try again" — advice that is right for the missing control and wrong for the
+      // custom one, whose reason was dropped entirely.
+      await putCustomRunbook();
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'Custom.1',
+            description: 'Custom remediation',
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 0,
+            lastModified: '2026-02-01T00:00:00Z',
+            modifiedBy: 'author@example.com',
+            source: 'custom',
+          },
+        }),
+      );
+
+      const enable = (controlId: string, version: number) => ({
+        controlId,
+        description: `Description for ${controlId}`,
+        automatedRemediationEnabled: true,
+        filters: [],
+        filterMode: 'include' as const,
+        version,
+        lastModified: '2026-02-01T00:00:00Z',
+        modifiedBy: 'author@example.com',
+      });
+
+      const event = createMockEvent({
+        httpMethod: 'POST',
+        path: '/controls/bulk-edit',
+        // Custom.1 is refused structurally; NONEXISTENT.1 fails its conditional write.
+        body: JSON.stringify({
+          operation: 'update',
+          data: [enable('Custom.1', 0), enable('NONEXISTENT.1', 1)],
+        }),
+        headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' },
+          },
+        },
+      });
+
+      // One invocation, then assert on the captured error: the handler's body parser
+      // consumes event.body, so re-invoking the same event fails as malformed JSON.
+      const error: unknown = await bulkEditControls(event, createMockContext()).catch((thrown: unknown) => thrown);
+
+      // Still a conflict, because the missing control genuinely is one — but the custom
+      // control's reason and id survive alongside it.
+      const message = error instanceof Error ? error.message : String(error);
+      expect(message).toMatch(/may have been modified/i);
+      expect(message).toMatch(/custom runbook/i);
+      expect(message).toMatch(/Custom\.1/);
+    });
+
+    it('omits a runbook that has only ever been registered as a DRAFT', async () => {
+      await putCustomRunbook({ status: 'DRAFT' });
+
+      expect(await listControls()).toEqual([]);
+    });
+
+    it('does not duplicate a control the built-in table already covers', async () => {
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            description: 'Built-in description',
+            automatedRemediationEnabled: true,
+            filterMode: 'include',
+            version: 1,
+            lastModified: '2024-01-01T00:00:00Z',
+            modifiedBy: 'system',
+          },
+        }),
+      );
+      await putCustomRunbook({ controlId: 'S3.1' });
+
+      const controls = await listControls();
+
+      expect(controls).toEqual([
+        expect.objectContaining({ controlId: 'S3.1', description: 'Built-in description', source: 'builtin' }),
+      ]);
+    });
+
+    it('describes the control from its highest deployed version, not whichever the scan returns first', async () => {
+      // Deploying v2 does not demote v1, so both versions are DEPLOYED at once.
+      await putCustomRunbook({ version: 1, description: 'v1 description', createdBy: 'first@example.com' });
+      await putCustomRunbook({ version: 2, description: 'v2 description', createdBy: 'second@example.com' });
+
+      const controls = await listControls();
+
+      expect(controls).toEqual([
+        expect.objectContaining({
+          controlId: 'Custom.1',
+          description: 'v2 description',
+          modifiedBy: 'second@example.com',
+        }),
+      ]);
+    });
+
+    it('reports the most recently deployed version as live, so a rollback to v1 wins over a newer v2', async () => {
+      // A rollback re-deploys the older version, giving it the later deployedAt. The live
+      // version is that one, not the highest number — the rule the Orchestrator applies
+      // when it resolves the document for a finding.
+      await putCustomRunbook({ version: 1, description: 'v1', deployedAt: '2026-03-10T00:00:00Z' });
+      await putCustomRunbook({ version: 2, description: 'v2', deployedAt: '2026-03-01T00:00:00Z' });
+
+      const controls = await listControls();
+
+      expect(controls).toEqual([expect.objectContaining({ controlId: 'Custom.1', runbookVersion: 1 })]);
+    });
+
+    it('treats an empty deployedAt as absent, falling back to createdAt like the Orchestrator does', async () => {
+      // The Orchestrator ranks by `deployedAt or createdAt`, where Python's `or` skips an
+      // empty string. The console must rank identically or the two could name different live
+      // versions: with a nullish fallback the empty string would sort lowest and v1 would win.
+      await putCustomRunbook({ version: 1, deployedAt: '2026-03-01T00:00:00Z', createdAt: '2026-02-01T00:00:00Z' });
+      await putCustomRunbook({ version: 2, deployedAt: '', createdAt: '2026-04-01T00:00:00Z' });
+
+      const controls = await listControls();
+
+      expect(controls).toEqual([expect.objectContaining({ controlId: 'Custom.1', runbookVersion: 2 })]);
+    });
+
+    it('breaks a full tie on runbookId, the same way the Orchestrator does, whichever order the scan returns', async () => {
+      // Two runbooks for one control, deployed at the same instant with the same version, differ
+      // only in runbookId. The Orchestrator's key ends in runbookId under max(), so the higher id
+      // wins. Without that tiebreak the console keeps whichever record the scan yields first —
+      // non-deterministic, and able to disagree with the resolver. Both orderings are seeded.
+      const lowerId = 'a3f9c1e2-0000-4000-8000-00000000000a';
+      const higherId = 'a3f9c1e2-0000-4000-8000-00000000000b';
+      const tied = { version: 1, deployedAt: '2026-03-01T00:00:00Z' };
+
+      await putCustomRunbook({ ...tied, runbookId: higherId, description: 'higher id' });
+      await putCustomRunbook({ ...tied, runbookId: lowerId, description: 'lower id' });
+      expect(await listControls()).toEqual([
+        expect.objectContaining({ controlId: 'Custom.1', description: 'higher id' }),
+      ]);
+
+      await DynamoDBTestSetup.clearTable(customRunbookTableName, 'customRunbook');
+      await putCustomRunbook({ ...tied, runbookId: lowerId, description: 'lower id' });
+      await putCustomRunbook({ ...tied, runbookId: higherId, description: 'higher id' });
+      expect(await listControls()).toEqual([
+        expect.objectContaining({ controlId: 'Custom.1', description: 'higher id' }),
+      ]);
     });
   });
 

@@ -318,7 +318,11 @@ describe('ResourceFiltersOverviewPage', () => {
     server.use(
       http.delete(`${FILTERS_URL}/:filterId`, async () => {
         deleteCalled = true;
-        return await ok({ message: 'Deleted' });
+        return await ok({
+          message: 'Filter deleted successfully',
+          deleted: true,
+          detachedControlIds: ['S3.1', 'EC2.1'],
+        });
       }),
     );
     const main = await renderAndWaitForData(singleFilter, controlsUsingFilter);
@@ -367,6 +371,86 @@ describe('ResourceFiltersOverviewPage', () => {
       const visibleDialogs = dialogs.filter((d) => !d.className.includes('hidden'));
       expect(visibleDialogs).toHaveLength(0);
     });
+  });
+
+  it('does not report a deletion when the API answers 207 because controls still reference the filter', async () => {
+    // ARRANGE - the API detached S3.1 but EC2.1 lost its version check, so the filter was kept.
+    // RTK Query resolves a 207 like any 2xx; the old handler took that as "deleted" and told the
+    // user so while EC2.1 still applied the filter and S3.1 had silently been widened.
+    const singleFilter = [createTestFilter()];
+    const controlsUsingFilter = [
+      createTestControl({ controlId: 'S3.1', filters: [FILTER_UUID_1] }),
+      createTestControl({ controlId: 'EC2.1', filters: [FILTER_UUID_1] }),
+    ];
+    server.use(
+      http.delete(`${FILTERS_URL}/:filterId`, async () =>
+        HttpResponse.json(
+          {
+            message: 'Filter was NOT deleted: some controls still reference it.',
+            deleted: false,
+            detachedControlIds: ['S3.1'],
+            stillAttachedControlIds: ['EC2.1'],
+          },
+          { status: 207 },
+        ),
+      ),
+    );
+    const main = await renderAndWaitForData(singleFilter, controlsUsingFilter);
+
+    // ACT
+    await openActionsDropdownFor(main, 'Production Accounts', 'Delete');
+    await userEvent.click(findVisibleDialogButton(/delete/i));
+
+    // ASSERT
+    const notice = await screen.findByText(/was NOT deleted/i);
+    expect(notice).toHaveTextContent(/still applied to EC2\.1/);
+    expect(notice).toHaveTextContent(/removed from 1 other control \(S3\.1\)/);
+    expect(screen.queryByText(/deleted successfully/i)).not.toBeInTheDocument();
+  });
+
+  it('tells the user the filter was already gone instead of claiming a deletion', async () => {
+    // ARRANGE
+    server.use(
+      http.delete(`${FILTERS_URL}/:filterId`, async () =>
+        ok({ message: 'Filter already absent', deleted: false, detachedControlIds: [] }),
+      ),
+    );
+    const main = await renderAndWaitForData([createTestFilter()], []);
+
+    // ACT
+    await openActionsDropdownFor(main, 'Production Accounts', 'Delete');
+    await userEvent.click(findVisibleDialogButton(/delete/i));
+
+    // ASSERT
+    expect(await screen.findByText(/was already deleted/i)).toBeInTheDocument();
+    expect(screen.queryByText(/deleted successfully/i)).not.toBeInTheDocument();
+  });
+
+  it('reports cleared dangling references rather than "already deleted" when controls still pointed at a gone filter', async () => {
+    // ARRANGE - row absent, but the API detached S3.1 from it during this request
+    server.use(
+      http.delete(`${FILTERS_URL}/:filterId`, async () =>
+        ok({
+          message: 'Filter row was already absent; removed its dangling references from the listed controls',
+          deleted: false,
+          detachedControlIds: ['S3.1'],
+        }),
+      ),
+    );
+    const main = await renderAndWaitForData(
+      [createTestFilter()],
+      [createTestControl({ controlId: 'S3.1', filters: [FILTER_UUID_1] })],
+    );
+
+    // ACT
+    await openActionsDropdownFor(main, 'Production Accounts', 'Delete');
+    await userEvent.click(findVisibleDialogButton(/delete/i));
+
+    // ASSERT
+    const notice = await screen.findByText(/had already been removed/i);
+    expect(notice).toHaveTextContent(/reference on S3\.1 was cleared/);
+    expect(screen.queryByText(/was already deleted\./i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/deleted successfully/i)).not.toBeInTheDocument();
   });
 
   it('shows error notification when delete fails', async () => {

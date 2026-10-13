@@ -11,6 +11,7 @@ function getPrimaryStack() {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description: 'test;',
     solutionId: 'SO0111',
+    resourceNamePrefix: 'SO0111',
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
     solutionDistName: 'automated-security-response-on-aws',

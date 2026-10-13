@@ -1,0 +1,78 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Negative fixture for privilege-escalation, modelled on PutS3BucketPolicyDeny.
+# `"Action": "*"` under `"Effect": "Deny"` REMOVES privilege, so it is the
+# opposite of escalation and must stay strict-valid. Only a wildcard Action in a
+# non-Deny statement is a finding.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-S3.6
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  Finding:
+    type: StringMap
+    description: (Required) The ASFF finding, passed by the ASR Orchestrator.
+mainSteps:
+  - name: PutDenyPolicy
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        Finding: "{{ Finding }}"
+      Script: |-
+        import json
+
+        import boto3
+
+        def handler(event, context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            bucket = resource_id.split(":::")[-1].split("/")[0]
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "DenyAllUnlessOrgMember",
+                        "Effect": "Deny",
+                        "Principal": "*",
+                        "Action": "*",
+                        "Resource": [
+                            f"arn:aws:s3:::{bucket}",
+                            f"arn:aws:s3:::{bucket}/*",
+                        ],
+                        "Condition": {
+                            "StringNotEquals": {"aws:PrincipalOrgID": "o-example"}
+                        },
+                    }
+                ],
+            }
+            boto3.client("s3").put_bucket_policy(
+                Bucket=bucket, Policy=json.dumps(policy)
+            )
+            return {"status": "applied"}
+
+  - name: VerifyPolicyApplied
+    action: aws:executeScript
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Runtime: python3.11
+      Handler: verify
+      InputPayload:
+        Finding: "{{ Finding }}"
+      Script: |-
+        import boto3
+
+        def verify(event, context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            policy = boto3.client("s3").get_bucket_policy(
+                Bucket=resource_id.split(":::")[-1].split("/")[0]
+            )["Policy"]
+            if "DenyAllUnlessOrgMember" not in policy:
+                raise RuntimeError("deny policy was not applied")
+            return {"status": "verified"}

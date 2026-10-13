@@ -62,6 +62,24 @@ export interface FindByFindingIdsResult {
   nonDerivableIds: FindingId[];
 }
 
+/** Outcome of {@link FindingRepository.tryAcquireRollbackLock}. */
+export type RollbackLockResult =
+  | {
+      outcome: 'ACQUIRED';
+      /**
+       * The remediationStatus the lock replaced (SUCCESS, ROLLBACK_FAILED, or a stale
+       * ROLLBACK_IN_PROGRESS), so the lock can be released back to it if the request is
+       * rejected before any rollback is dispatched.
+       */
+      previousStatus: string | undefined;
+    }
+  | { outcome: 'IN_PROGRESS' }
+  | {
+      outcome: 'INELIGIBLE';
+      /** The finding's remediationStatus at the moment the conditional write was refused. */
+      remediationStatus: string | undefined;
+    };
+
 export type OverdueFindingProjection = Pick<
   FindingTableItem,
   'findingType' | 'findingId' | 'remediationStatus' | 'accountId' | 'resourceId' | 'creationTime'
@@ -136,6 +154,8 @@ export class FindingRepository extends AbstractRepository<FindingTableItem> {
       // conditionally appended to avoid writing undefined and clobbering existing values.
       const setsNotificationsEnabled = findingItem.hasFindingNotificationsEnabled !== undefined;
       const setsDeadlineConfigured = findingItem.hasFindingRemediationDeadlineConfigured !== undefined;
+      // Only ingestion supplies the config table key, so it is set conditionally.
+      const setsConfigTableKey = findingItem.remediationConfigTableKey !== undefined;
 
       const updateExpression =
         'SET findingDescription = :desc, accountId = :accountId, suppressed = :suppressed, lastUpdatedBy = :lastUpdatedBy, resourceId = :resourceId, resourceType = :resourceType, resourceTypeNormalized = :resourceTypeNormalized, severity = :severity, severityNormalized = :severityNormalized, #region = :region, securityHubUpdatedAtTime = :secHubUpdated, lastUpdatedTime = :lastUpdated, #lsiSortKey = :lsiSortKey, #severitySortKey = :severitySortKey, findingJSON = :findingJson, FINDING_CONSTANT = :findingConstant, remediationStatus = :remediationStatus' +
@@ -143,7 +163,8 @@ export class FindingRepository extends AbstractRepository<FindingTableItem> {
         (setsNotificationsEnabled ? ', hasFindingNotificationsEnabled = :hasFindingNotificationsEnabled' : '') +
         (setsDeadlineConfigured
           ? ', hasFindingRemediationDeadlineConfigured = :hasFindingRemediationDeadlineConfigured'
-          : '');
+          : '') +
+        (setsConfigTableKey ? ', remediationConfigTableKey = :remediationConfigTableKey' : '');
 
       const expressionAttributeValues: ExpressionAttributeValues = {
         ':desc': findingItem.findingDescription,
@@ -170,6 +191,7 @@ export class FindingRepository extends AbstractRepository<FindingTableItem> {
         ...(setsDeadlineConfigured && {
           ':hasFindingRemediationDeadlineConfigured': findingItem.hasFindingRemediationDeadlineConfigured,
         }),
+        ...(setsConfigTableKey && { ':remediationConfigTableKey': findingItem.remediationConfigTableKey }),
       };
 
       const command = new UpdateCommand({
@@ -408,16 +430,19 @@ export class FindingRepository extends AbstractRepository<FindingTableItem> {
    * gone stale (rollbackStartedAt older than `staleBefore`).
    *
    * Returns:
-   *   'ACQUIRED'    — this caller now holds the lock.
-   *   'IN_PROGRESS' — a fresh rollback is already running; reject the request.
-   *   'INELIGIBLE'  — the finding is not in a state from which rollback may start.
+   *   { outcome: 'ACQUIRED' }    — this caller now holds the lock.
+   *   { outcome: 'IN_PROGRESS' } — a fresh rollback is already running; reject the request.
+   *   { outcome: 'INELIGIBLE', remediationStatus } — the finding is not in a state from which
+   *     rollback may start. `remediationStatus` is the status observed atomically with the
+   *     failed write (undefined if the row carried none), so the caller can say *why* — an
+   *     already-rolled-back finding and a failed remediation are different refusals.
    */
   async tryAcquireRollbackLock(
     findingType: string,
     findingId: FindingId,
     now: string,
     staleBefore: string,
-  ): Promise<'ACQUIRED' | 'IN_PROGRESS' | 'INELIGIBLE'> {
+  ): Promise<RollbackLockResult> {
     try {
       const command = new UpdateCommand({
         TableName: this.tableName,
@@ -437,12 +462,15 @@ export class FindingRepository extends AbstractRepository<FindingTableItem> {
           ':staleBefore': staleBefore,
           ':lastUpdatedBy': this.principal,
         },
+        ReturnValues: 'ALL_OLD',
         ReturnValuesOnConditionCheckFailure: 'ALL_OLD',
       } satisfies UpdateCommandInput);
 
-      await this.dynamoDBClient.send(command);
-      this.logger.debug('Acquired rollback lock', { findingType, findingId });
-      return 'ACQUIRED';
+      const { Attributes } = await this.dynamoDBClient.send(command);
+      const previousStatus =
+        typeof Attributes?.remediationStatus === 'string' ? Attributes.remediationStatus : undefined;
+      this.logger.debug('Acquired rollback lock', { findingType, findingId, previousStatus });
+      return { outcome: 'ACQUIRED', previousStatus };
     } catch (error) {
       if (!(error instanceof ConditionalCheckFailedException)) {
         throw error;
@@ -457,14 +485,58 @@ export class FindingRepository extends AbstractRepository<FindingTableItem> {
         typeof unmarshalledItem?.remediationStatus === 'string' ? unmarshalledItem.remediationStatus : undefined;
       if (failedStatus === 'ROLLBACK_IN_PROGRESS') {
         this.logger.debug('Rollback already in progress', { findingType, findingId });
-        return 'IN_PROGRESS';
+        return { outcome: 'IN_PROGRESS' };
       }
       this.logger.debug('Finding not eligible for rollback', {
         findingType,
         findingId,
         remediationStatus: failedStatus,
       });
-      return 'INELIGIBLE';
+      return { outcome: 'INELIGIBLE', remediationStatus: failedStatus };
+    }
+  }
+
+  /**
+   * Gives back a rollback lock this caller acquired and never used, restoring the status the
+   * lock replaced. Conditioned on the lock still being ours (`rollbackStartedAt` equals the
+   * `lockedAt` we wrote), so a lock that has since been taken over or completed is left alone.
+   * Returns false in that case rather than throwing: the caller is already on a rejection path
+   * and only needs to know whether cleanup happened. `now` comes from the caller's clock (ADR 0004).
+   */
+  async releaseRollbackLock(
+    findingType: string,
+    findingId: FindingId,
+    lockedAt: string,
+    previousStatus: string | undefined,
+    now: string,
+  ): Promise<boolean> {
+    try {
+      await this.dynamoDBClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: {
+            [this.partitionKeyName]: findingType,
+            [this.sortKeyName]: findingId,
+          },
+          UpdateExpression: previousStatus
+            ? 'SET remediationStatus = :previous, lastUpdatedTime = :now, lastUpdatedBy = :lastUpdatedBy REMOVE rollbackStartedAt'
+            : 'SET lastUpdatedTime = :now, lastUpdatedBy = :lastUpdatedBy REMOVE remediationStatus, rollbackStartedAt',
+          ConditionExpression: 'remediationStatus = :inProgress AND rollbackStartedAt = :lockedAt',
+          ExpressionAttributeValues: {
+            ':inProgress': 'ROLLBACK_IN_PROGRESS',
+            ':lockedAt': lockedAt,
+            ':now': now,
+            ':lastUpdatedBy': this.principal,
+            ...(previousStatus && { ':previous': previousStatus }),
+          },
+        } satisfies UpdateCommandInput),
+      );
+      this.logger.debug('Released unused rollback lock', { findingType, findingId, previousStatus });
+      return true;
+    } catch (error) {
+      if (!(error instanceof ConditionalCheckFailedException)) throw error;
+      this.logger.debug('Rollback lock no longer ours; not released', { findingType, findingId });
+      return false;
     }
   }
 

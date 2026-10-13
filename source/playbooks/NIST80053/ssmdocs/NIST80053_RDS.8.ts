@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { EnableRDSInstanceDeletionProtectionDocument } from '../../SC/ssmdocs/SC_RDS.8';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableRDSInstanceDeletionProtectionDocument(stage, id, { ...props, controlId: 'RDS.8' });
+  return new EnableRDSInstanceDeletionProtectionDocument(stage, id, {
+    ...props,
+    controlId: 'RDS.8',
+    isRollbackEnabled: true,
+  });
 }

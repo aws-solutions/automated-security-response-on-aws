@@ -1,5 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import pytest
 from layer.event_transformers import (
     Event,
     add_optional_finding_fields,
@@ -9,6 +10,7 @@ from layer.event_transformers import (
     extract_resources,
     extract_severity,
     extract_stepfunctions_execution_id,
+    extract_triggered_by,
     is_notified_workflow,
     is_resolved_item,
     parse_orchestrator_input,
@@ -581,3 +583,73 @@ def test_extract_resources_dict_format():
     # ASSERT
     assert result["Id"] == "arn:aws:s3:::test-bucket"
     assert result["Type"] == "AwsS3Bucket"
+
+
+def test_a_custom_action_is_attributed_to_a_person() -> None:
+    """A console custom action is a human decision and must not read as automation."""
+    # ARRANGE
+    event: Event = {
+        "Notification": {"Message": "", "State": ""},
+        "Finding": {},
+        "EventType": "Security Hub Findings - Custom Action",
+    }
+
+    # ACT / ASSERT
+    assert extract_triggered_by(event) == "Manual"
+
+
+def test_an_api_action_is_attributed_to_a_person() -> None:
+    # ARRANGE
+    event: Event = {
+        "Notification": {"Message": "", "State": ""},
+        "Finding": {},
+        "EventType": "Security Hub Findings - API Action",
+    }
+
+    # ACT / ASSERT
+    assert extract_triggered_by(event) == "Manual"
+
+
+def test_the_custom_action_name_distinguishes_two_operator_actions() -> None:
+    # ARRANGE
+    event: Event = {
+        "Notification": {"Message": "", "State": ""},
+        "Finding": {},
+        "EventType": "Security Hub Findings - Custom Action",
+        "CustomActionName": "RemediateWithASR",
+    }
+
+    # ACT / ASSERT
+    assert extract_triggered_by(event) == "Manual: RemediateWithASR"
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "Security Hub Findings - Imported",
+        "Scheduled Event",
+        "",
+    ],
+    ids=["imported", "scheduled", "empty"],
+)
+def test_any_other_event_type_is_automation(event_type: str) -> None:
+    # ARRANGE
+    event: Event = {
+        "Notification": {"Message": "", "State": ""},
+        "Finding": {},
+        "EventType": event_type,
+    }
+
+    # ACT / ASSERT
+    assert extract_triggered_by(event) == "Automated"
+
+
+def test_an_absent_event_type_is_automation() -> None:
+    """An event with no EventType predates the field; automation is the safe reading."""
+    # ARRANGE / ACT / ASSERT
+    assert (
+        extract_triggered_by(
+            {"Notification": {"Message": "", "State": ""}, "Finding": {}}
+        )
+        == "Automated"
+    )

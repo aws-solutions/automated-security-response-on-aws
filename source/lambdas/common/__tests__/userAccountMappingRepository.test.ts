@@ -446,4 +446,220 @@ describe('UserAccountMappingRepository', () => {
       expect(result?.lastModifiedTimestamp).toBe('2024-01-01T00:00:00.000Z');
     });
   });
+
+  describe('per-user MCP tool grants', () => {
+    it('put then get round-trips the grant without overwriting account IDs', async () => {
+      await repository.create(createMockUserAccountMapping());
+      await repository.putUserAllowedMcpTools('user@example.com', ['list_*', 'deploy_runbook']);
+
+      const tools = await repository.findUserAllowedMcpTools('user@example.com');
+      expect(tools).toEqual(['list_*', 'deploy_runbook']);
+      expect(await repository.getUserAccounts('user@example.com')).toEqual(['123456789012', '987654321098']);
+    });
+
+    it('returns undefined when the user has no mapping record', async () => {
+      expect(await repository.findUserAllowedMcpTools('missing@example.com')).toBeUndefined();
+    });
+
+    it('fails closed to no tools when a pre-upgrade record has no grant field', async () => {
+      await repository.create(createMockUserAccountMapping());
+
+      expect(await repository.findUserAllowedMcpTools('user@example.com')).toEqual([]);
+    });
+
+    it('fails closed to no tools for a malformed grant', async () => {
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: userAccountMappingTableName,
+          Item: { ...createMockUserAccountMapping(), allowedMcpTools: 'deploy_runbook' },
+        }),
+      );
+
+      expect(await repository.findUserAllowedMcpTools('user@example.com')).toEqual([]);
+    });
+
+    it('put replaces an existing grant and permits an empty revoke', async () => {
+      await repository.putUserAllowedMcpTools('user@example.com', ['list_*']);
+      await repository.putUserAllowedMcpTools('user@example.com', []);
+
+      expect(await repository.findUserAllowedMcpTools('user@example.com')).toEqual([]);
+    });
+
+    it('batch-loads account assignments and grants while omitting missing users', async () => {
+      await repository.create(createMockUserAccountMapping());
+      await repository.putUserAllowedMcpTools('user@example.com', ['list_*']);
+
+      const authorizations = await repository.findUserAuthorizations(['USER@example.com', 'missing@example.com']);
+
+      expect(authorizations.get('user@example.com')).toEqual({
+        accountIds: ['123456789012', '987654321098'],
+        allowedMcpTools: ['list_*'],
+      });
+      expect(authorizations.has('missing@example.com')).toBe(false);
+    });
+  });
+
+  // Records written before the userId key was normalized to lowercase are still
+  // keyed by their original case. The read paths must fall back to that key so a
+  // pre-existing user is not silently unreachable, and re-key opportunistically
+  // so the record converges to lowercase.
+  describe('mixed-case record fallback and re-keying', () => {
+    const MIXED_CASE_USER_ID = 'Mixed.Case@Example.com';
+    const LOWERCASE_USER_ID = 'mixed.case@example.com';
+
+    async function putRawMixedCaseRecord(): Promise<void> {
+      // Written directly, bypassing the repository, so the stored key keeps its
+      // original case — the pre-normalization state this fallback exists for.
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: userAccountMappingTableName,
+          Item: createMockUserAccountMapping({ userId: MIXED_CASE_USER_ID, allowedMcpTools: ['list_*'] }),
+        }),
+      );
+    }
+
+    async function readRawItem(userId: string): Promise<Record<string, unknown> | undefined> {
+      const response = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: userAccountMappingTableName, Key: { userId } }),
+      );
+      return response.Item;
+    }
+
+    it('findUserAuthorization falls back to the original-case key and re-keys it to lowercase', async () => {
+      await putRawMixedCaseRecord();
+
+      const authorization = await repository.findUserAuthorization(MIXED_CASE_USER_ID);
+
+      expect(authorization).toEqual({
+        accountIds: ['123456789012', '987654321098'],
+        allowedMcpTools: ['list_*'],
+      });
+      // Opportunistic re-key: the record now lives under the lowercase key, and
+      // the original-case record is gone, so the next read hits directly.
+      expect(await readRawItem(LOWERCASE_USER_ID)).toMatchObject({ userId: LOWERCASE_USER_ID });
+      expect(await readRawItem(MIXED_CASE_USER_ID)).toBeUndefined();
+    });
+
+    it('findUserAuthorization returns undefined when no record exists in either case', async () => {
+      expect(await repository.findUserAuthorization('never.seen@example.com')).toBeUndefined();
+    });
+
+    it('putUserAllowedMcpTools updates the single record instead of splitting it in two', async () => {
+      // GIVEN a pre-normalization record holding this user's account assignments
+      await putRawMixedCaseRecord();
+
+      // WHEN a grant is written using the mixed-case id, as the API path does
+      await repository.putUserAllowedMcpTools(MIXED_CASE_USER_ID, ['execute_runbook']);
+
+      // THEN there is exactly one record, carrying BOTH the new grant and the
+      // original accounts. A blind lowercase upsert used to create a second,
+      // partial item with only the grant — and because reads try the lowercase
+      // key first, the user silently lost every assigned account.
+      expect(await readRawItem(MIXED_CASE_USER_ID)).toBeUndefined();
+      expect(await readRawItem(LOWERCASE_USER_ID)).toMatchObject({
+        userId: LOWERCASE_USER_ID,
+        allowedMcpTools: ['execute_runbook'],
+        accountIds: ['123456789012', '987654321098'],
+      });
+      expect(await repository.findUserAuthorization(MIXED_CASE_USER_ID)).toEqual({
+        accountIds: ['123456789012', '987654321098'],
+        allowedMcpTools: ['execute_runbook'],
+      });
+    });
+
+    it('putUserAllowedMcpTools writes to the original-case key when re-keying fails, not a partial lowercase item', async () => {
+      // GIVEN a mixed-case record whose re-key to lowercase cannot complete: make
+      // the lowercase PUT (the first write reKeyToLowercase issues) fail. The
+      // record therefore stays under its original case, carrying accountIds.
+      await putRawMixedCaseRecord();
+      const sendSpy = jest.spyOn(dynamoDBDocumentClient, 'send');
+      const originalSend = sendSpy.getMockImplementation() ?? DynamoDBDocumentClient.prototype.send;
+      sendSpy.mockImplementation((command: unknown) => {
+        const isReKeyPut =
+          command instanceof PutCommand && (command.input.Item as { userId?: string })?.userId === LOWERCASE_USER_ID;
+        if (isReKeyPut) return Promise.reject(new Error('simulated re-key write failure'));
+        return (originalSend as (c: unknown) => Promise<unknown>).call(dynamoDBDocumentClient, command);
+      });
+
+      try {
+        // WHEN a grant is written using the mixed-case id
+        await repository.putUserAllowedMcpTools(MIXED_CASE_USER_ID, ['execute_runbook']);
+      } finally {
+        sendSpy.mockRestore();
+      }
+
+      // THEN the update landed on the ORIGINAL-case record — the one the item
+      // still lives under — so accountIds are preserved and no partial lowercase
+      // duplicate was created. A blind lowercase write would have upserted a
+      // second item holding only allowedMcpTools.
+      expect(await readRawItem(LOWERCASE_USER_ID)).toBeUndefined();
+      expect(await readRawItem(MIXED_CASE_USER_ID)).toMatchObject({
+        userId: MIXED_CASE_USER_ID,
+        allowedMcpTools: ['execute_runbook'],
+        accountIds: ['123456789012', '987654321098'],
+      });
+    });
+
+    it('setUserAccounts updates the single migrated record rather than a stale duplicate', async () => {
+      // GIVEN a pre-normalization record. This mirrors the API's
+      // updateAccountOperatorUser path, which used to read/write the verbatim
+      // mixed-case id while authorization read the lowercase one — so a revoke
+      // landed on a stale duplicate and the old accounts survived.
+      await putRawMixedCaseRecord();
+
+      // WHEN accounts are set using the mixed-case id
+      await repository.setUserAccounts(MIXED_CASE_USER_ID, ['555555555555'], 'admin@example.com');
+
+      // THEN exactly one record remains, lowercase, carrying the new accounts and
+      // preserving the existing grant — authorization now reads what was written.
+      expect(await readRawItem(MIXED_CASE_USER_ID)).toBeUndefined();
+      expect(await readRawItem(LOWERCASE_USER_ID)).toMatchObject({
+        userId: LOWERCASE_USER_ID,
+        accountIds: ['555555555555'],
+        allowedMcpTools: ['list_*'],
+      });
+      expect(await repository.findUserAuthorization(MIXED_CASE_USER_ID)).toEqual({
+        accountIds: ['555555555555'],
+        allowedMcpTools: ['list_*'],
+      });
+    });
+
+    it('deleteIfExists removes the record under either key case, so a re-invite cannot inherit a stale grant', async () => {
+      // GIVEN a record that reads have already re-keyed to lowercase
+      await putRawMixedCaseRecord();
+      await repository.findUserAuthorization(MIXED_CASE_USER_ID);
+      expect(await readRawItem(LOWERCASE_USER_ID)).toBeDefined();
+
+      // WHEN deletion is driven by the verbatim mixed-case path id, as deleteUser does
+      await repository.deleteIfExists(MIXED_CASE_USER_ID, '');
+
+      // THEN neither key survives. Deleting only the supplied case left the
+      // lowercase record — including allowedMcpTools — in place, so re-inviting
+      // the same address restored a grant the administrator had removed.
+      expect(await readRawItem(MIXED_CASE_USER_ID)).toBeUndefined();
+      expect(await readRawItem(LOWERCASE_USER_ID)).toBeUndefined();
+      expect(await repository.findUserAuthorization(MIXED_CASE_USER_ID)).toBeUndefined();
+    });
+
+    it('findUserAuthorizations recovers a mixed-case user the batch missed', async () => {
+      await putRawMixedCaseRecord();
+
+      const authorizations = await repository.findUserAuthorizations([MIXED_CASE_USER_ID]);
+
+      expect(authorizations.get(LOWERCASE_USER_ID)).toEqual({
+        accountIds: ['123456789012', '987654321098'],
+        allowedMcpTools: ['list_*'],
+      });
+      // Recovering it also migrated it, so a subsequent batch finds it directly.
+      expect(await readRawItem(MIXED_CASE_USER_ID)).toBeUndefined();
+    });
+
+    it('findUserAuthorizations issues no fallback read for an already-lowercase miss', async () => {
+      // An all-lowercase pool must not pay for the fallback: a lowercase userId
+      // that is simply absent has no original-case variant to retry.
+      const authorizations = await repository.findUserAuthorizations(['absent@example.com']);
+
+      expect(authorizations.has('absent@example.com')).toBe(false);
+    });
+  });
 });

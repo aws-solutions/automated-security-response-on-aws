@@ -66,8 +66,11 @@ cd ./deployment
 template_dir="$PWD"
 cd ../source
 source_dir="$PWD"
+cd ${template_dir}/..
+root_dir="$PWD"
 cd ${template_dir}
 temp_source_dir="$template_dir/temp/source"
+skill_dir="$root_dir/ai-assets/skills/asr-remediation-authoring"
 coverage_report_path="${template_dir}/test/coverage-reports"
 mkdir -p ${coverage_report_path}
 
@@ -169,6 +172,11 @@ for playbook in `ls ${source_dir}/playbooks`; do
 done
 
 echo "------------------------------------------------------------------------------"
+echo "[Test] Remediation Authoring Skill - guarded scripts"
+echo "------------------------------------------------------------------------------"
+run_pytest "${skill_dir}" "RemediationAuthoringSkill"
+
+echo "------------------------------------------------------------------------------"
 echo "[Build] Data Models Package"
 echo "------------------------------------------------------------------------------"
 # build-s3-dist.sh builds this package too, and buildspec.yml runs it just before
@@ -214,6 +222,12 @@ echo "[Test] Notification Unit Tests"
 echo "------------------------------------------------------------------------------"
 cd "$source_dir"/lambdas
 npm run test:sequential:notification
+
+echo "------------------------------------------------------------------------------"
+echo "[Test] MCP Server Unit Tests"
+echo "------------------------------------------------------------------------------"
+cd "$source_dir"/lambdas
+npm run test:sequential:mcp-server
 
 ddb_local_stop
 
@@ -303,6 +317,7 @@ tox -e lint
 coverage_report_path=${template_dir}/test/coverage-reports/*.xml
 sed -i -e "s|<source>.*${source_dir}|<source>source|g" $coverage_report_path
 sed -i -e "s|<source>.*${temp_source_dir}|<source>source|g" $coverage_report_path
+sed -i -e "s|<source>.*${skill_dir}|<source>ai-assets/skills/asr-remediation-authoring|g" $coverage_report_path
 
 echo "========================================================================="
 if [ "$maxrc" -ne "0" ]; then

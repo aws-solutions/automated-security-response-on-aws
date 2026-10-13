@@ -1,6 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useContext } from 'react';
 
 import { useCollection } from '@cloudscape-design/collection-hooks';
 import CollectionPreferences, {
@@ -15,15 +15,77 @@ import SpaceBetween from '@cloudscape-design/components/space-between';
 
 import { createColumnDefinitions } from './createColumnDefinitions.tsx';
 import { EmptyTableState } from '../../../components/EmptyTableState.tsx';
+import { ToolPermissionsTable } from '../../../components/ToolPermissionsTable.tsx';
 import { User, AccountOperatorUser } from '@data-models';
 
 import { useDispatch } from 'react-redux';
 import { addNotification } from '../../../store/notificationsSlice.ts';
-import { useUpdateUserMutation, useDeleteUserMutation } from '../../../store/usersApiSlice.ts';
+import {
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+  useGetGrantableToolsQuery,
+  usePutUserMcpToolsMutation,
+} from '../../../store/usersApiSlice.ts';
+import { UserContext } from '../../../contexts/UserContext.tsx';
+import { isAdmin } from '../../../utils/userPermissions.ts';
 import { getErrorMessage } from '../../../utils/error.ts';
 import { parseAccountIds, validateAccountIds } from '../../../utils/validation.ts';
 
 const getFilterCounterText = (count = 0) => `${count} ${count === 1 ? 'match' : 'matches'}`;
+
+// Order-insensitive equality for string lists (account IDs, tool names).
+const areArraysEqual = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  return setA.size === setB.size && [...setA].every((x) => setB.has(x));
+};
+
+interface ManageUserSaveParams {
+  selectedUser: User;
+  hasAccountIdsChanged: boolean;
+  hasToolsChanged: boolean;
+  commitAccount: (user: AccountOperatorUser) => Promise<boolean>;
+  commitTools: (user: User) => Promise<boolean>;
+  onCommitted: () => void;
+  onClose: () => void;
+}
+
+// Save orchestration for the manage-user modal, extracted from the component to keep the
+// handler flat (Sonar S3776). Persists the two concerns the modal owns — an Account
+// Operator's owned accounts and (Admin only) the MCP tool grant — writing each only when
+// changed. The writes are sequential but independent: a committed account write still
+// refreshes the table even if the tool write then fails. On a write failure the caller's
+// per-mutation error effects surface the toast and close the modal, so the commit* fns
+// only report whether the write committed.
+const runManageUserSave = async ({
+  selectedUser,
+  hasAccountIdsChanged,
+  hasToolsChanged,
+  commitAccount,
+  commitTools,
+  onCommitted,
+  onClose,
+}: ManageUserSaveParams): Promise<void> => {
+  if (!hasAccountIdsChanged && !hasToolsChanged) {
+    onClose();
+    return;
+  }
+
+  const isAccountCommitted =
+    hasAccountIdsChanged && selectedUser.type === 'account-operator' ? await commitAccount(selectedUser) : false;
+  if (hasAccountIdsChanged && !isAccountCommitted) return;
+
+  const isToolsCommitted = hasToolsChanged ? await commitTools(selectedUser) : false;
+  if (hasToolsChanged && !isToolsCommitted) {
+    // A prior account write may already be committed; refresh so the table reflects it.
+    if (isAccountCommitted) onCommitted();
+    return;
+  }
+
+  onClose();
+  onCommitted();
+};
 const getHeaderCounterText = (items: readonly User[] | null = [], selectedItems: readonly User[] = []) => {
   const itemsLength = items?.length || 0;
   return selectedItems && selectedItems.length > 0 ? `(${selectedItems.length}/${itemsLength})` : `(${itemsLength})`;
@@ -63,6 +125,18 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
   const [deleteUser, { isLoading: isDeleting, error: deleteError, reset: resetDelete }] = useDeleteUserMutation();
   const columnDefinitions = createColumnDefinitions();
 
+  // MCP tool permissions are Admin-only: the backend catalog endpoint (GET /mcp/tools)
+  // is AdminGroup-only and 501s when MCP is disabled, so only fetch it — and only render
+  // the table — for an Admin viewer. Firing the query for a non-Admin would just draw a
+  // guaranteed 403/501.
+  const { groups } = useContext(UserContext);
+  const canEditToolPermissions = isAdmin(groups);
+  const { data: grantableTools = [], isLoading: isLoadingTools } = useGetGrantableToolsQuery(undefined, {
+    skip: !canEditToolPermissions,
+  });
+  const [putUserMcpTools, { isLoading: isSavingTools, error: putToolsError }] = usePutUserMcpToolsMutation();
+  const [grantedTools, setGrantedTools] = useState<Set<string>>(new Set());
+
   const { items, filterProps, actions, filteredItemsCount, collectionProps } = useCollection<User>(
     Array.isArray(users) ? users : [],
     {
@@ -101,6 +175,41 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
       : '';
   }, [users, selectedUser?.email]);
 
+  // The catalog lists every tool an Admin can grant to anyone, tagged with the lowest tier
+  // it reaches. PUT /users/{id}/mcp-tools rejects the whole grant if it names a tool above
+  // the target's tier, so an Account Operator's table must not offer the Delegated
+  // Admin-only tools at all: the "Minimum tier" column alone is advisory, and a category
+  // holding both tiers would otherwise let one grant-all click build a set that cannot be
+  // saved. Filtering here rather than inside ToolPermissionsTable keeps that component
+  // presentational and keeps the tier rule next to the API contract it mirrors.
+  const toolsGrantableToSelectedUser = useMemo(
+    () =>
+      selectedUser?.type === 'account-operator'
+        ? grantableTools.filter((tool) => tool.tier === 'AccountOperator')
+        : grantableTools,
+    [grantableTools, selectedUser?.type],
+  );
+
+  // The tools currently granted to the selected user, read from the freshest copy in
+  // the list. Only an Admin viewer sees the tool table (see renderToolPermissions); an
+  // Admin *target* carries no stored grant since Admins receive every tool implicitly.
+  const originalGrantedTools = useMemo(() => {
+    if (!selectedUser?.email) return [];
+    const currentUser = users?.find((user) => user.email === selectedUser.email);
+    return currentUser?.allowedMcpTools ?? [];
+  }, [users, selectedUser?.email]);
+
+  // Whether the Account Operator's owned-accounts field differs from what is stored.
+  // Lifted to render scope so both handleSave and the Save button's disabled gate use
+  // the same signal: the button must block on a validation error only when the accounts
+  // field is actually being written, not for a tools-only save.
+  const hasAccountIdsChanged = useMemo(
+    () =>
+      selectedUser?.type === 'account-operator' &&
+      !areArraysEqual(parseAccountIds(accountIds), parseAccountIds(originalAccountIds)),
+    [selectedUser, accountIds, originalAccountIds],
+  );
+
   useEffect(() => {
     if (resetPagination) {
       setCurrentPageIndex(1);
@@ -112,6 +221,17 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
       setAccountIds(originalAccountIds);
     }
   }, [isManageUserModalOpen, originalAccountIds]);
+
+  // Seed the checkbox state when the modal opens, keyed by the selected user — not by
+  // originalGrantedTools identity. That memo returns a fresh array on any `users`
+  // reference change (e.g. a background refetch from an invalidatesTags), which would
+  // otherwise re-fire this effect mid-edit and discard the user's in-progress toggles.
+  // Matches how the sibling accountIds effect seeds from a primitive.
+  useEffect(() => {
+    if (isManageUserModalOpen) {
+      setGrantedTools(new Set(originalGrantedTools));
+    }
+  }, [isManageUserModalOpen, selectedUser?.email]);
 
   const pageSize = preferences?.pageSize ?? 20;
   const totalPages = Math.ceil(items.length / pageSize);
@@ -153,47 +273,80 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
     }
   };
 
-  const arraysEqual = (a: string[], b: string[]) => {
-    if (a.length !== b.length) return false;
-    const setA = new Set(a);
-    const setB = new Set(b);
-    return setA.size === setB.size && [...setA].every((x) => setB.has(x));
-  };
-
   const validationError = useMemo(() => {
     return validateAccountIds(accountIds);
   }, [accountIds]);
 
-  const handleSave = async () => {
-    if (!selectedUser || selectedUser.type !== 'account-operator') return;
-
-    const parsedNewAccountIds = parseAccountIds(accountIds);
-    const parsedOriginalAccountIds = parseAccountIds(originalAccountIds);
-
-    if (arraysEqual(parsedNewAccountIds, parsedOriginalAccountIds)) {
-      setIsManageUserModalOpen(false);
-      return;
-    }
-
-    const result = await updateUser({
-      type: selectedUser.type,
-      email: selectedUser.email,
-      accountIds: parsedNewAccountIds,
-      status: selectedUser.status,
+  // Applies one tool or a whole category in a single update, so granting a category
+  // is one state transition rather than one per tool in it.
+  const toggleToolGrant = (toolNames: readonly string[], granted: boolean) => {
+    setGrantedTools((current) => {
+      const next = new Set(current);
+      toolNames.forEach((toolName) => {
+        if (granted) {
+          next.add(toolName);
+        } else {
+          next.delete(toolName);
+        }
+      });
+      return next;
     });
+  };
 
-    if ('data' in result) {
-      dispatch(
-        addNotification({
-          type: 'success',
-          content: 'User updated successfully',
-          id: 'user-update-success',
-        }),
-      );
+  // Write one Account Operator's owned accounts. Returns whether the write committed;
+  // on failure the updateUserError effect surfaces the toast and closes the modal.
+  const tryUpdateAccount = async (user: AccountOperatorUser): Promise<boolean> => {
+    const result = await updateUser({
+      type: user.type,
+      email: user.email,
+      accountIds: parseAccountIds(accountIds),
+      status: user.status,
+    });
+    return 'data' in result;
+  };
 
-      setIsManageUserModalOpen(false);
-      onRefresh();
-    }
+  // Write the user's MCP tool grant. Returns whether the write committed; on failure
+  // the putToolsError effect surfaces the toast and closes the modal.
+  //
+  // The submitted set is intersected with the tools the target's tier can hold, mirroring
+  // the same filter applied to the displayed catalog. A tool above the target's tier is
+  // hidden from the table, so the Admin can neither see nor revoke it — without this
+  // intersection such a tool would remain in grantedTools (seeded from the full stored
+  // grant) and ride along on every save, which the PUT rejects for the whole grant.
+  const tryUpdateTools = async (user: User): Promise<boolean> => {
+    const grantableToolNames = new Set(toolsGrantableToSelectedUser.map((tool) => tool.name));
+    const allowedTools = [...grantedTools].filter((toolName) => grantableToolNames.has(toolName));
+    const result = await putUserMcpTools({ email: user.email, allowedTools });
+    return 'data' in result;
+  };
+
+  // Persist the manage-user modal's edits via runManageUserSave, which keeps the branchy
+  // orchestration out of the component. Success notification + table refresh happen once
+  // any write commits; the per-mutation error effects handle failures.
+  const handleSave = async () => {
+    if (!selectedUser) return;
+
+    const hasToolsChanged = canEditToolPermissions && !areArraysEqual([...grantedTools], originalGrantedTools);
+    if (hasAccountIdsChanged && validationError) return;
+
+    await runManageUserSave({
+      selectedUser,
+      hasAccountIdsChanged,
+      hasToolsChanged,
+      commitAccount: tryUpdateAccount,
+      commitTools: tryUpdateTools,
+      onCommitted: () => {
+        dispatch(
+          addNotification({
+            type: 'success',
+            content: 'User updated successfully',
+            id: 'user-update-success',
+          }),
+        );
+        onRefresh();
+      },
+      onClose: () => setIsManageUserModalOpen(false),
+    });
   };
 
   useEffect(() => {
@@ -218,7 +371,51 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
       setIsDeleteModalOpen(false);
       setIsManageUserModalOpen(false);
     }
-  }, [updateUserError, deleteError, dispatch]);
+    if (putToolsError) {
+      dispatch(
+        addNotification({
+          type: 'error',
+          content: `Failed to update tool permissions: ${getErrorMessage(putToolsError)}`,
+          id: `tool-permissions-error-${Date.now()}`,
+        }),
+      );
+      setIsManageUserModalOpen(false);
+    }
+  }, [updateUserError, deleteError, putToolsError, dispatch]);
+
+  // The modal shows a Save button (rather than a plain Close) only when there is
+  // something to persist: the target is not an Admin (Admins expose no editable
+  // fields), AND either the viewer may edit tool permissions or the target is an
+  // Account Operator whose owned accounts are editable.
+  const isModalSaveable =
+    !!selectedUser &&
+    selectedUser.type !== 'admin' &&
+    (canEditToolPermissions || selectedUser.type === 'account-operator');
+
+  // The tool grant is Admin-managed and account-agnostic, so it applies to both
+  // Account Operator and Delegated Admin targets. Managing grants is Admin-only, and the
+  // catalog endpoint rejects non-Admins, so the table renders only for an Admin viewer;
+  // for anyone else there is nothing to show or edit. Admins receive every tool
+  // implicitly, so renderManageUser never reaches this for an Admin target.
+  //
+  // The label lives on the FormField rather than on the table, so this section's heading
+  // renders in the same style as the form's other sections. The table itself carries no
+  // header, so there is only one "Tool Permissions" heading.
+  const renderToolPermissions = () => {
+    if (!canEditToolPermissions) return null;
+    return (
+      <div className="form-section-divider">
+        <FormField label="Tool Permissions">
+          <ToolPermissionsTable
+            tools={toolsGrantableToSelectedUser}
+            grantedTools={grantedTools}
+            onToggle={toggleToolGrant}
+            loading={isLoadingTools}
+          />
+        </FormField>
+      </div>
+    );
+  };
 
   const renderManageUserFormContent = () => {
     if (!selectedUser) return null;
@@ -226,7 +423,7 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
     if (selectedUser.type === 'account-operator') {
       return (
         <SpaceBetween direction="vertical" size="xl">
-          <FormField label="Permission Type" description="What level of access does this user have?">
+          <FormField label="Permission Type">
             <Select
               selectedOption={{ label: 'Account Operator', value: 'account-operator' }}
               disabled
@@ -248,14 +445,15 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
             />
           </FormField>
 
-          <FormField
-            label="Remove User"
-            description={`Revoke access for ${selectedUser.email}. This action cannot be undone.`}
-          >
-            <Button iconName="status-warning" variant="normal" onClick={handleDeleteUser}>
-              Delete User
-            </Button>
-          </FormField>
+          {renderToolPermissions()}
+
+          <div className="form-section-divider">
+            <FormField label="Remove User">
+              <Button iconName="status-warning" variant="normal" onClick={handleDeleteUser}>
+                Delete User
+              </Button>
+            </FormField>
+          </div>
         </SpaceBetween>
       );
     }
@@ -263,7 +461,7 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
     if (selectedUser.type === 'delegated-admin') {
       return (
         <SpaceBetween direction="vertical" size="xl">
-          <FormField label="Permission Type" description="What level of access does this user have?">
+          <FormField label="Permission Type">
             <Select
               selectedOption={{ label: 'Delegated Admin', value: 'delegated-admin' }}
               disabled
@@ -271,14 +469,15 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
             />
           </FormField>
 
-          <FormField
-            label="Remove User"
-            description={`Revoke access for ${selectedUser.email}. This action cannot be undone.`}
-          >
-            <Button iconName="status-warning" variant="normal" onClick={handleDeleteUser}>
-              Delete User
-            </Button>
-          </FormField>
+          {renderToolPermissions()}
+
+          <div className="form-section-divider">
+            <FormField label="Remove User">
+              <Button iconName="status-warning" variant="normal" onClick={handleDeleteUser}>
+                Delete User
+              </Button>
+            </FormField>
+          </div>
         </SpaceBetween>
       );
     }
@@ -321,7 +520,7 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              {selectedUser?.type === 'account-operator' ? (
+              {isModalSaveable ? (
                 <>
                   <Button
                     data-testid="cancel-manage-user-button"
@@ -333,8 +532,8 @@ export default function UsersTable({ users, loading, onRefresh, resetPagination 
                   <Button
                     variant="primary"
                     onClick={handleSave}
-                    loading={isLoading}
-                    disabled={!!validationError}
+                    loading={isLoading || isSavingTools}
+                    disabled={hasAccountIdsChanged && !!validationError}
                     data-testid="manage-user-save-button"
                   >
                     Save

@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { EnableEnhancedMonitoringOnRDSInstanceDocument } from '../../SC/ssmdocs/SC_RDS.6';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableEnhancedMonitoringOnRDSInstanceDocument(stage, id, { ...props, controlId: 'RDS.6' });
+  return new EnableEnhancedMonitoringOnRDSInstanceDocument(stage, id, {
+    ...props,
+    controlId: 'RDS.6',
+    isRollbackEnabled: true,
+  });
 }

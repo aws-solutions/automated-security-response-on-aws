@@ -1,0 +1,9 @@
+schemaVersion: "0.3"
+description: Missing assumeRole field.
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+mainSteps:
+  - name: VerifyThing
+    action: aws:assertAwsResourceProperty

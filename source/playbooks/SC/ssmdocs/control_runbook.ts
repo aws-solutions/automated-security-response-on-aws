@@ -10,6 +10,8 @@ import {
   AutomationStep,
   AwsApiStep,
   AwsService,
+  BranchStep,
+  Choice,
   DataTypeEnum,
   DocumentFormat,
   DocumentOutput,
@@ -24,14 +26,15 @@ import {
   Input,
   IStringVariable,
   OnFailure,
+  Operation,
   Output,
-  ScriptCode,
   ScriptLanguage,
   StringFormat,
   StringMapVariable,
   StringVariable,
 } from '@cdklabs/cdk-ssm-documents';
 import { PlaybookProps } from '../lib/control_runbooks-construct';
+import { strippedScriptCode } from '../../../lib/stripped-script-code';
 
 /**
  * The scope of a remediation, `REGIONAL` or `GLOBAL`.
@@ -54,6 +57,8 @@ export enum RemediationScope {
 export interface ControlRunbookProps extends PlaybookProps {
   controlId: string;
   otherControlIds?: string[];
+  // Opt-in per control: only set true when the remediation runbook declares the rollback parameters.
+  isRollbackEnabled?: boolean;
 }
 
 // Similar to ControlRunbookProps, but allows for a parameter to be passed for runbooks that vary from standard to standard.
@@ -84,8 +89,10 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   protected readonly updateDescription: IStringVariable;
   protected readonly runtimePython: Runtime;
   protected readonly solutionId: string;
+  protected readonly resourceNamePrefix: string;
   protected readonly namespace: string;
   protected readonly solutionAcronym: string;
+  protected readonly isRollbackEnabled: boolean;
 
   constructor(stage: Construct, id: string, props: ControlRunbookDocumentProps) {
     // Policy: expect the construct id to match the control id
@@ -104,7 +111,15 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
 
     // If the derived class specified inputs, retain them
     const docInputs = props.docInputs ?? [];
-    docInputs.push(...getInputs(props.controlId, props.remediationName, props.solutionId, props.namespace));
+    docInputs.push(
+      ...getInputs(
+        props.controlId,
+        props.remediationName,
+        props.resourceNamePrefix,
+        props.namespace,
+        props.isRollbackEnabled ?? false,
+      ),
+    );
     // Likewise, if the derived class specified outputs, retain them
     const docOutputs = props.docOutputs ?? [];
     docOutputs.push(...getOutputs());
@@ -123,9 +138,11 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
     this.scope = props.scope;
     this.resourceIdName = props.resourceIdName;
     this.resourceIdRegex = props.resourceIdRegex;
+    this.isRollbackEnabled = props.isRollbackEnabled ?? false;
     this.updateDescription = props.updateDescription;
     this.runtimePython = props.runtimePython;
     this.solutionId = props.solutionId;
+    this.resourceNamePrefix = props.resourceNamePrefix;
     this.solutionAcronym = props.solutionAcronym;
     this.namespace = props.namespace;
 
@@ -142,11 +159,20 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   }
 
   public override collectedSteps(): AutomationStep[] {
-    this.builder.steps.push(this.getParseInputStep());
-    this.builder.steps.push(...this.getExtraSteps());
-    this.builder.steps.push(this.getRemediationStep());
-    this.builder.steps.push(this.getUpdateFindingStep());
-    this.builder.steps.push(this.getRemediationDetailsStep());
+    // On the rollback path, CheckRollback skips UpdateFinding: the Orchestrator posts the
+    // authoritative rollback note (UpdatedBy 'ASR-Rollback') and resets the finding to NEW, so the
+    // remediation-worded note + RESOLVED that UpdateFinding writes would be misleading. It routes the
+    // rollback path straight to GetRemediationDetails; the remediation path continues to UpdateFinding.
+    // CheckRollback reads {{Rollback}}, and that parameter is declared only for rollback-enabled
+    // controls; SSM rejects a document that references an undeclared parameter.
+    this.builder.steps.push(
+      this.getParseInputStep(),
+      ...this.getExtraSteps(),
+      this.getRemediationStep(),
+      ...(this.isRollbackEnabled ? [this.getCheckRollbackStep()] : []),
+      this.getUpdateFindingStep(),
+      this.getRemediationDetailsStep(),
+    );
 
     return this.builder.steps;
   }
@@ -158,7 +184,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   protected getParseInputStep(): AutomationStep {
     const parseInputStep = new ExecuteScriptStep(this, 'ParseInput', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'parse_event'),
-      code: ScriptCode.fromFile(fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'parse_input.py'))),
+      code: strippedScriptCode(fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'parse_input.py'))),
       inputPayload: this.getParseInputStepInputs(),
       outputs: this.getParseInputStepOutputs(),
     });
@@ -173,7 +199,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   protected getInputParamsStep(defaultParameters: Record<string, any>): AutomationStep {
     const getInputParamsStep = new ExecuteScriptStep(this, 'GetInputParams', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'get_input_params'),
-      code: ScriptCode.fromFile(fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'get_input_params.py'))),
+      code: strippedScriptCode(fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'get_input_params.py'))),
       inputPayload: this.getInputParamsStepInputs(defaultParameters),
       outputs: this.getInputParamsStepOutput(),
     });
@@ -335,7 +361,7 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
 
     return new ExecuteScriptStep(this, 'GetRemediationDetails', {
       language: ScriptLanguage.fromRuntime(this.runtimePython.name, 'get_remediation_details'),
-      code: ScriptCode.fromFile(
+      code: strippedScriptCode(
         fs.realpathSync(path.join(__dirname, '..', '..', 'common', 'get_remediation_details.py')),
       ),
       inputPayload,
@@ -360,20 +386,51 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
    * @returns The parameters for the `Remediation` automation document.
    */
   protected getRemediationParams(): Record<string, any> {
-    const params: Record<string, any> = {
+    // Forwarding the rollback params to a control whose remediation runbook doesn't declare them makes
+    // SSM reject StartAutomationExecution with "Undefined execution inputs" — so gate them on the flag.
+    const rollbackParams: Record<string, any> = this.isRollbackEnabled
+      ? {
+          Rollback: StringVariable.of('Rollback'),
+          ExecutionId: StringVariable.of('ExecutionId'),
+          RemediationConfigBucket: StringVariable.of('RemediationConfigBucket'),
+          ControlExecutionId: StringVariable.of('automation:EXECUTION_ID'),
+          SnapshotVersionId: StringVariable.of('SnapshotVersionId'),
+        }
+      : {};
+
+    const resourceIdParam: Record<string, any> = this.resourceIdName
+      ? { [this.resourceIdName]: StringVariable.of(`ParseInput.${this.resourceIdName}`) }
+      : {};
+
+    return {
       AutomationAssumeRole: new StringFormat(`arn:%s:iam::%s:role/%s`, [
         StringVariable.of('global:AWS_PARTITION'),
         StringVariable.of('global:ACCOUNT_ID'),
         StringVariable.of('RemediationRoleName'),
       ]),
+      ...rollbackParams,
+      ...resourceIdParam,
     };
+  }
 
-    // Pass the resource ID only if used
-    if (this.resourceIdName) {
-      params[this.resourceIdName] = StringVariable.of(`ParseInput.${this.resourceIdName}`);
-    }
-
-    return params;
+  /**
+   * @returns A `CheckRollback` branch step. On the remediation path (`Rollback` == '') it proceeds to
+   * `UpdateFinding`; on the rollback path it jumps to `GetRemediationDetails`, skipping `UpdateFinding`
+   * so the misleading remediation note / RESOLVED status is not written (the Orchestrator owns finding
+   * state on rollback).
+   */
+  protected getCheckRollbackStep(): AutomationStep {
+    return new BranchStep(this, 'CheckRollback', {
+      choices: [
+        new Choice({
+          operation: Operation.STRING_EQUALS,
+          constant: '',
+          variable: StringVariable.of('Rollback'),
+          jumpToStepName: 'UpdateFinding',
+        }),
+      ],
+      defaultStepName: 'GetRemediationDetails',
+    });
   }
 
   /**
@@ -402,12 +459,42 @@ export abstract class ControlRunbookDocument extends AutomationDocument {
   }
 }
 
-function getInputs(controlId: string, remediationName: string, solutionId: string, namespace: string): Input[] {
+function getInputs(
+  controlId: string,
+  remediationName: string,
+  resourceNamePrefix: string,
+  namespace: string,
+  isRollbackEnabled: boolean,
+): Input[] {
   const inputs: Input[] = [];
 
-  inputs.push(getFindingInput(controlId));
-  inputs.push(getAutomationAssumeRoleInput());
-  inputs.push(getRemediationRoleNameInput(remediationName, solutionId, namespace));
+  inputs.push(
+    getFindingInput(controlId),
+    getAutomationAssumeRoleInput(),
+    getRemediationRoleNameInput(remediationName, resourceNamePrefix, namespace),
+  );
+
+  if (isRollbackEnabled) {
+    inputs.push(
+      Input.ofTypeString('Rollback', {
+        description: '(Optional) Set to ROLLBACK to execute rollback instead of remediation.',
+        defaultValue: '',
+        allowedValues: ['', 'ROLLBACK'],
+      }),
+      Input.ofTypeString('ExecutionId', {
+        description: '(Optional) Original SSM Automation execution ID for snapshot lookup during rollback.',
+        defaultValue: '',
+      }),
+      Input.ofTypeString('RemediationConfigBucket', {
+        description: '(Optional) S3 bucket name for snapshot storage. Resolved from SSM parameter by default.',
+        defaultValue: '{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}',
+      }),
+      Input.ofTypeString('SnapshotVersionId', {
+        description: '(Optional) S3 version ID of the snapshot object for tamper-proof reads during rollback.',
+        defaultValue: '',
+      }),
+    );
+  }
 
   return inputs;
 }
@@ -426,9 +513,8 @@ function getAutomationAssumeRoleInput(): Input {
   });
 }
 
-function getRemediationRoleNameInput(remediationName: string, solutionId: string, namespace: string): Input {
-  const resourcePrefix = solutionId.replace(/^DEV-/, '');
-  const remediationRoleName = `${resourcePrefix}-${remediationName}-${namespace}`;
+function getRemediationRoleNameInput(remediationName: string, resourceNamePrefix: string, namespace: string): Input {
+  const remediationRoleName = `${resourceNamePrefix}-${remediationName}-${namespace}`;
   const remediationRoleNameRegex = String.raw`^[\w+=,.@-]+$`;
   return Input.ofTypeString('RemediationRoleName', {
     allowedPattern: remediationRoleNameRegex,

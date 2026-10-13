@@ -23,7 +23,7 @@ export class ActionLog extends Construct {
     const logGroup = new LogGroup(scope, 'CloudTrailEventsLogGroup', {
       logGroupName: props.logGroupName,
       retention: RetentionDays.TEN_YEARS,
-      removalPolicy: RemovalPolicy.DESTROY,
+      removalPolicy: RemovalPolicy.RETAIN,
     });
 
     addCfnGuardSuppression(logGroup, 'CLOUDWATCH_LOG_GROUP_ENCRYPTED');

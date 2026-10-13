@@ -7,6 +7,13 @@ import { HeadersFrameOption, HeadersReferrerPolicy } from 'aws-cdk-lib/aws-cloud
 import { Bucket, BucketAccessControl, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
+/**
+ * HSTS max-age in seconds (~547 days). Mandated by the "Set secure HTTP headers
+ * for websites" security guidance, which requires
+ * `Strict-Transport-Security: max-age=47304000; includeSubDomains`.
+ */
+const HSTS_MAX_AGE_SECONDS = 47304000;
+
 export interface UIConstructProps {
   readonly stackName: string;
 }
@@ -48,7 +55,7 @@ export class WebUIHostingConstruct extends Construct {
           frameOptions: { frameOption: HeadersFrameOption.DENY, override: true },
           referrerPolicy: { referrerPolicy: HeadersReferrerPolicy.SAME_ORIGIN, override: true },
           strictTransportSecurity: {
-            accessControlMaxAge: Duration.days(30),
+            accessControlMaxAge: Duration.seconds(HSTS_MAX_AGE_SECONDS),
             includeSubdomains: true,
             override: true,
             preload: true,

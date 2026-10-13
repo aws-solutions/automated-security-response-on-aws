@@ -1,0 +1,1563 @@
+[
+  {
+    "name": "check_deploy_readiness",
+    "description": "Verify all deployment artifacts exist for a control: child SSM document (ASR-{Name}), IAM role (SO0111-{Name}-{ns}), and SC wrapper (ASR-SC_2.0.0_{controlId}).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "control_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Control ID (e.g. S3.9)."
+        },
+        "remediation_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Remediation name (e.g. ConfigureDynamoDBAutoScaling). Used to check ASR-{Name} doc and SO0111-{Name}-{ns} role."
+        },
+        "namespace": {
+          "description": "ASR namespace (the Namespace stack parameter) — the suffix in the SO0111-{Name}-{namespace} role name. There is no default and nothing injects it, not even the deployed MCP server: always pass it, or the call is rejected. Optional in the schema only so the rejection can name the parameter.",
+          "type": "string"
+        },
+        "check_sc_wrapper": {
+          "description": "Also check the SC wrapper document ASR-SC_<standardVersion>_{controlId} exists, at the standard version this deployment is configured with. Default: true.",
+          "type": "boolean"
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["control_id", "remediation_name"]
+    }
+  },
+  {
+    "name": "check_runbook_drift",
+    "description": "Compare a local runbook against the SSM Automation document deployed under the same name. Returns structured diff report showing semantic differences.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "document_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SSM Automation document name to compare against."
+        },
+        "runbook_yaml": {
+          "description": "Inline runbook content. Provide exactly one of runbook_yaml or runbook_path.",
+          "type": "string",
+          "minLength": 1
+        },
+        "runbook_path": {
+          "description": "Path to a runbook file, relative to the workspace root. Provide exactly one of runbook_yaml or runbook_path. Requires a configured workspace (ASR_WORKSPACE_ROOT); use runbook_yaml (inline content) when none is configured.",
+          "type": "string"
+        },
+        "document_format": {
+          "description": "Format hint. Defaults to YAML.",
+          "type": "string",
+          "enum": ["YAML", "JSON"]
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["document_name"]
+    }
+  },
+  {
+    "name": "create_filter",
+    "description": "Create a resource filter to include or exclude resources from auto-remediation. Requires admin.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "accountIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{12}$"
+          }
+        },
+        "organizationalUnits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["key", "value"]
+          }
+        },
+        "arnPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^arn:[^:]+:[^:]*:[^:]*:[^:]*:.+$"
+          }
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["name", "accountIds", "organizationalUnits", "tags", "arnPatterns"]
+    }
+  },
+  {
+    "name": "create_notification",
+    "description": "Create a notification configuration (channel, recipients, scope, delivery). Grantable to Account Operators; subject to the per-user MCP grant and the account/creator scoping the API enforces.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[\\w\\s\\-().]+$"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "notificationType": {
+          "type": "string",
+          "enum": ["finding", "remediation"]
+        },
+        "severityFilter": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Critical", "High", "Medium", "Low", "Informational", "All"]
+          }
+        },
+        "remediationStatusFilter": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Success",
+              "In Progress",
+              "Failed",
+              "Rollback Success",
+              "Rollback In Progress",
+              "Rollback Failed",
+              "Not Started",
+              "All"
+            ]
+          }
+        },
+        "controlIds": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resourceFilterIds": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "accountIds": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{12}$"
+          }
+        },
+        "deliveryChannels": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["email", "slack", "jira", "servicenow", "sns"]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "recipients": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "recipientType": {
+                      "type": "string",
+                      "enum": ["rootAccountEmail", "securityContact", "operationsContact", "accountOperators", "custom"]
+                    },
+                    "emailAddresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "email",
+                        "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      }
+                    }
+                  },
+                  "required": ["recipientType"]
+                }
+              },
+              "channelId": {
+                "type": "string"
+              },
+              "credentialsSecretArn": {
+                "type": "string",
+                "pattern": "^arn:[^:]+:secretsmanager:[^:]+:\\d{12}:secret:.+$"
+              },
+              "projectKey": {
+                "type": "string"
+              },
+              "issueType": {
+                "type": "string"
+              },
+              "endpointUrl": {
+                "type": "string",
+                "format": "uri"
+              },
+              "customFieldMappings": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "value": {
+                      "type": "string",
+                      "maxLength": 256
+                    }
+                  },
+                  "required": ["key", "value"]
+                }
+              },
+              "tableName": {
+                "type": "string"
+              },
+              "topicArn": {
+                "type": "string",
+                "pattern": "^arn:([^:]+):sns:([^:]+):(\\d{12}):(.+)$"
+              }
+            },
+            "required": ["type", "enabled"]
+          }
+        },
+        "batchWindow": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "duration": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "unit": {
+              "type": "string",
+              "enum": ["Minutes", "Hours", "Days"]
+            }
+          },
+          "required": ["enabled"]
+        },
+        "batchExport": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "presignedUrlExpirationHours": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            }
+          },
+          "required": ["enabled"]
+        },
+        "contentOptions": {
+          "type": "object",
+          "properties": {
+            "includeManualRemediationLink": {
+              "type": "boolean"
+            },
+            "includeRemediationDeadline": {
+              "type": "boolean"
+            },
+            "remediationDeadlineDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90
+            },
+            "enforceDeadline": {
+              "default": false,
+              "type": "boolean"
+            },
+            "includeIaCSnippet": {
+              "type": "boolean"
+            },
+            "iacFormats": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["cloudformation-yaml", "cloudformation-json", "terraform", "cdk"]
+              }
+            },
+            "includeEnableAutomationLink": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "includeManualRemediationLink",
+            "includeRemediationDeadline",
+            "includeIaCSnippet",
+            "includeEnableAutomationLink"
+          ]
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["name", "enabled", "notificationType", "deliveryChannels", "batchWindow", "contentOptions"]
+    }
+  },
+  {
+    "name": "delete_filter",
+    "description": "Delete a resource filter by ID. Requires admin.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "filterId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["filterId"],
+      "additionalProperties": {}
+    }
+  },
+  {
+    "name": "delete_notification",
+    "description": "Delete a notification configuration by ID. Idempotent: a configuration that does not exist is still a 200, so the status code alone does not confirm that anything was removed; read the configuration first if that matters. Grantable to Account Operators; subject to the per-user MCP grant and the account/creator scoping the API enforces.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The notification configuration id: the `configId` value returned by create_notification / list_notifications."
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": {}
+    }
+  },
+  {
+    "name": "deploy_runbook",
+    "description": "Manage Custom Runbook lifecycle: register (store as DRAFT) or deploy (DRAFT→DEPLOYED). Custom runbooks are named ASR-Custom-{standard}_{version}_{control}. On deploy, ASR provisions a scoped remediation role in each member account using the existing cross-account trust chain (API Lambda → Orchestrator Admin Role → Orchestrator Member Role). The role's trust policy allows the Orchestrator Member Role and ssm.amazonaws.com to assume it. The role gets two inline policies: a base policy (SSM parameters, PassRole, StartAutomationExecution) and a remediation policy with the required_iam_actions you provide. Use specific actions (e.g. 's3:PutBucketEncryption') not wildcards ('s3:*').",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["register", "deploy"]
+        },
+        "runbook_yaml": {
+          "type": "string",
+          "minLength": 1
+        },
+        "control_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+\\.[A-Za-z0-9]+$"
+        },
+        "runbook_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "python_script": {
+          "type": "string"
+        },
+        "service_name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "security_standard": {
+          "type": "string",
+          "minLength": 1
+        },
+        "standard_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_iam_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "member_account_ids": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{12}$"
+          }
+        },
+        "version": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["action", "control_id"]
+    }
+  },
+  {
+    "name": "drift_detection",
+    "description": "Developer tool: push a runbook YAML to a test account's SSM, execute it against a finding, or check execution status. Use 'push' to create/update the SSM Automation document, 'execute' to run it against a Security Hub finding, 'status' to check results. After execution, poll 'status' until the execution reaches a terminal state, then use get_finding_history or findings to confirm Security Hub's compliance state once it re-evaluates the resource. 'push' and 'execute' are disabled unless the deployment enables the developer fast-loop.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["push", "execute", "status"]
+        },
+        "control_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runbook_yaml": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^\\d{12}$"
+        },
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["action", "account_id"]
+    }
+  },
+  {
+    "name": "execute_finding_action",
+    "description": "Execute an action on Security Hub findings (e.g. set workflow status). Grantable to Account Operators, scoped to their assigned accounts; the Rollback action is restricted to Admin and Delegated Admin (ADR 0011) and is refused for Account Operators.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "actionType": {
+          "type": "string",
+          "enum": ["Suppress", "Unsuppress", "Remediate", "RemediateAndGenerateTicket", "Rollback"]
+        },
+        "findingIds": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "findingKeys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "findingId": {
+                "type": "string"
+              },
+              "findingType": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["findingId", "findingType"]
+          }
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["actionType", "findingIds"]
+    }
+  },
+  {
+    "name": "execute_runbook",
+    "description": "Trigger remediation on a Security Hub finding by starting the ASR orchestrator Step Function. Returns the execution ARN for tracking.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_type": {
+          "default": "Remediate",
+          "type": "string",
+          "enum": ["Remediate", "RemediateAndGenerateTicket"]
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["finding_id"]
+    }
+  },
+  {
+    "name": "findings",
+    "description": "Search Security Hub findings by control, severity, account, and compliance status; or export them as CSV/JSON when `format` is set.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "Filters": {
+          "type": "object",
+          "properties": {
+            "CompositeFilters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Operator": {
+                    "type": "string",
+                    "enum": ["AND", "OR"]
+                  },
+                  "StringFilters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "FieldName": {
+                          "type": "string"
+                        },
+                        "Filter": {
+                          "type": "object",
+                          "properties": {
+                            "Value": {
+                              "type": "string"
+                            },
+                            "Comparison": {
+                              "type": "string",
+                              "enum": [
+                                "EQUALS",
+                                "NOT_EQUALS",
+                                "CONTAINS",
+                                "NOT_CONTAINS",
+                                "GREATER_THAN_OR_EQUAL",
+                                "LESS_THAN_OR_EQUAL"
+                              ]
+                            }
+                          },
+                          "required": ["Value", "Comparison"]
+                        }
+                      },
+                      "required": ["FieldName", "Filter"]
+                    }
+                  }
+                },
+                "required": ["Operator", "StringFilters"]
+              }
+            },
+            "CompositeOperator": {
+              "type": "string",
+              "enum": ["AND", "OR"]
+            }
+          }
+        },
+        "SortCriteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "Field": {
+                "type": "string"
+              },
+              "SortOrder": {
+                "type": "string",
+                "enum": ["asc", "desc"]
+              }
+            },
+            "required": ["Field", "SortOrder"]
+          }
+        },
+        "NextToken": {
+          "type": "string"
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "generate_runbook",
+    "description": "Get ASR runbook authoring context — rules, best practice examples, and guardrails — for generating a Custom Runbook SSM Automation document.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 4000
+        },
+        "control_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+\\.[A-Za-z0-9]+$"
+        },
+        "service_name": {
+          "type": "string"
+        },
+        "dynamic_values": {
+          "description": "Key-value pairs for dynamic data to embed in the runbook (e.g. {\"ContactEmail\":\"security@acme.com\"}). These become SSM parameter defaults.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "guidance": {
+          "description": "Structured remediation guidance (target API call, parameters, permissions). When provided, the runbook is generated deterministically from this data instead of requiring the agent to reason about which API to call.",
+          "type": "object",
+          "properties": {
+            "apiCall": {
+              "type": "object",
+              "properties": {
+                "service": {
+                  "type": "string",
+                  "description": "AWS service (e.g. \"s3\", \"ec2\", \"rds\")"
+                },
+                "action": {
+                  "type": "string",
+                  "description": "API action (e.g. \"PutPublicAccessBlock\")"
+                },
+                "parameters": {
+                  "description": "API parameters",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": ["service", "action"]
+            },
+            "requiredPermissions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "IAM actions needed (e.g. [\"s3:PutBucketPublicAccessBlock\"])"
+            },
+            "resourceType": {
+              "description": "CloudFormation resource type (e.g. \"AWS::S3::Bucket\")",
+              "type": "string"
+            },
+            "verifyAction": {
+              "description": "API action to verify remediation (e.g. \"GetPublicAccessBlock\")",
+              "type": "string"
+            }
+          },
+          "required": ["apiCall", "requiredPermissions"]
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["description"]
+    }
+  },
+  {
+    "name": "get_execution_status",
+    "description": "Get remediation execution history for a finding. Returns the most recent executions with status, error details, and timing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["finding_id"]
+    }
+  },
+  {
+    "name": "get_finding_history",
+    "description": "Get the change history of a Security Hub finding combined with ASR remediation history from DynamoDB. Merges two sources for a complete timeline.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Security Hub finding ARN."
+        },
+        "product_arn": {
+          "description": "Product ARN. Defaults to aws/securityhub.",
+          "type": "string"
+        },
+        "max_results": {
+          "description": "Max history records. Default 10.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["finding_id"]
+    }
+  },
+  {
+    "name": "get_runbook",
+    "description": "Retrieve a specific Custom Runbook's full YAML content and metadata.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "runbook_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["runbook_id"]
+    }
+  },
+  {
+    "name": "list_controls",
+    "description": "List all ASR controls with their auto-remediation status and configuration.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "list_filters",
+    "description": "List all resource filters (exclusions/inclusions) configured in ASR.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "list_findings_without_runbook",
+    "description": "List Security Hub control IDs that have active FAILED findings but no deployed ASR runbook. Returns remediation coverage gaps prioritized by finding count.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compliance_status": {
+          "type": "string",
+          "enum": ["PASSED", "FAILED", "WARNING", "NOT_AVAILABLE"]
+        },
+        "workflow_status": {
+          "type": "string",
+          "enum": ["NEW", "NOTIFIED", "RESOLVED", "SUPPRESSED"]
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "list_notifications",
+    "description": "List notification configurations with their channels, scope, and type.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "list_runbooks",
+    "description": "List all Custom Runbooks with metadata. Optionally filter by control ID or status.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "control_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+\\.[A-Za-z0-9]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["DRAFT", "DEPLOYED"]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["custom", "builtin"]
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "remediations",
+    "description": "Search ASR remediation history by control, account, status; or export it as CSV/JSON when `format` is set.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "Filters": {
+          "type": "object",
+          "properties": {
+            "StringFilters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "FieldName": {
+                    "type": "string"
+                  },
+                  "Filter": {
+                    "type": "object",
+                    "properties": {
+                      "Value": {
+                        "type": "string"
+                      },
+                      "Comparison": {
+                        "type": "string",
+                        "enum": [
+                          "EQUALS",
+                          "NOT_EQUALS",
+                          "CONTAINS",
+                          "NOT_CONTAINS",
+                          "GREATER_THAN_OR_EQUAL",
+                          "LESS_THAN_OR_EQUAL"
+                        ]
+                      }
+                    },
+                    "required": ["Value", "Comparison"]
+                  }
+                },
+                "required": ["FieldName", "Filter"]
+              }
+            },
+            "CompositeFilters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Operator": {
+                    "type": "string",
+                    "enum": ["AND", "OR"]
+                  },
+                  "StringFilters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "FieldName": {
+                          "type": "string"
+                        },
+                        "Filter": {
+                          "type": "object",
+                          "properties": {
+                            "Value": {
+                              "type": "string"
+                            },
+                            "Comparison": {
+                              "type": "string",
+                              "enum": [
+                                "EQUALS",
+                                "NOT_EQUALS",
+                                "CONTAINS",
+                                "NOT_CONTAINS",
+                                "GREATER_THAN_OR_EQUAL",
+                                "LESS_THAN_OR_EQUAL"
+                              ]
+                            }
+                          },
+                          "required": ["Value", "Comparison"]
+                        }
+                      },
+                      "required": ["FieldName", "Filter"]
+                    }
+                  }
+                },
+                "required": ["Operator", "StringFilters"]
+              }
+            },
+            "CompositeOperator": {
+              "type": "string",
+              "enum": ["AND", "OR"]
+            }
+          }
+        },
+        "SortCriteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "Field": {
+                "type": "string"
+              },
+              "SortOrder": {
+                "type": "string",
+                "enum": ["asc", "desc"]
+              }
+            },
+            "required": ["Field", "SortOrder"]
+          }
+        },
+        "NextToken": {
+          "type": "string"
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      }
+    }
+  },
+  {
+    "name": "test_notification",
+    "description": "Send a test notification through a configuration to all its enabled channels. This proves channel connectivity only: the synthetic event is delivered without evaluating the configuration's severityFilter, accountIds, controlIds, or resource filters, so a success here does not mean any real finding will match. Grantable to Account Operators; subject to the per-user MCP grant and the account/creator scoping the API enforces.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The notification configuration id: the `configId` value returned by create_notification / list_notifications."
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": {}
+    }
+  },
+  {
+    "name": "test_remediation_script",
+    "description": "Fast inner-loop test for a candidate Python remediation script. Creates a transient SSM Automation document with aws:executeScript, runs it, returns per-step output, and deletes the document.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "python_script": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 60000,
+          "description": "Inline Python source for the remediation handler. The handler must return a dict — a list or scalar return value fails with an opaque output-selector error."
+        },
+        "input_payload": {
+          "description": "Dict passed to the handler as its event parameter.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "handler": {
+          "description": "Python handler function name. Defaults to \"handler\".",
+          "type": "string"
+        },
+        "runtime": {
+          "description": "Python runtime for aws:executeScript. Defaults to python3.11.",
+          "type": "string",
+          "enum": ["python3.11", "python3.10", "python3.9", "python3.8"]
+        },
+        "control_id": {
+          "description": "Optional control ID used to name the transient document.",
+          "type": "string"
+        },
+        "automation_assume_role": {
+          "description": "IAM role ARN SSM assumes when executing the script. There is no default and nothing injects it, not even the deployed MCP server: always pass it, or the call is rejected. The role must be in this server's account, at the root IAM path (no `role/<path>/` segment), and its name must begin with \"SO0111-Remediate-Custom-Test-\" — that is the only role pattern the MCP server is allowed to iam:PassRole to SSM, and any other role ARN fails inside StartAutomationExecution. Optional in the schema only so the rejection can name the parameter.",
+          "type": "string"
+        },
+        "timeout_seconds": {
+          "description": "Hard timeout for the test execution. Defaults to 300 seconds. Capped at 600 — the SSM aws:executeScript action this tool always builds does not run longer than that.",
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 600
+        },
+        "cleanup": {
+          "description": "Delete the transient SSM document after execution. Defaults to true.",
+          "type": "boolean"
+        },
+        "document_name": {
+          "description": "Explicit document name to use; otherwise one is generated.",
+          "type": "string"
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["python_script"]
+    }
+  },
+  {
+    "name": "test_runbook_yaml",
+    "description": "End-to-end test for a full SSM Automation runbook YAML. Registers a transient document, runs all mainSteps, reports per-step status and outputs, then deletes. Set skip_execution=true to only validate SSM accepts the schema. Pass runbook_id and version to record the outcome against a registered version, which is what makes it deployable — deploy_runbook refuses any version that has not passed here.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "runbook_yaml": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 65536,
+          "description": "Full SSM Automation document content (YAML by default). Capped at 65536 — SSM's CreateDocument content quota — since this is registered as-is, with no wrapper around it."
+        },
+        "input_parameters": {
+          "description": "Parameters passed to StartAutomationExecution. Non-string values are JSON-encoded automatically. For a registered-version test, AutomationAssumeRole is set to the bounded test role.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "document_name": {
+          "description": "Explicit document name to use; otherwise one is generated.",
+          "type": "string"
+        },
+        "document_format": {
+          "description": "Format of runbook_yaml. Defaults to YAML.",
+          "type": "string",
+          "enum": ["YAML", "JSON"]
+        },
+        "control_id": {
+          "description": "Optional control ID used to name the transient document.",
+          "type": "string"
+        },
+        "runbook_id": {
+          "description": "Registered runbook this test belongs to (UUID, as returned by deploy_runbook register). Supply with `version` and `required_iam_actions` to provision its version-and-permission-set-scoped test role and record the outcome. Omit all three for a throwaway test run.",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "version": {
+          "description": "Registered version being tested. Required alongside `runbook_id` and `required_iam_actions`.",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "required_iam_actions": {
+          "description": "Exact IAM actions the registered runbook needs. Required with runbook_id/version. ASR provisions a bounded test role scoped to this version and permission set; deploy_runbook later requires the same set.",
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout_seconds": {
+          "description": "Hard timeout for the whole execution. Defaults to 600 seconds. This bounds the overall multi-step Automation execution, not a single step's own timeoutSeconds — a runbook using aws:waitForAwsResourceProperty or aws:runCommand can legitimately run well past the 600s cap that applies specifically to a single aws:executeScript step. Capped at 800s because this tool polls to completion inside the MCP Lambda: the poll budget is timeout_seconds + 30, and the Lambda is bounded at 900s by both Lambda and AgentCore synchronous-request limits, leaving the remainder for document create/delete. An Automation that genuinely needs longer cannot be observed synchronously and needs an async execute-then-poll path instead.",
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 800
+        },
+        "cleanup": {
+          "description": "Delete the transient SSM document after execution. Defaults to true.",
+          "type": "boolean"
+        },
+        "skip_execution": {
+          "description": "If true, only register the document (to verify SSM accepts it) and then delete it. No execution is started.",
+          "type": "boolean"
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["runbook_yaml"]
+    }
+  },
+  {
+    "name": "update_controls",
+    "description": "Bulk enable or disable auto-remediation for one or more controls, or apply/remove a filter across all of them. For `operation: \"update\"` pass `data`: the controls to write, each carrying its current `version` from list_controls. For `applyFilterToAll` / `removeFilterFromAll` pass `filterId` (from list_filters) instead of `data`. Entries are applied independently: an entry whose `version` is stale is rejected and the others are still written. HTTP 200 means every entry was applied; 207 means some were and lists the rest in `failedControlIds`; 409 means none were. `failedControlIds` also includes the ids in `rejectedControlIds` when present: those are controls served by a custom runbook, which cannot have automated remediation enabled and are refused identically on every retry — do not retry them. Refresh versions and retry only the failed ids that are not in `rejectedControlIds`.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "type": "string",
+          "enum": ["update", "applyFilterToAll", "removeFilterFromAll"]
+        },
+        "data": {
+          "description": "For `update`: the controls to write, each carrying its current `version` from list_controls.",
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "controlId": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "automatedRemediationEnabled": {
+                "type": "boolean"
+              },
+              "rollbackEnabled": {
+                "type": "boolean"
+              },
+              "rollbackSupported": {
+                "type": "boolean"
+              },
+              "filters": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "filterMode": {
+                "type": "string",
+                "enum": ["include", "exclude"]
+              },
+              "version": {
+                "type": "number"
+              },
+              "lastModified": {
+                "type": "string"
+              },
+              "modifiedBy": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": ["builtin", "custom"]
+              },
+              "runbookVersion": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "controlId",
+              "description",
+              "automatedRemediationEnabled",
+              "filters",
+              "filterMode",
+              "version",
+              "lastModified",
+              "modifiedBy"
+            ]
+          }
+        },
+        "filterId": {
+          "description": "For `applyFilterToAll` / `removeFilterFromAll`: the `filterId` from list_filters.",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["operation"]
+    }
+  },
+  {
+    "name": "update_filter",
+    "description": "Update an existing resource filter by ID. Requires admin.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "accountIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{12}$"
+          }
+        },
+        "organizationalUnits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["key", "value"]
+          }
+        },
+        "arnPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^arn:[^:]+:[^:]*:[^:]*:[^:]*:.+$"
+          }
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "filterId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["name", "accountIds", "organizationalUnits", "tags", "arnPatterns", "version", "filterId"]
+    }
+  },
+  {
+    "name": "update_notification",
+    "description": "Update an existing notification configuration by ID. Grantable to Account Operators; subject to the per-user MCP grant and the account/creator scoping the API enforces.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[\\w\\s\\-().]+$"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "notificationType": {
+          "type": "string",
+          "enum": ["finding", "remediation"]
+        },
+        "severityFilter": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Critical", "High", "Medium", "Low", "Informational", "All"]
+          }
+        },
+        "remediationStatusFilter": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Success",
+              "In Progress",
+              "Failed",
+              "Rollback Success",
+              "Rollback In Progress",
+              "Rollback Failed",
+              "Not Started",
+              "All"
+            ]
+          }
+        },
+        "controlIds": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resourceFilterIds": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "accountIds": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{12}$"
+          }
+        },
+        "deliveryChannels": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["email", "slack", "jira", "servicenow", "sns"]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "recipients": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "recipientType": {
+                      "type": "string",
+                      "enum": ["rootAccountEmail", "securityContact", "operationsContact", "accountOperators", "custom"]
+                    },
+                    "emailAddresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "email",
+                        "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      }
+                    }
+                  },
+                  "required": ["recipientType"]
+                }
+              },
+              "channelId": {
+                "type": "string"
+              },
+              "credentialsSecretArn": {
+                "type": "string",
+                "pattern": "^arn:[^:]+:secretsmanager:[^:]+:\\d{12}:secret:.+$"
+              },
+              "projectKey": {
+                "type": "string"
+              },
+              "issueType": {
+                "type": "string"
+              },
+              "endpointUrl": {
+                "type": "string",
+                "format": "uri"
+              },
+              "customFieldMappings": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "value": {
+                      "type": "string",
+                      "maxLength": 256
+                    }
+                  },
+                  "required": ["key", "value"]
+                }
+              },
+              "tableName": {
+                "type": "string"
+              },
+              "topicArn": {
+                "type": "string",
+                "pattern": "^arn:([^:]+):sns:([^:]+):(\\d{12}):(.+)$"
+              }
+            },
+            "required": ["type", "enabled"]
+          }
+        },
+        "batchWindow": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "duration": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "unit": {
+              "type": "string",
+              "enum": ["Minutes", "Hours", "Days"]
+            }
+          },
+          "required": ["enabled"]
+        },
+        "batchExport": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "presignedUrlExpirationHours": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            }
+          },
+          "required": ["enabled"]
+        },
+        "contentOptions": {
+          "type": "object",
+          "properties": {
+            "includeManualRemediationLink": {
+              "type": "boolean"
+            },
+            "includeRemediationDeadline": {
+              "type": "boolean"
+            },
+            "remediationDeadlineDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90
+            },
+            "enforceDeadline": {
+              "default": false,
+              "type": "boolean"
+            },
+            "includeIaCSnippet": {
+              "type": "boolean"
+            },
+            "iacFormats": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["cloudformation-yaml", "cloudformation-json", "terraform", "cdk"]
+              }
+            },
+            "includeEnableAutomationLink": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "includeManualRemediationLink",
+            "includeRemediationDeadline",
+            "includeIaCSnippet",
+            "includeEnableAutomationLink"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The notification configuration id: the `configId` value returned by create_notification / list_notifications."
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": [
+        "name",
+        "enabled",
+        "notificationType",
+        "deliveryChannels",
+        "batchWindow",
+        "contentOptions",
+        "version",
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "validate_runbook",
+    "description": "Return the ASR runbook validation ruleset to apply to an SSM Automation runbook YAML document. This returns the rules for the caller to check against; it does not inspect the YAML server-side or emit a pass/fail verdict.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "runbook_yaml": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__authorizationHeader": {
+          "type": "string",
+          "description": "Internal: injected by gateway interceptor. Do not set manually."
+        }
+      },
+      "required": ["runbook_yaml"]
+    }
+  }
+]

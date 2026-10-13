@@ -23,9 +23,13 @@ const handleExternalProvider = async (
 ): Promise<PreSignUpTriggerEvent> => {
   const cognitoService = new CognitoService(logger, event.userPoolId);
 
-  const existingUser = await cognitoService.getUserById(userEmail);
+  // Only the user's existence and type are needed here (existence gates the sign-up; the
+  // type is logged). Use the Cognito-only lookup rather than getUserById so a transient
+  // DynamoDB failure in the account/MCP-grant mapping — which this path never reads — cannot
+  // reject a legitimate federated sign-in.
+  const existingUserType = await cognitoService.findUserTypeByEmail(userEmail);
 
-  if (!existingUser) {
+  if (!existingUserType) {
     logger.error('Rejecting federated sign-up - no matching user found', { email: userEmail });
     throw new Error('User not found in local user pool');
   }
@@ -39,7 +43,7 @@ const handleExternalProvider = async (
   await cognitoService.linkFederatedUser(userEmail, providerName);
   logger.info('Federated user linked to existing profile', {
     email: userEmail,
-    existingUserType: existingUser.type,
+    existingUserType,
   });
   return event;
 };

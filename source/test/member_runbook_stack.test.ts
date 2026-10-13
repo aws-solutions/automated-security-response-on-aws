@@ -67,6 +67,103 @@ describe('MemberRolesStack tests', () => {
     expect(describeAllStatement?.Resource).toBe('*');
   });
 
+  test('Orchestrator member role can reassert the boundary on an existing custom remediation role', () => {
+    // ARRANGE
+    const stack = getRoleTestStack();
+
+    // ACT
+    const template = Template.fromStack(stack);
+    const roles = template.findResources('AWS::IAM::Role');
+    const inlineStatements = Object.values(roles).flatMap((role) =>
+      (
+        (role.Properties.Policies ?? []) as Array<{ PolicyDocument: { Statement: Array<Record<string, unknown>> } }>
+      ).flatMap((policy) => policy.PolicyDocument.Statement),
+    );
+    const managedStatements = Object.values(template.findResources('AWS::IAM::Policy')).flatMap(
+      (policy) => policy.Properties.PolicyDocument.Statement as Array<Record<string, unknown>>,
+    );
+    const allStatements = [...inlineStatements, ...managedStatements];
+
+    const customRemediationRoleArn = (statement: Record<string, unknown>): boolean =>
+      JSON.stringify(statement.Resource ?? '').includes('SO0111-Remediate-Custom-*');
+
+    // ASSERT — CrossAccountRoleService attaches the boundary with CreateRole for a NEW
+    // role, but reasserts it with PutRolePermissionsBoundary when the role already exists
+    // (a redeploy, a retry, or a role left by an earlier attempt). Without an Allow for
+    // that action the whole deploy reports zero accounts installed, permanently: the role
+    // exists, so the create path never runs again. Verified against a live deployment,
+    // where a custom runbook for a control whose role predated the deploy could not be
+    // released at all.
+    const allowStatements = allStatements.filter(
+      (statement) => statement.Effect === 'Allow' && customRemediationRoleArn(statement),
+    );
+    const allowedActions = allowStatements.flatMap((statement) =>
+      Array.isArray(statement.Action) ? (statement.Action as string[]) : [statement.Action as string],
+    );
+    expect(allowedActions).toContain('iam:PutRolePermissionsBoundary');
+
+    // The Deny guard still decides WHICH boundary may be set, so the Allow above widens
+    // reachability rather than privilege. Losing this would turn the Allow into a
+    // privilege-escalation primitive.
+    const denyStatements = allStatements.filter(
+      (statement) => statement.Effect === 'Deny' && customRemediationRoleArn(statement),
+    );
+    const requireBoundary = denyStatements.find(
+      (statement) => statement.Sid === 'RequireBoundaryOnCustomRemediationRoles',
+    );
+    expect(requireBoundary).toBeDefined();
+    expect(requireBoundary?.Action).toEqual(['iam:CreateRole', 'iam:PutRolePermissionsBoundary']);
+    expect(JSON.stringify(requireBoundary?.Condition)).toContain('SO0111-ASR-Remediation-Boundary');
+
+    // Requiring the boundary on the way IN is only half the guard: iam:PutRolePolicy and
+    // iam:UpdateAssumeRolePolicy are safe on these roles solely because the boundary cannot
+    // be taken off afterwards. Denying removal outright keeps that true even if a future
+    // change broadens the Allow above.
+    const denyBoundaryRemoval = denyStatements.find(
+      (statement) => statement.Sid === 'DenyBoundaryRemovalOnCustomRemediationRoles',
+    );
+    expect(denyBoundaryRemoval).toBeDefined();
+    // CloudFormation renders a single-action statement as a string rather than a list.
+    expect(denyBoundaryRemoval?.Action).toBe('iam:DeleteRolePermissionsBoundary');
+    // Unconditional on purpose: the delete API carries no iam:PermissionsBoundary key, so a
+    // condition modelled on the statement above would not constrain it.
+    expect(denyBoundaryRemoval?.Condition).toBeUndefined();
+
+    // Nothing may grant boundary removal on this name space, which is what makes the
+    // unconditional Deny a statement of intent rather than a behaviour change.
+    expect(allowedActions).not.toContain('iam:DeleteRolePermissionsBoundary');
+  });
+
+  test('Remediation permissions boundary allows service actions but hard-denies escalation primitives', () => {
+    const stack = getRoleTestStack();
+
+    const template = Template.fromStack(stack);
+    const managedPolicies = template.findResources('AWS::IAM::ManagedPolicy');
+    const boundaryEntry = Object.values(managedPolicies).find(
+      (policy) => policy.Properties.ManagedPolicyName === 'SO0111-ASR-Remediation-Boundary',
+    );
+
+    if (!boundaryEntry) throw new Error('SO0111-ASR-Remediation-Boundary managed policy not found in the stack');
+
+    expect(boundaryEntry.Properties.Description).toMatch(/^[\x20-\x7E]*$/);
+
+    const statements = boundaryEntry.Properties.PolicyDocument.Statement as Array<Record<string, unknown>>;
+
+    const allowStatement = statements.find((statement) => statement.Effect === 'Allow');
+    expect(allowStatement?.Action).toBe('*');
+    expect(allowStatement?.Resource).toBe('*');
+
+    const wholesaleDeny = statements.find(
+      (statement) => statement.Effect === 'Deny' && Array.isArray(statement.Action),
+    );
+    expect(wholesaleDeny?.Action).toEqual(['sts:*', 'organizations:*']);
+    expect(wholesaleDeny?.Resource).toBe('*');
+
+    const iamDeny = statements.find((statement) => statement.Effect === 'Deny' && statement.Action === 'iam:*');
+    expect(iamDeny?.Resource).toBe('*');
+    expect(iamDeny?.Condition).toEqual({ StringNotEquals: { 'iam:PassedToService': 'ssm.amazonaws.com' } });
+  });
+
   function getSsmTestStack(): Stack {
     const app = new App();
     return new RemediationRunbookStack(app, 'stack', {

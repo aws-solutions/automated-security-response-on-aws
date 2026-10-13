@@ -1,10 +1,15 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import os
+from datetime import datetime
 from typing import Any
 
 import boto3
+import exec_ssm_doc
+import pytest
 from botocore.stub import ANY, Stubber
-from exec_ssm_doc import lambda_handler
+from exec_ssm_doc import _validate_doc_parameters, lambda_handler
+from pytest_mock import MockerFixture
 
 from .test_orc_utils import create_lambda_context
 
@@ -391,7 +396,12 @@ def test_exec_runbook_with_doc_parameters_passes_action_to_ssm(mocker):
     Verifies that Action=Restore from docParameters is forwarded to the SSM document.
     The Stubber enforces the exact Parameters dict — if Action is missing or wrong,
     the Stubber raises an assertion error, making this the actual verification.
+
+    Action=Restore is the v4 GuardDuty rollback, so rollback must be enabled for it to run
+    at all — the gate refuses it otherwise (covered by
+    test_exec_runbook_refuses_guardduty_v4_rollback_when_rollback_is_disabled).
     """
+    mocker.patch.dict(os.environ, {"ENABLE_ROLLBACK": "yes"})
     step_input = _guardduty_step_input(Detail={"docParameters": {"Action": "Restore"}})
 
     iam_client = boto3.client("iam")
@@ -427,6 +437,183 @@ def test_exec_runbook_with_doc_parameters_passes_action_to_ssm(mocker):
     iam_stub.deactivate()
 
 
+def test_exec_runbook_refuses_rollback_parameters_when_rollback_is_disabled(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Verifies a rollback execution is refused when ENABLE_ROLLBACK is not "yes".
+
+    The API refuses the Rollback action already; this is the same switch enforced at
+    the execution boundary for a request that arrived another way. It must refuse with
+    a stated reason rather than mangle the parameter: SSM's AutomationParameterValue
+    has a minimum length of 1, so blanking the bucket fails botocore validation and
+    surfaces as an opaque ParamValidationError instead.
+    """
+    mocker.patch.dict(os.environ, {"ENABLE_ROLLBACK": "no"})
+    step_input = _guardduty_step_input(
+        Detail={
+            "docParameters": {
+                "Rollback": "ROLLBACK",
+                "ExecutionId": "11111111-2222-3333-4444-555555555555",
+                "RemediationConfigBucket": "so0111-real-snapshot-bucket",
+            }
+        }
+    )
+
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    iam_stub.add_client_error("get_role", "NoSuchEntity")
+    iam_stub.activate()
+
+    # No SSM response is stubbed: reaching start_automation_execution at all is a failure.
+    ssm_client = boto3.client("ssm")
+    ssm_stub = Stubber(ssm_client)
+    ssm_stub.activate()
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_client)
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_client)
+    mocker.patch("layer.sechub_findings.ASRNotification.notify")
+
+    response = lambda_handler(step_input, create_lambda_context())
+
+    assert response["status"] == "ERROR"
+    assert "Rollback is disabled" in response["message"]
+    assert "RemediationConfigBucket" in response["message"]
+    ssm_stub.deactivate()
+    iam_stub.deactivate()
+
+
+def test_exec_runbook_passes_rollback_parameters_when_rollback_is_enabled(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Verifies rollback parameters reach the SSM document untouched when rollback is on.
+
+    Pairs with the refusal case: without this, refusing unconditionally would satisfy
+    that test while disabling rollback entirely. The Stubber enforces the exact
+    Parameters dict, so a blanked or dropped bucket fails the call.
+    """
+    mocker.patch.dict(os.environ, {"ENABLE_ROLLBACK": "yes"})
+    step_input = _guardduty_step_input(
+        Detail={
+            "docParameters": {
+                "Rollback": "ROLLBACK",
+                "RemediationConfigBucket": "so0111-real-snapshot-bucket",
+            }
+        }
+    )
+
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    iam_stub.add_client_error("get_role", "NoSuchEntity")
+    iam_stub.activate()
+
+    ssm_client = boto3.client("ssm")
+    ssm_stub = Stubber(ssm_client)
+    ssm_stub.add_response(
+        "start_automation_execution",
+        {"AutomationExecutionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {
+            "DocumentName": "ASR-GuardDuty.IAMUser",
+            "Parameters": {
+                "Finding": [ANY],
+                "AutomationAssumeRole": [ANY],
+                "Rollback": ["ROLLBACK"],
+                "RemediationConfigBucket": ["so0111-real-snapshot-bucket"],
+            },
+        },
+    )
+    ssm_stub.activate()
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_client)
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_client)
+    mocker.patch("layer.sechub_findings.ASRNotification.notify")
+
+    response = lambda_handler(step_input, create_lambda_context())
+
+    assert response["status"] == "QUEUED"
+    ssm_stub.deactivate()
+    iam_stub.deactivate()
+
+
+def test_exec_runbook_allows_non_rollback_parameters_when_rollback_is_disabled(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Verifies the switch only gates rollback: a normal remediation still runs with
+    ENABLE_ROLLBACK off, and its docParameters are forwarded unchanged.
+
+    Uses the GuardDuty forward action (Action=Contain) — the inverse of the rollback's
+    Action=Restore — so this proves a non-rollback docParameter is untouched without
+    accidentally exercising the rollback it is meant to contrast with.
+    """
+    mocker.patch.dict(os.environ, {"ENABLE_ROLLBACK": "no"})
+    step_input = _guardduty_step_input(Detail={"docParameters": {"Action": "Contain"}})
+
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    iam_stub.add_client_error("get_role", "NoSuchEntity")
+    iam_stub.activate()
+
+    ssm_client = boto3.client("ssm")
+    ssm_stub = Stubber(ssm_client)
+    ssm_stub.add_response(
+        "start_automation_execution",
+        {"AutomationExecutionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {
+            "DocumentName": "ASR-GuardDuty.IAMUser",
+            "Parameters": {
+                "Finding": [ANY],
+                "AutomationAssumeRole": [ANY],
+                "Action": ["Contain"],
+            },
+        },
+    )
+    ssm_stub.activate()
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_client)
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_client)
+    mocker.patch("layer.sechub_findings.ASRNotification.notify")
+
+    response = lambda_handler(step_input, create_lambda_context())
+
+    assert response["status"] == "QUEUED"
+    ssm_stub.deactivate()
+    iam_stub.deactivate()
+
+
+def test_exec_runbook_refuses_guardduty_v4_rollback_when_rollback_is_disabled(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Verifies the v4 GuardDuty rollback (Action=Restore) is refused when ENABLE_ROLLBACK is
+    not "yes", the same as a v5 rollback.
+
+    The v4 rollback carries no v5 parameter — Action=Restore is its only signal — so a gate
+    keyed solely on the v5 parameter set would let it through, executing a rollback the
+    switch is meant to block. Reaching start_automation_execution at all is a failure.
+    """
+    mocker.patch.dict(os.environ, {"ENABLE_ROLLBACK": "no"})
+    step_input = _guardduty_step_input(Detail={"docParameters": {"Action": "Restore"}})
+
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    iam_stub.add_client_error("get_role", "NoSuchEntity")
+    iam_stub.activate()
+
+    ssm_client = boto3.client("ssm")
+    ssm_stub = Stubber(ssm_client)
+    ssm_stub.activate()
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_client)
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_client)
+    mocker.patch("layer.sechub_findings.ASRNotification.notify")
+
+    response = lambda_handler(step_input, create_lambda_context())
+
+    assert response["status"] == "ERROR"
+    assert "Rollback is disabled" in response["message"]
+    assert "Action" in response["message"]
+    ssm_stub.deactivate()
+    iam_stub.deactivate()
+
+
 def test_exec_runbook_rejects_unknown_doc_parameters(mocker):
     """
     Verifies that unknown docParameters are rejected with a structured ERROR response.
@@ -453,3 +640,128 @@ def test_exec_runbook_rejects_unknown_doc_parameters(mocker):
     assert response["status"] == "ERROR"
     assert "Unsupported docParameter" in response["message"]
     iam_stub.deactivate()
+
+
+def test_per_control_role_is_passed_to_ssm_not_assumed_by_this_lambda(
+    mocker: MockerFixture,
+) -> None:
+    """
+    A custom runbook's per-control role is what the AUTOMATION runs as, not what this
+    lambda assumes to start it.
+
+    This lambda runs as Orchestrator-Admin, whose policy permits assuming only
+    Orchestrator-Member and Inspector-Automation (administrator-stack.ts keeps the
+    `-Remediate-*` entry commented out). A per-control role trusts ssm.amazonaws.com
+    and Orchestrator-Member — never Admin. So assuming it here is AccessDenied before
+    SSM is ever called, which is how every custom runbook execution failed: the
+    Orchestrator reported success while the finding was never remediated, because the
+    failure was swallowed into the notify path.
+
+    The two roles are asserted separately, since that separation IS the fix: the
+    session role stays Orchestrator-Member while AutomationAssumeRole carries the
+    per-control role.
+    """
+    per_control_role = "SO0111-Remediate-Custom-SC-2.0.0-APIGateway.3"
+    step_input = _guardduty_step_input(
+        AutomationDocument={
+            "AccountId": "111111111111",
+            "AutomationDocId": "ASR-Custom-SC_2.0.0_APIGateway.3",
+            "RemediationRole": per_control_role,
+            "ControlId": "APIGateway.3",
+            "SecurityStandard": "SC",
+            "ResourceRegion": "us-east-1",
+        }
+    )
+
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    # get_role succeeding is what makes the derived per-control role "exist".
+    iam_stub.add_response(
+        "get_role",
+        {
+            "Role": {
+                "Path": "/",
+                "RoleName": per_control_role,
+                "RoleId": "AROAEXAMPLEEXAMPLE",
+                "Arn": f"arn:aws:iam::111111111111:role/{per_control_role}",
+                "CreateDate": datetime(2026, 9, 17),
+            }
+        },
+    )
+    iam_stub.activate()
+
+    ssm_client = boto3.client("ssm")
+    ssm_stub = Stubber(ssm_client)
+    ssm_stub.add_response(
+        "start_automation_execution",
+        {"AutomationExecutionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {
+            "DocumentName": "ASR-Custom-SC_2.0.0_APIGateway.3",
+            "Parameters": {
+                "Finding": [ANY],
+                # The per-control role reaches SSM, which can assume it.
+                "AutomationAssumeRole": [
+                    # Built from the module's own partition: it is unset in the test
+                    # environment, and hardcoding "aws" would assert the wrong string.
+                    f"arn:{exec_ssm_doc.AWS_PARTITION}:iam::111111111111:role/{per_control_role}"
+                ],
+            },
+        },
+    )
+    ssm_stub.activate()
+
+    get_ssm_client = mocker.patch(
+        "exec_ssm_doc._get_ssm_client", return_value=ssm_client
+    )
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_client)
+    mocker.patch("layer.sechub_findings.ASRNotification.notify")
+
+    response = lambda_handler(step_input, create_lambda_context())
+
+    assert response["status"] == "QUEUED"
+    # The session this lambda opens must use a role Admin is actually allowed to
+    # assume. Asserting on the argument rather than on the absence of an error is
+    # deliberate: mocked clients never raise AccessDenied, so only the role name
+    # passed here distinguishes the fix from the bug.
+    assumed_role = get_ssm_client.call_args.args[1]
+    assert assumed_role == "SO0111-ASR-Orchestrator-Member"
+    assert assumed_role != per_control_role
+    ssm_stub.deactivate()
+    iam_stub.deactivate()
+
+
+def test_validate_doc_parameters_allows_all_snapshot_rollback_params() -> None:
+    event = {
+        "Detail": {
+            "docParameters": {
+                "Rollback": "ROLLBACK",
+                "ExecutionId": "exec-original-1234",
+                "RemediationConfigBucket": "so0111-asr-remediation-us-east-1-111111111111",
+                "SnapshotVersionId": "v-abc123",
+            }
+        }
+    }
+    assert _validate_doc_parameters(event) == {
+        "Rollback": ["ROLLBACK"],
+        "ExecutionId": ["exec-original-1234"],
+        "RemediationConfigBucket": ["so0111-asr-remediation-us-east-1-111111111111"],
+        "SnapshotVersionId": ["v-abc123"],
+    }
+
+
+def test_validate_doc_parameters_rejects_non_dict_docparameters() -> None:
+    with pytest.raises(ValueError, match="docParameters must be a dict"):
+        _validate_doc_parameters({"Detail": {"docParameters": ["not", "a", "dict"]}})
+
+
+def test_validate_doc_parameters_rejects_non_string_value() -> None:
+    with pytest.raises(ValueError, match="keys and values must be strings"):
+        _validate_doc_parameters(
+            {"Detail": {"docParameters": {"Rollback": ["ROLLBACK"]}}}
+        )
+
+
+def test_validate_doc_parameters_ignores_absent_docparameters() -> None:
+    # docParameters is optional: a well-formed event without it must not raise.
+    assert _validate_doc_parameters({"Detail": {}}) == {}
+    assert _validate_doc_parameters({}) == {}

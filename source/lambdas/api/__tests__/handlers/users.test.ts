@@ -24,7 +24,8 @@ import {
   createMetricsTestScope,
 } from '../../../common/__tests__/metricsMockSetup';
 
-import { getUsers, inviteUser, putUser, deleteUser } from '../../handlers/users';
+import { getUsers, inviteUser, putUser, putUserMcpTools, getMcpTools, deleteUser } from '../../handlers/users';
+import { resetApiLambdaEnvironmentCache } from '../../apiLambdaEnvironment';
 
 const cognitoMock = mockClient(CognitoIdentityProviderClient);
 
@@ -50,6 +51,8 @@ describe('UsersHandler', () => {
     await DynamoDBTestSetup.clearTable(userAccountMappingTableName, 'userAccountMapping');
 
     process.env.USER_ACCOUNT_MAPPING_TABLE_NAME = userAccountMappingTableName;
+    process.env.MCP_ENABLED = 'yes';
+    resetApiLambdaEnvironmentCache();
 
     cognitoMock.on(AdminGetUserCommand).callsFake((input) => {
       const username = input.Username;
@@ -1162,6 +1165,317 @@ describe('UsersHandler', () => {
 
       // ACT & ASSERT
       await expect(putUser(event, context)).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('MCP tool grants', () => {
+    it('returns the grantable tool catalog with role ceilings', async () => {
+      const event = createMockEvent({
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+
+      const result = await getMcpTools(event, createMockContext());
+      const body = JSON.parse(result.body) as {
+        tools: Array<{ name: string; tier: 'AccountOperator' | 'DelegatedAdmin'; category: string }>;
+      };
+
+      expect(result.statusCode).toBe(200);
+      expect(body.tools).toContainEqual({
+        name: 'execute_finding_action',
+        tier: 'AccountOperator',
+        category: 'Remediation',
+      });
+      expect(body.tools).toContainEqual({ name: 'execute_runbook', tier: 'DelegatedAdmin', category: 'Remediation' });
+      // Every catalog entry carries a real category so the UI never has to group into
+      // the 'Other' fallback bucket.
+      expect(body.tools.every((tool) => !!tool.category && tool.category !== 'Other')).toBe(true);
+    });
+
+    it('forbids DelegatedAdminGroup from reading the grantable tool catalog', async () => {
+      const event = createMockEvent({
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['DelegatedAdminGroup'],
+              username: 'delegated@example.com',
+            },
+          },
+        },
+      });
+
+      await expect(getMcpTools(event, createMockContext())).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows AdminGroup to grant tools to a Delegated Admin', async () => {
+      const targetEmail = 'delegated-grantee@example.com';
+      cognitoMock
+        .on(AdminListGroupsForUserCommand, { Username: targetEmail })
+        .resolves({ Groups: [{ GroupName: 'DelegatedAdminGroup' }] });
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        body: JSON.stringify({ allowedTools: ['execute_runbook'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+
+      const result = await putUserMcpTools(event, createMockContext());
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: userAccountMappingTableName, Key: { userId: targetEmail } }),
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(stored.Item?.allowedMcpTools).toEqual(['execute_runbook']);
+    });
+
+    it('preserves a mixed-case Cognito username and stores the grant by canonical email', async () => {
+      // GIVEN
+      const pathUserId = 'Delegated-Grantee@Example.com';
+      const canonicalEmail = 'delegated-grantee@example.com';
+      cognitoMock.on(AdminGetUserCommand, { Username: pathUserId }).resolves({
+        Username: pathUserId,
+        UserAttributes: [
+          { Name: 'email', Value: canonicalEmail },
+          { Name: 'custom:invitedBy', Value: 'system@example.com' },
+        ],
+        UserCreateDate: new Date(),
+        UserStatus: 'CONFIRMED',
+      });
+      cognitoMock
+        .on(AdminListGroupsForUserCommand, { Username: pathUserId })
+        .resolves({ Groups: [{ GroupName: 'DelegatedAdminGroup' }] });
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: pathUserId },
+        body: JSON.stringify({ allowedTools: ['execute_runbook'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+
+      // WHEN
+      const result = await putUserMcpTools(event, createMockContext());
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: userAccountMappingTableName, Key: { userId: canonicalEmail } }),
+      );
+
+      // THEN
+      expect(cognitoMock).toHaveReceivedCommandWith(AdminGetUserCommand, { Username: pathUserId });
+      expect(result.statusCode).toBe(200);
+      expect(JSON.parse(result.body)).toMatchObject({ email: canonicalEmail });
+      expect(stored.Item?.allowedMcpTools).toEqual(['execute_runbook']);
+    });
+
+    it('forbids DelegatedAdminGroup from granting tools, even to an Account Operator', async () => {
+      const targetEmail = 'operator@example.com';
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: userAccountMappingTableName,
+          Item: {
+            userId: targetEmail,
+            accountIds: ['123456789012'],
+            invitedBy: 'delegated@example.com',
+            invitationTimestamp: '2026-09-02T00:00:00.000Z',
+          },
+        }),
+      );
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        body: JSON.stringify({ allowedTools: ['execute_finding_action'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['DelegatedAdminGroup'],
+              username: 'delegated@example.com',
+            },
+          },
+        },
+      });
+
+      await expect(putUserMcpTools(event, createMockContext())).rejects.toThrow(ForbiddenError);
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: userAccountMappingTableName, Key: { userId: targetEmail } }),
+      );
+      expect(stored.Item?.allowedMcpTools).toBeUndefined();
+    });
+
+    it('accepts a trailing-wildcard grant that the runtime authorizer honors', async () => {
+      const targetEmail = 'operator@example.com';
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: userAccountMappingTableName,
+          Item: {
+            userId: targetEmail,
+            accountIds: ['123456789012'],
+            invitedBy: 'delegated@example.com',
+            invitationTimestamp: '2026-09-02T00:00:00.000Z',
+          },
+        }),
+      );
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        // A prefix wildcard the runtime supports; it matches at least one tool
+        // in the account-operator ceiling, so validation admits it.
+        body: JSON.stringify({ allowedTools: ['list_*'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: { 'cognito:groups': ['AdminGroup'], username: 'admin@example.com' },
+          },
+        },
+      });
+
+      const result = await putUserMcpTools(event, createMockContext());
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: userAccountMappingTableName, Key: { userId: targetEmail } }),
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(stored.Item?.allowedMcpTools).toEqual(['list_*']);
+    });
+
+    it('rejects a wildcard grant that matches no tool grantable to the role', async () => {
+      const targetEmail = 'operator@example.com';
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        // A prefix that matches nothing in the account-operator ceiling — a typo
+        // or an out-of-role pattern — must be refused rather than stored as a
+        // silent no-op grant.
+        body: JSON.stringify({ allowedTools: ['deploy_*'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: { 'cognito:groups': ['AdminGroup'], username: 'admin@example.com' },
+          },
+        },
+      });
+
+      await expect(putUserMcpTools(event, createMockContext())).rejects.toThrow(
+        'Tools are not grantable to account-operator: deploy_*',
+      );
+    });
+
+    it('forbids a Delegated Admin from granting tools to another Delegated Admin', async () => {
+      const targetEmail = 'delegated-target@example.com';
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        body: JSON.stringify({ allowedTools: ['execute_runbook'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['DelegatedAdminGroup'],
+              username: 'delegated@example.com',
+            },
+          },
+        },
+      });
+
+      await expect(putUserMcpTools(event, createMockContext())).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects stored grants for AdminGroup because Admin receives every tool automatically', async () => {
+      const targetEmail = 'admin-user@example.com';
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        body: JSON.stringify({ allowedTools: [] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+
+      await expect(putUserMcpTools(event, createMockContext())).rejects.toThrow(
+        'AdminGroup receives all MCP tools automatically',
+      );
+    });
+
+    it('rejects an Account Operator grant outside the account-scoped capability ceiling', async () => {
+      const targetEmail = 'operator@example.com';
+      const event = createMockEvent({
+        httpMethod: 'PUT',
+        headers: { authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+        pathParameters: { id: targetEmail },
+        body: JSON.stringify({ allowedTools: ['execute_runbook'] }),
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+
+      await expect(putUserMcpTools(event, createMockContext())).rejects.toThrow(
+        'Tools are not grantable to account-operator: execute_runbook',
+      );
+    });
+
+    it('does not serve MCP grant endpoints when MCP is disabled', async () => {
+      process.env.MCP_ENABLED = 'no';
+      resetApiLambdaEnvironmentCache();
+      const event = createMockEvent({
+        requestContext: {
+          ...TEST_REQUEST_CONTEXT,
+          authorizer: {
+            claims: {
+              'cognito:groups': ['AdminGroup'],
+              username: 'admin@example.com',
+            },
+          },
+        },
+      });
+
+      try {
+        await expect(getMcpTools(event, createMockContext())).rejects.toThrow(
+          'MCP user authorization is not available because MCP is not enabled',
+        );
+      } finally {
+        process.env.MCP_ENABLED = 'yes';
+        resetApiLambdaEnvironmentCache();
+      }
     });
   });
 

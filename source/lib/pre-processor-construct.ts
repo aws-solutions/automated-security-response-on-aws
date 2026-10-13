@@ -15,6 +15,7 @@ import { Effect, PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { getConfig } from './config/cdk-config';
+import { attachCommercialPartitionSecurityHubV2Policy } from './cdk-helper/is-commercial-partition';
 import { PreProcessorEnvironmentConfig } from '@asr/data-models';
 
 export interface PreProcessorStackProps {
@@ -47,9 +48,10 @@ export class PreProcessorConstruct extends Construct {
     const config = getConfig();
 
     const processingTimeout = cdk.Duration.minutes(15);
-    const sqsBatchSize = 10;
+    const sqsBatchSize = config.preProcessor.sqsBatchSize;
     const sqsBatchingWindow = cdk.Duration.seconds(5);
-    const lambdaConcurrency = 5;
+    const lambdaConcurrency = config.preProcessor.lambdaReservedConcurrency;
+    const lambdaMemorySize = config.preProcessor.lambdaMemorySize;
     const sqsRetentionPeriod = cdk.Duration.days(config.sqs.retentionPeriodDays);
     const sqsDataKeyReuse = cdk.Duration.minutes(config.sqs.dataKeyReuseMinutes);
 
@@ -73,12 +75,28 @@ export class PreProcessorConstruct extends Construct {
       dataKeyReuse: sqsDataKeyReuse,
     });
 
+    // The only EventBridge rule that sends to this queue is the AutoTrigger rule
+    // created by the Trigger construct (ssmplaybook.ts) via EventbridgeToSqs. Its
+    // name is deterministic, so the ARN is built here from the same inputs rather
+    // than referencing the rule object, which would create a cyclic dependency
+    // (the rule targets this queue). Scoping to that ARN prevents any other
+    // in-account EventBridge rule from writing to the queue.
+    const autoTriggerRuleArn = stack.formatArn({
+      service: 'events',
+      resource: 'rule',
+      resourceName: `${props.solutionId}_${props.solutionTMN}_AutoTrigger`,
+    });
+
     this.queue.addToResourcePolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         principals: [new ServicePrincipal('events.amazonaws.com')],
         actions: ['sqs:SendMessage'],
-        resources: ['*'],
+        resources: [this.queue.queueArn],
+        conditions: {
+          ArnEquals: { 'aws:SourceArn': autoTriggerRuleArn },
+          StringEquals: { 'aws:SourceAccount': stack.account },
+        },
       }),
     );
 
@@ -89,7 +107,7 @@ export class PreProcessorConstruct extends Construct {
       handler: 'pre-processor/preProcessor.handler',
       code: getLambdaCode(props.solutionsBucket, props.solutionTMN, props.solutionVersion, 'asr_lambdas.zip'),
       timeout: processingTimeout,
-      memorySize: 512,
+      memorySize: lambdaMemorySize,
       environment: {
         SOLUTION_TRADEMARKEDNAME: props.solutionTMN,
         POWERTOOLS_LOG_LEVEL: 'INFO',
@@ -149,6 +167,24 @@ export class PreProcessorConstruct extends Construct {
         resources: ['*'],
         effect: Effect.ALLOW,
       }),
+    );
+
+    // Read live finding status so a suppression is honored even when the event carries a stale status.
+    // GetFindings is granted in every partition; DescribeSecurityHubV2 (Security Hub V2 / OCSF) exists
+    // only in the aws (commercial) partition, and attaching it in aws-us-gov or aws-cn makes IAM reject
+    // the policy at CREATE. Gate the V2 action on a stack-level commercial-partition CFN condition.
+    this.preProcessorFunction.addToRolePolicy(
+      new PolicyStatement({
+        actions: ['securityhub:GetFindings'],
+        resources: ['*'],
+        effect: Effect.ALLOW,
+      }),
+    );
+
+    attachCommercialPartitionSecurityHubV2Policy(
+      this,
+      'PreProcessorSecurityHubV2Policy',
+      this.preProcessorFunction.role,
     );
 
     const eventSource = new SqsEventSource(this.queue, {

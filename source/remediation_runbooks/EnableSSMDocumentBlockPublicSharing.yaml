@@ -8,12 +8,24 @@ description: |
   This document enables the block public sharing setting for AWS Systems Manager documents at the account level.
   This prevents any SSM documents in the account from being shared publicly.
 
+  When invoked with Rollback=ROLLBACK, it restores the block-public-sharing setting to its
+  pre-remediation state using a snapshot stored in S3.
+
   ## Input Parameters
   * AccountId: (Required) AWS Account ID where the setting will be enabled.
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * ControlExecutionId: (Optional) Level 1 (control runbook) execution ID, used as the S3 snapshot key during remediation.
+  * SnapshotVersionId: (Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
   ## Output Parameters
-  * EnableBlockPublicSharing.Output
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
 
   ## Security Control
   * SSM.7 - SSM documents should have the block public sharing setting enabled
@@ -29,24 +41,74 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
 outputs:
-  - EnableBlockPublicSharing.Output
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  -
-    name: EnableBlockPublicSharing
+  - name: SnapshotRemediateOrRollback
     action: 'aws:executeScript'
     description: |
-      ## Remediation
-      Enables the block public sharing setting for SSM documents at the account level
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation block-public-sharing setting to S3, then enables it (sets the SSM
+      account service setting to Disable). When Rollback=ROLLBACK, restores the pre-remediation state
+      from the snapshot.
     timeoutSeconds: 600
+    isEnd: true
     inputs:
-      InputPayload:
-        account_id: '{{AccountId}}'
       Runtime: python3.11
-      Handler: lambda_handler
+      Handler: handler
+      InputPayload:
+        AccountId: "{{ AccountId }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
       Script: |-
-        %%SCRIPT=enable_ssm_block_public_sharing.py%%
+        %%SCRIPT=EnableSSMDocumentBlockPublicSharing_rollback.py%%
     outputs:
-      - Name: Output
-        Selector: $.Payload.response
-        Type: StringMap
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

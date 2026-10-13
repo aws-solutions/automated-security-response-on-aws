@@ -3,7 +3,7 @@
 
 import { Logger } from '@aws-lambda-powertools/logger';
 import { AuthorizationService } from '../../services/authorization';
-import { ForbiddenError, HttpError } from '../../../common/utils/httpErrors';
+import { ForbiddenError, HttpError, UnauthorizedError } from '../../../common/utils/httpErrors';
 import {
   AdminGetUserCommand,
   AdminListGroupsForUserCommand,
@@ -304,6 +304,27 @@ describe('AuthorizationService', () => {
         const result = await service.authenticateAndAuthorize(claims, machineRequiredGroups);
 
         expect(result.authorizedAccounts).toBeUndefined();
+      });
+    });
+
+    describe('tokens without the cognito:groups claim', () => {
+      it('should throw a typed UnauthorizedError (401, never a TypeError/500) on the human path', async () => {
+        // A groupless token that is NOT a machine token (`sub` differs from
+        // `client_id`) must fail as an unauthorized request, not crash on
+        // `undefined.split(',')`.
+        const claims = {
+          client_id: 'webui-client',
+          sub: 'a3f9c1e2-0000-4000-8000-000000000000',
+          scope: 'asr-api/api',
+        } as unknown as CognitoClaims;
+
+        const promise = service.authenticateAndAuthorize(claims, ['AdminGroup']);
+        await expect(promise).rejects.toThrow(UnauthorizedError);
+
+        const error = await promise.catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error).not.toBeInstanceOf(TypeError);
+        expect((error as HttpError).statusCode).toBe(401);
       });
     });
 

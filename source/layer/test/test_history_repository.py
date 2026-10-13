@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 from datetime import datetime, timedelta
+from typing import Any
 
 from layer.history_repository import (
     RemediationUpdateRequest,
@@ -301,3 +302,190 @@ def test_transact_create_history_and_update_finding():
     del os.environ["FINDINGS_TABLE_NAME"]
     del os.environ["HISTORY_TABLE_NAME"]
     del os.environ["HISTORY_TTL_DAYS"]
+
+
+# ═══════════════════════════════════════════════════════════════
+# Rollback field tests
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_add_optional_string_fields():
+    from layer.history_repository import _add_optional_string_fields
+
+    item: dict[str, Any] = {}
+    _add_optional_string_fields(
+        item,
+        {
+            "ssmExecutionId": "exec-123",
+            "rollbackDescription": "Disable key rotation",
+            "snapshotVersionId": None,
+            "emptyField": "",
+        },
+    )
+    assert item["ssmExecutionId"] == {"S": "exec-123"}
+    assert item["rollbackDescription"] == {"S": "Disable key rotation"}
+    assert "snapshotVersionId" not in item
+    assert "emptyField" not in item
+
+
+def test_build_create_item_with_rollback_fields():
+    request = RemediationUpdateRequest(
+        finding_id="finding-1",
+        execution_id="exec-1",
+        remediation_status="SUCCESS",
+        finding_type="KMS.4",
+        resource_id="key-123",
+        resource_type="AwsKmsKey",
+        account_id="111111111111",
+        severity="50",
+        region="us-east-1",
+        last_updated_by="Automated",
+        ssm_execution_id="ssm-exec-abc",
+        rollback_available=True,
+        rollback_description="Disable key rotation for key-123",
+        snapshot_version_id="ver-xyz",
+    )
+    result = build_create_item(request)
+    item = result["Put"]["Item"]
+    assert item["ssmExecutionId"] == {"S": "ssm-exec-abc"}
+    assert item["rollbackAvailable"] == {"BOOL": True}
+    assert item["rollbackDescription"] == {"S": "Disable key rotation for key-123"}
+    assert item["snapshotVersionId"] == {"S": "ver-xyz"}
+
+
+def test_build_create_item_without_rollback_fields():
+    request = RemediationUpdateRequest(
+        finding_id="finding-1",
+        execution_id="exec-1",
+        remediation_status="SUCCESS",
+        finding_type="KMS.4",
+        resource_id="key-123",
+        resource_type="AwsKmsKey",
+        account_id="111111111111",
+        severity="50",
+        region="us-east-1",
+        last_updated_by="Automated",
+    )
+    result = build_create_item(request)
+    item = result["Put"]["Item"]
+    assert "ssmExecutionId" not in item
+    assert "rollbackAvailable" not in item
+    assert "rollbackDescription" not in item
+    assert "snapshotVersionId" not in item
+
+
+def test_build_update_item_with_rollback_fields():
+    result = build_update_item(
+        finding_id="finding-1",
+        execution_id="exec-1",
+        remediation_status="SUCCESS",
+        finding_type="KMS.4",
+        ssm_execution_id="ssm-exec-abc",
+        rollback_available=True,
+        rollback_description="Disable key rotation",
+        snapshot_version_id="ver-xyz",
+    )
+    update = result["Update"]
+    assert ":sei" in update["ExpressionAttributeValues"]
+    assert update["ExpressionAttributeValues"][":sei"] == {"S": "ssm-exec-abc"}
+    assert ":ra" in update["ExpressionAttributeValues"]
+    assert update["ExpressionAttributeValues"][":ra"] == {"BOOL": True}
+    assert ":rdes" in update["ExpressionAttributeValues"]
+    assert ":svid" in update["ExpressionAttributeValues"]
+    assert "ssmExecutionId" in update["UpdateExpression"]
+    assert "rollbackAvailable" in update["UpdateExpression"]
+
+
+def test_build_update_item_rollback_available_false():
+    result = build_update_item(
+        finding_id="finding-1",
+        execution_id="exec-1",
+        remediation_status="ROLLBACK_SUCCESS",
+        finding_type="KMS.4",
+        rollback_available=False,
+    )
+    update = result["Update"]
+    assert update["ExpressionAttributeValues"][":ra"] == {"BOOL": False}
+
+
+def test_success_update_clears_a_previous_attempts_error() -> None:
+    """A retry that succeeds must REMOVE the error, not leave it beside SUCCESS.
+
+    `SET` alone never removes an attribute, so before this the failed attempt's
+    message survived into the successful row and `get_execution_status` reported a
+    SUCCESS execution carrying a stale AccessDenied. Observed live on 2026-09-17:
+    the S3.17 finding's second execution came back SUCCESS with the first
+    execution's "Missing required parameter: BucketName" still attached.
+    """
+    os.environ["HISTORY_TABLE_NAME"] = "test-history-table"
+
+    result = build_update_item(
+        "test-finding-id",
+        "exec-123",
+        "SUCCESS",
+        "security-control/S3.17",
+    )
+
+    expression = result["Update"]["UpdateExpression"]
+    assert "REMOVE #err" in expression
+    # The REMOVE clause has to come after every SET assignment, or DynamoDB
+    # rejects the expression outright.
+    assert expression.index("SET") < expression.index("REMOVE")
+    assert result["Update"]["ExpressionAttributeNames"]["#err"] == "error"
+    # Nothing is assigned to the attribute being removed.
+    assert ":err" not in result["Update"]["ExpressionAttributeValues"]
+
+
+def test_rollback_success_also_clears_the_error() -> None:
+    """The rollback path writes its own success status and can also follow a failure."""
+    os.environ["HISTORY_TABLE_NAME"] = "test-history-table"
+
+    result = build_update_item(
+        "test-finding-id",
+        "exec-123",
+        "ROLLBACK_SUCCESS",
+        "security-control/S3.17",
+    )
+
+    assert "REMOVE #err" in result["Update"]["UpdateExpression"]
+
+
+def test_a_failed_status_without_a_message_keeps_the_stored_error() -> None:
+    """A partial update re-asserting FAILED must not discard the real reason.
+
+    `build_update_item` is also used to set fields like rollbackAvailable on an
+    already-failed row without resupplying the message. Clearing on "no error was
+    passed" rather than on success would silently drop why it failed, which is why
+    the rule is scoped to the success statuses.
+    """
+    os.environ["HISTORY_TABLE_NAME"] = "test-history-table"
+
+    result = build_update_item(
+        "test-finding-id",
+        "exec-123",
+        "FAILED",
+        "security-control/S3.17",
+        rollback_available=False,
+    )
+
+    assert "REMOVE" not in result["Update"]["UpdateExpression"]
+
+
+def test_success_with_an_explicit_error_still_records_it() -> None:
+    """An explicitly supplied message wins over the clear, so callers keep control."""
+    os.environ["HISTORY_TABLE_NAME"] = "test-history-table"
+
+    result = build_update_item(
+        "test-finding-id",
+        "exec-123",
+        "SUCCESS",
+        "security-control/S3.17",
+        error="partial success detail",
+    )
+
+    expression = result["Update"]["UpdateExpression"]
+    assert "#err = :err" in expression
+    assert "REMOVE" not in expression
+    assert result["Update"]["ExpressionAttributeValues"][":err"] == {
+        "S": "partial success detail"
+    }

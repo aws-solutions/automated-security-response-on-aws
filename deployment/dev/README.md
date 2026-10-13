@@ -40,11 +40,48 @@ This single command:
 
 All stacks use `--disable-rollback` so you can inspect failures in the console.
 
+To deploy the optional MCP server, add `"enableMcpServer": "yes"` to
+`local-config.json`. The value defaults to `"no"` when omitted.
+
+To register additional MCP OAuth callbacks, add a comma-separated
+`"additionalMcpCallbackUrls"` value with no whitespace:
+
+```json
+{
+  "enableMcpServer": "yes",
+  "additionalMcpCallbackUrls": "https://ide.example.com/oauth/callback,http://localhost:9999/callback"
+}
+```
+
+Additional callbacks are validated during deployment. They must use HTTPS, or HTTP
+on a loopback host. A loopback callback on any port follows the same local-machine
+trust model as the built-in Kiro and Claude Code callbacks: another local process
+could receive the authorization code if it binds that port first.
+
 ## Lifecycle
 
 - The first deployment runs `create-stack` and stores the stackIds in local-config.json.
 - Any subsequent run will detect the stackIds in the config and `update-stack` instead of `create-stack`.
 - If you run `./deploy-dev.sh delete`, the stacks will be deleted and the stackIds removed from local-config.json.
+
+### What `delete` tears down beyond the stacks
+
+ASR retains its stateful resources on stack deletion, so `delete` also removes the
+retained orphans that would otherwise collide with the next deploy: the namespaced
+buckets, the DynamoDB tables, the `SO0111-*` roles and instance profiles, and the
+remediation configuration bucket plus the `ASR-RemediationConfigBucketAccess-<region>`
+managed policy. Log groups are left in place.
+
+Two of those are named per account+region with no namespace, so they are shared
+region-wide: the remediation configuration bucket and its access policy. Deleting the
+policy requires detaching it from every IAM identity holding it, which includes EC2
+instance roles that ASR did not create — the Inspector remediation attaches the policy
+to whatever role the target instance already had. Those instances keep their patches
+and only lose read access to a bucket that is being deleted anyway, and the next
+deployment's remediation re-attaches the policy on its next run. Every detached
+identity is printed during teardown.
+
+Do not run `delete` while an Inspector remediation is mid-patch — that run will fail.
 
 ## Fresh namespace
 

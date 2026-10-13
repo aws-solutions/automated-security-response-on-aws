@@ -186,6 +186,59 @@ def test_parse_event(mocker):
     assert parsed_event == expected_result
 
 
+def test_parse_event_uses_region_from_resource_arn() -> None:
+    test_event = event()
+    test_event["Finding"]["Resources"][0][
+        "Id"
+    ] = "arn:aws:ec2:us-west-2:111111111111:instance/i-0123456789abcdef0"
+    test_event["Finding"]["Resources"][0]["Region"] = "us-east-1"
+    test_event["parse_id_pattern"] = r"^arn:aws:ec2:us-west-2:\d{12}:instance/(.*)$"
+
+    parsed_event = parse_event(test_event, {})
+
+    assert parsed_event["resource_region"] == "us-west-2"
+
+
+def test_parse_event_uses_region_from_hyphenated_service_arn() -> None:
+    """AWS service namespaces may contain hyphens (e.g. access-analyzer).
+
+    The region must still be read from the ARN rather than silently falling back
+    to the Region field, which the earlier alphanumeric-only service check did.
+    """
+    test_event = event()
+    test_event["Finding"]["Resources"][0][
+        "Id"
+    ] = "arn:aws:access-analyzer:us-west-2:111111111111:analyzer/example"
+    test_event["Finding"]["Resources"][0]["Region"] = "us-east-1"
+    test_event["parse_id_pattern"] = (
+        r"^arn:aws:access-analyzer:us-west-2:\d{12}:analyzer/(.*)$"
+    )
+
+    parsed_event = parse_event(test_event, {})
+
+    assert parsed_event["resource_region"] == "us-west-2"
+
+
+def test_parse_event_falls_back_to_region_field_for_oversized_non_arn_id() -> None:
+    """A resource Id that is not an ARN falls back to the Resources[0].Region field.
+
+    Exercised with an oversized value so the fallback is covered for junk input as well
+    as for the short malformed ids the other cases use. Characterization, not a
+    denial-of-service guard: the regex this replaced scaled linearly on a long
+    colon-free tail (measured sub-millisecond at 640 KB), so no test here can
+    distinguish the parser from it on time. What this does pin is the contract — an
+    unparseable Id must silently prefer the Region field rather than raise.
+    """
+    test_event = event()
+    test_event["Finding"]["Resources"][0]["Id"] = "not-an-arn/" + ("A" * 100_000)
+    test_event["Finding"]["Resources"][0]["Region"] = "us-east-1"
+    test_event["parse_id_pattern"] = ""
+
+    parsed_event = parse_event(test_event, {})
+
+    assert parsed_event["resource_region"] == "us-east-1"
+
+
 def test_parse_event_multimatch(mocker):
     expected_result = expected()
     expected_result["finding"] = event().get("Finding")

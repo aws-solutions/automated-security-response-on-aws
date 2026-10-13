@@ -33,6 +33,8 @@ This software includes third party software subject to the following copyrights:
 @aws-cdk/asset-awscli-v1 under the Apache-2.0 license.
 @aws-cdk/asset-kubectl-v20 under the Apache-2.0 license.
 @aws-cdk/asset-node-proxy-agent-v6 under the Apache-2.0 license.
+@aws-cdk/aws-bedrock-agentcore-alpha under the Apache-2.0 license.
+@aws-cdk/aws-bedrock-alpha under the Apache-2.0 license.
 @aws-cdk/aws-servicecatalogappregistry-alpha under the Apache-2.0 license.
 @aws-cdk/cloud-assembly-schema under the Apache-2.0 license.
 @aws-crypto/crc32 under the Apache-2.0 license.
@@ -253,6 +255,8 @@ This software includes third party software subject to the following copyrights:
 @jest/get-type under the MIT license.
 @jest/globals under the MIT license.
 @jest/pattern under the MIT license.
+@jest/react-is-18 under the MIT license.
+@jest/react-is-19 under the MIT license.
 @jest/reporters under the MIT license.
 @jest/schemas under the MIT license.
 @jest/snapshot-utils under the MIT license.
@@ -300,6 +304,19 @@ This software includes third party software subject to the following copyrights:
 @open-draft/deferred-promise under the MIT license.
 @open-draft/logger under the MIT license.
 @open-draft/until under the MIT license.
+@parcel/watcher under the MIT license.
+@parcel/watcher-android-arm64 under the MIT license.
+@parcel/watcher-darwin-arm64 under the MIT license.
+@parcel/watcher-darwin-x64 under the MIT license.
+@parcel/watcher-freebsd-x64 under the MIT license.
+@parcel/watcher-linux-arm-glibc under the MIT license.
+@parcel/watcher-linux-arm-musl under the MIT license.
+@parcel/watcher-linux-arm64-glibc under the MIT license.
+@parcel/watcher-linux-arm64-musl under the MIT license.
+@parcel/watcher-linux-x64-glibc under the MIT license.
+@parcel/watcher-linux-x64-musl under the MIT license.
+@parcel/watcher-win32-arm64 under the MIT license.
+@parcel/watcher-win32-x64 under the MIT license.
 @pkgjs/parseargs under the MIT license.
 @pkgr/core under the MIT license.
 @pkgr/utils under the MIT license.
@@ -503,12 +520,15 @@ This software includes third party software subject to the following copyrights:
 @unrs/resolver-binding-linux-arm-musleabihf under the MIT license.
 @unrs/resolver-binding-linux-arm64-gnu under the MIT license.
 @unrs/resolver-binding-linux-arm64-musl under the MIT license.
+@unrs/resolver-binding-linux-loong64-gnu under the MIT license.
+@unrs/resolver-binding-linux-loong64-musl under the MIT license.
 @unrs/resolver-binding-linux-ppc64-gnu under the MIT license.
 @unrs/resolver-binding-linux-riscv64-gnu under the MIT license.
 @unrs/resolver-binding-linux-riscv64-musl under the MIT license.
 @unrs/resolver-binding-linux-s390x-gnu under the MIT license.
 @unrs/resolver-binding-linux-x64-gnu under the MIT license.
 @unrs/resolver-binding-linux-x64-musl under the MIT license.
+@unrs/resolver-binding-openharmony-arm64 under the MIT license.
 @unrs/resolver-binding-wasm32-wasi under the MIT license.
 @unrs/resolver-binding-win32-arm64-msvc under the MIT license.
 @unrs/resolver-binding-win32-ia32-msvc under the MIT license.
@@ -567,6 +587,7 @@ aws-amplify under the Apache-2.0 license.
 aws-cdk under the Apache-2.0 license.
 aws-cdk-lib under the Apache-2.0 license.
 aws-encryption-sdk under the Apache-2.0 license.
+aws-jwt-verify under the Apache-2.0 license.
 aws-lambda under the MIT license.
 aws-lambda-context under the MIT license.
 aws-lambda-powertools under the MIT license.
@@ -597,7 +618,6 @@ botocore-stubs under the MIT license.
 bowser under the MIT license.
 bplist-parser under the MIT license.
 brace-expansion under the MIT license.
-braces under the MIT license.
 browserslist under the MIT license.
 bs-logger under the MIT license.
 bser under the Apache-2.0 license.
@@ -681,6 +701,7 @@ define-data-property under the MIT license.
 define-lazy-prop under the MIT license.
 define-properties under the MIT license.
 dequal under the MIT license.
+detect-libc under the Apache-2.0 license.
 detect-newline under the MIT license.
 detect-node-es under the MIT license.
 diff under the BSD 3-Clause license
@@ -769,9 +790,8 @@ fetch-blob under the MIT license.
 fflate under the MIT license.
 file-entry-cache under the MIT license.
 file-uri-to-path under the MIT license.
-filelock under the Unlicense license.
+filelock under the MIT license.
 filelist under the Apache-2.0 license.
-fill-range under the MIT license.
 find-up under the MIT license.
 flake8 under the MIT license.
 flat-cache under the MIT license.
@@ -870,7 +890,6 @@ is-inside-container under the MIT license.
 is-map under the MIT license.
 is-negative-zero under the MIT license.
 is-node-process under the MIT license.
-is-number under the MIT license.
 is-number-object under the MIT license.
 is-path-inside under the MIT license.
 is-potential-custom-element-name under the MIT license.
@@ -910,7 +929,6 @@ jest-leak-detector under the MIT license.
 jest-matcher-utils under the MIT license.
 jest-message-util under the MIT license.
 jest-mock under the MIT license.
-jest-pnp-resolver under the MIT license.
 jest-regex-util under the MIT license.
 jest-resolve under the MIT license.
 jest-resolve-dependencies under the MIT license.
@@ -978,13 +996,11 @@ magicast under the MIT license.
 make-dir under the MIT license.
 make-error under the ISC license
 make-fetch-happen under the ISC license
-makeerror under the BSD 3-Clause license
 markupsafe under the BSD 3-Clause license
 math-intrinsics under the MIT license.
 mccabe under the MIT license.
 merge-stream under the MIT license.
 merge2 under the MIT license.
-micromatch under the MIT license.
 mime-db under the MIT license.
 mime-types under the MIT license.
 mimic-fn under the MIT license.
@@ -1132,6 +1148,7 @@ pytest-cov under the MIT license.
 pytest-env under the MIT license.
 pytest-mock under the MIT license.
 python-dateutil under the Apache-2.0 license.
+python-discovery under the MIT license.
 python-dotenv under the BSD 3-Clause license
 python-shell under the MIT license.
 pywin32 under the PSF-2.0 license.
@@ -1268,9 +1285,7 @@ tinyspy under the MIT license.
 titleize under the MIT license.
 tldts under the MIT license.
 tldts-core under the MIT license.
-tmpl under the BSD 3-Clause license
 to-fast-properties under the MIT license.
-to-regex-range under the MIT license.
 tomli under the MIT license.
 tough-cookie under the BSD 3-Clause license
 tox under the MIT license.
@@ -1329,7 +1344,6 @@ vite under the MIT license.
 vite-node under the MIT license.
 virtualenv under the MIT license.
 vitest under the MIT license.
-walker under the Apache-2.0 license.
 walk-up-path under the ISC license
 w3c-xmlserializer under the MIT license.
 watchpack under the MIT license.

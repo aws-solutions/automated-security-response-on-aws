@@ -30,7 +30,8 @@
     "lib": ["es2022"],
     "target": "es2022",
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true
   },
   "exclude": [
     "cdk.out",
@@ -38,6 +39,7 @@
     "**/*.spec.ts",
     "webui",
     "lambdas",
+    "mcp",
     "lib/member/cloud-trail-event-processor",
     "eslint.config.mjs",
     "iac-templates"

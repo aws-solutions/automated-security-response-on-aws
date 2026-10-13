@@ -3,22 +3,35 @@
 ---
 schemaVersion: "0.3"
 description: |
-   ### Document name - ASR-EnableEncryptionForSNSTopic
+  ### Document name - ASR-EnableEncryptionForSNSTopic
 
-   ## What does this document do?
-    This document enables encryption on given Amazon Simple Notification Service (Amazon SNS) topic using
-    [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
+  ## What does this document do?
+  This document enables encryption on a given Amazon SNS topic using the
+  [SetTopicAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetTopicAttributes.html) API.
 
-    This document must only be used as a baseline to ensure that your Amazon SNS topics are encrypted with the minimum security best practice of using an AWS KMS customer managed CMK.
-    Based on your data policy, Amazon SNS topic should be encrypted with different customer managed CMKs as documented [here](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+  When invoked with Rollback=ROLLBACK, it restores the topic's KmsMasterKeyId to its
+  pre-remediation state using a snapshot stored in S3 (an originally-unencrypted topic is
+  restored by clearing the key).
 
-   ## Input Parameters
-   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-   * TopicArn: (Required)  The ARN of the Amazon SNS Topic.
-   * KmsKeyArn: (Required) The ARN of AWS KMS Key.
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  * TopicArn: (Required) The ARN of the Amazon SNS Topic.
+  * KmsKeyArn: (Required) The ARN of AWS KMS Key.
+  * Rollback: (Optional) Set to ROLLBACK to execute rollback instead of remediation.
+  * ExecutionId: (Optional) Original SSM Automation execution ID for snapshot lookup during rollback.
+  * ControlExecutionId: (Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation.
+  * SnapshotVersionId: (Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback.
+  * RemediationConfigBucket: (Optional) S3 bucket name for snapshot storage.
 
-    ## Security Standards / Controls
-    * AWS FSBP v1.0.0:   SNS.1
+  ## Output Parameters
+  * SnapshotRemediateOrRollback.snapshotStored
+  * SnapshotRemediateOrRollback.rollbackDescription
+  * SnapshotRemediateOrRollback.snapshotVersionId
+  * SnapshotRemediateOrRollback.Message
+  * SnapshotRemediateOrRollback.Status
+
+  ## Security Standards / Controls
+  * AWS FSBP v1.0.0:   SNS.1
 
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
@@ -36,42 +49,76 @@ parameters:
     type: String
     description: (Required) The ARN of the Amazon SNS Topic.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):sns:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:([a-zA-Z0-9_-]{1,80}(?:\.fifo)?)$'
+  Rollback:
+    type: String
+    default: ""
+    description: "(Optional) Set to ROLLBACK to execute rollback instead of remediation."
+    allowedValues:
+      - ""
+      - "ROLLBACK"
+  ExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Original SSM Automation execution ID for snapshot lookup during rollback."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  ControlExecutionId:
+    type: String
+    default: ""
+    description: "(Optional) Level 1 (control runbook) execution ID, used as S3 snapshot key during remediation."
+    allowedPattern: '^$|^[a-zA-Z0-9-]{1,64}$'
+  SnapshotVersionId:
+    type: String
+    default: ""
+    description: "(Optional) S3 version ID of the snapshot object, used for tamper-proof reads during rollback."
+    allowedPattern: '^$|^[A-Za-z0-9+/=._-]{1,1024}$'
+  RemediationConfigBucket:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}"
+    description: "(Optional) S3 bucket name for snapshot storage. Defaults to the solution's remediation config bucket."
+    allowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
 
 outputs:
-  - EncryptSNSTopic.Response
+  - SnapshotRemediateOrRollback.snapshotStored
+  - SnapshotRemediateOrRollback.rollbackDescription
+  - SnapshotRemediateOrRollback.snapshotVersionId
+  - SnapshotRemediateOrRollback.Message
+  - SnapshotRemediateOrRollback.Status
 mainSteps:
-  -
-    name: EncryptSNSTopic
-    action: "aws:executeAwsApi"
+  - name: SnapshotRemediateOrRollback
+    action: aws:executeScript
     description: |
-      ## EncryptSNSTopic
-      Makes SetTopicAttributes API call using the Amazon SNS Topic ARN to enables encyption.
-      ## Outputs
-      * Response: The standard HTTP response from the SetTopicAttributes API call.
-    timeoutSeconds: 600
-    isEnd: false
-    inputs:
-      Service: sns
-      Api: SetTopicAttributes
-      TopicArn: "{{TopicArn}}"
-      AttributeName: KmsMasterKeyId
-      AttributeValue: "{{KmsKeyArn}}"
-    outputs:
-      - Name: Response
-        Selector: $
-        Type: StringMap
-  -
-    name: VerifyTopicEncryption
-    action: aws:assertAwsResourceProperty
-    description: |
-      ## VerifyTopicEncryption
-      Verifies the given Amazon SNS Topic is encrypted with AWS KMS Key ARN.
+      ## SnapshotRemediateOrRollback
+      Captures the pre-remediation KmsMasterKeyId to S3, then enables encryption. When
+      Rollback=ROLLBACK, restores the pre-remediation KmsMasterKeyId from the snapshot.
     timeoutSeconds: 600
     isEnd: true
     inputs:
-      Service: sns
-      Api: GetTopicAttributes
-      TopicArn: "{{TopicArn}}"
-      PropertySelector: Attributes.KmsMasterKeyId
-      DesiredValues:
-      - "{{ KmsKeyArn }}"
+      Runtime: python3.11
+      Handler: handler
+      InputPayload:
+        TopicArn: "{{ TopicArn }}"
+        KmsKeyArn: "{{ KmsKeyArn }}"
+        AccountId: "{{ global:ACCOUNT_ID }}"
+        RemediationConfigBucket: "{{ RemediationConfigBucket }}"
+        AutomationExecutionId: "{{ ControlExecutionId }}"
+        Rollback: "{{ Rollback }}"
+        ExecutionId: "{{ ExecutionId }}"
+        SnapshotVersionId: "{{ SnapshotVersionId }}"
+      Script: |-
+        %%SCRIPT=EnableEncryptionForSNSTopic_rollback.py%%
+    outputs:
+      - Name: snapshotStored
+        Selector: $.Payload.snapshotStored
+        Type: String
+      - Name: rollbackDescription
+        Selector: $.Payload.rollbackDescription
+        Type: String
+      - Name: snapshotVersionId
+        Selector: $.Payload.snapshotVersionId
+        Type: String
+      - Name: Message
+        Selector: $.Payload.Message
+        Type: String
+      - Name: Status
+        Selector: $.Payload.Status
+        Type: String

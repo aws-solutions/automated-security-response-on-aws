@@ -22,10 +22,9 @@ async function searchRemediationsHandler(event: APIGatewayProxyEvent): Promise<A
   const claims = getClaims(event);
   const remediationsRequest = baseHandler.extractValidatedBody(event, RemediationsRequestSchema);
 
-  const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(remediationsRequest);
   const authenticatedUser = await baseHandler.validateAccess(
     claims,
-    baseHandler.createAccessRules(requestedAccountIds),
+    baseHandler.createRequestScopedAccessRules(remediationsRequest),
   );
 
   logger.debug('Searching remediations', {
@@ -48,10 +47,9 @@ async function exportRemediationsHandler(event: APIGatewayProxyEvent): Promise<A
 
   const claims = getClaims(event);
   const exportRequest = baseHandler.extractValidatedBody(event, ExportRequestSchema);
-  const requestedAccountIds = baseHandler.extractAccountIdsFromRequest(exportRequest);
   const authenticatedUser = await baseHandler.validateAccess(
     claims,
-    baseHandler.createAccessRules(requestedAccountIds),
+    baseHandler.createRequestScopedAccessRules(exportRequest),
   );
 
   const result = await remediationService.exportRemediationHistory(authenticatedUser, exportRequest);

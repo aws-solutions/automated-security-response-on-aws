@@ -5,12 +5,20 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { ASRS3Client } from '../clients/ASRS3Client';
 import { RemediationHistoryRepository } from '../../common/repositories/remediationHistoryRepository';
 import type { RemediationHistoryApiResponse, RemediationHistoryTableItem } from '@asr/data-models';
-import { RemediationsRequest, ExportRequest, SearchCriteria, ROLLBACK_ELIGIBLE_FINDING_TYPE } from '@asr/data-models';
+import {
+  RemediationsRequest,
+  ExportRequest,
+  SearchCriteria,
+  isRemediationRollbackEligible,
+  narrowRollbackEligibilityToNewestPerFinding,
+} from '@asr/data-models';
 import { AuthenticatedUser } from './authorization';
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
 import { BaseSearchService } from './baseSearchService';
 import { getStepFunctionsConsoleUrl } from '../../common/utils/findingUtils';
+import { calculateTtlTimestamp } from '../../common/utils/ttlUtils';
 import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
+import { CsvColumn, toCsv } from '../../common/utils/csvExport';
 
 export class RemediationService extends BaseSearchService {
   private readonly remediationHistoryRepository: RemediationHistoryRepository;
@@ -77,7 +85,9 @@ export class RemediationService extends BaseSearchService {
       'lastUpdatedTime#findingId': _lsiSortKey,
       REMEDIATION_CONSTANT: _remediationConstant,
       expireAt: _expireAt,
-      findingJSON,
+      findingJSON: _findingJSON,
+      rollbackAvailable: _rollbackAvailable,
+      rollbackDescription: _rollbackDescription,
       ...baseApiResponse
     } = item;
 
@@ -86,48 +96,29 @@ export class RemediationService extends BaseSearchService {
     return {
       ...baseApiResponse,
       consoleLink,
-      // Rollback is offered for the original successful containment (SUCCESS) and
-      // to retry a previously failed rollback (ROLLBACK_FAILED). It is never
-      // offered for a failed remediation, an in-progress run, or a rollback that
-      // already succeeded. markRollbackEligibility further narrows to the newest
-      // such entry per finding.
-      isRollbackEligible:
-        !!(findingJSON && findingJSON.length > 0) &&
-        (baseApiResponse.remediationStatus === 'SUCCESS' || baseApiResponse.remediationStatus === 'ROLLBACK_FAILED') &&
-        baseApiResponse.findingType.endsWith(ROLLBACK_ELIGIBLE_FINDING_TYPE),
+      // Shared predicate (also used by the MCP get_finding_history tool) so the two views of
+      // the same history row cannot disagree. markRollbackEligibility further narrows to the
+      // newest such entry per finding.
+      isRollbackEligible: isRemediationRollbackEligible(item),
+      // Derived from the durable history record, not the transient live finding
+      // row (deleted once the finding goes PASSED). The UI hides a past value.
+      // TTL days are supplied from the typed env accessor rather than read from
+      // process.env inside the utility.
+      reRemediationEligibleAt: calculateTtlTimestamp(
+        baseApiResponse.lastUpdatedTime,
+        Number(apiLambdaEnvironment().FINDINGS_TTL_DAYS),
+      ),
+      ...(_rollbackDescription ? { rollbackDescription: _rollbackDescription } : {}),
     };
   }
 
   /**
-   * Rollback is offered on at most one row per finding: the single most recent
-   * remediation entry, and only when that entry is itself rollback-eligible
-   * (SUCCESS or a prior ROLLBACK_FAILED on a GuardDuty.IAMUser).
-   *
-   * Keying off the newest row *overall* — rather than the newest eligible row —
-   * is deliberate: if a finding has already been rolled back (its newest row is
-   * ROLLBACK_SUCCESS / ROLLBACK_IN_PROGRESS), no button should appear at all.
-   * The older eligible SUCCESS row must NOT keep the button alive.
-   *
-   * Uses in-page timestamp comparison — cross-page duplicates are harmless
-   * because the server re-validates eligibility (via the optimistic lock) on
-   * rollback execution.
+   * Rollback is offered on at most one row per finding — see
+   * {@link narrowRollbackEligibilityToNewestPerFinding}, which the MCP `get_finding_history`
+   * tool applies to the same rows so the two views agree.
    */
   private markRollbackEligibility(items: RemediationHistoryApiResponse[]): RemediationHistoryApiResponse[] {
-    // Newest row per finding, regardless of status.
-    const newestPerFinding = new Map<string, string>();
-    for (const item of items) {
-      const existing = newestPerFinding.get(item.findingId);
-      if (!existing || item.lastUpdatedTime > existing) {
-        newestPerFinding.set(item.findingId, item.lastUpdatedTime);
-      }
-    }
-    return items.map((item) => {
-      if (!item.isRollbackEligible) return item;
-      // Only the newest row for the finding keeps eligibility; any older row
-      // (including an older SUCCESS shadowed by a newer ROLLBACK_* row) loses it.
-      if (item.lastUpdatedTime === newestPerFinding.get(item.findingId)) return item;
-      return { ...item, isRollbackEligible: false };
-    });
+    return narrowRollbackEligibilityToNewestPerFinding(items);
   }
 
   async exportRemediationHistory(
@@ -276,64 +267,33 @@ export class RemediationService extends BaseSearchService {
   }
 
   private convertRemediationsToCSV(remediations: RemediationHistoryTableItem[]): string {
-    const displayHeaders = [
-      'Finding ID',
-      'Account',
-      'Resource ID',
-      'Resource Type',
-      'Finding Type',
-      'Severity',
-      'Region',
-      'Status',
-      'Execution Timestamp',
-      'Executed By',
-      'Execution ID',
-      'Error',
+    const columns: readonly CsvColumn[] = [
+      { header: 'Finding ID', field: 'findingId' },
+      { header: 'Account', field: 'accountId' },
+      { header: 'Resource ID', field: 'resourceId' },
+      { header: 'Resource Type', field: 'resourceTypeNormalized' },
+      { header: 'Finding Type', field: 'findingType' },
+      { header: 'Severity', field: 'severity' },
+      { header: 'Region', field: 'region' },
+      { header: 'Status', field: 'remediationStatus' },
+      { header: 'Execution Timestamp', field: 'lastUpdatedTime' },
+      { header: 'Executed By', field: 'lastUpdatedBy' },
+      { header: 'Execution ID', field: 'executionId' },
+      { header: 'Error', field: 'error' },
     ];
-
-    const fieldNames = [
-      'findingId',
-      'accountId',
-      'resourceId',
-      'resourceTypeNormalized',
-      'findingType',
-      'severity',
-      'region',
-      'remediationStatus',
-      'lastUpdatedTime',
-      'lastUpdatedBy',
-      'executionId',
-      'error',
-    ];
-
-    const csvRows = [displayHeaders.join(',')];
 
     if (remediations.length === 0) {
       this.logger.info('No remediation data found for export - returning empty CSV with headers only');
-      return csvRows.join('\n');
     }
 
-    for (const remediation of remediations) {
-      const row = fieldNames.map((fieldName) => {
-        const value = remediation[fieldName as keyof RemediationHistoryTableItem];
-        if (value === null || value === undefined) {
-          return '';
-        }
-        const stringValue = String(value);
-        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-          return `"${stringValue.replaceAll('"', '""')}"`;
-        }
-        return stringValue;
-      });
-      csvRows.push(row.join(','));
-    }
+    const csvContent = toCsv(remediations, columns);
 
     this.logger.debug('CSV conversion completed', {
-      totalRows: csvRows.length - 1, // Exclude header row
-      totalColumns: displayHeaders.length,
+      totalRows: remediations.length,
+      totalColumns: columns.length,
     });
 
-    return csvRows.join('\n');
+    return csvContent;
   }
 
   private async uploadToS3AndGenerateUrl(csvContent: string): Promise<string> {

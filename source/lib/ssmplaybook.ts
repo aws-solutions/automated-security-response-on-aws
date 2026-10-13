@@ -19,6 +19,7 @@ import { MemberRolesStack } from './member-roles-stack';
 import { Construct } from 'constructs';
 import setCondition from './cdk-helper/set-condition';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { stripDevelopmentPrefix } from './config/cdk-config';
 
 export interface ITriggerProps {
   targetArn: string;
@@ -233,7 +234,7 @@ export class SsmRole extends Construct {
     principalPolicyStatement.addActions('sts:AssumeRole');
     principalPolicyStatement.effect = Effect.ALLOW;
 
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, '');
+    const RESOURCE_PREFIX = stripDevelopmentPrefix(props.solutionId);
     const roleprincipal = new ArnPrincipal(
       `arn:${stack.partition}:iam::${stack.account}:role/${RESOURCE_PREFIX}-ASR-Orchestrator-Member`,
     );

@@ -10,7 +10,7 @@ import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
-import { findingsTableName } from '../../../common/__tests__/envSetup';
+import { findingsTableName, remediationConfigTableName } from '../../../common/__tests__/envSetup';
 import { API_HEADERS } from '../../handlers/apiHandler';
 import { executeFindingAction, searchFindings } from '../../handlers/findings';
 import { createMockContext, createMockEvent, createMockFinding, TEST_REQUEST_CONTEXT, asFindingId } from '../utils';
@@ -31,18 +31,21 @@ describe('FindingsHandler Integration Tests', () => {
     await DynamoDBTestSetup.createFindingsTable(findingsTableName);
     await DynamoDBTestSetup.createRemediationHistoryTable(remediationHistoryTableName);
     await DynamoDBTestSetup.createUserAccountMappingTable(userAccountMappingTableName);
+    await DynamoDBTestSetup.createConfigTable(remediationConfigTableName);
   });
 
   afterAll(async () => {
     await DynamoDBTestSetup.deleteTable(findingsTableName);
     await DynamoDBTestSetup.deleteTable(remediationHistoryTableName);
     await DynamoDBTestSetup.deleteTable(userAccountMappingTableName);
+    await DynamoDBTestSetup.deleteTable(remediationConfigTableName);
   });
 
   beforeEach(async () => {
     await DynamoDBTestSetup.clearTable(findingsTableName, 'findings');
     await DynamoDBTestSetup.clearTable(remediationHistoryTableName, 'remediationHistory');
     await DynamoDBTestSetup.clearTable(userAccountMappingTableName, 'userAccountMapping');
+    await DynamoDBTestSetup.clearTable(remediationConfigTableName, 'config');
     process.env.FINDINGS_TABLE_NAME = findingsTableName;
     process.env.REMEDIATION_HISTORY_TABLE_NAME = remediationHistoryTableName;
     process.env.USER_ACCOUNT_MAPPING_TABLE_NAME = userAccountMappingTableName;
@@ -1279,6 +1282,7 @@ describe('FindingsHandler Integration Tests', () => {
 
         expect(result.statusCode).toBe(200);
         expect(result.headers).toEqual(expectedFindingsHeaders);
+        expect(JSON.parse(result.body)).toEqual({ status: 'UNSUPPRESSED', processedCount: 1 });
       });
 
       it('should return 200 and unsuppress multiple findings', async () => {
@@ -1703,7 +1707,7 @@ describe('FindingsHandler Integration Tests', () => {
         expect(result.headers).toEqual(expectedFindingsHeaders);
       });
 
-      it('should return empty body for successful action', async () => {
+      it('should return a terminal status and processed count for a successful Suppress', async () => {
         const findingId = asFindingId(
           'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/12345678-1234-1234-1234-123456789012',
         );
@@ -1754,7 +1758,7 @@ describe('FindingsHandler Integration Tests', () => {
 
         expect(result.statusCode).toBe(200);
         const body = JSON.parse(result.body);
-        expect(body).toBe('');
+        expect(body).toEqual({ status: 'SUPPRESSED', processedCount: 1 });
       });
     });
 
@@ -1934,6 +1938,14 @@ describe('FindingsHandler Integration Tests', () => {
       });
 
       it('should return 202 and initiate rollback for eligible GuardDuty finding', async () => {
+        // Seed the config table so filterByRollbackEnabled finds the control
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'GuardDuty.IAMUser', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
+
         const rollbackFindingId = asFindingId(
           'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-001',
         );
@@ -1997,7 +2009,100 @@ describe('FindingsHandler Integration Tests', () => {
         expect(orchestratorInput.detail.docParameters).toEqual({ Action: 'Restore' });
       });
 
+      it('refuses a Rollback from an Account Operator while still allowing that tier other actions', async () => {
+        // Per ADR 0011 rollback is restricted to administrator roles, which the handler
+        // implements by swapping createAccessRules for createAdminOnlyAccessRules when
+        // actionType is Rollback. Nothing asserted that swap, and it is the only thing
+        // enforcing it: MCP tool grants are per TOOL, not per action type, so an Account
+        // Operator granted execute_finding_action reaches this route and can name Rollback.
+        //
+        // The operator is deliberately given a real account mapping covering the finding's
+        // account. Without it the request fails on "No authorized accounts" instead, and the
+        // test would pass with the rollback restriction deleted.
+        const operatorEmail = 'operator-user@example.com';
+        // The suite's shared stub answers every AdminGetUser with the admin's email, and a
+        // narrower behaviour registered here would be shadowed by it. Resolve the email from
+        // the requested username instead, so the account lookup keys off THIS caller.
+        cognitoMock.on(AdminGetUserCommand).callsFake((input) => ({
+          Username: String(input.Username),
+          // Both attributes are required: getUserById returns null unless email AND
+          // custom:invitedBy are present, and a null user surfaces as "Invalid user"
+          // long before the rollback rule this test is about.
+          UserAttributes: [
+            { Name: 'email', Value: String(input.Username) },
+            { Name: 'custom:invitedBy', Value: 'system@example.com' },
+          ],
+          UserCreateDate: new Date(),
+          UserStatus: 'CONFIRMED',
+        }));
+        cognitoMock.on(AdminListGroupsForUserCommand).resolves({ Groups: [{ GroupName: 'AccountOperatorGroup' }] });
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: userAccountMappingTableName,
+            Item: { userId: operatorEmail, accountIds: ['123456789012'] },
+          }),
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'GuardDuty.IAMUser', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
+
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/operator-rollback-001',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'security-control/GuardDuty.IAMUser',
+              accountId: '123456789012',
+              resourceId: 'arn:aws:iam::123456789012:user/test-compromised-user',
+              severity: 'HIGH',
+              remediationStatus: 'SUCCESS',
+              findingDescription: 'GuardDuty IAM credential compromise',
+              suppressed: false,
+            }),
+          }),
+        );
+
+        const operatorEvent = (actionType: string) =>
+          createMockEvent({
+            httpMethod: 'POST',
+            path: '/findings/action',
+            headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+            body: JSON.stringify({ actionType, findingIds: [findingId] }),
+            requestContext: {
+              ...TEST_REQUEST_CONTEXT,
+              authorizer: {
+                claims: { 'cognito:groups': ['AccountOperatorGroup'], username: operatorEmail },
+              },
+            },
+          });
+
+        // Rollback is refused for the tier, and nothing is started — a refusal that had
+        // already invoked the state machine would have restored the resource anyway.
+        await expect(executeFindingAction(operatorEvent('Rollback'), createMockContext())).rejects.toThrow(
+          /authorization|authorized|forbidden/i,
+        );
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+
+        // The same caller is still allowed a non-rollback action, so the restriction is
+        // specific to Rollback rather than the route being closed to the tier outright.
+        const suppressResult = await executeFindingAction(operatorEvent('Suppress'), createMockContext());
+        expect(suppressResult.statusCode).toBeLessThan(400);
+      });
+
       it('rolls back both a live finding and an archived (history-only) finding in one request', async () => {
+        // Seed config table for rollback eligibility
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'GuardDuty.IAMUser', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
         // GIVEN one GuardDuty finding that still exists in the findings table (live)...
         const liveFindingId = asFindingId(
           'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-live',
@@ -2081,6 +2186,40 @@ describe('FindingsHandler Integration Tests', () => {
         );
       });
 
+      it('should return 400 when rollback is attempted on a control without config table entry', async () => {
+        // GIVEN a rollback-eligible control that has no entry in the config table, so the
+        // per-control toggle lookup finds nothing and the finding is skipped.
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/KMS.4/finding/test-rollback-no-config',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'security-control/KMS.4',
+              remediationStatus: 'SUCCESS',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+            }),
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [findingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+          },
+        });
+
+        await expect(executeFindingAction(event, createMockContext())).rejects.toThrow(
+          /Rollback is disabled for all requested controls/,
+        );
+      });
+
       it('resolves a rollback finding whose id is not a derivable ARN when findingKeys are supplied', async () => {
         // ARRANGE — a rollback-eligible finding that exists only in the findings table (no history
         // entry), whose findingId is not a parseable Security Hub ARN. The partition key therefore
@@ -2089,12 +2228,19 @@ describe('FindingsHandler Integration Tests', () => {
         const findingType = 'security-control/GuardDuty.IAMUser';
         await dynamoDBDocumentClient.send(
           new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'GuardDuty.IAMUser', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
             TableName: findingsTableName,
             Item: createMockFinding({
               findingId: bareHashFindingId,
               findingType,
               resourceId: 'arn:aws:iam::123456789012:user/bare-hash-user',
               remediationStatus: 'SUCCESS',
+              ssmExecutionId: 'exec-original-remediation',
               'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${bareHashFindingId}`,
             }),
           }),
@@ -2135,17 +2281,67 @@ describe('FindingsHandler Integration Tests', () => {
         expect(JSON.parse(result.body).status).toBe('IN_PROGRESS');
       });
 
-      it('should return 400 when rollback is attempted on a non-GuardDuty finding', async () => {
-        // GIVEN a non-GuardDuty finding with SUCCESS status
+      it('should return 400 when rollback is attempted on a control not in ROLLBACK_ELIGIBLE_FINDING_TYPES', async () => {
+        // Seed config table with a control that has rollbackEnabled but is NOT in the eligible set
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'CloudFormation.1', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
         const findingId = asFindingId(
-          'arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/test-rollback-wrong-type',
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/CloudFormation.1/finding/test-rollback-not-eligible',
         );
         await dynamoDBDocumentClient.send(
           new PutCommand({
             TableName: findingsTableName,
             Item: createMockFinding({
               findingId,
-              findingType: 'security-control/S3.1',
+              findingType: 'security-control/CloudFormation.1',
+              remediationStatus: 'SUCCESS',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+            }),
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [findingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+          },
+        });
+
+        // The refusal must name the finding and the control so a batch caller knows what to drop.
+        await expect(executeFindingAction(event, createMockContext())).rejects.toThrow(
+          new RegExp(
+            `Rollback is only supported for eligible controls\\. Not eligible for rollback: ${findingId.replaceAll('.', '\\.')} \\(CloudFormation\\.1\\)`,
+          ),
+        );
+      });
+
+      it('should return 400 when a rollback-eligible finding has no recorded SSM execution id', async () => {
+        // A snapshot-based rollback needs the original execution id to locate its snapshot. Without it
+        // buildOrchestratorInput emits no rollback docParameters and the orchestrator would run the
+        // remediation forward, so the finding must be skipped before the lock is taken.
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'KMS.4', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/KMS.4/finding/test-rollback-no-exec-id',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'security-control/KMS.4',
               remediationStatus: 'SUCCESS',
               'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
             }),
@@ -2164,11 +2360,110 @@ describe('FindingsHandler Integration Tests', () => {
         });
 
         await expect(executeFindingAction(event, createMockContext())).rejects.toThrow(
-          /Rollback is only supported for GuardDuty\.IAMUser findings/,
+          /pre-remediation snapshot cannot be located/,
         );
+
+        // No execution started, so the rollback could not have become a re-remediation.
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('should dispatch a rollback with snapshot docParameters when the finding has an SSM execution id', async () => {
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'KMS.4', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/KMS.4/finding/test-rollback-with-exec-id',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'security-control/KMS.4',
+              remediationStatus: 'SUCCESS',
+              ssmExecutionId: 'exec-original-remediation',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+            }),
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [findingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+          },
+        });
+
+        const result = await executeFindingAction(event, createMockContext());
+
+        expect(result.statusCode).toBe(202);
+        const sfnCalls = sfnMock.commandCalls(StartExecutionCommand);
+        expect(sfnCalls).toHaveLength(1);
+        const orchestratorInput = JSON.parse(sfnCalls[0].args[0].input.input!);
+        expect(orchestratorInput.detail.docParameters).toMatchObject({
+          Rollback: 'ROLLBACK',
+          ExecutionId: 'exec-original-remediation',
+        });
+      });
+
+      it('rolls back an unconsolidated finding using its stored config table key', async () => {
+        // With consolidated control findings off, findingType carries the standard's own number (3.8),
+        // not the SecurityControlId the config table is keyed by. Deriving it would skip the rollback.
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'KMS.4', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
+        const findingId = asFindingId(
+          'arn:aws:securityhub:us-east-1:123456789012:subscription/cis-aws-foundations-benchmark/v/1.4.0/3.8/finding/unconsolidated',
+        );
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: findingsTableName,
+            Item: createMockFinding({
+              findingId,
+              findingType: 'cis-aws-foundations-benchmark/v/1.4.0/3.8',
+              remediationConfigTableKey: 'KMS.4',
+              remediationStatus: 'SUCCESS',
+              ssmExecutionId: 'exec-unconsolidated',
+              'securityHubUpdatedAtTime#findingId': `2023-01-01T00:00:00Z#${findingId}`,
+            }),
+          }),
+        );
+
+        const event = createMockEvent({
+          httpMethod: 'POST',
+          path: '/findings/action',
+          headers: { 'Content-Type': 'application/json', authorization: 'Bearer valid-token' },
+          body: JSON.stringify({ actionType: 'Rollback', findingIds: [findingId] }),
+          requestContext: {
+            ...TEST_REQUEST_CONTEXT,
+            authorizer: { claims: { 'cognito:groups': ['AdminGroup'], username: 'admin-user@example.com' } },
+          },
+        });
+
+        const result = await executeFindingAction(event, createMockContext());
+
+        expect(result.statusCode).toBe(202);
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
       });
 
       it('should return 400 when rollback is attempted on a GuardDuty finding that is not SUCCESS', async () => {
+        // Seed config table
+        await dynamoDBDocumentClient.send(
+          new PutCommand({
+            TableName: remediationConfigTableName,
+            Item: { controlId: 'GuardDuty.IAMUser', rollbackEnabled: true, automatedRemediationEnabled: true },
+          }),
+        );
         // GIVEN a GuardDuty finding with IN_PROGRESS status
         const findingId = asFindingId(
           'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/test-rollback-wrong-status',
@@ -2197,7 +2492,7 @@ describe('FindingsHandler Integration Tests', () => {
         });
 
         await expect(executeFindingAction(event, createMockContext())).rejects.toThrow(
-          /Rollback requires a successful remediation/,
+          `Not eligible: ${findingId} (remediation still in progress)`,
         );
       });
     });

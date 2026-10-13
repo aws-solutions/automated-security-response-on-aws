@@ -26,7 +26,7 @@ export class EnableDeliveryLoggingForSNSTopicDocument extends ControlRunbookDocu
     params.SNSTopicArn = StringVariable.of('ParseInput.SNSTopicArn');
 
     params.LoggingRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-SNS2DeliveryStatusLogging-remediationRole-${this.namespace}`,
+      `arn:%s:iam::%s:role/${this.resourceNamePrefix}-SNS2DeliveryStatusLogging-remediationRole-${this.namespace}`,
       [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
 

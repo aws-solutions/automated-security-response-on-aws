@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { EnableDynamoDBDeletionProtection } from '../../SC/ssmdocs/SC_DynamoDB.6';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableDynamoDBDeletionProtection(stage, id, { ...props, controlId: 'DynamoDB.6' });
+  return new EnableDynamoDBDeletionProtection(stage, id, {
+    ...props,
+    controlId: 'DynamoDB.6',
+    isRollbackEnabled: true,
+  });
 }
