@@ -9,10 +9,11 @@ import type { AdminActivityAction, AdminActivitySeverity } from '../services/adm
  * change the solution's security posture: establishing a new external destination for
  * finding data (`CHANNEL_CREATED`), redirecting an existing destination
  * (`CHANNEL_DESTINATION_CHANGED`), disabling automated remediation
- * (`CONTROL_REMEDIATION_SET`), or changing filters across all controls
+ * (`CONTROL_REMEDIATION_SET`), disabling rollback (`CONTROL_ROLLBACK_SET`), or changing
+ * filters across all controls
  * (`BULK_FILTER_CHANGE`). `medium` covers lower-impact lifecycle changes that do not open a
  * new data path or weaken remediation: benign channel edits, enable/disable toggles,
- * deletes, and re-enabling automated remediation.
+ * deletes, and re-enabling automated remediation or rollback.
  */
 export const ACTION_SEVERITY: Record<AdminActivityAction, AdminActivitySeverity> = {
   CHANNEL_CREATED: 'high',
@@ -22,6 +23,8 @@ export const ACTION_SEVERITY: Record<AdminActivityAction, AdminActivitySeverity>
   CHANNEL_TOGGLED: 'medium',
   CONTROL_REMEDIATION_SET: 'high',
   CONTROL_REMEDIATION_ENABLED: 'medium',
+  CONTROL_ROLLBACK_SET: 'high',
+  CONTROL_ROLLBACK_ENABLED: 'medium',
   BULK_FILTER_CHANGE: 'high',
 };
 

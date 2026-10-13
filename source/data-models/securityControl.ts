@@ -14,11 +14,18 @@ export const SecurityControlSchema = z.object({
   controlId: z.string(),
   description: z.string(),
   automatedRemediationEnabled: z.boolean(),
+  rollbackEnabled: z.boolean().optional(),
+  rollbackSupported: z.boolean().optional(),
   filters: z.array(z.string()),
   filterMode: FilterModeSchema,
   version: z.number(),
   lastModified: z.string(),
   modifiedBy: z.string(),
+  source: z.enum(['builtin', 'custom']).optional(),
+  // Present only for custom-runbook controls: the deployed version serving this control,
+  // surfaced so the console and MCP clients can show which version is live. Optional
+  // because built-in controls have no such version.
+  runbookVersion: z.number().int().positive().optional(),
 });
 
 export const ResourceFilterSchema = z.object({
@@ -167,6 +174,16 @@ export interface BulkEditPartialSuccessResponse {
   message: string;
   successCount: number;
   failedControlIds: string[];
+  /**
+   * The subset of `failedControlIds` refused for a structural reason rather than a transient
+   * one: a custom-runbook control cannot have automated remediation enabled, because such a
+   * runbook only ever runs on a manual trigger.
+   *
+   * Reported separately because the advice differs. Everything else in `failedControlIds`
+   * failed a version check and is worth refreshing and retrying; these will be refused again
+   * no matter how many times the operator retries, so telling them to retry is wrong.
+   */
+  rejectedControlIds?: string[];
 }
 
 export type BulkEditResponse = BulkEditSuccessResponse | BulkEditPartialSuccessResponse;

@@ -62,7 +62,7 @@ export const createHistoryColumnDefinitions = (
         </StatusIndicator>
       );
 
-      if (error && remediationStatus === 'FAILED') {
+      if (error && (remediationStatus === 'FAILED' || remediationStatus === 'ROLLBACK_FAILED')) {
         return (
           <Box color="text-status-error">
             <Popover dismissButton={false} position="top" size="small" content={<Box padding="s">{error}</Box>}>
@@ -118,17 +118,19 @@ export const createHistoryColumnDefinitions = (
     header: 'Rollback',
     cell: (item) => {
       // isRollbackEligible is the single source of truth (computed server-side:
-      // GuardDuty.IAMUser, original remediation SUCCESS or a prior ROLLBACK_FAILED,
-      // newest entry per finding). Eligibility is not re-derived from
-      // remediationStatus here, so the server decision is authoritative.
+      // rollbackAvailable === true on the newest history row for the finding,
+      // with status SUCCESS or ROLLBACK_FAILED). Eligibility is not re-derived
+      // from remediationStatus here, so the server decision is authoritative.
       if (item.isRollbackEligible !== true || !onRollback) return null;
+      const isRetry = item.remediationStatus === 'ROLLBACK_FAILED';
+      const label = isRetry ? 'Retry Rollback' : 'Rollback';
       return (
         <Button
           variant="inline-link"
           onClick={() => onRollback(item)}
-          ariaLabel={`Rollback GuardDuty containment for ${item.resourceId || item.findingId}`}
+          ariaLabel={`${label} remediation for ${item.resourceId || item.findingId}`}
         >
-          Rollback
+          {label}
         </Button>
       );
     },

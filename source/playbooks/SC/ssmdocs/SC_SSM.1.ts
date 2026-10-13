@@ -25,12 +25,12 @@ export class AttachSSMPermissionsToEC2 extends ControlRunbookDocument {
     const params: Record<string, any> = super.getRemediationParams();
 
     params.RemediationRole = new StringFormat(
-      `arn:%s:iam::%s:role/${this.solutionId}-AttachSSMPermissionsToEC2-RemediationRole-${this.namespace}`,
+      `arn:%s:iam::%s:role/${this.resourceNamePrefix}-AttachSSMPermissionsToEC2-RemediationRole-${this.namespace}`,
       [StringVariable.of('global:AWS_PARTITION'), StringVariable.of('global:ACCOUNT_ID')],
     );
 
     params.InstanceProfile = new StringFormat(
-      `${this.solutionId}-AttachSSMPermissionsToEC2-InstanceProfile-${this.namespace}`,
+      `${this.resourceNamePrefix}-AttachSSMPermissionsToEC2-InstanceProfile-${this.namespace}`,
     );
 
     return params;

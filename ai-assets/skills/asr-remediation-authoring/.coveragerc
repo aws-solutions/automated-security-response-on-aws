@@ -1,0 +1,5 @@
+[run]
+# Only the guarded scripts are the code under test; the tests themselves and the
+# reference docs are not. Sibling targets in this repo use `include = ./*`
+# because their code sits at the directory root — here it sits in scripts/.
+include = scripts/*

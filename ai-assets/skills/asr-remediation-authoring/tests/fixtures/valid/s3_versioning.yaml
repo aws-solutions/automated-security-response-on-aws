@@ -1,0 +1,52 @@
+# A complete, well-formed ASR Custom Runbook that must pass strict validation.
+#
+# Doubles as the reference for the shape the Orchestrator can actually start: it
+# takes `Finding` and derives the bucket in the first step, rather than declaring
+# a `BucketName` parameter that nothing would ever supply. See
+# [orchestrator-parameters] in references/validation-rules.md.
+schemaVersion: "0.3"
+description: Enable S3 bucket versioning (valid reference runbook for tests).
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: IAM role for automation execution
+  Finding:
+    type: StringMap
+    description: (Required) The ASFF finding, passed by the ASR Orchestrator.
+mainSteps:
+  - name: ParseFinding
+    action: aws:executeScript
+    timeoutSeconds: 600
+    inputs:
+      Runtime: python3.11
+      Handler: parse_finding
+      InputPayload:
+        Finding: "{{ Finding }}"
+      Script: |-
+        def parse_finding(event, _context):
+            resource_id = event["Finding"]["Resources"][0]["Id"]
+            # ASFF carries an ARN; PutBucketVersioning wants the bare name.
+            return {"BucketName": resource_id.split(":::")[-1].split("/")[0]}
+    outputs:
+      - Name: BucketName
+        Selector: $.Payload.BucketName
+        Type: String
+  - name: EnableVersioning
+    action: aws:executeAwsApi
+    timeoutSeconds: 600
+    inputs:
+      Service: s3
+      Api: PutBucketVersioning
+      Bucket: "{{ ParseFinding.BucketName }}"
+      VersioningConfiguration:
+        Status: Enabled
+  - name: VerifyVersioning
+    action: aws:assertAwsResourceProperty
+    inputs:
+      Service: s3
+      Api: GetBucketVersioning
+      Bucket: "{{ ParseFinding.BucketName }}"
+      PropertySelector: "$.Status"
+      DesiredValues:
+        - Enabled

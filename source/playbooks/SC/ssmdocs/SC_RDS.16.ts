@@ -6,7 +6,11 @@ import { PlaybookProps } from '../lib/control_runbooks-construct';
 import { DataTypeEnum, HardCodedBoolean, HardCodedString, Output, StringVariable } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableCopyTagsToSnapshotOnRDSClusterDocument(scope, id, { ...props, controlId: 'RDS.16' });
+  return new EnableCopyTagsToSnapshotOnRDSClusterDocument(scope, id, {
+    ...props,
+    controlId: 'RDS.16',
+    isRollbackEnabled: true,
+  });
 }
 
 export class EnableCopyTagsToSnapshotOnRDSClusterDocument extends ControlRunbookDocument {

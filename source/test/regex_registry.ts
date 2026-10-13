@@ -405,6 +405,7 @@ export function getRegexRegistry(): RegexRegistry {
   addECSTaskDefinitionTestCases(registry);
   addELBArnTestCases(registry);
   addGenericResourceArnTestCases(registry);
+  addRollbackParameterTestCases(registry);
 
   return registry;
 }
@@ -943,10 +944,10 @@ function addDynamoDBTableTestCases(registry: RegexRegistry) {
 
 function addElastiCacheClusterTestCases(registry: RegexRegistry) {
   const elastiCacheARN: RegexMatchTestCase = new RegexMatchTestCase(
-    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):(?:replicationgroup|serverlesscache|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)`,
+    String.raw`^arn:(?:aws|aws-cn|aws-us-gov):elasticache:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):(?:\d{12}):(?:replicationgroup|cluster):([a-zA-Z](?:(?!--)[a-zA-Z0-9-]){0,48}[a-zA-Z0-9]$|[a-zA-Z]$)`,
     'ElastiCache Cluster ARN',
     [
-      'arn:aws:elasticache:us-east-1:123456789012:serverlesscache:myCacheCluster',
+      'arn:aws:elasticache:us-east-1:123456789012:cluster:myCacheCluster',
       'arn:aws:elasticache:us-west-2:123456789012:replicationgroup:myCacheCluster',
     ],
     [
@@ -1046,4 +1047,33 @@ function addGenericResourceArnTestCases(registry: RegexRegistry) {
     ['invalid-arn', 'arn:aws-fictional:s3:::bucket'],
   );
   registry.addCase(genericResourceArn);
+}
+
+function addRollbackParameterTestCases(registry: RegexRegistry) {
+  // Rollback passthrough parameters are optional (empty on the normal remediation path)
+  // and only populated on the rollback path, so each pattern also accepts the empty string.
+  registry.addCase(
+    new RegexTestCase(
+      String.raw`^$|^[a-zA-Z0-9-]{1,64}$`,
+      'Optional SSM Automation execution ID (may be empty)',
+      ['', '12345678-1234-1234-1234-123456789012', 'exec-abc123'],
+      ['has space', 'bad/slash', 'a'.repeat(65)],
+    ),
+  );
+  registry.addCase(
+    new RegexTestCase(
+      String.raw`^$|^[A-Za-z0-9+/=._-]{1,1024}$`,
+      'Optional S3 object version ID (may be empty)',
+      ['', '3/L4kqtJlcpXroDTDmJ+rmSpXd3dIbrHY+MTRCxf3vjVBH40Nr8X8gdRQBpUMLUo', 'null'],
+      ['has space', 'tab\tchar'],
+    ),
+  );
+  registry.addCase(
+    new RegexTestCase(
+      String.raw`^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`,
+      'Optional S3 bucket name — must start/end alphanumeric (may be empty)',
+      ['', 'so0111-asr-remediation-us-east-1-123456789012', 'abc'],
+      ['UPPERCASE', 'ab', '-leading-hyphen', 'trailing-hyphen-', 'has space'],
+    ),
+  );
 }

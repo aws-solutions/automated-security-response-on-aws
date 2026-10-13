@@ -8,6 +8,10 @@ import { SC_REMEDIATIONS } from '../playbooks/SC/lib/sc_remediations';
 import { NIST80053_REMEDIATIONS } from '../playbooks/NIST80053/lib/nist80053_remediations';
 import { AFSBP_REMEDIATIONS } from '../playbooks/AFSBP/lib/afsbp_remediations';
 import { getConfig } from './config/cdk-config';
+import {
+  expectNoUngatedReferencesToCommercialPartitionGatedResources,
+  expectNoUngatedCommercialOnlyGrants,
+} from '../test/commercial-partition-gating';
 
 const config = getConfig();
 const SC_MEMBER_STACK_LIMIT = config.memberStackLimits.sc;
@@ -38,6 +42,7 @@ function getMemberStack(): Stack {
     synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
     description,
     solutionId,
+    resourceNamePrefix: solutionId,
     solutionTradeMarkName,
     solutionVersion,
     solutionDistBucket,
@@ -62,6 +67,14 @@ describe('member stack', function () {
 
   it('snapshot matches', function () {
     expect(template).toMatchSnapshot();
+  });
+
+  it('grants no commercial-only IAM action without the commercial-partition condition', function () {
+    expectNoUngatedCommercialOnlyGrants(template);
+  });
+
+  it('has no ungated resource or output referencing a commercial-partition-gated resource', function () {
+    expectNoUngatedReferencesToCommercialPartitionGatedResources(template);
   });
 
   it('description is present', function () {
@@ -240,6 +253,12 @@ describe('member stack', function () {
                 ExpirationInDays: 7,
                 Id: 'InstallOverrideListExpiration',
                 Prefix: 'install-overrides/',
+                Status: 'Enabled',
+              },
+              {
+                ExpirationInDays: 365,
+                Id: 'RollbackSnapshotRetention',
+                Prefix: 'snapshots/',
                 Status: 'Enabled',
               },
             ],

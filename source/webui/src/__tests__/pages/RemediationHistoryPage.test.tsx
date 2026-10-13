@@ -18,11 +18,17 @@ import { ApiEndpoints } from '../../store/solutionApi.ts';
 import { MOCK_SERVER_URL, server } from '../server.ts';
 import { SearchRequest } from '../../store/types.ts';
 import { generateTestRemediation, generateTestRemediations, asFindingId } from '../test-data-factory.ts';
-import { renderAppContent } from '../test-utils.tsx';
+import { renderAppContent as renderAppContentBase } from '../test-utils.tsx';
 import {
   installIntersectionObserverRecorder,
   IntersectionObserverRecorder,
 } from '../intersection-observer-recorder.ts';
+
+// Rollback is admin-gated (canRollback). This suite exercises the rollback UI, so it
+// runs as an admin by default; individual tests override `groups` (e.g.
+// AccountOperatorGroup) to assert non-admin behavior.
+const renderAppContent = (props: NonNullable<Parameters<typeof renderAppContentBase>[0]>) =>
+  renderAppContentBase({ groups: ['AdminGroup'], ...props });
 
 describe('RemediationHistoryPage', () => {
   it('renders an empty table', async () => {
@@ -648,7 +654,7 @@ describe('RemediationHistoryPage rollback flow', () => {
     await main.findByRole('table');
 
     // ASSERT — exactly one Rollback button (GuardDuty SUCCESS row); wrong-type and ROLLBACK_SUCCESS rows have none
-    const rollbackButtons = await main.findAllByRole('button', { name: /^Rollback GuardDuty containment for/i });
+    const rollbackButtons = await main.findAllByRole('button', { name: /^Rollback remediation for/i });
     expect(rollbackButtons).toHaveLength(1);
   });
 
@@ -673,12 +679,12 @@ describe('RemediationHistoryPage rollback flow', () => {
     renderAppContent({ initialRoute: '/history' });
     const main = within(screen.getByTestId('main-content'));
     await main.findByRole('table');
-    const rollbackButton = await main.findByRole('button', { name: /Rollback GuardDuty containment/i });
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
     await userEvent.click(rollbackButton);
 
     // ASSERT — modal becomes visible
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Confirm GuardDuty Credential Rollback/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: /Confirm Rollback/i })).toBeInTheDocument();
 
     // ACT — dismiss
     const cancelButton = within(dialog).getByRole('button', { name: /^Cancel$/i });
@@ -726,10 +732,10 @@ describe('RemediationHistoryPage rollback flow', () => {
     renderAppContent({ initialRoute: '/history' });
     const main = within(screen.getByTestId('main-content'));
     await main.findByRole('table');
-    const rollbackButton = await main.findByRole('button', { name: /Rollback GuardDuty containment/i });
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
     await userEvent.click(rollbackButton);
     const dialog = await screen.findByRole('dialog');
-    const confirmButton = within(dialog).getByRole('button', { name: /Rollback Containment/i });
+    const confirmButton = within(dialog).getByRole('button', { name: /Confirm Rollback/i });
     await userEvent.click(confirmButton);
 
     // ASSERT — request body matches and a success alert is shown
@@ -772,10 +778,10 @@ describe('RemediationHistoryPage rollback flow', () => {
     renderAppContent({ initialRoute: '/history' });
     const main = within(screen.getByTestId('main-content'));
     await main.findByRole('table');
-    const rollbackButton = await main.findByRole('button', { name: /Rollback GuardDuty containment/i });
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
     await userEvent.click(rollbackButton);
     const dialog = await screen.findByRole('dialog');
-    const confirmButton = within(dialog).getByRole('button', { name: /Rollback Containment/i });
+    const confirmButton = within(dialog).getByRole('button', { name: /Confirm Rollback/i });
     await userEvent.click(confirmButton);
 
     // ASSERT — error alert is rendered with the "Rollback Failed" header
@@ -819,15 +825,15 @@ describe('RemediationHistoryPage rollback flow', () => {
     renderAppContent({ initialRoute: '/history' });
     const main = within(screen.getByTestId('main-content'));
     await main.findByRole('table');
-    const rollbackButton = await main.findByRole('button', { name: /Rollback GuardDuty containment/i });
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
     await userEvent.click(rollbackButton);
 
     // ASSERT — modal shows the auto-remediation warning
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByText(/Auto-remediation is enabled for this control/i)).toBeInTheDocument();
+    expect(await within(dialog).findByText(/auto-remediation is enabled, ASR may re-remediate/i)).toBeInTheDocument();
   });
 
-  it('does not show the auto-remediation warning when auto-remediation is disabled for the control', async () => {
+  it('shows the re-remediation warning even when auto-remediation is disabled for the control', async () => {
     // ARRANGE — control list reports auto-remediation disabled for GuardDuty.IAMUser
     const remediations = [
       generateTestRemediation({
@@ -864,13 +870,14 @@ describe('RemediationHistoryPage rollback flow', () => {
     renderAppContent({ initialRoute: '/history' });
     const main = within(screen.getByTestId('main-content'));
     await main.findByRole('table');
-    const rollbackButton = await main.findByRole('button', { name: /Rollback GuardDuty containment/i });
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
     await userEvent.click(rollbackButton);
 
-    // ASSERT — modal opens but no auto-remediation warning is present
+    // ASSERT — the re-remediation warning is shown regardless of the control's
+    // auto-remediation state (its copy is conditionally worded "if auto-remediation is enabled").
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Confirm GuardDuty Credential Rollback/i)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/Auto-remediation is enabled for this control/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: /Confirm Rollback/i })).toBeInTheDocument();
+    expect(within(dialog).getByText(/auto-remediation is enabled, ASR may re-remediate/i)).toBeInTheDocument();
   });
 });
 
@@ -945,6 +952,38 @@ describe('RemediationHistoryPage column rendering', () => {
 
     // ASSERT — Failed label is rendered (popover is the wrapping element)
     expect(await within(table).findByText('Failed')).toBeInTheDocument();
+  });
+
+  it('shows the failure-reason popover for a ROLLBACK_FAILED row with an error', async () => {
+    // ARRANGE
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () =>
+          await ok({
+            Remediations: [
+              generateTestRemediation({
+                findingId: asFindingId('finding-rollback-failed'),
+                remediationStatus: 'ROLLBACK_FAILED',
+                error: 'The resource was modified after the ASR remediation.',
+              }),
+            ],
+            NextToken: null,
+          }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    const table = await main.findByRole('table');
+
+    // The status renders as a popover trigger; clicking it reveals the reason.
+    const trigger = await within(table).findByText('Rollback Failed');
+    await userEvent.click(trigger);
+
+    // ASSERT — the persisted failure reason is shown
+    expect(await screen.findByText('The resource was modified after the ASR remediation.')).toBeInTheDocument();
   });
 
   it('renders dashes for missing optional fields and a Step Functions external link', async () => {
@@ -1055,7 +1094,7 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(2)');
 
     // THEN only the SUCCESS row shows a Rollback button
-    const rollbackButtons = await withinMain.findAllByRole('button', { name: /rollback guardduty containment/i });
+    const rollbackButtons = await withinMain.findAllByRole('button', { name: /rollback remediation/i });
     expect(rollbackButtons).toHaveLength(1);
   });
 
@@ -1079,7 +1118,7 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(3)');
 
     // THEN no Rollback buttons should be visible
-    expect(withinMain.queryAllByRole('button', { name: /rollback guardduty containment/i })).toHaveLength(0);
+    expect(withinMain.queryAllByRole('button', { name: /rollback remediation/i })).toHaveLength(0);
   });
 
   it('shows rollback confirmation modal when Rollback button is clicked', async () => {
@@ -1103,15 +1142,15 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(1)');
 
     // WHEN clicking the Rollback button
-    const rollbackButton = await withinMain.findByRole('button', { name: /rollback guardduty containment/i });
+    const rollbackButton = await withinMain.findByRole('button', { name: /rollback remediation/i });
     await userEvent.click(rollbackButton);
 
     // THEN the confirmation modal should appear
     const modal = await screen.findByRole('dialog');
-    expect(within(modal).getByText('Confirm GuardDuty Credential Rollback')).toBeInTheDocument();
-    expect(within(modal).getByText(/restore the IAM principal to its pre-containment state/i)).toBeInTheDocument();
-    expect(within(modal).getByText(/90 days/i)).toBeInTheDocument();
-    expect(within(modal).getByRole('button', { name: 'Rollback Containment' })).toBeInTheDocument();
+    expect(within(modal).getByRole('heading', { name: 'Confirm Rollback' })).toBeInTheDocument();
+    expect(within(modal).getByText(/weaken the security posture/i)).toBeInTheDocument();
+    expect(within(modal).getByText(/ASR may re-remediate this resource/i)).toBeInTheDocument();
+    expect(within(modal).getByRole('button', { name: 'Confirm Rollback' })).toBeInTheDocument();
     expect(within(modal).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
@@ -1135,7 +1174,7 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(1)');
 
     // WHEN clicking Rollback then Cancel
-    const rollbackButton = await withinMain.findByRole('button', { name: /rollback guardduty containment/i });
+    const rollbackButton = await withinMain.findByRole('button', { name: /rollback remediation/i });
     await userEvent.click(rollbackButton);
 
     const modal = await screen.findByRole('dialog');
@@ -1178,11 +1217,11 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(1)');
 
     // WHEN clicking Rollback and confirming
-    const rollbackButton = await withinMain.findByRole('button', { name: /rollback guardduty containment/i });
+    const rollbackButton = await withinMain.findByRole('button', { name: /rollback remediation/i });
     await userEvent.click(rollbackButton);
 
     const modal = await screen.findByRole('dialog');
-    await userEvent.click(within(modal).getByRole('button', { name: 'Rollback Containment' }));
+    await userEvent.click(within(modal).getByRole('button', { name: 'Confirm Rollback' }));
 
     // THEN the rollback API should be called
     await waitFor(() => {
@@ -1226,11 +1265,11 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(1)');
 
     // WHEN clicking Rollback and confirming
-    const rollbackButton = await withinMain.findByRole('button', { name: /rollback guardduty containment/i });
+    const rollbackButton = await withinMain.findByRole('button', { name: /rollback remediation/i });
     await userEvent.click(rollbackButton);
 
     const modal = await screen.findByRole('dialog');
-    await userEvent.click(within(modal).getByRole('button', { name: 'Rollback Containment' }));
+    await userEvent.click(within(modal).getByRole('button', { name: 'Confirm Rollback' }));
 
     // THEN an error alert should appear
     expect(await screen.findByText('Rollback Failed')).toBeInTheDocument();
@@ -1267,21 +1306,21 @@ describe('Rollback functionality', () => {
     await withinMain.findByText('(2)');
 
     // WHEN first rollback fails
-    const rollbackButtons = await withinMain.findAllByRole('button', { name: /rollback guardduty containment/i });
+    const rollbackButtons = await withinMain.findAllByRole('button', { name: /rollback remediation/i });
     await userEvent.click(rollbackButtons[0]);
     let modal = await screen.findByRole('dialog');
-    await userEvent.click(within(modal).getByRole('button', { name: 'Rollback Containment' }));
+    await userEvent.click(within(modal).getByRole('button', { name: 'Confirm Rollback' }));
 
     // THEN error alert header appears
     expect(await screen.findByText('Rollback Failed')).toBeInTheDocument();
 
     // WHEN second rollback succeeds (open modal again — error alert is still visible)
     const updatedRollbackButtons = await withinMain.findAllByRole('button', {
-      name: /rollback guardduty containment/i,
+      name: /rollback remediation/i,
     });
     await userEvent.click(updatedRollbackButtons[0]);
     modal = await screen.findByRole('dialog');
-    await userEvent.click(within(modal).getByRole('button', { name: 'Rollback Containment' }));
+    await userEvent.click(within(modal).getByRole('button', { name: 'Confirm Rollback' }));
 
     // THEN success alert appears and error alert is gone
     expect(await withinMain.findByText(/rollback initiated for finding/i)).toBeInTheDocument();
@@ -1347,7 +1386,124 @@ describe('RemediationHistoryPage ROLLBACK_SUCCESS status display', () => {
     await main.findByRole('table');
 
     // ASSERT — no Rollback button for an already-rolled-back finding
-    expect(main.queryAllByRole('button', { name: /rollback guardduty containment/i })).toHaveLength(0);
+    expect(main.queryAllByRole('button', { name: /rollback remediation/i })).toHaveLength(0);
+  });
+
+  it('offers "Retry Rollback" for a snapshot-based finding whose rollback failed', async () => {
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () =>
+          await ok({
+            Remediations: [
+              generateTestRemediation({
+                findingId: asFindingId('finding-s3-6-rollback-failed'),
+                findingType: 'S3.6',
+                remediationStatus: 'ROLLBACK_FAILED',
+                isRollbackEligible: true,
+              }),
+            ],
+            NextToken: null,
+          }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+
+    // ASSERT — the retry is offered, and labelled as a retry rather than a first rollback
+    expect(await main.findByRole('button', { name: /retry rollback remediation/i })).toBeInTheDocument();
+  });
+
+  it('shows the Action line on a retry, taken from the remediation row', async () => {
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () =>
+          await ok({
+            Remediations: [
+              generateTestRemediation({
+                findingId: asFindingId('finding-s3-6-retry-action'),
+                findingType: 'S3.6',
+                remediationStatus: 'ROLLBACK_FAILED',
+                isRollbackEligible: true,
+                rollbackDescription: undefined,
+              }),
+              generateTestRemediation({
+                findingId: asFindingId('finding-s3-6-retry-action'),
+                findingType: 'S3.6',
+                executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:remediation-run',
+                remediationStatus: 'SUCCESS',
+                isRollbackEligible: false,
+                rollbackDescription: 'Remove the ASR deny statement from bucket my-bucket',
+              }),
+            ],
+            NextToken: null,
+          }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+    await userEvent.click(await main.findByRole('button', { name: /retry rollback remediation/i }));
+
+    // ASSERT
+    expect(await screen.findByText('Remove the ASR deny statement from bucket my-bucket')).toBeInTheDocument();
+  });
+
+  it('takes the Action line from the newest remediation cycle, not the first row returned', async () => {
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () =>
+          await ok({
+            Remediations: [
+              generateTestRemediation({
+                findingId: asFindingId('finding-s3-6-two-cycles'),
+                findingType: 'S3.6',
+                executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:older-remediation',
+                remediationStatus: 'SUCCESS',
+                lastUpdatedTime: '2023-01-01T00:00:00Z',
+                isRollbackEligible: false,
+                rollbackDescription: 'Older cycle: remove the deny from bucket old-bucket',
+              }),
+              generateTestRemediation({
+                findingId: asFindingId('finding-s3-6-two-cycles'),
+                findingType: 'S3.6',
+                executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:newer-remediation',
+                remediationStatus: 'SUCCESS',
+                lastUpdatedTime: '2023-06-01T00:00:00Z',
+                isRollbackEligible: false,
+                rollbackDescription: 'Newer cycle: remove the deny from bucket new-bucket',
+              }),
+              generateTestRemediation({
+                findingId: asFindingId('finding-s3-6-two-cycles'),
+                findingType: 'S3.6',
+                executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:failed-rollback',
+                remediationStatus: 'ROLLBACK_FAILED',
+                lastUpdatedTime: '2023-06-02T00:00:00Z',
+                isRollbackEligible: true,
+                rollbackDescription: undefined,
+              }),
+            ],
+            NextToken: null,
+          }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+    await userEvent.click(await main.findByRole('button', { name: /retry rollback remediation/i }));
+
+    // ASSERT
+    expect(await screen.findByText('Newer cycle: remove the deny from bucket new-bucket')).toBeInTheDocument();
+    expect(screen.queryByText('Older cycle: remove the deny from bucket old-bucket')).not.toBeInTheDocument();
   });
 
   it('includes "Rollback Success" in the status filter options', async () => {
@@ -1476,5 +1632,250 @@ describe('RemediationHistoryPage infinite scroll observer lifecycle', () => {
     const table = await withinMain.findByRole('table');
     const rows = await within(table).findAllByRole('row');
     expect(rows).toHaveLength(firstPage.length + secondPage.length + 1);
+  });
+});
+
+describe('RemediationHistoryPage rollback re-remediation date', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('shows the re-remediation date in the rollback modal when reRemediationEligibleAt is in the future', async () => {
+    // ARRANGE — remediation with a future reRemediationEligibleAt (Unix seconds, 30 days out).
+    // Expected label is derived from the same value so it's locale/timezone-independent.
+    const reRemediationEligibleAt = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+    const expectedDate = new Date(reRemediationEligibleAt * 1000).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    const remediation = generateTestRemediation({
+      executionId: asFindingId('exec-expire'),
+      findingId: asFindingId('finding-expire'),
+      findingType: 'GuardDuty.IAMUser',
+      remediationStatus: 'SUCCESS',
+      reRemediationEligibleAt,
+    });
+
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () => await ok({ Remediations: [remediation], NextToken: null }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
+    await userEvent.click(rollbackButton);
+
+    // ASSERT — the modal shows the softened, dated wording
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText(
+        new RegExp(`after the current finding expires \\(around ${expectedDate}\\)`, 'i'),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to generic wording when reRemediationEligibleAt is absent', async () => {
+    // ARRANGE — a rollback-eligible remediation with no reRemediationEligibleAt.
+    const remediation = generateTestRemediation({
+      executionId: asFindingId('exec-noexpire'),
+      findingId: asFindingId('finding-noexpire'),
+      findingType: 'GuardDuty.IAMUser',
+      remediationStatus: 'SUCCESS',
+    });
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () => await ok({ Remediations: [remediation], NextToken: null }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
+    await userEvent.click(rollbackButton);
+
+    // ASSERT — the modal shows the generic wording (no date)
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText(/re-remediate this resource after the current finding expires/i),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the date (generic wording) when reRemediationEligibleAt is in the past', async () => {
+    // ARRANGE — reRemediationEligibleAt is in the past (reprocess window already elapsed),
+    // so a concrete date would be misleading; the future-guard should hide it.
+    const reRemediationEligibleAt = Math.floor(Date.now() / 1000) - 24 * 60 * 60; // yesterday
+    const remediation = generateTestRemediation({
+      executionId: asFindingId('exec-past'),
+      findingId: asFindingId('finding-past'),
+      findingType: 'GuardDuty.IAMUser',
+      remediationStatus: 'SUCCESS',
+      reRemediationEligibleAt,
+    });
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () => await ok({ Remediations: [remediation], NextToken: null }),
+      ),
+    );
+
+    // ACT
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+    const rollbackButton = await main.findByRole('button', { name: /Rollback remediation/i });
+    await userEvent.click(rollbackButton);
+
+    // ASSERT — generic wording, no date
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText(/re-remediate this resource after the current finding expires/i),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/\(around/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('RemediationHistoryPage rollback button role-based access', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('does not show the Rollback button for AccountOperatorGroup users', async () => {
+    // ARRANGE — a remediation that would produce a Rollback button for admins
+    const remediations = [
+      generateTestRemediation({
+        executionId: asFindingId('exec-operator-test'),
+        findingId: asFindingId('finding-operator-test'),
+        findingType: 'GuardDuty.IAMUser',
+        remediationStatus: 'SUCCESS',
+      }),
+    ];
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () => await ok({ Remediations: remediations, NextToken: null }),
+      ),
+    );
+
+    // ACT — render with AccountOperatorGroup (non-admin, non-delegated-admin)
+    renderAppContent({
+      initialRoute: '/history',
+      groups: ['AccountOperatorGroup'],
+    });
+
+    const main = within(screen.getByTestId('main-content'));
+
+    // Wait for the table to load so we know the render is complete
+    await main.findByRole('table');
+    await main.findByText('(1)');
+
+    // ASSERT — AccountOperatorGroup users do not see the Rollback button because
+    // canRollback() returns false for groups that are not AdminGroup or DelegatedAdminGroup
+    expect(main.queryAllByRole('button', { name: /rollback remediation/i })).toHaveLength(0);
+  });
+});
+
+describe('RemediationHistoryPage rollback auto-remediation exclusion filter', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  const autoRemediationControl = {
+    controlId: 'GuardDuty.IAMUser',
+    description: 'GuardDuty IAM user containment',
+    automatedRemediationEnabled: true,
+    filters: [],
+    filterMode: 'include',
+    version: 1,
+    lastModified: new Date().toISOString(),
+    modifiedBy: 'tester',
+    rollbackSupported: true,
+  };
+
+  const excludableRemediation = () =>
+    generateTestRemediation({
+      executionId: asFindingId('exec-exclusion'),
+      findingId: asFindingId('finding-exclusion'),
+      findingType: 'GuardDuty.IAMUser',
+      remediationStatus: 'SUCCESS',
+      resourceId: 'arn:aws:iam::111111111111:user/test-user',
+    });
+
+  const openRollbackModalWithExclusionChecked = async () => {
+    renderAppContent({ initialRoute: '/history' });
+    const main = within(screen.getByTestId('main-content'));
+    await main.findByRole('table');
+    await userEvent.click(await main.findByRole('button', { name: /Rollback remediation/i }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('checkbox'));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm Rollback' }));
+    return main;
+  };
+
+  it('reports success when the exclusion filter is created and attached', async () => {
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () => await ok({ Remediations: [excludableRemediation()], NextToken: null }),
+      ),
+      http.get(`${MOCK_SERVER_URL}${ApiEndpoints.CONTROLS}`, async () => ok({ controls: [autoRemediationControl] })),
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.FINDINGS}/action`, async () => await ok({})),
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.FILTERS}`, async () =>
+        ok({
+          filterId: 'filter-1',
+          name: 'Rollback exclusion',
+          accountIds: [],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: ['arn:aws:iam::111111111111:user/test-user'],
+        }),
+      ),
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.CONTROLS}/bulk-edit`, async () =>
+        ok({ message: 'ok', updatedCount: 1 }),
+      ),
+    );
+
+    const main = await openRollbackModalWithExclusionChecked();
+
+    expect(await main.findByText(/Rollback initiated for finding/i)).toBeInTheDocument();
+    expect(main.queryByText(/could not be/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a warning when the exclusion filter cannot be attached (bulk-edit partial failure)', async () => {
+    server.use(
+      http.post(
+        MOCK_SERVER_URL + ApiEndpoints.REMEDIATIONS,
+        async () => await ok({ Remediations: [excludableRemediation()], NextToken: null }),
+      ),
+      http.get(`${MOCK_SERVER_URL}${ApiEndpoints.CONTROLS}`, async () => ok({ controls: [autoRemediationControl] })),
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.FINDINGS}/action`, async () => await ok({})),
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.FILTERS}`, async () =>
+        ok({
+          filterId: 'filter-1',
+          name: 'Rollback exclusion',
+          accountIds: [],
+          organizationalUnits: [],
+          tags: [],
+          arnPatterns: ['arn:aws:iam::111111111111:user/test-user'],
+        }),
+      ),
+      // Partial-success body (HTTP 200) — the control was not updated.
+      http.post(`${MOCK_SERVER_URL}${ApiEndpoints.CONTROLS}/bulk-edit`, async () =>
+        ok({ message: 'partial', successCount: 0, failedControlIds: ['GuardDuty.IAMUser'] }),
+      ),
+      http.delete(`${MOCK_SERVER_URL}${ApiEndpoints.FILTERS}/:filterId`, async () => await ok({})),
+    );
+
+    const main = await openRollbackModalWithExclusionChecked();
+
+    expect(await main.findByText(/could not be attached to the control/i)).toBeInTheDocument();
   });
 });

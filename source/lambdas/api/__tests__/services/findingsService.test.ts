@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Logger } from '@aws-lambda-powertools/logger';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { mockClient } from 'aws-sdk-client-mock';
 import nock from 'nock';
@@ -13,6 +13,7 @@ import {
 } from '../../../common/__tests__/metricsMockSetup';
 import { FindingRepository } from '../../../common/repositories/findingRepository';
 import { RemediationHistoryRepository } from '../../../common/repositories/remediationHistoryRepository';
+import { ControlsRepository } from '../../../common/repositories/controlsRepository';
 import { AuthenticatedUser } from '../../services/authorization';
 import { FindingsService } from '../../services/findingsService';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
@@ -20,7 +21,7 @@ import { findingsTableName } from '../../../common/__tests__/envSetup';
 import { asFindingId } from '../../../common/__tests__/utils';
 import { IdGenerator } from '../../../common/utils/idGenerator';
 import { buildOrchestratorInput } from '../../../common/utils/findingExtraction';
-import { ASFFFinding, FindingTableItem } from '@asr/data-models';
+import { ASFFFinding, FindingTableItem, type FindingId } from '@asr/data-models';
 import { gzip } from 'pako';
 
 const createMockFinding = (overrides: Partial<FindingTableItem> = {}): FindingTableItem => ({
@@ -51,6 +52,7 @@ const createMockFinding = (overrides: Partial<FindingTableItem> = {}): FindingTa
 // Mock the repositories
 jest.mock('../../../common/repositories/findingRepository');
 jest.mock('../../../common/repositories/remediationHistoryRepository');
+jest.mock('../../../common/repositories/controlsRepository');
 jest.mock('../../../common/utils/dynamodb');
 
 // Step Functions is the real system boundary for orchestration: the
@@ -63,6 +65,7 @@ describe('FindingsService', () => {
   let findingsService: FindingsService;
   let mockRepository: jest.Mocked<FindingRepository>;
   let mockHistoryRepository: jest.Mocked<RemediationHistoryRepository>;
+  let mockControlsRepository: jest.Mocked<ControlsRepository>;
   let mockLogger: Logger;
   let mockAuthenticatedUser: AuthenticatedUser;
   let dynamoDBDocumentClient: DynamoDBDocumentClient;
@@ -95,8 +98,21 @@ describe('FindingsService', () => {
     mockRepository = new (FindingRepository as jest.Mock)() as jest.Mocked<FindingRepository>;
     mockHistoryRepository =
       new (RemediationHistoryRepository as jest.Mock)() as jest.Mocked<RemediationHistoryRepository>;
+    mockControlsRepository = new (ControlsRepository as jest.Mock)() as jest.Mocked<ControlsRepository>;
+    // Mirrors a config table seeded with these controls; anything else is absent from the map.
+    mockControlsRepository.findRollbackStateByControlIds.mockImplementation(async (controlIds: string[]) => {
+      const seeded = ['GuardDuty.IAMUser', 'KMS.4', 'S3.5', 'EC2.8'];
+      return new Map(controlIds.filter((id) => seeded.includes(id)).map((id) => [id, true]));
+    });
 
-    findingsService = new FindingsService(mockLogger, undefined, undefined, mockRepository, mockHistoryRepository);
+    findingsService = new FindingsService(
+      mockLogger,
+      undefined,
+      undefined,
+      mockRepository,
+      mockHistoryRepository,
+      mockControlsRepository,
+    );
 
     mockAuthenticatedUser = {
       username: 'test-user',
@@ -193,7 +209,7 @@ describe('FindingsService', () => {
         Filters: {
           StringFilters: [
             {
-              FieldName: 'Severity.Label',
+              FieldName: 'severity',
               Filter: { Value: 'HIGH', Comparison: 'EQUALS' as const },
             },
           ],
@@ -202,7 +218,7 @@ describe('FindingsService', () => {
               Operator: 'AND' as const,
               StringFilters: [
                 {
-                  FieldName: 'ComplianceStatus',
+                  FieldName: 'remediationStatus',
                   Filter: { Value: 'FAILED', Comparison: 'EQUALS' as const },
                 },
               ],
@@ -215,7 +231,7 @@ describe('FindingsService', () => {
       // Setup separate mock for non-Search metrics API calls
       nock('https://metrics.awssolutionsbuilder.com').post('/generic').reply(200).persist();
       const metricsScope = createMetricsTestScope(
-        /.*search_operation.*filter_types_used.*Severity\.Label.*ComplianceStatus.*filter_count.*%3A2.*has_composite_filters.*true.*sort_fields_used.*UpdatedAt.*resource_type.*Findings.*/,
+        /.*search_operation.*filter_types_used.*severity.*remediationStatus.*filter_count.*%3A2.*has_composite_filters.*true.*sort_fields_used.*UpdatedAt.*resource_type.*Findings.*/,
       );
       metricsScope.persist();
 
@@ -253,7 +269,7 @@ describe('FindingsService', () => {
       expect(apiFinding).not.toHaveProperty('hasFindingRemediationDeadlineConfigured');
       expect(apiFinding).not.toHaveProperty('findingJSON');
       expect(apiFinding).not.toHaveProperty('FINDING_CONSTANT');
-      expect(apiFinding).not.toHaveProperty('expireAt');
+      expect(apiFinding).toHaveProperty('expireAt');
       // ...while API-relevant data is still present
       expect(apiFinding.findingId).toBe(storedFinding.findingId);
       expect(apiFinding).toHaveProperty('consoleLink');
@@ -646,15 +662,16 @@ describe('FindingsService', () => {
       expect(parsed.detail.remediationId).toBeUndefined();
       expect(parsed.detail.findingFormat).toBeUndefined();
 
+      // Non-GuardDuty rollback without snapshotRollbackParams: no docParameters
       const rollbackInput = buildOrchestratorInput('S3.1', asffFinding, 'Rollback', fakeIdGenerator, fakeClock);
       const parsedRollback = JSON.parse(rollbackInput);
-      expect(parsedRollback.detail.docParameters).toEqual({ Action: 'Restore' });
+      expect(parsedRollback.detail.docParameters).toBeUndefined();
       expect(parsedRollback.detail.actionName).toBe('ASR:Rollback');
 
-      // When a backup key is supplied, it flows into docParameters as
-      // BackupS3KeyName so AWSSupport-ContainIAMPrincipal can locate the backup.
+      // When a backup key is supplied to a multi-service control, it flows into
+      // docParameters as BackupS3KeyName so AWSSupport-ContainIAMPrincipal can locate the backup.
       const rollbackWithKey = buildOrchestratorInput(
-        'S3.1',
+        'GuardDuty.IAMUser',
         asffFinding,
         'Rollback',
         fakeIdGenerator,
@@ -787,13 +804,14 @@ describe('FindingsService', () => {
         undefined,
         mockRepository,
         mockHistoryRepository,
+        mockControlsRepository,
       );
 
       mockRepository.createIfNotExists.mockResolvedValue('SUCCESS');
     });
 
     it('reconstructs the finding from history and acquires the lock before invoking the orchestrator', async () => {
-      mockRepository.tryAcquireRollbackLock.mockResolvedValue('ACQUIRED');
+      mockRepository.tryAcquireRollbackLock.mockResolvedValue({ outcome: 'ACQUIRED', previousStatus: 'SUCCESS' });
 
       await findingsService.executeAction({ actionType: 'Rollback', findingIds: [findingId] }, 'tester');
 
@@ -821,7 +839,7 @@ describe('FindingsService', () => {
     });
 
     it('rejects a second concurrent rollback when the lock is already held', async () => {
-      mockRepository.tryAcquireRollbackLock.mockResolvedValue('IN_PROGRESS');
+      mockRepository.tryAcquireRollbackLock.mockResolvedValue({ outcome: 'IN_PROGRESS' });
 
       await expect(
         findingsService.executeAction({ actionType: 'Rollback', findingIds: [findingId] }, 'tester'),
@@ -830,31 +848,202 @@ describe('FindingsService', () => {
       expect(mockHistoryRepository.createRemediationHistory).not.toHaveBeenCalled();
     });
 
-    it('rejects rollback when the finding is not in a rollback-initiable state', async () => {
-      mockRepository.tryAcquireRollbackLock.mockResolvedValue('INELIGIBLE');
-
-      await expect(
-        findingsService.executeAction({ actionType: 'Rollback', findingIds: [findingId] }, 'tester'),
-      ).rejects.toThrow(/Rollback requires a successful remediation/i);
-
-      expect(mockHistoryRepository.createRemediationHistory).not.toHaveBeenCalled();
-    });
-
-    it('rejects rollback for a non-GuardDuty finding type without touching the lock', async () => {
-      const s3FindingId = asFindingId(
-        'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/x',
+    it('rejects rollback for a non-eligible finding type without touching the lock', async () => {
+      const cfnFindingId = asFindingId(
+        'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudFormation.1/finding/x',
       );
       mockHistoryRepository.findLatestSuccessWithFindingJSON.mockResolvedValue({
         ...guardDutyHistoryEntry,
-        findingType: 'S3.1',
-        findingId: s3FindingId,
+        findingType: 'CloudFormation.1',
+        remediationConfigTableKey: 'CloudFormation.1',
+        findingId: cfnFindingId,
       });
 
       await expect(
-        findingsService.executeAction({ actionType: 'Rollback', findingIds: [s3FindingId] }, 'tester'),
-      ).rejects.toThrow(/only supported for GuardDuty\.IAMUser/i);
+        findingsService.executeAction({ actionType: 'Rollback', findingIds: [cfnFindingId] }, 'tester'),
+      ).rejects.toThrow(`Not eligible for rollback: ${cfnFindingId} (CloudFormation.1)`);
 
       expect(mockRepository.tryAcquireRollbackLock).not.toHaveBeenCalled();
+    });
+
+    describe('executeAction - Rollback lock release on a rejected batch (DynamoDB Local)', () => {
+      // The lock semantics are the repository's conditional writes, so these run the real
+      // FindingRepository against DynamoDB Local (the module is auto-mocked for the rest of this
+      // file; requireActual gets the real class). History and controls stay mocked: they are not
+      // what is under test here.
+      const { FindingRepository: RealFindingRepository } = jest.requireActual<
+        typeof import('../../../common/repositories/findingRepository')
+      >('../../../common/repositories/findingRepository');
+
+      const findingId = asFindingId(
+        'arn:aws:securityhub:us-east-1:123456789012:subscription/aws/guardduty/GuardDuty.IAMUser/finding/rel-1',
+      );
+      const secondId = asFindingId(
+        'arn:aws:securityhub:us-east-1:123456789012:subscription/aws/guardduty/GuardDuty.IAMUser/finding/rel-2',
+      );
+
+      const historyEntryFor = (id: FindingId) => ({
+        ...guardDutyHistoryEntry,
+        findingId: id,
+        'findingId#executionId': `${id}#exec-contain`,
+        'lastUpdatedTime#findingId': `2024-01-01T00:00:00Z#${id}`,
+      });
+
+      const readRow = async (id: FindingId) => {
+        const result = await dynamoDBDocumentClient.send(
+          new GetCommand({ TableName: findingsTableName, Key: { findingType: GUARDDUTY_FINDING_TYPE, findingId: id } }),
+        );
+        return result.Item;
+      };
+
+      let realRepository: FindingRepository;
+      let service: FindingsService;
+
+      beforeEach(async () => {
+        realRepository = new RealFindingRepository('test', findingsTableName, dynamoDBDocumentClient);
+        const historyRepository =
+          new (RemediationHistoryRepository as jest.Mock)() as jest.Mocked<RemediationHistoryRepository>;
+        historyRepository.createRemediationHistory.mockResolvedValue(undefined);
+        historyRepository.findLatestSuccessWithFindingJSON.mockImplementation(async (id) => historyEntryFor(id));
+        service = new FindingsService(
+          mockLogger,
+          { randomUUID: () => '00000000-0000-0000-0000-000000000abc' },
+          undefined,
+          realRepository,
+          historyRepository,
+          mockControlsRepository,
+        );
+        // Live rows: the first is rollback-initiable, the second has already been rolled back.
+        await realRepository.put(
+          createMockFinding({ findingType: GUARDDUTY_FINDING_TYPE, findingId, remediationStatus: 'ROLLBACK_FAILED' }),
+        );
+        await realRepository.put(
+          createMockFinding({
+            findingType: GUARDDUTY_FINDING_TYPE,
+            findingId: secondId,
+            remediationStatus: 'ROLLBACK_SUCCESS',
+          }),
+        );
+      });
+
+      it('hands back the lock it took when another finding in the batch is rejected', async () => {
+        await expect(
+          service.executeAction({ actionType: 'Rollback', findingIds: [findingId, secondId] }, 'tester'),
+        ).rejects.toThrow(`Not eligible: ${secondId} (already rolled back)`);
+
+        // The first finding is back where it was, not parked in ROLLBACK_IN_PROGRESS.
+        const first = await readRow(findingId);
+        expect(first?.remediationStatus).toBe('ROLLBACK_FAILED');
+        expect(first?.rollbackStartedAt).toBeUndefined();
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+
+        // ...and a corrected retry can lock it straight away rather than waiting for staleness.
+        await expect(
+          service.executeAction({ actionType: 'Rollback', findingIds: [findingId] }, 'tester'),
+        ).resolves.toBeDefined();
+        expect((await readRow(findingId))?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+      });
+
+      it('releases only the locks of findings never sent to the Orchestrator when an invocation throws', async () => {
+        // Three findings lock. The Orchestrator accepts the first and throws on the second, so
+        // the third is never attempted. The first is running and stays locked. The second stays
+        // locked too: StartExecution has no idempotent name, so a call that threw may still have
+        // been accepted, and releasing it would let a second request start a duplicate rollback.
+        // Only the third — provably never started — goes back.
+        const thirdId = asFindingId(`${secondId}-third`);
+        await realRepository.put(
+          createMockFinding({ findingType: GUARDDUTY_FINDING_TYPE, findingId: secondId, remediationStatus: 'SUCCESS' }),
+        );
+        await realRepository.put(
+          createMockFinding({ findingType: GUARDDUTY_FINDING_TYPE, findingId: thirdId, remediationStatus: 'SUCCESS' }),
+        );
+        sfnMock.reset();
+        sfnMock
+          .on(StartExecutionCommand)
+          .resolvesOnce({ executionArn: 'arn:aws:states:us-east-1:123456789012:execution:sm:one' })
+          .rejectsOnce(new Error('StartExecution failed'));
+
+        await expect(
+          service.executeAction({ actionType: 'Rollback', findingIds: [findingId, secondId, thirdId] }, 'tester'),
+        ).rejects.toThrow('Failed to execute action on findings');
+
+        expect((await readRow(findingId))?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+        expect((await readRow(secondId))?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+        const third = await readRow(thirdId);
+        expect(third?.remediationStatus).toBe('SUCCESS');
+        expect(third?.rollbackStartedAt).toBeUndefined();
+      });
+
+      it.each([
+        ['FAILED', 'remediation did not succeed'],
+        ['ROLLBACK_SUCCESS', 'already rolled back'],
+        // A status this build does not know: stored as-is so the row shape is what a newer
+        // writer would leave, which the typed item cannot express — hence the raw put.
+        ['SOME_FUTURE_STATUS', 'status SOME_FUTURE_STATUS'],
+      ])('refuses a %s finding naming the reason "%s", without writing history', async (status, reason) => {
+        // The reason comes from the status the conditional write observed atomically when it
+        // was refused (ReturnValuesOnConditionCheckFailure), not from a separate read.
+        const row = {
+          ...createMockFinding({ findingType: GUARDDUTY_FINDING_TYPE, findingId: secondId }),
+          remediationStatus: status,
+        };
+        await dynamoDBDocumentClient.send(new PutCommand({ TableName: findingsTableName, Item: row }));
+
+        await expect(
+          service.executeAction({ actionType: 'Rollback', findingIds: [secondId] }, 'tester'),
+        ).rejects.toThrow(`Not eligible: ${secondId} (${reason})`);
+
+        expect((await readRow(secondId))?.remediationStatus).toBe(status);
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+      });
+
+      it('refuses a finding with no remediation status as "no remediation recorded"', async () => {
+        const { remediationStatus: _omitted, ...withoutStatus } = createMockFinding({
+          findingType: GUARDDUTY_FINDING_TYPE,
+          findingId: secondId,
+        });
+        await dynamoDBDocumentClient.send(new PutCommand({ TableName: findingsTableName, Item: withoutStatus }));
+
+        await expect(
+          service.executeAction({ actionType: 'Rollback', findingIds: [secondId] }, 'tester'),
+        ).rejects.toThrow(`Not eligible: ${secondId} (no remediation recorded)`);
+      });
+
+      it('leaves a finding locked when the whole batch was accepted', async () => {
+        await service.executeAction({ actionType: 'Rollback', findingIds: [findingId] }, 'tester');
+
+        expect((await readRow(findingId))?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      });
+
+      it('releases the lock when the Orchestrator returns no executionId (provably not started)', async () => {
+        // A clean StartExecution response with no executionArn means the orchestrator did not
+        // start: the finding is reported unresolved. Unlike the throw path (which may have been
+        // accepted and so stays locked), this one is provably unstarted, so its lock must be
+        // handed back rather than left ROLLBACK_IN_PROGRESS until stale — otherwise the caller is
+        // told "not processed" while an immediate retry is refused as "already in progress".
+        sfnMock.reset();
+        sfnMock.on(StartExecutionCommand).resolves({}); // no executionArn
+
+        const { unresolvedIds } = await service.executeAction(
+          { actionType: 'Rollback', findingIds: [findingId] },
+          'tester',
+        );
+
+        // Reported unresolved to the caller...
+        expect(unresolvedIds).toContain(findingId);
+        // ...and the lock is released back to the status it replaced, not parked in progress.
+        const row = await readRow(findingId);
+        expect(row?.remediationStatus).toBe('ROLLBACK_FAILED');
+        expect(row?.rollbackStartedAt).toBeUndefined();
+        // ...so an immediate retry can lock it straight away rather than being refused as in-progress.
+        sfnMock.reset();
+        sfnMock
+          .on(StartExecutionCommand)
+          .resolves({ executionArn: 'arn:aws:states:us-east-1:123456789012:execution:sm:retry' });
+        await service.executeAction({ actionType: 'Rollback', findingIds: [findingId] }, 'tester');
+        expect((await readRow(findingId))?.remediationStatus).toBe('ROLLBACK_IN_PROGRESS');
+      });
     });
   });
 
@@ -898,6 +1087,7 @@ describe('FindingsService', () => {
         undefined,
         mockRepository,
         mockHistoryRepository,
+        mockControlsRepository,
       );
     });
 
@@ -963,6 +1153,7 @@ describe('FindingsService', () => {
         undefined,
         mockRepository,
         mockHistoryRepository,
+        mockControlsRepository,
       );
     });
     const unsupportedCases: { name: string; findingType: string; resourceType: string }[] = [

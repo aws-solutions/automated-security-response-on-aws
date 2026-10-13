@@ -17,10 +17,12 @@ import { userPoolId } from '../../../common/__tests__/envSetup';
 import 'aws-sdk-client-mock-jest';
 
 const mockCognitoClient = mockClient(CognitoIdentityProviderClient);
+const mockDynamoClient = mockClient(DynamoDBDocumentClient);
 
 describe('preSignUpHandler', () => {
   beforeEach(async () => {
     mockCognitoClient.reset();
+    mockDynamoClient.reset();
     jest.clearAllMocks();
   });
 
@@ -91,6 +93,38 @@ describe('preSignUpHandler', () => {
         },
       });
       expect(result).toEqual(event);
+    });
+
+    it('links the federated user even when the account-mapping DynamoDB read would fail', async () => {
+      // ARRANGE: this path only needs the user's existence and type, both resolved from
+      // Cognito. It must NOT depend on the account/MCP-grant mapping in DynamoDB, so a
+      // transient DynamoDB failure cannot reject a legitimate federated sign-in. Cognito
+      // succeeds for a non-admin (account-operator) user — the tier that getUserById would
+      // have followed with a DynamoDB authorization read — while every DynamoDB call fails.
+      const event = createEvent('PreSignUp_ExternalProvider', { email: 'operator@example.com' }, 'SAML_testuser');
+      mockCognitoClient.on(AdminGetUserCommand).resolves({
+        UserAttributes: [
+          { Name: 'email', Value: 'operator@example.com' },
+          { Name: 'custom:invitedBy', Value: 'admin@example.com' },
+        ],
+        UserCreateDate: new Date('2023-01-01'),
+        UserStatus: 'CONFIRMED',
+      });
+      mockCognitoClient.on(AdminListGroupsForUserCommand).resolves({ Groups: [{ GroupName: 'AccountOperatorGroup' }] });
+      mockCognitoClient.on(DescribeIdentityProviderCommand).resolves({
+        IdentityProvider: { AttributeMapping: { email: 'email' } },
+      });
+      mockCognitoClient.on(AdminLinkProviderForUserCommand).resolves({});
+      // Any DynamoDB access would fail — the handler must never make one on this path.
+      mockDynamoClient.on(GetCommand).rejects(new Error('DynamoDB unavailable'));
+
+      // ACT
+      const result = await preSignUpHandler(event);
+
+      // ASSERT: the sign-in succeeds and the user is linked, unaffected by DynamoDB.
+      expect(result).toEqual(event);
+      expect(mockCognitoClient).toHaveReceivedCommand(AdminLinkProviderForUserCommand);
+      expect(mockDynamoClient).not.toHaveReceivedCommand(GetCommand);
     });
 
     it('should reject external provider sign-up when user not found', async () => {
@@ -238,14 +272,18 @@ describe('preSignUpHandler', () => {
   });
 
   describe('Error handling', () => {
-    it('should handle getUserById error', async () => {
-      // ARRANGE
+    it('propagates a transient backend error rather than masking it as "user not found"', async () => {
+      // ARRANGE: getUserById now rethrows a genuine backend failure instead of
+      // swallowing it as null. A DynamoDB/Cognito blip during a federated sign-in
+      // must surface as itself — masking it as "not found" would send an operator
+      // chasing a nonexistent provisioning problem, and previously let a blip
+      // masquerade as a definite "user not in pool" verdict.
       const event = createEvent('PreSignUp_ExternalProvider', { email: 'test2@example.com' }, 'SAML_testuser');
       const getUserError = new Error('Database error');
       mockCognitoClient.on(AdminGetUserCommand).rejects(getUserError);
 
-      // ACT & ASSERT
-      await expect(preSignUpHandler(event)).rejects.toThrow('User not found in local user pool');
+      // ACT & ASSERT: sign-up still fails closed, but with the real cause.
+      await expect(preSignUpHandler(event)).rejects.toThrow('Database error');
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
         UserPoolId: userPoolId,
         Username: 'test2@example.com',
@@ -253,14 +291,14 @@ describe('preSignUpHandler', () => {
       expect(mockCognitoClient).not.toHaveReceivedCommand(AdminLinkProviderForUserCommand);
     });
 
-    it('should handle non-Error exceptions', async () => {
+    it('propagates a non-Error backend exception rather than masking it as "user not found"', async () => {
       // ARRANGE
       const event = createEvent('PreSignUp_ExternalProvider', { email: 'test3@example.com' }, 'SAML_testuser');
       const stringError = 'String error';
       mockCognitoClient.on(AdminGetUserCommand).rejects(stringError);
 
       // ACT & ASSERT
-      await expect(preSignUpHandler(event)).rejects.toThrow('User not found in local user pool');
+      await expect(preSignUpHandler(event)).rejects.toThrow('String error');
       expect(mockCognitoClient).toHaveReceivedCommandWith(AdminGetUserCommand, {
         UserPoolId: userPoolId,
         Username: 'test3@example.com',

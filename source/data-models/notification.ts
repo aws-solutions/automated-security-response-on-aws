@@ -524,7 +524,12 @@ export interface ParsedSnsTopicArn {
 export function parseSnsTopicArn(topicArn: string): ParsedSnsTopicArn | null {
   const match = SNS_TOPIC_ARN_PATTERN.exec(topicArn);
   if (!match) return null;
-  return { partition: match[1], region: match[2], accountId: match[3], topicName: match[4] };
+  return {
+    partition: match[1],
+    region: match[2],
+    accountId: match[3],
+    topicName: match[4],
+  };
 }
 
 export interface SnsChannelValidationContext {

@@ -101,6 +101,7 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
       executionId,
       error: finding.error,
       expireAt: calculateHistoryTtlTimestamp(timestamp),
+      ...(finding.remediationConfigTableKey ? { remediationConfigTableKey: finding.remediationConfigTableKey } : {}),
       ...(finding.findingJSON?.length ? { findingJSON: finding.findingJSON } : {}),
     };
   }
@@ -556,5 +557,21 @@ export class RemediationHistoryRepository extends AbstractRepository<Remediation
     }
 
     return true;
+  }
+
+  /**
+   * Returns the most recent remediation history entries for a finding, ordered
+   * by last-updated time descending. Used by the execution-status handler to
+   * surface recent runs without the handler querying DynamoDB directly.
+   */
+  async findRecentByFindingId(findingId: string, limit = 5): Promise<RemediationHistoryTableItem[]> {
+    const result = await this.queryIndexPK({
+      indexName: 'findingId-lastUpdatedTime-GSI',
+      partitionKeyName: 'findingId',
+      partitionKeyValue: findingId,
+      scanIndexForward: false,
+      limit,
+    });
+    return result.items;
   }
 }

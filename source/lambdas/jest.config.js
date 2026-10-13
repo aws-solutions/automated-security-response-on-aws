@@ -62,6 +62,34 @@ module.exports = {
     },
     {
       testEnvironment: 'node',
+      displayName: 'MCP Server Unit Tests',
+      rootDir: './mcp-server',
+      testPathIgnorePatterns: [
+        '<rootDir>/__tests__/mcpAuthorizationTestFactories.ts',
+        '.*\\.d\\.ts$',
+        '/__tests__/.*\\.js$',
+      ],
+      collectCoverageFrom: [
+        '**/*.ts',
+        '!**/*.test.ts',
+        '!**/*.spec.ts',
+        '!**/__tests__/**',
+        '!node_modules/**',
+        '!jest.config.js',
+        '!coverage/**',
+      ],
+      setupFiles: ['<rootDir>/../common/__tests__/envSetup.ts'],
+      // Provisions DynamoDB Local tables. The handler's per-user MCP grant read goes
+      // through the real UserAccountMappingRepository, so these tests exercise the
+      // actual key schema and the lowercase-key fallback rather than a stubbed
+      // repository (which is our own code, not a system boundary).
+      setupFilesAfterEnv: ['<rootDir>/../common/__tests__/jestAfterEnvSetup.ts'],
+      transform: {
+        ...tsJestTransformCfg,
+      },
+    },
+    {
+      testEnvironment: 'node',
       displayName: 'Synchronization Unit Tests',
       rootDir: './synchronization',
       transform: {

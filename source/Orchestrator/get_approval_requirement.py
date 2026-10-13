@@ -208,7 +208,12 @@ def lambda_handler(event: Dict[str, Any], _: Any) -> StepFunctionLambdaAnswerDic
             "workflow_data": {"impact": "nondestructive", "approvalrequired": "false"},
         }
     )
-    logger.info("Processing approval requirement request", **event)
+    logger.info(
+        "Processing approval requirement request",
+        finding_type=event.get("Detail", {}).get("findingType"),
+        remediation_id=event.get("Detail", {}).get("remediationId"),
+        event_type=event.get("EventType"),
+    )
     if "Finding" not in event or "EventType" not in event:
         answer.update(
             {"status": "ERROR", "message": "Missing required data in request"}

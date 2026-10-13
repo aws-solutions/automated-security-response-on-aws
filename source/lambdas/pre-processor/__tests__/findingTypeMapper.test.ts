@@ -3,6 +3,7 @@
 
 import {
   FindingLogger,
+  isSecurityHubCoverageFinding,
   mapFindingType,
   normalizeResourceTypeToAsff,
   UnverifiedProductArnError,
@@ -10,6 +11,7 @@ import {
   MULTI_SERVICE_REMEDIATION_IDS,
 } from '../findingTypeMapper';
 import { MULTI_SERVICE_FINDING_TYPES } from '../../common/utils/findingUtils';
+import { mockSecurityHubCoverageFinding } from './fixtures/securityHubCoverageFixtures';
 
 const logger: FindingLogger = { info: jest.fn(), warn: jest.fn(), debug: jest.fn() };
 
@@ -457,6 +459,57 @@ describe('findingTypeMapper', () => {
 
       // ASSERT
       expect(missing).toEqual([]);
+    });
+  });
+
+  describe('isSecurityHubCoverageFinding', () => {
+    it('recognizes a Coverage finding by its reserved productv2 ARN, in every partition', () => {
+      // ARRANGE
+      const partitions = ['aws', 'aws-cn', 'aws-us-gov'];
+
+      // ACT
+      const results = partitions.map((partition) =>
+        isSecurityHubCoverageFinding({
+          ...mockSecurityHubCoverageFinding,
+          metadata: {
+            product: { uid: `arn:${partition}:securityhub:us-east-1::productv2/aws/securityhub-coverage` },
+          },
+        }),
+      );
+
+      // ASSERT
+      expect(isSecurityHubCoverageFinding(mockSecurityHubCoverageFinding)).toBe(true);
+      expect(results).toEqual([true, true, true]);
+    });
+
+    it('does not match a finding that only looks like Coverage without the reserved product ARN', () => {
+      // ARRANGE: same shape, but the product ARN carries an account id (a partner or custom
+      // integration can never be reserved), a non-aws owner, or a different service slug
+      const spoofedAccount = {
+        ...mockSecurityHubCoverageFinding,
+        metadata: { product: { uid: 'arn:aws:securityhub:us-east-1:123456789012:productv2/aws/securityhub-coverage' } },
+      };
+      const spoofedOwner = {
+        ...mockSecurityHubCoverageFinding,
+        metadata: { product: { uid: 'arn:aws:securityhub:us-east-1::productv2/evil/securityhub-coverage' } },
+      };
+      const otherService: UnprocessedFinding = {
+        ...mockSecurityHubCoverageFinding,
+        metadata: { product: { uid: PRODUCT_ARN.GuardDuty } },
+      };
+      const asffFinding: UnprocessedFinding = {
+        ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+        Types: ['Software and Configuration Checks/Industry and Regulatory Standards'],
+      };
+      const noProduct: UnprocessedFinding = { finding_info: { types: ['Coverage'] } };
+
+      // ACT
+      const results = [spoofedAccount, spoofedOwner, otherService, asffFinding, noProduct].map(
+        isSecurityHubCoverageFinding,
+      );
+
+      // ASSERT
+      expect(results).toEqual([false, false, false, false, false]);
     });
   });
 });

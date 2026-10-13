@@ -25,7 +25,12 @@ const logger = new Logger({
 });
 
 export async function lambdaHandler(event: CloudFormationCustomResourceEvent, context: Context): Promise<void> {
-  logger.info('Event:', { event });
+  logger.info('Processing WebUI deployment request', {
+    requestType: event.RequestType,
+    stackId: event.StackId,
+    logicalResourceId: event.LogicalResourceId,
+    requestId: event.RequestId,
+  });
 
   const physicalResourceId =
     event.RequestType === 'Create' ? `WebUIDeployment-${event.StackId.split('/')[1]}` : event.PhysicalResourceId;
@@ -35,7 +40,10 @@ export async function lambdaHandler(event: CloudFormationCustomResourceEvent, co
       const deployer = new WebUIDeployer();
       await deployer.deploy();
     }
-    logger.info('SUCCESS:', { event });
+    logger.info('WebUI deployment succeeded', {
+      stackId: event.StackId,
+      logicalResourceId: event.LogicalResourceId,
+    });
     await send(event, context, SUCCESS, { Message: 'WebUI successfully deployed' }, physicalResourceId);
   } catch (error) {
     logger.error('An error occurred:', { error });

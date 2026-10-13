@@ -13,7 +13,6 @@ import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { EmailTopicCleanupEnvironmentConfig } from '@asr/data-models';
 
 export interface EmailTopicCleanupConstructProps {
-  readonly solutionId: string;
   readonly solutionTMN: string;
   readonly solutionVersion: string;
   readonly sourceCodeBucket: IBucket;
@@ -30,7 +29,7 @@ export class EmailTopicCleanupConstruct extends Construct {
     super(scope, id);
 
     const stack = Stack.of(this);
-    const RESOURCE_NAME_PREFIX = props.solutionId.replace(/^DEV-/, '');
+    const RESOURCE_NAME_PREFIX = props.resourceNamePrefix;
 
     const cleanupPolicy = new Policy(this, 'EmailTopicCleanupPolicy', {
       policyName: RESOURCE_NAME_PREFIX + '-ASR_EmailTopicCleanup',

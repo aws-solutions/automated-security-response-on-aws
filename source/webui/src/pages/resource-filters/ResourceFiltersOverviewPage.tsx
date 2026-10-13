@@ -16,6 +16,7 @@ import {
   useCreateFilterMutation,
   useUpdateFilterMutation,
   useDeleteFilterMutation,
+  type DeleteFilterResponse,
 } from '../../store/filtersApiSlice.ts';
 import { useGetControlsQuery } from '../../store/controlsApiSlice.ts';
 import { useGetNotificationConfigsQuery } from '../../store/notificationConfigApiSlice.ts';
@@ -23,6 +24,45 @@ import { UserContext } from '../../contexts/UserContext.tsx';
 import { canEditControls } from '../../utils/userPermissions.ts';
 import { isFetchBaseQueryError, getErrorMessage } from '../../utils/error.ts';
 import { addNotification, NotificationPayload } from '../../store/notificationsSlice.ts';
+
+const plural = (count: number): string => (count === 1 ? '' : 's');
+
+/**
+ * The notification for a resolved `DELETE /filters/{id}`. RTK Query resolves any 2xx, and the
+ * API returns 207 when the filter could not be deleted because some controls still reference it
+ * — after already detaching it from the others. Reading a resolved mutation as "deleted" would
+ * hide both facts, so the body decides the message.
+ */
+export function deleteFilterNotification(
+  filterName: string,
+  result: DeleteFilterResponse | undefined,
+): { type: NotificationPayload['type']; content: string } {
+  const stillAttached = result?.stillAttachedControlIds ?? [];
+  const detached = result?.detachedControlIds ?? [];
+  if (stillAttached.length > 0) {
+    let detachedNote = '';
+    if (detached.length > 0) {
+      detachedNote = ` It was removed from ${detached.length} other control${plural(detached.length)} (${detached.join(', ')}), which no longer apply it.`;
+    }
+    return {
+      type: 'error',
+      content: `Resource filter "${filterName}" was NOT deleted: it is still applied to ${stillAttached.join(', ')}.${detachedNote} Retry to finish.`,
+    };
+  }
+  if (result?.deleted === false && detached.length > 0) {
+    // The row was already gone but controls still pointed at it; this request cleaned those
+    // references up. Not a no-op, so not "already deleted".
+    const verb = detached.length === 1 ? 'was' : 'were';
+    return {
+      type: 'info',
+      content: `Resource filter "${filterName}" had already been removed; its remaining reference${plural(detached.length)} on ${detached.join(', ')} ${verb} cleared.`,
+    };
+  }
+  if (result?.deleted === false) {
+    return { type: 'info', content: `Resource filter "${filterName}" was already deleted.` };
+  }
+  return { type: 'success', content: `Resource filter "${filterName}" deleted successfully.` };
+}
 
 export const ResourceFiltersOverviewPage = () => {
   const { groups } = useContext(UserContext);
@@ -135,8 +175,9 @@ export const ResourceFiltersOverviewPage = () => {
     const filterId = deletingFilter.filterId;
     await withSubmitting(async () => {
       try {
-        await deleteFilterMutation(filterId).unwrap();
-        notify('success', `Resource filter "${filterName}" deleted successfully.`);
+        const result = await deleteFilterMutation(filterId).unwrap();
+        const { type, content } = deleteFilterNotification(filterName, result);
+        notify(type, content);
       } catch (error: unknown) {
         notify('error', `Failed to delete filter "${filterName}": ${getErrorMessage(error) || 'Unknown error'}`);
       } finally {

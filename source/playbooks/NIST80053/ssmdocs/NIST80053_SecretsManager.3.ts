@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { RemoveUnusedSecretDocument } from '../../SC/ssmdocs/SC_SecretsManager.3';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new RemoveUnusedSecretDocument(stage, id, { ...props, controlId: 'SecretsManager.3' });
+  return new RemoveUnusedSecretDocument(stage, id, {
+    ...props,
+    controlId: 'SecretsManager.3',
+    isRollbackEnabled: true,
+  });
 }

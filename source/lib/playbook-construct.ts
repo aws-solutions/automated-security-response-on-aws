@@ -34,6 +34,7 @@ export interface IControl {
 }
 export interface PlaybookProps extends StackProps {
   solutionId: string;
+  resourceNamePrefix: string;
   solutionVersion: string;
   solutionDistBucket: string;
   solutionDistName: string;
@@ -47,14 +48,14 @@ export const remapRemediation = function (
   stack: cdk.Stack,
   securityStandard: string,
   securityStandardVersion: string,
-  resourcePrefix: string,
+  resourceNamePrefix: string,
   controlSpec: IControl,
 ): void {
   if (controlSpec.executes != undefined && controlSpec.control != controlSpec.executes) {
     // This control is remapped to another
     new StringParameter(stack, `Remap ${securityStandard} ${controlSpec.control}`, {
       description: `Remap the ${securityStandard} ${controlSpec.control} finding to ${securityStandard} ${controlSpec.executes} remediation`,
-      parameterName: `/Solutions/${resourcePrefix}/${securityStandard}/${securityStandardVersion}/${controlSpec.control}/remap`,
+      parameterName: `/Solutions/${resourceNamePrefix}/${securityStandard}/${securityStandardVersion}/${controlSpec.control}/remap`,
       stringValue: `${controlSpec.executes}`,
     });
   }
@@ -65,7 +66,7 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     super(scope, id, props);
 
     const stack = cdk.Stack.of(this);
-    const RESOURCE_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
+    const RESOURCE_NAME_PREFIX = props.resourceNamePrefix;
 
     //=============================================================================================
     // Parameters
@@ -73,13 +74,13 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     // Register the playbook. These parameters enable the step function to route matching events
     new StringParameter(this, `${props.securityStandard}ShortName`, {
       description: 'Provides a short (1-12) character abbreviation for the standard.',
-      parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/shortname`,
+      parameterName: `/Solutions/${RESOURCE_NAME_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/shortname`,
       stringValue: props.securityStandard,
     });
     new StringParameter(this, 'StandardVersion', {
       description:
         'This parameter controls whether the ASR step function will process findings for this version of the standard.',
-      parameterName: `/Solutions/${RESOURCE_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/status`,
+      parameterName: `/Solutions/${RESOURCE_NAME_PREFIX}/${props.securityStandardLongName}/${props.securityStandardVersion}/status`,
       stringValue: 'enabled',
     });
 
@@ -93,7 +94,7 @@ export class PlaybookPrimaryStack extends cdk.Stack {
     });
 
     props.remediations.forEach((controlSpec) =>
-      remapRemediation(stack, props.securityStandard, props.securityStandardVersion, RESOURCE_PREFIX, controlSpec),
+      remapRemediation(stack, props.securityStandard, props.securityStandardVersion, RESOURCE_NAME_PREFIX, controlSpec),
     );
   }
 }

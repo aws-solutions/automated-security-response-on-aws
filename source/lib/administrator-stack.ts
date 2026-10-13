@@ -30,7 +30,7 @@ import { createLogGroup } from './cdk-helper/log-group';
 import MetricResources from './cdk-helper/metric-resources';
 import { CloudWatchMetrics } from './cloudwatch_metrics';
 import { OrchestratorConstruct } from './common-orchestrator-construct';
-import { getConfig } from './config/cdk-config';
+import { getConfig, stripDevelopmentPrefix } from './config/cdk-config';
 import { PreProcessorConstruct } from './pre-processor-construct';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { OneTrigger, Trigger } from './ssmplaybook';
@@ -44,8 +44,14 @@ import { IaCTemplatesMonitoringConstruct } from './iac-templates-monitoring-cons
 import { BatchProcessorConstruct } from './batch-processor-construct';
 import { EmailTopicCleanupConstruct } from './email-topic-cleanup-construct';
 import { WebUINestedStack } from './webui-nested-stack';
+import { MCP_CALLBACK_URL_NESTED_STACK_DELIMITER, McpGatewayNestedStack } from './mcp-gateway-nested-stack';
+import { RemediationBoundaryPolicy } from './member/remediation-boundary-policy';
 import { AttributeType, BillingMode, ProjectionType, Table, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
-import { OUTSTANDING_RECONCILIATION_GSI, RECONCILIATION_QUEUE_ATTRIBUTE } from '@asr/data-models';
+import {
+  CUSTOM_RUNBOOK_CONTROL_STATUS_GSI,
+  OUTSTANDING_RECONCILIATION_GSI,
+  RECONCILIATION_QUEUE_ATTRIBUTE,
+} from '@asr/data-models';
 
 export interface ASRStackProps extends cdk.StackProps {
   solutionId: string;
@@ -63,7 +69,7 @@ export class AdministratorStack extends cdk.Stack {
   constructor(scope: App, id: string, props: ASRStackProps) {
     super(scope, id, props);
     const stack = cdk.Stack.of(this);
-    const RESOURCE_NAME_PREFIX = props.solutionId.replace(/^DEV-/, ''); // prefix on every resource name
+    const RESOURCE_NAME_PREFIX = stripDevelopmentPrefix(props.solutionId); // prefix on every resource name
 
     //=============================================================================================
     // Parameters
@@ -145,6 +151,9 @@ export class AdministratorStack extends cdk.Stack {
       ],
       actions: kmsActions,
       resources: ['*'],
+      conditions: {
+        StringEquals: { 'aws:SourceAccount': this.account },
+      },
     });
     kmsKeyPolicy.addStatements(kmsGeneralServicePolicy);
 
@@ -387,9 +396,35 @@ export class AdministratorStack extends cdk.Stack {
 
     const orchestratorRole: Role = new Role(this, 'orchestratorRole', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
-      description: 'Lambda role to allow cross account read-only ASR orchestrator functions',
+      description:
+        'Lambda role for ASR orchestrator functions: writes solution SSM parameters and assumes the cross-account Orchestrator-Member role to run remediations',
       roleName: `${RESOURCE_NAME_PREFIX}-ASR-Orchestrator-Admin`,
     });
+
+    /*
+     * The WebUI API Lambda assumes this role to deploy a custom runbook, so the trust allows
+     * its execution role in addition to the Lambda service. The role ARN cannot be referenced
+     * directly (the API Lambda lives in the WebUI nested stack, which already depends on this
+     * role — a direct reference would create a CloudFormation cycle), so it is named by its
+     * deterministic name (pinned in api-construct.ts) in a condition rather than as a
+     * Principal. A condition also tolerates the role not yet existing at trust-creation time.
+     * The caller still needs an identity-based sts:AssumeRole grant, which only the API Lambda
+     * has.
+     *
+     * @secure_recommendation: scope to that one role's exact ARN rather than a broad name
+     * pattern.
+     */
+    orchestratorRole.assumeRolePolicy?.addStatements(
+      new PolicyStatement({
+        actions: ['sts:AssumeRole'],
+        principals: [new AccountRootPrincipal()],
+        conditions: {
+          ArnLike: {
+            'aws:PrincipalArn': `arn:${this.partition}:iam::${this.account}:role/${RESOURCE_NAME_PREFIX}-ASR-APIs-Role`,
+          },
+        },
+      }),
+    );
 
     orchestratorRole.attachInlinePolicy(orchestratorPolicy);
 
@@ -521,6 +556,14 @@ export class AdministratorStack extends cdk.Stack {
       };
     }
 
+    const enableRollback = new cdk.CfnParameter(this, 'EnableRollback', {
+      type: 'String',
+      description:
+        'Enable the rollback feature. When set to "no", the API rejects rollback requests, the Orchestrator refuses to start a rollback execution, and the UI hides rollback controls. Remediations still record a pre-remediation snapshot in each member account. Select "yes" to allow one-click rollback for supported controls.',
+      default: 'no',
+      allowedValues: ['yes', 'no'],
+    });
+
     /**
      * @description execAutomation - initiate an SSM automation document in a target account
      * @type {lambda.Function}
@@ -545,6 +588,7 @@ export class AdministratorStack extends cdk.Stack {
         POWERTOOLS_TRACER_CAPTURE_ERROR: 'true',
         AWS_ACCOUNT_ID: stack.account,
         STACK_ID: stack.stackId,
+        ENABLE_ROLLBACK: enableRollback.valueAsString,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -748,6 +792,48 @@ export class AdministratorStack extends cdk.Stack {
       expression: Fn.conditionEquals(shouldDeployWebUI.valueAsString, 'yes'),
     });
 
+    // Optional MCP server (Amazon Bedrock AgentCore Gateway front door). Off by default and
+    // independent of the Web UI: the MCP Lambda invokes the ASR API Lambda directly
+    // rather than over HTTP, and the shared Cognito pool + core services deploy
+    // whenever either the Web UI or the MCP server is enabled (see coreServicesEnabled).
+    const enableMcpServer = new cdk.CfnParameter(this, 'EnableMcpServer', {
+      type: 'String',
+      description:
+        'Deploy the optional MCP server (AgentCore Gateway) as an MCP front door for AI agents. Requires an AWS Region that supports Amazon Bedrock AgentCore.',
+      default: 'no',
+      allowedValues: ['yes', 'no'],
+    });
+
+    const additionalMcpCallbackUrls = new cdk.CfnParameter(this, 'AdditionalMcpCallbackUrls', {
+      type: 'CommaDelimitedList',
+      description:
+        'Additional OAuth callback URLs for MCP clients. Each URL must use HTTPS, or HTTP on a loopback host. Leave blank to use only the built-in Kiro, Claude Code, and Codex callbacks.',
+      default: '',
+    });
+
+    const agentCoreGatewayEnabled = new cdk.CfnCondition(this, 'agentCoreGatewayEnabled', {
+      expression: Fn.conditionEquals(enableMcpServer.valueAsString, 'yes'),
+    });
+
+    // Shared core services (Cognito user pool, API Lambda + API Gateway, user/account
+    // mapping table) deploy whenever EITHER the Web UI or the MCP server is enabled. The
+    // Web UI nested stack owns these; its frontend-only resources are gated separately on
+    // ShouldDeployWebUI inside that stack.
+    const coreServicesEnabled = new cdk.CfnCondition(this, 'coreServicesEnabled', {
+      expression: Fn.conditionOr(
+        Fn.conditionEquals(shouldDeployWebUI.valueAsString, 'yes'),
+        Fn.conditionEquals(enableMcpServer.valueAsString, 'yes'),
+      ),
+    });
+
+    const mfaConfiguration = new cdk.CfnParameter(this, 'MFAConfiguration', {
+      type: 'String',
+      description:
+        'MFA configuration for the ASR Web UI. OFF: no MFA. OPTIONAL: users can self-enroll in TOTP MFA. REQUIRED: all users must have MFA (recommended only for new deployments).',
+      default: 'OFF',
+      allowedValues: ['OFF', 'OPTIONAL', 'REQUIRED'],
+    });
+
     const adminUserEmail = new cdk.CfnParameter(this, 'AdminUserEmail', {
       type: 'String',
       description:
@@ -759,11 +845,14 @@ export class AdministratorStack extends cdk.Stack {
     // Rule
     //=============================================================================================
     new CfnRule(this, 'AdminUserEmailValidation', {
-      ruleCondition: Fn.conditionEquals(shouldDeployWebUI.valueAsString, 'yes'),
+      ruleCondition: Fn.conditionOr(
+        Fn.conditionEquals(shouldDeployWebUI.valueAsString, 'yes'),
+        Fn.conditionEquals(enableMcpServer.valueAsString, 'yes'),
+      ),
       assertions: [
         {
           assert: Fn.conditionNot(Fn.conditionEquals(adminUserEmail.valueAsString, '')),
-          assertDescription: 'AdminUserEmail is required when Web UI deployment is enabled',
+          assertDescription: 'AdminUserEmail is required when the Web UI or the MCP server is enabled',
         },
       ],
     });
@@ -808,6 +897,7 @@ export class AdministratorStack extends cdk.Stack {
         STACK_ID: stack.stackId,
         SECURITY_HUB_V2_ENABLED: metricsResources.securityHubV2Enabled,
         DISABLE_ACCOUNT_ALIAS_LOOKUP: 'false',
+        ENABLE_ROLLBACK: enableRollback.valueAsString,
       },
       memorySize: 256,
       timeout: cdk.Duration.seconds(600),
@@ -961,7 +1051,7 @@ export class AdministratorStack extends cdk.Stack {
     //---------------------------------------------------------------------
     // Scheduling Queue for SQS Remediation Throttling
     //
-    const deadLetterQueue = new sqs.Queue(this, 'deadLetterSchedulingQueue', {
+    const schedulingDeadLetterQueue = new sqs.Queue(this, 'deadLetterSchedulingQueue', {
       retentionPeriod: sqsRetentionPeriod,
       encryption: sqs.QueueEncryption.KMS,
       enforceSSL: true,
@@ -971,7 +1061,7 @@ export class AdministratorStack extends cdk.Stack {
 
     const deadLetterQueueDeclaration: sqs.DeadLetterQueue = {
       maxReceiveCount: 10,
-      queue: deadLetterQueue,
+      queue: schedulingDeadLetterQueue,
     };
 
     const schedulingQueue = new sqs.Queue(this, 'SchedulingQueue', {
@@ -1198,6 +1288,64 @@ export class AdministratorStack extends cdk.Stack {
     });
 
     //---------------------------------------------------------------------
+    // Custom Runbook Table - Stores custom (customer-authored) runbook versions
+    //
+    // A runbookId owns an ascending series of versions, so version is the sort
+    // key. The GSI answers the orchestrator's question at remediation time
+    // ("is there a deployed custom runbook for this control?") without a scan.
+    //
+    const customRunbookTable = new Table(this, 'CustomRunbookTable', {
+      partitionKey: { name: 'runbookId', type: AttributeType.STRING },
+      sortKey: { name: 'version', type: AttributeType.NUMBER },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      encryption: TableEncryption.DEFAULT, // service-managed encryption
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
+      deletionProtection: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    addCfnGuardSuppression(customRunbookTable, 'DYNAMODB_TABLE_ENCRYPTED_KMS'); // table is encrypted using service-managed encryption
+
+    customRunbookTable.addGlobalSecondaryIndex({
+      indexName: CUSTOM_RUNBOOK_CONTROL_STATUS_GSI,
+      partitionKey: { name: 'controlId', type: AttributeType.STRING },
+      sortKey: { name: 'status', type: AttributeType.STRING },
+    });
+
+    //---------------------------------------------------------------------
+    // Custom Runbook Bucket - Stores the runbook YAML and Python payloads
+    // referenced by the table records (kept out of DynamoDB item size limits).
+    //
+    const customRunbookBucket = new Bucket(this, 'CustomRunbookBucket', {
+      encryption: s3.BucketEncryption.KMS,
+      encryptionKey: kmsKey,
+      bucketKeyEnabled: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: true,
+      serverAccessLogsBucket: accessLogsBucket,
+      serverAccessLogsPrefix: 'custom-runbooks/',
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      // Each register/deploy writes a new object version and the bucket is RETAIN, so without
+      // this the superseded versions accumulate without bound. Expire noncurrent versions after
+      // 90 days (matching the IaC-templates bucket); the current version of every runbook is
+      // untouched, so a rollback to any still-registered version is unaffected.
+      lifecycleRules: [
+        {
+          noncurrentVersionExpiration: cdk.Duration.days(90),
+        },
+      ],
+    });
+
+    // Orchestrator wiring — custom runbook resolution at remediation time.
+    // Custom runbooks are deployed copy-per-member, so the resolver only ever
+    // references a plain local document name; it has no need for the admin
+    // account ID an owner-qualified ({admin}:{doc}) reference would require.
+    checkSSMDocumentState.addEnvironment('CUSTOM_RUNBOOK_TABLE_NAME', customRunbookTable.tableName);
+    customRunbookTable.grantReadData(checkSSMDocumentState); // covers the GSI: grantReadData includes <table>/index/*
+
+    //---------------------------------------------------------------------
     // Namespace Parameter (shared with Member Roles and Member stacks)
     //
     const namespaceParam = new NamespaceParam(this, 'Namespace');
@@ -1238,10 +1386,119 @@ export class AdministratorStack extends cdk.Stack {
       notificationConfigTable: notificationConfigTable,
       notificationBatchesTable: notificationBatchesTable,
       iacTemplatesBucket: iacTemplatesBucket.bucket,
+      customRunbookTable: customRunbookTable,
+      customRunbookBucket: customRunbookBucket,
+      enableRollback: enableRollback.valueAsString,
+      findingsTtlDays: findingsTTL,
+      mfaConfiguration: mfaConfiguration.valueAsString,
+      // 'yes'/'no'. Gates the Web UI frontend (CloudFront UI, deployment, API Gateway
+      // stage) inside the nested stack. Shared core services (Cognito, API Lambda,
+      // mapping table) deploy regardless, so the gateway can run without the frontend.
+      deployFrontend: shouldDeployWebUI.valueAsString,
+      // The MCP grant endpoints (PUT /users/{id}/mcp-tools, GET /mcp/tools) are only
+      // meaningful when the MCP server is deployed, so gate them on the same parameter.
+      // 'yes'/'no' matches what assertMcpEnabled() checks for MCP_ENABLED.
+      mcpEnabled: enableMcpServer.valueAsString,
     });
 
     const webUINestedStackResource = webUINestedStack.nestedStackResource as cdk.CfnResource;
-    webUINestedStackResource.cfnOptions.condition = webUIEnabled;
+    // Read the CloudFront domain as a cross-stack output value rather than through
+    // webUINestedStack.distributionDomainName (which is an Fn::If on the nested-only
+    // `frontendEnabled` condition). Fn::GetAtt resolves the value across the stack
+    // boundary without carrying that condition into the parent template.
+    const webUiDistributionDomainName = webUINestedStackResource
+      .getAtt(`Outputs.${webUINestedStack.distributionDomainNameOutputLogicalId}`)
+      .toString();
+    // Deploy the Web UI nested stack (shared core services) whenever either the Web UI
+    // or the AgentCore Gateway is enabled. The frontend-only resources inside it are
+    // gated on ShouldDeployWebUI via the deployFrontend prop.
+    webUINestedStackResource.cfnOptions.condition = coreServicesEnabled;
+
+    // Permissions boundary attached to the short-lived roles that recorded custom-runbook
+    // testing creates in THIS (admin) account via the MCP gateway. test_runbook_yaml
+    // provisions and runs its test role here (not in a member account), so the admin account
+    // needs its own boundary. Two deliberate choices:
+    //  - DISTINCT name (…-ASR-Custom-Runbook-Test-Boundary), not the member boundary's fixed
+    //    …-ASR-Remediation-Boundary: the member-roles template can also be deployed INTO the
+    //    admin account ("admin remediates its own findings"), and managed-policy names are
+    //    unique per account — a shared name would collide (EntityAlreadyExists). This copy is
+    //    consumed by ARN (the env var below), never reconstructed by the fixed name, so a
+    //    different name is safe.
+    //  - Gated on the gateway condition: it exists only for the MCP test flow, so a Web-UI-
+    //    only or base deployment does not create it.
+    const remediationBoundaryPolicy = new RemediationBoundaryPolicy(this, 'RemediationBoundaryPolicy', {
+      solutionId: props.solutionId,
+      managedPolicyName: `${RESOURCE_NAME_PREFIX}-ASR-Custom-Runbook-Test-Boundary`,
+    });
+    (remediationBoundaryPolicy.managedPolicy.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+      agentCoreGatewayEnabled;
+
+    // Optional MCP server (AgentCore Gateway) — own nested stack, deployed whenever
+    // EnableMcpServer=yes, independent of the Web UI. Imports the shared Cognito
+    // pool by ID and invokes the ASR API Lambda directly; adds nothing when disabled.
+    const mcpGatewayNestedStack = new McpGatewayNestedStack(this, 'McpGatewayNestedStack', {
+      solutionId: props.solutionId,
+      solutionVersion: props.solutionVersion,
+      solutionTMN: props.solutionTMN,
+      solutionsBucket: sourceCodeBucket,
+      resourceNamePrefix: RESOURCE_NAME_PREFIX,
+      userPoolId: webUINestedStack.userPoolId,
+      apiFunctionName: apiFunctionName,
+      userAccountMappingTableName: webUINestedStack.userAccountMappingTableName,
+      userAccountMappingTableARN: webUINestedStack.userAccountMappingTableARN,
+      remediationHistoryTableName: remediationHistoryTable.tableName,
+      remediationHistoryTableARN: remediationHistoryTable.tableArn,
+      customRunbookTableName: customRunbookTable.tableName,
+      customRunbookTableARN: customRunbookTable.tableArn,
+      kmsKeyARN: kmsKey.keyArn,
+      remediationBoundaryPolicyArn: remediationBoundaryPolicy.managedPolicy.managedPolicyArn,
+    });
+    const mcpGatewayNestedStackResource = mcpGatewayNestedStack.nestedStackResource as cdk.CfnResource;
+    mcpGatewayNestedStackResource.cfnOptions.condition = agentCoreGatewayEnabled;
+    mcpGatewayNestedStackResource.addPropertyOverride(
+      'Parameters.AdditionalMcpCallbackUrls',
+      Fn.join(MCP_CALLBACK_URL_NESTED_STACK_DELIMITER, additionalMcpCallbackUrls.valueAsList),
+    );
+    mcpGatewayNestedStack.node.addDependency(webUINestedStack);
+
+    // Point the MCP gateway nested stack at the packaged template in the reference
+    // bucket. Without this override the synthesized TemplateURL points at the CDK
+    // bootstrap asset bucket, which does not exist in a customer deployment, and the
+    // build script renames the synthesized nested template to this friendly name.
+    mcpGatewayNestedStackResource.addPropertyOverride(
+      'TemplateURL',
+      'https://' +
+        Fn.findInMap('SourceCode', 'General', 'S3Bucket') +
+        '-reference.s3.amazonaws.com/' +
+        Fn.findInMap('SourceCode', 'General', 'KeyPrefix') +
+        '/automated-security-response-mcp-gateway-nested-stack.template',
+    );
+
+    // Surface the native-client connection values at the top level so operators
+    // do not need to inspect generated nested-stack output keys.
+    const mcpGatewayUrlOutput = new CfnOutput(this, 'McpGatewayUrl', {
+      description: 'MCP server endpoint URL. Register this in your MCP client / DevOps Agent console.',
+      value: mcpGatewayNestedStack.gatewayUrl,
+    });
+    mcpGatewayUrlOutput.condition = agentCoreGatewayEnabled;
+
+    const mcpGatewayClientIdOutput = new CfnOutput(this, 'McpGatewayClientId', {
+      description: 'Public Cognito OAuth client ID for native MCP clients.',
+      value: mcpGatewayNestedStack.gatewayClientId,
+    });
+    mcpGatewayClientIdOutput.condition = agentCoreGatewayEnabled;
+
+    const mcpGatewayScopesOutput = new CfnOutput(this, 'McpGatewayScopes', {
+      description: 'Space-delimited OAuth scopes native MCP clients must request during login.',
+      value: mcpGatewayNestedStack.gatewayScopes,
+    });
+    mcpGatewayScopesOutput.condition = agentCoreGatewayEnabled;
+
+    const mcpCodexCallbackUrlOutput = new CfnOutput(this, 'McpCodexCallbackUrl', {
+      description: 'Exact Codex OAuth callback URL registered for this MCP gateway deployment.',
+      value: mcpGatewayNestedStack.codexCallbackUrl,
+    });
+    mcpCodexCallbackUrlOutput.condition = agentCoreGatewayEnabled;
 
     // Add property override for WebUI template URL
     webUINestedStackResource.addPropertyOverride(
@@ -1270,7 +1527,6 @@ export class AdministratorStack extends cdk.Stack {
     // Synchronization Findings Construct
     //
     const synchronizationConstruct = new SynchronizationFindingsConstruct(this, 'SynchronizationFindingsConstruct', {
-      solutionId: props.solutionId,
       solutionTMN: props.solutionTMN,
       solutionVersion: props.solutionVersion,
       resourceNamePrefix: RESOURCE_NAME_PREFIX,
@@ -1457,7 +1713,6 @@ export class AdministratorStack extends cdk.Stack {
       this,
       'NotificationDispatcherConstruct',
       {
-        solutionId: props.solutionId,
         solutionVersion: props.solutionVersion,
         solutionsBucket: sourceCodeBucket,
         solutionTMN: props.solutionTMN,
@@ -1508,9 +1763,12 @@ export class AdministratorStack extends cdk.Stack {
     notificationDispatcherConstruct.grantSendMessages(sendNotifications);
     sendNotifications.addEnvironment('NOTIFICATION_QUEUE_URL', notificationDispatcherConstruct.queue.queueUrl);
 
+    sendNotifications.addEnvironment('REMEDIATION_CONFIG_TABLE_NAME', remediationConfigTable.tableName);
+    remediationConfigTable.grantReadData(sendNotifications);
+
     const webUiUrl = cdk.Fn.conditionIf(
       webUIEnabled.logicalId,
-      `https://${webUINestedStack.distributionDomainName}`,
+      `https://${webUiDistributionDomainName}`,
       cdk.Aws.NO_VALUE,
     ).toString();
 
@@ -1518,7 +1776,6 @@ export class AdministratorStack extends cdk.Stack {
     // Notification Channel Fanout — per-channel adapter Lambdas
     //
     new NotificationChannelFanoutConstruct(this, 'NotificationChannelFanout', {
-      solutionId: props.solutionId,
       solutionVersion: props.solutionVersion,
       solutionsBucket: sourceCodeBucket,
       solutionTMN: props.solutionTMN,
@@ -1533,7 +1790,6 @@ export class AdministratorStack extends cdk.Stack {
     // Batch Processor — EventBridge-triggered Lambda for batch notifications
     //
     new BatchProcessorConstruct(this, 'BatchProcessorConstruct', {
-      solutionId: props.solutionId,
       solutionVersion: props.solutionVersion,
       solutionsBucket: sourceCodeBucket,
       solutionTMN: props.solutionTMN,
@@ -1554,7 +1810,6 @@ export class AdministratorStack extends cdk.Stack {
     // Custom Resource for Email SNS Topic Cleanup on Stack Delete
     //
     new EmailTopicCleanupConstruct(this, 'EmailTopicCleanup', {
-      solutionId: props.solutionId,
       solutionTMN: props.solutionTMN,
       solutionVersion: props.solutionVersion,
       sourceCodeBucket: sourceCodeBucket,
@@ -1749,9 +2004,13 @@ export class AdministratorStack extends cdk.Stack {
       actionLogLogGroupName: props.cloudTrailLogGroupName,
       enhancedMetricsEnabled: enhancedMetricsEnabled,
       webUIEnabled: webUIEnabled,
+      mcpEnabled: agentCoreGatewayEnabled,
       userPoolId: webUINestedStack.userPoolId,
       preProcessorDLQName: preProcessorConstruct.deadLetterQueue.queueName,
+      notificationDLQName: notificationDispatcherConstruct.deadLetterQueue.queueName,
+      schedulingDLQName: schedulingDeadLetterQueue.queueName,
       synchronizationLambdaName: synchronizationConstruct.synchronizationLambda.functionName,
+      enableRollback: enableRollback.valueAsString,
     });
 
     new IaCTemplatesMonitoringConstruct(this, 'IaCTemplatesMonitoring', {
@@ -1782,6 +2041,10 @@ export class AdministratorStack extends cdk.Stack {
           {
             Label: { default: 'Web UI Configuration' },
             Parameters: [shouldDeployWebUI.logicalId, adminUserEmail.logicalId],
+          },
+          {
+            Label: { default: '(Optional) MCP Server' },
+            Parameters: [enableMcpServer.logicalId, additionalMcpCallbackUrls.logicalId],
           },
           {
             Label: { default: 'CloudWatch Metrics' },
@@ -1840,13 +2103,17 @@ export class AdministratorStack extends cdk.Stack {
 
     new CfnOutput(this, 'WebUIURL', {
       description: 'URL for the Web UI',
-      value: `https://${webUINestedStack.distributionDomainName}`,
+      value: `https://${webUiDistributionDomainName}`,
       condition: webUIEnabled,
     });
 
     new CfnOutput(this, 'APIEndpoint', {
       description: 'API Gateway endpoint URL',
-      value: webUINestedStack.api.url,
+      // Read via Fn::GetAtt on the nested stack's conditioned ApiEndpoint output rather
+      // than webUINestedStack.api.url. A direct attribute reference makes CDK emit an
+      // UNconditioned nested output over the frontend-gated API, which is absent in an
+      // MCP-only deployment and fails the nested stack. Mirrors webUiDistributionDomainName.
+      value: webUINestedStackResource.getAtt(`Outputs.${webUINestedStack.apiEndpointOutputLogicalId}`).toString(),
       condition: webUIEnabled,
     });
 

@@ -14,7 +14,11 @@ import {
 } from '@cdklabs/cdk-ssm-documents';
 
 export function createControlRunbook(scope: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableEnhancedMonitoringOnRDSInstanceDocument(scope, id, { ...props, controlId: 'RDS.6' });
+  return new EnableEnhancedMonitoringOnRDSInstanceDocument(scope, id, {
+    ...props,
+    controlId: 'RDS.6',
+    isRollbackEnabled: true,
+  });
 }
 
 export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunbookDocument {
@@ -46,7 +50,7 @@ export class EnableEnhancedMonitoringOnRDSInstanceDocument extends ControlRunboo
         timeoutSeconds: 600,
         service: AwsService.IAM,
         pascalCaseApi: 'GetRole',
-        apiParams: { RoleName: `${this.solutionId}-RDSMonitoring-remediationRole-${this.namespace}` },
+        apiParams: { RoleName: `${this.resourceNamePrefix}-RDSMonitoring-remediationRole-${this.namespace}` },
         outputs: [
           {
             name: 'Arn',

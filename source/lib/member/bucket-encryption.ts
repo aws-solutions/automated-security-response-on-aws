@@ -4,7 +4,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export interface MemberBucketEncryptionProps {
-  readonly solutionId: string;
+  readonly resourceNamePrefix: string;
 }
 
 export class MemberBucketEncryption extends Construct {
@@ -16,7 +16,7 @@ export class MemberBucketEncryption extends Construct {
     new StringParameter(scope, 'SSMParameterForS3.4EncryptionKeyAlias', {
       description:
         'Parameter to store encryption key alias for the PCI.S3.4/FSBP.S3.4, replace the default value with the KMS Key Alias, other wise the remediation will enable the default AES256 encryption for the bucket.',
-      parameterName: `/Solutions/${props.solutionId}/afsbp/1.0.0/S3.4/KmsKeyAlias`,
+      parameterName: `/Solutions/${props.resourceNamePrefix}/afsbp/1.0.0/S3.4/KmsKeyAlias`,
       stringValue: 'default-s3-encryption',
     });
   }

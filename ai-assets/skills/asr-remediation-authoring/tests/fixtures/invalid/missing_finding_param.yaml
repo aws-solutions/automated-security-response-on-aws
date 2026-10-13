@@ -1,0 +1,40 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Trips [orchestrator-parameters]: `Finding` is absent, and `BucketName` is a
+# required parameter with no default. The Orchestrator supplies neither resource
+# parameters nor values beyond `Finding` and `AutomationAssumeRole`.
+schemaVersion: "0.3"
+description: |
+  ### Document name - ASR-Custom-S3.17
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+  BucketName:
+    type: String
+    description: (Required) The bucket to encrypt.
+mainSteps:
+  - name: EnableBucketKmsEncryption
+    action: aws:executeAwsApi
+    timeoutSeconds: 600
+    inputs:
+      Service: s3
+      Api: PutBucketEncryption
+      Bucket: "{{ BucketName }}"
+      ServerSideEncryptionConfiguration:
+        Rules:
+          - ApplyServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+  - name: VerifyEncryption
+    action: aws:assertAwsResourceProperty
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Service: s3
+      Api: GetBucketEncryption
+      Bucket: "{{ BucketName }}"
+      PropertySelector: "$.ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm"
+      DesiredValues:
+        - aws:kms

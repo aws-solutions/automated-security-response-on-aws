@@ -58,6 +58,8 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
 
         s3.create_bucket(**kwargs)
 
+        put_access_block(s3, event["BucketName"])
+
         s3.put_bucket_encryption(
             Bucket=event["BucketName"],
             ServerSideEncryptionConfiguration={
@@ -110,6 +112,7 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
             elif "us-gov" in event["AWS_REGION"]:
                 partition = "aws-us-gov"
             bucket_arn = f"arn:{partition}:s3:::{event['BucketName']}"
+            put_access_block(s3, event["BucketName"])
             return {
                 "output": {
                     "Message": f'Bucket {event["BucketName"]} already exists and is owned by you',
@@ -119,3 +122,23 @@ def create_logging_bucket(event: Event, _: LambdaContext) -> Response:
     except Exception as e:
         print(e)
         exit(str(e))
+
+
+def put_access_block(s3: S3Client, bucket_name: str) -> None:
+    try:
+        s3.put_public_access_block(
+            Bucket=bucket_name,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        )
+    except Exception as e:
+        exit(
+            "Error setting public access block for bucket "
+            + bucket_name
+            + ": "
+            + str(e)
+        )

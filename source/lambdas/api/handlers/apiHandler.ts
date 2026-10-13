@@ -9,7 +9,7 @@ import { bulkEditControls, getControls } from './controls';
 import { createFilter, deleteFilter, getFilters, updateFilter } from './filters';
 import { executeFindingAction, exportFindings, searchFindings } from './findings';
 import { exportRemediations, searchRemediations } from './remediations';
-import { deleteUser, getUsers, inviteUser, putUser } from './users';
+import { deleteUser, getMcpTools, getUsers, inviteUser, putUser, putUserMcpTools } from './users';
 import {
   createNotificationConfiguration,
   deleteNotificationConfiguration,
@@ -22,14 +22,29 @@ import {
   testNotificationConfiguration,
 } from './notifications';
 import { getIaCTemplateContent } from './iacTemplateContent';
+import {
+  deployRunbook,
+  driftDetection,
+  executeRunbook,
+  generateRunbook,
+  getExecutionStatus,
+  getRunbook,
+  listRunbooks,
+  validateRunbook,
+} from './customRunbooks';
 import { apiLambdaEnvironment } from '../apiLambdaEnvironment';
 import { recordApiWriteMetrics } from '../rateLimiting/writeMetrics';
 
-const env = apiLambdaEnvironment();
 const logger = new Logger({ serviceName: 'ApiRouter' });
 
 type ErrorWithStatusCode = Error & { statusCode?: number };
-const ALLOWED_ORIGINS = [env.WEB_UI_URL, 'http://localhost:3000'].filter(Boolean);
+
+const env = apiLambdaEnvironment();
+
+/** Origins allowed by CORS: the deployed Web UI plus the local dev server. */
+const ALLOWED_ORIGINS: string[] = [env.WEB_UI_URL, 'http://localhost:3000'].filter((origin): origin is string =>
+  Boolean(origin),
+);
 
 const BASE_CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
@@ -64,9 +79,17 @@ export const API_HEADERS = {
     ...BASE_CORS_HEADERS,
     'Access-Control-Allow-Methods': 'GET,OPTIONS',
   },
+  RUNBOOKS: {
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+  },
 } as const;
 
-export function createResponse(statusCode: number, body: any, headers: Record<string, string>): APIGatewayProxyResult {
+export function createResponse(
+  statusCode: number,
+  body: unknown,
+  headers: Record<string, string>,
+): APIGatewayProxyResult {
   return {
     statusCode,
     headers,
@@ -76,11 +99,19 @@ export function createResponse(statusCode: number, body: any, headers: Record<st
 
 function createErrorResponse(error: ErrorWithStatusCode, origin: string) {
   const isHttpError = error instanceof HttpError;
+  // `code` (a machine-readable error code) and `context` (structured detail, e.g. the
+  // `currentVersion` a client must refresh to) live on the `HttpError` base, so any HttpError can
+  // carry them and no per-subclass narrowing is needed. Serializing only `error` and `message`
+  // silently dropped both, so the services were computing metadata no client could ever see.
+  const code = isHttpError ? error.code : undefined;
+  const context = isHttpError ? error.context : undefined;
   return createResponse(
     isHttpError ? error.statusCode : 400,
     {
       error: isHttpError ? error.name : 'Error',
       message: isHttpError ? error.message : 'An unexpected error occurred.',
+      ...(code !== undefined && { code }),
+      ...(context !== undefined && { context }),
     },
     {
       ...BASE_CORS_HEADERS,
@@ -137,6 +168,16 @@ export const routes = [
     method: 'PUT',
     path: '/users/{id}',
     handler: putUser,
+  },
+  {
+    method: 'PUT',
+    path: '/users/{id}/mcp-tools',
+    handler: putUserMcpTools,
+  },
+  {
+    method: 'GET',
+    path: '/mcp/tools',
+    handler: getMcpTools,
   },
   {
     method: 'DELETE',
@@ -217,6 +258,49 @@ export const routes = [
     method: 'GET',
     path: '/iac/{findingId}',
     handler: getIaCTemplateContent,
+  },
+  // Custom runbook authoring lifecycle. All POST because every route takes a
+  // structured request body; these are also the routes the MCP server Lambda
+  // proxies to.
+  {
+    method: 'POST',
+    path: '/runbooks/generate',
+    handler: generateRunbook,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/list',
+    handler: listRunbooks,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/get',
+    handler: getRunbook,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/validate',
+    handler: validateRunbook,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/deploy',
+    handler: deployRunbook,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/execute',
+    handler: executeRunbook,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/execution-status',
+    handler: getExecutionStatus,
+  },
+  {
+    method: 'POST',
+    path: '/runbooks/drift-detection',
+    handler: driftDetection,
   },
 ];
 

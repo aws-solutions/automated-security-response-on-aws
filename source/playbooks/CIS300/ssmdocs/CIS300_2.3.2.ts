@@ -6,5 +6,9 @@ import { ControlRunbookDocument } from '../../SC/ssmdocs/control_runbook';
 import { EnableMinorVersionUpgradeOnRDSDBInstanceDocument } from '../../SC/ssmdocs/SC_RDS.13';
 
 export function createControlRunbook(stage: Construct, id: string, props: PlaybookProps): ControlRunbookDocument {
-  return new EnableMinorVersionUpgradeOnRDSDBInstanceDocument(stage, id, { ...props, controlId: '2.3.2' });
+  return new EnableMinorVersionUpgradeOnRDSDBInstanceDocument(stage, id, {
+    ...props,
+    controlId: '2.3.2',
+    isRollbackEnabled: true,
+  });
 }

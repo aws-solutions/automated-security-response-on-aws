@@ -19,6 +19,14 @@ exports[`member stack snapshot matches 1`] = `
         "yes",
       ],
     },
+    "IsCommercialPartition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Partition",
+        },
+        "aws",
+      ],
+    },
     "loadAFSBP1Cond": {
       "Fn::Equals": [
         {
@@ -753,6 +761,17 @@ def sort_filter_rules(json_obj):
     "MetricResourcesASRDeploymentMetricsCustomResource0940D9B2": {
       "DeletionPolicy": "Delete",
       "Properties": {
+        "SecurityHubV2PolicyDependency": {
+          "Fn::If": [
+            "IsCommercialPartition",
+            {
+              "Ref": "MetricResourcesMetricResourcesSecurityHubV2PolicyEF1A676B",
+            },
+            {
+              "Ref": "AWS::NoValue",
+            },
+          ],
+        },
         "ServiceToken": {
           "Fn::GetAtt": [
             "MetricResourcesASRDeploymentCustomResourceLambda02CE6550",
@@ -901,11 +920,6 @@ def sort_filter_rules(json_obj):
                     ],
                   },
                 },
-                {
-                  "Action": "securityhub:DescribeSecurityHubV2",
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
               ],
               "Version": "2012-10-17",
             },
@@ -914,6 +928,28 @@ def sort_filter_rules(json_obj):
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "MetricResourcesMetricResourcesSecurityHubV2PolicyEF1A676B": {
+      "Condition": "IsCommercialPartition",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "securityhub:DescribeSecurityHubV2",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "MetricResourcesMetricResourcesSecurityHubV2PolicyEF1A676B",
+        "Roles": [
+          {
+            "Ref": "MetricResourcesMetricResourcesRoleC49ABA6D",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "NestedStackFactoryGateMemberCloudTrailStackD769B835": {
       "Metadata": {
@@ -2230,6 +2266,12 @@ def sort_filter_rules(json_obj):
               "ExpirationInDays": 7,
               "Id": "InstallOverrideListExpiration",
               "Prefix": "install-overrides/",
+              "Status": "Enabled",
+            },
+            {
+              "ExpirationInDays": 365,
+              "Id": "RollbackSnapshotRetention",
+              "Prefix": "snapshots/",
               "Status": "Enabled",
             },
           ],

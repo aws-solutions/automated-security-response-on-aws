@@ -15,10 +15,10 @@ import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import { createLogGroup } from './cdk-helper/log-group';
 import { addMetricsSsmPermissions } from './cdk-helper/add-metrics-permissions';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
+import { attachCommercialPartitionSecurityHubV2Policy } from './cdk-helper/is-commercial-partition';
 import { BatchProcessorEnvironmentConfig } from '@asr/data-models';
 
 export interface BatchProcessorProps {
-  readonly solutionId: string;
   readonly solutionVersion: string;
   readonly solutionsBucket: IBucket;
   readonly solutionTMN: string;
@@ -119,11 +119,30 @@ export class BatchProcessorConstruct extends Construct {
       }),
     );
 
+    // Read live finding status so an overdue finding suppressed in Security Hub CSPM or Security Hub V2
+    // is not remediated. GetFindings is granted in every partition; DescribeSecurityHubV2 (Security Hub
+    // V2 / OCSF) exists only in the aws (commercial) partition, and attaching it in aws-us-gov or aws-cn
+    // makes IAM reject the policy at CREATE. Gate the V2 action on a stack-level commercial-partition
+    // CFN condition.
+    this.batchProcessorFunction.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['securityhub:GetFindings'],
+        resources: ['*'],
+      }),
+    );
+
+    attachCommercialPartitionSecurityHubV2Policy(
+      this,
+      'BatchProcessorSecurityHubV2Policy',
+      this.batchProcessorFunction.role,
+    );
+
     // SNS publish to channel fanout
     props.channelFanoutTopic.grantPublish(this.batchProcessorFunction);
 
     // SSM access for publishing anonymous usage metrics via sendMetrics()
-    addMetricsSsmPermissions(this.batchProcessorFunction, props.solutionId);
+    addMetricsSsmPermissions(this.batchProcessorFunction, props.resourceNamePrefix);
 
     // S3 put for batch CSV upload, read for pre-signed download URLs. Avoid grantReadWrite
     // so the Lambda does not receive s3:DeleteObject permissions it never exercises.
