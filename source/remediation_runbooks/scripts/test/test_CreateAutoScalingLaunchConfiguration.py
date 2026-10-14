@@ -1,6 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import base64
+import gzip
 import re
 
 import boto3
@@ -104,3 +106,67 @@ def test_invalid_event():
         r"Encountered an error creating auto scaling launch configuration:",
         str(e.value),
     )
+
+
+@mock_aws
+def test_user_data_from_describe_is_not_double_encoded():
+    autoscaling_client = boto3.client("autoscaling", config=BOTO_CONFIG)
+    user_data = "#!/bin/bash\necho hello\n"
+    autoscaling_client.create_launch_configuration(
+        LaunchConfigurationName="original",
+        ImageId="ami-025d618a66d5e032d",
+        InstanceType="t3.micro",
+        UserData=user_data,
+    )
+    original = autoscaling_client.describe_launch_configurations(
+        LaunchConfigurationNames=["original"]
+    )["LaunchConfigurations"][0]
+    # DescribeLaunchConfigurations returns the user data base64-encoded
+    assert base64.b64decode(original["UserData"]).decode() == user_data
+
+    event = Event(
+        {
+            "LaunchConfiguration": {
+                "LaunchConfigurationName": "copy",
+                "ImageId": original["ImageId"],
+                "InstanceType": original["InstanceType"],
+                "KernelId": "",
+                "RamdiskId": "",
+                "UserData": original["UserData"],
+            }
+        }
+    )
+    create_auto_scaling_launch_configuration(event, None)
+
+    copy = autoscaling_client.describe_launch_configurations(
+        LaunchConfigurationNames=["copy"]
+    )["LaunchConfigurations"][0]
+    assert copy["UserData"] == original["UserData"]
+    assert base64.b64decode(copy["UserData"]).decode() == user_data
+
+
+@mock_aws
+def test_binary_user_data_is_preserved():
+    autoscaling_client = boto3.client("autoscaling", config=BOTO_CONFIG)
+    user_data = gzip.compress(b"#!/bin/bash\necho hello\n")
+    encoded_user_data = base64.b64encode(user_data).decode()
+
+    event = Event(
+        {
+            "LaunchConfiguration": {
+                "LaunchConfigurationName": "copy",
+                "ImageId": "ami-025d618a66d5e032d",
+                "InstanceType": "t3.micro",
+                "KernelId": "",
+                "RamdiskId": "",
+                "UserData": encoded_user_data,
+            }
+        }
+    )
+    create_auto_scaling_launch_configuration(event, None)
+
+    copy = autoscaling_client.describe_launch_configurations(
+        LaunchConfigurationNames=["copy"]
+    )["LaunchConfigurations"][0]
+    assert copy["UserData"] == encoded_user_data
+    assert base64.b64decode(copy["UserData"]) == user_data

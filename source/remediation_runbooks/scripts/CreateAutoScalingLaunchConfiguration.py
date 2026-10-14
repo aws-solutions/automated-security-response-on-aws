@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 else:
     AutoScalingClient = object
 
+import base64
+
 import boto3
 from botocore.config import Config
 
@@ -28,6 +30,14 @@ def create_auto_scaling_launch_configuration(event: Event, _):
 
         if event["LaunchConfiguration"]["RamdiskId"] == "":
             del event["LaunchConfiguration"]["RamdiskId"]
+
+        # DescribeLaunchConfigurations returns UserData base64-encoded, and boto3
+        # base64-encodes UserData again in CreateLaunchConfiguration. Decode it here
+        # so the new launch configuration keeps the original user data.
+        if event["LaunchConfiguration"].get("UserData"):
+            event["LaunchConfiguration"]["UserData"] = base64.b64decode(
+                event["LaunchConfiguration"]["UserData"], validate=True
+            )
 
         autoscaling_client = connect_to_auto_scaling(
             Config(retries={"mode": "standard"})
