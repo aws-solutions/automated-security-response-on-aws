@@ -56,18 +56,27 @@ def _is_account_sensitive(_):
     return False
 
 
+# EventBridge detail-types (from $.detail-type) that start a remediation
+# without a person choosing it: the automatic rule in lib/ssmplaybook.ts.
+AUTOMATIC_TRIGGER_EVENT_TYPES = (
+    "Security Hub Findings - Imported",
+    "Findings Imported V2",
+)
+CUSTOM_ACTION_EVENT_TYPE = "Security Hub Findings - Custom Action"
+
+
 def _is_automatic_trigger(event_type):
-    if event_type == "Security Hub Findings - Imported":
-        return False
-    else:
+    if event_type in AUTOMATIC_TRIGGER_EVENT_TYPES:
         return True
+    if event_type == CUSTOM_ACTION_EVENT_TYPE:
+        return False
+    # Other sources (for example "Security Hub Findings - API Action", used by
+    # both the web UI and overdue remediations) keep the previous behaviour.
+    return True
 
 
 def _is_custom_action_trigger(event_type):
-    if event_type == "Security Hub Findings - Imported":
-        return True
-    else:
-        return False
+    return event_type == CUSTOM_ACTION_EVENT_TYPE
 
 
 def get_running_account():

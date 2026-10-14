@@ -267,9 +267,13 @@ def test_missing_event_type():
 def test_automatic_trigger_detection():
     from get_approval_requirement import _is_automatic_trigger
 
-    assert _is_automatic_trigger("Security Hub Findings - Imported") is False
+    assert _is_automatic_trigger("Security Hub Findings - Imported") is True
 
-    assert _is_automatic_trigger("Security Hub Findings - Custom Action") is True
+    assert _is_automatic_trigger("Findings Imported V2") is True
+
+    assert _is_automatic_trigger("Security Hub Findings - Custom Action") is False
+
+    assert _is_automatic_trigger("Security Hub Findings - API Action") is True
 
     assert _is_automatic_trigger("Some Other Event Type") is True
 
@@ -277,9 +281,11 @@ def test_automatic_trigger_detection():
 def test_custom_action_trigger_detection():
     from get_approval_requirement import _is_custom_action_trigger
 
-    assert _is_custom_action_trigger("Security Hub Findings - Imported") is True
+    assert _is_custom_action_trigger("Security Hub Findings - Imported") is False
 
-    assert _is_custom_action_trigger("Security Hub Findings - Custom Action") is False
+    assert _is_custom_action_trigger("Findings Imported V2") is False
+
+    assert _is_custom_action_trigger("Security Hub Findings - Custom Action") is True
 
     assert _is_custom_action_trigger("Some Other Event Type") is False
 
@@ -1300,3 +1306,46 @@ def test_multi_service_finding_requires_approval_when_destructive_and_sensitive(
     assert result["workflow_data"]["approvalrequired"] == "true"
     assert result["workflow_data"]["impact"] == "destructive"
     assert result["workflowdoc"] == "ASR-RunWorkflow"
+
+
+def _securityhub_event(event_type):
+    """The AutoScaling.1 finding from step_input(), delivered with the given
+    EventBridge detail-type."""
+    event = step_input()
+    event["EventType"] = event_type
+    return event
+
+
+@pytest.mark.parametrize(
+    "event_type,expected_impact,expected_approval",
+    [
+        # The automatic rule (lib/ssmplaybook.ts) matches these two detail-types.
+        ("Security Hub Findings - Imported", "destructive", "true"),
+        ("Findings Imported V2", "destructive", "true"),
+        # A person choosing the Security Hub custom action.
+        ("Security Hub Findings - Custom Action", "nondestructive", "false"),
+    ],
+)
+def test_approval_follows_trigger_when_destructive_and_sensitive(
+    mocker, event_type, expected_impact, expected_approval
+):
+    """With the destructive and sensitive-account checks extended to return True,
+    an automatically triggered remediation must be marked destructive and require
+    approval, and a manual custom-action remediation must not."""
+    # ARRANGE
+    os.environ["WORKFLOW_RUNBOOK"] = "ASR-RunWorkflow"
+    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+    mocker.patch("get_approval_requirement._doc_is_active", return_value=True)
+    mocker.patch(
+        "get_approval_requirement._is_remediation_destructive", return_value=True
+    )
+    mocker.patch("get_approval_requirement._is_account_sensitive", return_value=True)
+
+    # ACT
+    result = lambda_handler(_securityhub_event(event_type), create_lambda_context())
+
+    # ASSERT
+    assert result["status"] != "ERROR"
+    assert result["workflowdoc"] == "ASR-RunWorkflow"
+    assert result["workflow_data"]["impact"] == expected_impact
+    assert result["workflow_data"]["approvalrequired"] == expected_approval
