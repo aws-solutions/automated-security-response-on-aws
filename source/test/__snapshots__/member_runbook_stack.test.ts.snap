@@ -21958,7 +21958,7 @@ If KmsKeyId is a Customer-Managed Key (CMK), then AutomationAssumeRole must have
               "action": "aws:executeAwsApi",
               "inputs": {
                 "Api": "DeleteDBClusterSnapshot",
-                "DBSnapshotIdentifier": "{{SourceDBSnapshotIdentifier}}",
+                "DBClusterSnapshotIdentifier": "{{SourceDBSnapshotIdentifier}}",
                 "Service": "rds",
               },
               "isEnd": true,
