@@ -20,3 +20,27 @@ def test_update_launch_configuration():
         "InstanceType": "t2.micro",
         "MetadataOptions": {"HttpTokens": "required", "HttpEndpoint": "enabled"},
     }
+
+
+def test_update_launch_configuration_keeps_existing_metadata_options():
+    launch_config = {
+        "LaunchConfigurationARN": "arn:aws:...",
+        "CreatedTime": "2023-01-01T00:00:00Z",
+        "InstanceType": "t2.micro",
+        "MetadataOptions": {
+            "HttpTokens": "optional",
+            "HttpPutResponseHopLimit": 2,
+            "HttpEndpoint": "enabled",
+        },
+    }
+    event = {
+        "LaunchConfiguration": launch_config,
+        "LaunchConfigurationName": "NewLaunchConfig",
+    }
+
+    response = update_launch_configuration(event, None)
+    assert response["MetadataOptions"] == {
+        "HttpTokens": "required",
+        "HttpPutResponseHopLimit": 2,
+        "HttpEndpoint": "enabled",
+    }
