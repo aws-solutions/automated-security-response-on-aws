@@ -12,6 +12,8 @@ def update_launch_configuration(event: UpdateLaunchConfigurationEvent, _) -> dic
     launch_configuration = event["LaunchConfiguration"]
     launch_configuration["LaunchConfigurationName"] = event["LaunchConfigurationName"]
     launch_configuration["MetadataOptions"] = {
+        # Keep existing options such as HttpPutResponseHopLimit
+        **(launch_configuration.get("MetadataOptions") or {}),
         "HttpTokens": "required",
         "HttpEndpoint": "enabled",
     }
