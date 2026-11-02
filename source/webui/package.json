@@ -30,7 +30,7 @@
     "react-dom": "19.2.8",
     "react-redux": "9.2.0",
     "react-router": "8.3.0",
-    "zod": "4.3.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.9.1",
@@ -39,14 +39,14 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react-swc": "4.2.3",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "eslint": "10.0.1",
     "jsdom": "28.1.0",
     "msw": "2.12.10",
     "prettier": "3.8.1",
     "typescript": "5.9.3",
-    "vite": "7.3.6",
-    "vitest": "4.1.11"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
   },
   "msw": {
     "workerDirectory": [

@@ -1,9 +1,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { MAX_ACCOUNT_IDS, MAX_MCP_TOOLS } from './requestLimits';
 
 // Account IDs validation schema
-export const accountIdsSchema = z.array(z.string().regex(/^\d{12}$/)).min(1);
+export const accountIdsSchema = z
+  .array(z.string().regex(/^\d{12}$/))
+  .min(1)
+  .max(MAX_ACCOUNT_IDS);
 
 // User type constants
 export const USER_TYPE_ACCOUNT_OPERATOR = 'account-operator' as const;
@@ -61,7 +65,7 @@ export const UserAccountMappingSchema = z.object({
 // Request body for replacing a user's MCP tool grant. Empty revokes all tools.
 export const PutUserMcpToolsRequestSchema = z
   .object({
-    allowedTools: z.array(z.string().min(1)),
+    allowedTools: z.array(z.string().min(1)).max(MAX_MCP_TOOLS),
   })
   .strict();
 export type PutUserMcpToolsRequest = z.infer<typeof PutUserMcpToolsRequestSchema>;

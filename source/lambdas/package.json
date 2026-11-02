@@ -45,7 +45,6 @@
     "nock": "14.0.11",
     "prettier": "3.8.1",
     "ts-jest": "29.4.6",
-    "tsimportlib": "0.0.5",
     "typescript": "5.9.3"
   },
   "dependencies": {
@@ -81,7 +80,8 @@
     "aws-jwt-verify": "5.2.1",
     "js-yaml": "^4.3.1",
     "pako": "2.1.0",
-    "zod": "4.3.6"
+    "tsimportlib": "0.0.5",
+    "zod": "4.6.7"
   },
   "overridesJustification": {
     "@aws-sdk/util-dynamodb": "Pin the compatible transitive version used by release 3.1.8. Later util-dynamodb 3.996.x releases require @aws-sdk/client-dynamodb ^3.1111.0, which conflicts with the requested 3.1094.0 SDK alignment. Remove after client-dynamodb and lib-dynamodb are upgraded to at least 3.1111.0."

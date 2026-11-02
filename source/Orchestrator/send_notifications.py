@@ -24,8 +24,10 @@ from layer.asr_actions import CUSTOM_ACTION_NAME_ROLLBACK
 from layer.awsapi_cached_client import AWSCachedClient
 from layer.cloudwatch_metrics import CloudWatchMetrics
 from layer.event_transformers import (
+    AutomationDocumentState,
     Event,
     Notification,
+    OrchestratorFailurePayload,
     extract_account_id,
     extract_region,
     extract_resources,
@@ -537,18 +539,45 @@ def _add_successful_remediation_metric_attributes(
         )
 
 
+def _custom_runbook_ai_generated_flag(
+    state: Event | OrchestratorFailurePayload,
+) -> bool | None:
+    """Read AIGenerated from one level of execution state, or None when absent.
+
+    Success carries it at the top level, while queued and failure notifications nest
+    it in the forwarded AutomationDocument.
+    """
+    automation_document: AutomationDocumentState = state.get("AutomationDocument", {})
+    return state.get("AIGenerated", automation_document.get("AIGenerated"))
+
+
+def _is_custom_runbook_ai_generated(event: Event) -> bool:
+    """Report whether the Custom Runbook that ran declares itself AI-generated.
+
+    The Orchestrator Failed state nests the whole execution state under Payload, so
+    a remediation that failed after its document was resolved is read from there.
+    """
+    flag = _custom_runbook_ai_generated_flag(event)
+    if flag is None:
+        flag = _custom_runbook_ai_generated_flag(event.get("Payload", {}))
+    return flag is True
+
+
 def _process_metrics(
     event: dict[str, Any],
     status_from_event: str,
     control_id: str,
     custom_action_name: str,
+    is_custom_runbook_ai_generated: bool,
 ) -> None:
     metrics = Metrics()
     metrics_data = metrics.get_metrics_from_event(event)
     metrics_data["status"], metrics_data["status_reason"] = (
         Metrics.get_status_for_metrics(status_from_event)
     )
-    metrics_data["ai_generated"] = is_ai_generated_remediation(control_id)
+    metrics_data["ai_generated"] = (
+        is_ai_generated_remediation(control_id) or is_custom_runbook_ai_generated
+    )
 
     # Enrich only successful remediations (not rollbacks or failures) with the finding's
     # first-detected time and notification/deadline configuration, so leadership can compute
@@ -980,7 +1009,13 @@ def lambda_handler(event: Event | dict[str, Any], context: Any) -> None:
     control_id = extract_security_control_id(event_dict)
     custom_action_name = event.get("CustomActionName", "")
 
-    _process_metrics(event_dict, status_from_event, control_id, custom_action_name)
+    _process_metrics(
+        event_dict,
+        status_from_event,
+        control_id,
+        custom_action_name,
+        _is_custom_runbook_ai_generated(event),
+    )
 
     notification = _create_notification(
         event, status_from_event, stepfunctions_execution_id, finding

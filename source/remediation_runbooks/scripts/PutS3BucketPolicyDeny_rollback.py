@@ -1,17 +1,20 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""S3.6 — S3BlockDenylist (PutS3BucketPolicyDeny) rollback script (shared rollback framework).
-
-The remediation appends a single explicit Deny statement (denying the sensitive/denylisted actions to
-every cross-account AWS principal already named in the bucket policy) tagged with a stable Sid. Rollback
-removes exactly that ASR statement — it does NOT wholesale-restore the pre-remediation policy, so any
-legitimate edits the operator made to other statements after remediation are preserved.
-
-capture_and_remediate is fail-open (a snapshot failure never blocks remediation); execute_rollback is
-fail-closed (any safety-gate failure aborts, raising RollbackError so SSM reports ROLLBACK_FAILED).
-State for the drift check is the ASR statement itself (present-and-unmodified vs absent vs modified),
-keyed via resolve_rollback_action. The resource id is the bucket NAME (not an ARN).
-"""
+# S3.6: S3BlockDenylist (PutS3BucketPolicyDeny) rollback script (shared rollback framework).
+#
+# The remediation appends a single explicit Deny statement (denying the sensitive/denylisted actions to
+# every cross-account AWS principal already named in the bucket policy) tagged with a stable Sid. Rollback
+# removes exactly that ASR statement. It does NOT wholesale-restore the pre-remediation policy, so any
+# legitimate edits the operator made to other statements after remediation are preserved.
+#
+# If the statement is already there from an earlier run, the remediation rebuilds it when it is missing a
+# cross-account principal or denylisted action, or was changed so it no longer denies. Rollback of that run
+# puts the earlier ASR statement back only if ASR could have written it, and otherwise removes the statement.
+#
+# capture_and_remediate is fail-open (a snapshot failure never blocks remediation); execute_rollback is
+# fail-closed (any safety-gate failure aborts, raising RollbackError so SSM reports ROLLBACK_FAILED).
+# State for the drift check is the ASR statement itself (present-and-unmodified vs absent vs modified),
+# keyed via resolve_rollback_action. The resource id is the bucket NAME (not an ARN).
 from __future__ import annotations
 
 import json
@@ -27,7 +30,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Local import for tests/IDE; the build (runbook_factory.ts) strips this block and inlines
-# snapshot_utils.py via the %%INCLUDE directive below — do not remove.
+# snapshot_utils.py via the %%INCLUDE directive below. Do not remove.
 # fmt: off
 from common.snapshot_utils import (  # noqa: E402
     ROLLBACK_BOTO_CONFIG,
@@ -43,6 +46,7 @@ from common.snapshot_utils import (  # noqa: E402
     capture_snapshot,
     dispatch_rollback_handler,
     get_post_remediation_state,
+    get_pre_remediation_state,
     read_snapshot,
     resolve_rollback_action,
     validate_common_rollback_fields,
@@ -97,34 +101,36 @@ class ExecuteRollbackEvent(TypedDict):
 
 
 class BucketNotFoundError(ResourceNotFoundError):
-    """The target S3 bucket no longer exists."""
+    # The target S3 bucket no longer exists.
+    pass
 
 
 class RemediationError(RuntimeError):
-    """The remediation could not be applied (e.g. no bucket policy to append the deny to, or verify failed)."""
+    # The remediation could not be applied (e.g. no bucket policy to append the deny to, or verify failed).
+    pass
 
 
 # The bucket policy is a bucket subresource, so a read-back can lag the write; bound the re-reads.
-_VERIFY_ATTEMPTS = 5
+_VERIFY_ATTEMPTS = 10
 _VERIFY_DELAY_SECONDS = 2
 
 
 class DriftDetectedError(RollbackError):
-    """The live ASR statement no longer matches what the remediation wrote; the snapshot itself is fine.
-
-    Defined here rather than in snapshot_utils: that module is %%INCLUDE-inlined into every rollback
-    runbook, so shared additions cost template bytes 11x over. Promote it when a second control needs it.
-    """
+    # The live ASR statement no longer matches what the remediation wrote; the snapshot itself is fine.
+    #
+    # Defined here rather than in snapshot_utils: that module is %%INCLUDE-inlined into every rollback
+    # runbook, so shared additions cost template bytes once per rollback runbook. Promote it when a second control needs it.
+    pass
 
 
 class RollbackValidationError(RollbackError, ValueError):
-    """A rollback event field is missing or malformed.
-
-    Subclasses RollbackError so every failure the rollback step can raise shares one family, and ValueError
-    because a bad input value is what it is — callers and tests that treat validation failures as ValueError
-    keep working. The capture path keeps raising plain ValueError, where a rollback-specific type would be a
-    misnomer.
-    """
+    # A rollback event field is missing or malformed.
+    #
+    # Subclasses RollbackError so every failure the rollback step can raise shares one family, and ValueError
+    # because a bad input value is what it is, so callers and tests that treat validation failures as ValueError
+    # keep working. The capture path keeps raising plain ValueError, where a rollback-specific type would be a
+    # misnomer.
+    pass
 
 
 def _validate_bucket_name(event: dict[str, object]) -> str:
@@ -192,8 +198,8 @@ def _optional_str(event: dict[str, object], name: str) -> str:
 
 
 def _get_bucket_policy(s3: S3Client, bucket: str, account_id: str) -> str | None:
-    """Return the bucket's current policy JSON string, or None when the bucket has no policy.
-    A missing bucket maps to BucketNotFoundError; other errors propagate."""
+    # Return the bucket's current policy JSON string, or None when the bucket has no policy.
+    # A missing bucket maps to BucketNotFoundError; other errors propagate.
     try:
         return s3.get_bucket_policy(Bucket=bucket, ExpectedBucketOwner=account_id).get(
             "Policy"
@@ -235,10 +241,9 @@ def _find_asr_statement(policy: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def _canonicalize(value: JsonValue) -> JsonValue:
-    """Recursively sort dict keys and list elements, and unwrap single-element lists. S3 canonicalizes a
-    single-element array into a scalar on read-back, so a stored ["x"] and the live "x" must compare equal;
-    combined with sorting, this makes statement equality order- and representation-insensitive.
-    """
+    # Recursively sort dict keys and list elements, and unwrap single-element lists. S3 canonicalizes a
+    # single-element array into a scalar on read-back, so a stored ["x"] and the live "x" must compare equal;
+    # combined with sorting, this makes statement equality order- and representation-insensitive.
     if isinstance(value, dict):
         return {k: _canonicalize(value[k]) for k in sorted(value)}
     if isinstance(value, list):
@@ -252,7 +257,7 @@ def _canonicalize(value: JsonValue) -> JsonValue:
 
 def _normalize(statement: JsonValue) -> str:
     # Canonical form for equality. Callers pass a policy statement or None, but the parameter is typed
-    # JsonValue — the same type _canonicalize accepts — because that is what this function forwards, and
+    # JsonValue (the same type _canonicalize accepts) because that is what this function forwards, and
     # dict[str, Any] would let through values json.dumps cannot serialise. None normalizes to "", which is
     # the pre-remediation state key for a statement that is absent.
     if statement is None:
@@ -261,12 +266,11 @@ def _normalize(statement: JsonValue) -> str:
 
 
 def _principal_account(principal: str) -> str:
-    """The account a policy principal belongs to, or "" when it names no account.
-
-    A principal is either a bare 12-digit account id or an ARN whose 5th colon-separated segment is the
-    account. Anything else (notably the "*" wildcard) yields "" so the caller skips it. str.isdigit() is
-    True for non-ASCII digits such as "１２３", hence the isascii() guard.
-    """
+    # The account a policy principal belongs to, or "" when it names no account.
+    #
+    # A principal is either a bare 12-digit account id or an ARN whose 5th colon-separated segment is the
+    # account. Anything else (notably the "*" wildcard) yields "" so the caller skips it. str.isdigit() is
+    # True for non-ASCII digits such as "１２３", hence the isascii() guard.
     if principal.isascii() and principal.isdigit() and len(principal) == 12:
         return principal
     segments = principal.split(":")
@@ -274,9 +278,9 @@ def _principal_account(principal: str) -> str:
 
 
 def _statement_cross_account_arns(statement: Any, bucket_account: str) -> list[str]:
-    """The AWS principal ARNs named by a single statement that belong to a DIFFERENT account than the
-    bucket owner. Statements that are not a dict, or carry a wildcard ('*') or non-AWS principal, name
-    none."""
+    # The AWS principal ARNs named by a single statement that belong to a DIFFERENT account than the
+    # bucket owner. Statements that are not a dict, or carry a wildcard ('*') or non-AWS principal, name
+    # none.
     if not isinstance(statement, dict):
         return []
     principal = statement.get("Principal")
@@ -298,9 +302,9 @@ def _statement_cross_account_arns(statement: Any, bucket_account: str) -> list[s
 def _collect_cross_account_principals(
     policy: dict[str, Any], bucket_account: str
 ) -> list[str]:
-    """Every distinct AWS principal ARN in the policy that belongs to a DIFFERENT account than the bucket
-    owner (ordered, de-duplicated). Statements with a wildcard ('*') principal are skipped, mirroring the
-    forward remediation."""
+    # Every distinct AWS principal ARN in the policy that belongs to a DIFFERENT account than the bucket
+    # owner (ordered, de-duplicated). Statements with a wildcard ('*') principal are skipped, mirroring the
+    # forward remediation.
     principals: list[str] = []
     for statement in _statements(policy):
         for arn in _statement_cross_account_arns(statement, bucket_account):
@@ -310,7 +314,7 @@ def _collect_cross_account_principals(
 
 
 class DenyStatement(TypedDict):
-    """The exact shape of the Deny statement ASR adds; narrower than the dict[str, Any] policy it joins."""
+    # The exact shape of the Deny statement ASR adds; narrower than the dict[str, Any] policy it joins.
 
     Sid: str
     Effect: str
@@ -332,6 +336,59 @@ def _build_deny_statement(
             f"arn:{partition}:s3:::{bucket}/*",
         ],
     }
+
+
+# A Deny on the whole bucket with no Condition or Not* element, so its actions were denied unconditionally.
+def _is_unconditional_bucket_deny(
+    statement: dict[str, Any], *, bucket: str, partition: AwsPartition
+) -> bool:
+    expected: dict[str, Any] = dict(
+        _build_deny_statement(
+            principals=[], actions=[], bucket=bucket, partition=partition
+        )
+    )
+    return (
+        statement.get("Effect") == "Deny"
+        and isinstance(statement.get("Principal"), dict)
+        and not {"Condition", "NotPrincipal", "NotAction", "NotResource"}
+        & statement.keys()
+        and _normalize(statement.get("Resource")) == _normalize(expected["Resource"])
+    )
+
+
+def _with_asr_statement(
+    policy: dict[str, Any], statement: DenyStatement | dict[str, Any]
+) -> dict[str, Any]:
+    # The policy with its ASR statement replaced by `statement`.
+    return {
+        **policy,
+        "Statement": [
+            statement if isinstance(s, dict) and s.get("Sid") == ASR_SID else s
+            for s in _statements(policy)
+        ],
+    }
+
+
+def _merged_actions(
+    existing: dict[str, Any] | None,
+    denylist: list[str],
+    *,
+    bucket: str,
+    partition: AwsPartition,
+) -> list[str]:
+    covered = (
+        _as_str_list(existing.get("Action"))
+        if existing
+        and _is_unconditional_bucket_deny(existing, bucket=bucket, partition=partition)
+        else []
+    )
+    return covered + [a for a in denylist if a not in covered]
+
+
+def _as_str_list(value: JsonValue) -> list[str]:
+    # A policy field that may be a single string or a list, as a list of its string members.
+    items = value if isinstance(value, list) else [value]
+    return [item for item in items if isinstance(item, str)]
 
 
 def _validate_capture_event(event: dict[str, object]) -> CaptureAndRemediateEvent:
@@ -365,24 +422,29 @@ def _validate_rollback_event(event: dict[str, object]) -> ExecuteRollbackEvent:
 
 
 def _verify_asr_statement(
-    s3: S3Client, bucket: str, account_id: str, *, expect_present: bool
+    s3: S3Client,
+    bucket: str,
+    account_id: str,
+    *,
+    expect_present: bool,
+    expected_statement: dict[str, Any] | None = None,
 ) -> bool:
-    """Re-read the policy until it agrees with the write, or the attempts run out.
-
-    Per the S3 data consistency model, strong read-after-write applies to "PUT and DELETE requests of
-    objects" (plus object ACLs, tags and metadata), while "Bucket configurations have an eventual
-    consistency model" — and the bucket policy is a bucket configuration. So a single read-back can
-    legitimately still show the pre-write policy. Without the retry a remediation that did apply could be
-    failed, which also discards the snapshot version id and with it the one-click rollback for the bucket.
-    """
+    # Re-read the policy until it agrees with the write, or the attempts run out.
+    #
+    # Per the S3 data consistency model, strong read-after-write applies to "PUT and DELETE requests of
+    # objects" (plus object ACLs, tags and metadata), while "Bucket configurations have an eventual
+    # consistency model", and the bucket policy is a bucket configuration. So a single read-back can
+    # legitimately still show the pre-write policy. Without the retry a remediation that did apply could be
+    # failed, leaving the snapshot version id only in the error message instead of the step outputs.
     for attempt in range(_VERIFY_ATTEMPTS):
-        is_present = (
-            _find_asr_statement(
-                _parse_policy(_get_bucket_policy(s3, bucket, account_id))
-            )
-            is not None
+        live_statement = _find_asr_statement(
+            _parse_policy(_get_bucket_policy(s3, bucket, account_id))
         )
-        if is_present == expect_present:
+        is_present = live_statement is not None
+        is_expected = expected_statement is None or _normalize(
+            live_statement
+        ) == _normalize(expected_statement)
+        if is_present == expect_present and is_expected:
             return True
         if attempt < _VERIFY_ATTEMPTS - 1:
             time.sleep(_VERIFY_DELAY_SECONDS)
@@ -398,17 +460,36 @@ def _apply_and_verify(
     principal_count: int,
     is_snapshot_stored: bool,
     snapshot_version_id: str,
+    deny_statement: DenyStatement,
+    replaced_existing: bool = False,
+    restores_previous: bool = False,
 ) -> CaptureResult:
-    """Persist the remediated policy, confirm the ASR deny statement stuck, and build the capture result."""
+    # Persist the remediated policy, confirm the ASR deny statement stuck, and build the capture result.
     s3.put_bucket_policy(
         Bucket=bucket,
         ExpectedBucketOwner=account_id,
         Policy=json.dumps(remediated_policy),
     )
     # Confirm the deny statement persisted before reporting success (retried: see _verify_asr_statement).
-    if not _verify_asr_statement(s3, bucket, account_id, expect_present=True):
+    if not _verify_asr_statement(
+        s3,
+        bucket,
+        account_id,
+        expect_present=True,
+        expected_statement=dict(deny_statement) if replaced_existing else None,
+    ):
+        manual_rollback = (
+            f" If the deny did apply, roll back with SnapshotVersionId {snapshot_version_id}."
+            if is_snapshot_stored and snapshot_version_id
+            else ""
+        )
+        logger.error(
+            "ASR deny statement not confirmed after the update",
+            extra={"bucket": bucket, "snapshotVersionId": snapshot_version_id},
+        )
         raise RemediationError(
             f"Verification failed: the ASR deny statement is not present on bucket {bucket} after the update."
+            + manual_rollback
         )
     logger.info(
         "Cross-account deny statement added",
@@ -416,11 +497,16 @@ def _apply_and_verify(
     )
 
     is_rollback_available = is_snapshot_stored and bool(snapshot_version_id)
-    rollback_description = (
-        f"Remove the ASR cross-account deny statement ({ASR_SID}) from bucket {bucket}"
-        if is_rollback_available
-        else "Rollback unavailable: pre-remediation state was not captured."
-    )
+    if not is_rollback_available:
+        rollback_description = (
+            "Rollback unavailable: pre-remediation state was not captured."
+        )
+    elif restores_previous:
+        rollback_description = (
+            f"Restore the earlier ASR statement ({ASR_SID}) on bucket {bucket}"
+        )
+    else:
+        rollback_description = f"Remove the ASR cross-account deny statement ({ASR_SID}) from bucket {bucket}"
     return {
         "snapshotStored": "true" if is_rollback_available else "false",
         "snapshotVersionId": snapshot_version_id,
@@ -429,11 +515,10 @@ def _apply_and_verify(
 
 
 def capture_and_remediate(event: dict[str, object], _context: object) -> CaptureResult:
-    """Fail-open capture: a snapshot read/write failure never blocks the security remediation."""
+    # Fail-open capture: a snapshot read/write failure never blocks the security remediation.
     validated = _validate_capture_event(event)
     bucket = validated["BucketName"]
     account_id = validated["AccountId"]
-    actions = validated["DenyList"]
     partition = validated["Partition"]
     config_bucket = validated["RemediationConfigBucket"]
     execution_id = validated["AutomationExecutionId"]
@@ -446,12 +531,32 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
     # grant to deny, so there is nothing to remediate.
     if current_policy is None:
         raise RemediationError(
-            f"Bucket {bucket} has no bucket policy; nothing to restrict. Cannot apply the S3.6 remediation."
+            f"Bucket {bucket} has no bucket policy; nothing to restrict."
         )
 
-    # No-op: the ASR deny statement is already present (e.g. a re-run). Skip the snapshot (a later rollback
-    # would be a misleading no-op) and don't re-apply.
-    if _find_asr_statement(current_policy) is not None:
+    existing_asr_statement = _find_asr_statement(current_policy)
+    principals = _collect_cross_account_principals(current_policy, account_id)
+
+    actions = _merged_actions(
+        existing_asr_statement,
+        validated["DenyList"],
+        bucket=bucket,
+        partition=partition,
+    )
+
+    if not principals:
+        raise RemediationError(
+            f"Bucket {bucket} policy has no cross-account principals to deny."
+        )
+
+    deny_statement = _build_deny_statement(
+        principals=principals, actions=actions, bucket=bucket, partition=partition
+    )
+    # Compare the whole statement, so one with a changed Effect, Resource or Condition is rebuilt.
+    expected_statement: dict[str, Any] = dict(deny_statement)
+    if existing_asr_statement is not None and _normalize(
+        existing_asr_statement
+    ) == _normalize(expected_statement):
         logger.info(
             "ASR deny statement already present; no remediation needed, snapshot skipped",
             extra={"bucket": bucket},
@@ -459,22 +564,19 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
         return {
             "snapshotStored": "false",
             "snapshotVersionId": "",
-            "rollbackDescription": "No remediation needed: the ASR cross-account deny statement was already present.",
+            "rollbackDescription": "No remediation needed: the ASR deny statement is already present.",
         }
-
-    principals = _collect_cross_account_principals(current_policy, account_id)
-    if not principals:
-        raise RemediationError(
-            f"Bucket {bucket} policy has no cross-account principals to deny; cannot build the S3.6 deny statement."
-        )
-
-    deny_statement = _build_deny_statement(
-        principals=principals, actions=actions, bucket=bucket, partition=partition
+    remediated_policy = (
+        {**current_policy, "Statement": [*_statements(current_policy), deny_statement]}
+        if existing_asr_statement is None
+        else _with_asr_statement(current_policy, deny_statement)
     )
-    remediated_policy = {
-        **current_policy,
-        "Statement": [*_statements(current_policy), deny_statement],
-    }
+    previous_asr_statement = (
+        existing_asr_statement
+        if existing_asr_statement is not None
+        and existing_asr_statement.get("Effect") == "Deny"
+        else None
+    )
 
     # Snapshot the pre-remediation policy + the exact statement ASR will add (used for the drift check on
     # rollback), before mutating. Fail-open: a snapshot failure must not block the remediation.
@@ -484,7 +586,14 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
         account_id=account_id,
         resource_id=bucket,
         control_id=CONTROL_ID,
-        pre_state={"BucketPolicy": current_policy_json},
+        pre_state=(
+            {"BucketPolicy": current_policy_json}
+            if previous_asr_statement is None
+            else {
+                "BucketPolicy": current_policy_json,
+                "PreviousAsrStatement": previous_asr_statement,
+            }
+        ),
         post_state={"AsrStatement": deny_statement},
     )
 
@@ -496,6 +605,9 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
         principal_count=len(principals),
         is_snapshot_stored=is_snapshot_stored,
         snapshot_version_id=snapshot_version_id,
+        deny_statement=deny_statement,
+        replaced_existing=existing_asr_statement is not None,
+        restores_previous=previous_asr_statement is not None,
     )
 
 
@@ -506,12 +618,12 @@ def _asr_statement_from_snapshot(
     account_id: str,
     bucket: str,
     snapshot_version_id: str,
-) -> dict[str, Any]:
-    """Read the snapshot by its recorded version id and return the exact statement ASR wrote.
-
-    That statement is the drift baseline. Fail-closed: a missing, unreadable, mismatched or malformed
-    snapshot raises rather than letting a rollback proceed on an unverified baseline.
-    """
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    # Read the snapshot by its recorded version id and return the exact statement ASR wrote, plus the
+    # earlier ASR statement it replaced (None when the remediation added the statement).
+    #
+    # The written statement is the drift baseline. Fail-closed: a missing, unreadable, mismatched or malformed
+    # snapshot raises rather than letting a rollback proceed on an unverified baseline.
     try:
         snapshot = read_snapshot(
             config_bucket,
@@ -537,25 +649,34 @@ def _asr_statement_from_snapshot(
     snapshot_resource_id = snapshot.get("resourceId")
     if snapshot_resource_id != bucket:
         raise SnapshotValidationError(
-            f"Rollback aborted for bucket {bucket}: snapshot resourceId ({snapshot_resource_id!r}) "
-            f"does not match the target bucket ({bucket!r})."
+            f"Snapshot resourceId {snapshot_resource_id!r} does not match the target bucket {bucket!r}."
         )
 
-    # Only the post state is needed: rollback removes the ASR statement from the CURRENT policy.
+    # Rollback works on the ASR statement in the CURRENT policy: it removes it, or puts back the earlier ASR
+    # statement when this remediation widened one that was already there.
     post_asr_statement = get_post_remediation_state(snapshot, execution_id).get(
         "AsrStatement"
     )
     if not isinstance(post_asr_statement, dict):
         raise SnapshotValidationError(
-            f"Snapshot for execution {execution_id} is malformed: missing 'postRemediationState.AsrStatement' object."
+            f"Malformed snapshot {execution_id}: missing AsrStatement."
         )
-    return post_asr_statement
+    previous_asr_statement = get_pre_remediation_state(snapshot, execution_id).get(
+        "PreviousAsrStatement"
+    )
+    if previous_asr_statement is not None and not isinstance(
+        previous_asr_statement, dict
+    ):
+        raise SnapshotValidationError(
+            f"Malformed snapshot {execution_id}: PreviousAsrStatement is not an object."
+        )
+    return post_asr_statement, previous_asr_statement
 
 
 def _remove_asr_statement(
     s3: S3Client, bucket: str, account_id: str, current_policy: dict[str, Any]
 ) -> None:
-    """Persist the policy without the ASR statement, deleting the policy entirely if nothing else remains."""
+    # Persist the policy without the ASR statement, deleting the policy entirely if nothing else remains.
     remaining = [
         statement
         for statement in _statements(current_policy)
@@ -574,14 +695,14 @@ def _remove_asr_statement(
 
 
 def execute_rollback(event: dict[str, object], _context: object) -> RollbackResult:
-    """Fail-closed rollback: reads the snapshot by its recorded version id (tamper-proof), aborts on drift,
-    and removes only the ASR-tagged deny statement (preserving any other current statements).
-    """
+    # Fail-closed rollback: reads the snapshot by its recorded version id (tamper-proof), aborts on drift,
+    # and removes only the ASR-tagged deny statement, or puts back the earlier ASR statement when this run
+    # widened one, preserving any other current statements.
     validated = _validate_rollback_event(event)
     bucket = validated["BucketName"]
     account_id = validated["AccountId"]
 
-    post_asr_statement = _asr_statement_from_snapshot(
+    post_asr_statement, previous_asr_statement = _asr_statement_from_snapshot(
         validated["RemediationConfigBucket"],
         execution_id=validated["ExecutionId"],
         account_id=account_id,
@@ -592,22 +713,21 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     s3: S3Client = boto3.client("s3", config=ROLLBACK_BOTO_CONFIG)
     current_policy = _parse_policy(_get_bucket_policy(s3, bucket, account_id))
 
-    # Decide on the ASR statement itself: absent -> NOOP (already rolled back / never applied); present but
-    # different from what ASR wrote -> DRIFT (operator edited it) -> abort; present and unmodified -> RESTORE.
+    # Decide on the ASR statement itself: matches the pre-remediation state (absent, or the earlier ASR
+    # statement) -> NOOP; different from what this run wrote -> DRIFT (edited since) -> abort; else RESTORE.
     action = resolve_rollback_action(
         _normalize(_find_asr_statement(current_policy)),
-        "",
+        _normalize(previous_asr_statement),
         _normalize(post_asr_statement),
     )
     if action is RollbackAction.NOOP:
         return {
-            "Message": f"Bucket {bucket} has no ASR deny statement to remove; already in its pre-remediation state.",
+            "Message": f"Bucket {bucket} is already in its pre-remediation state.",
             "Status": "SUCCESS",
         }
     if action is RollbackAction.DRIFT:
         raise DriftDetectedError(
-            f"Rollback aborted for bucket {bucket}: the ASR deny statement ({ASR_SID}) was modified after the "
-            f"ASR remediation. Refusing to remove an operator-modified statement."
+            f"Rollback aborted for bucket {bucket}: {ASR_SID} was modified after the ASR remediation."
         )
 
     # RESTORE implies the ASR statement was found in a policy, so current_policy is not None. Guard
@@ -616,6 +736,32 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
         raise RollbackError(
             f"Rollback aborted for bucket {bucket}: the bucket policy was removed during rollback."
         )
+    if previous_asr_statement is not None:
+        s3.put_bucket_policy(
+            Bucket=bucket,
+            ExpectedBucketOwner=account_id,
+            Policy=json.dumps(
+                _with_asr_statement(current_policy, previous_asr_statement)
+            ),
+        )
+        if not _verify_asr_statement(
+            s3,
+            bucket,
+            account_id,
+            expect_present=True,
+            expected_statement=previous_asr_statement,
+        ):
+            raise RollbackError(
+                f"Rollback verification failed: the earlier ASR statement is not back on bucket {bucket}."
+            )
+        logger.info(
+            "Earlier ASR statement restored (rollback)", extra={"bucket": bucket}
+        )
+        return {
+            "Message": f"Successfully restored the earlier ASR statement on bucket {bucket}",
+            "Status": "SUCCESS",
+        }
+
     _remove_asr_statement(s3, bucket, account_id, current_policy)
 
     # Confirm the ASR statement is gone before reporting success (retried: see _verify_asr_statement).

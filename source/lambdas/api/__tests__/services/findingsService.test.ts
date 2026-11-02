@@ -21,7 +21,7 @@ import { findingsTableName } from '../../../common/__tests__/envSetup';
 import { asFindingId } from '../../../common/__tests__/utils';
 import { IdGenerator } from '../../../common/utils/idGenerator';
 import { buildOrchestratorInput } from '../../../common/utils/findingExtraction';
-import { ASFFFinding, FindingTableItem, type FindingId } from '@asr/data-models';
+import { ASFFFinding, ASR_ORCHESTRATOR_DETAIL_TYPES, FindingTableItem, type FindingId } from '@asr/data-models';
 import { gzip } from 'pako';
 
 const createMockFinding = (overrides: Partial<FindingTableItem> = {}): FindingTableItem => ({
@@ -648,7 +648,14 @@ describe('FindingsService', () => {
         RecordState: 'ACTIVE',
       };
 
-      const orchestratorInput = buildOrchestratorInput('S3.1', asffFinding, 'Remediate', fakeIdGenerator, fakeClock);
+      const orchestratorInput = buildOrchestratorInput(
+        'S3.1',
+        asffFinding,
+        'Remediate',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        fakeIdGenerator,
+        fakeClock,
+      );
       const parsed = JSON.parse(orchestratorInput);
 
       // ASSERT
@@ -663,7 +670,14 @@ describe('FindingsService', () => {
       expect(parsed.detail.findingFormat).toBeUndefined();
 
       // Non-GuardDuty rollback without snapshotRollbackParams: no docParameters
-      const rollbackInput = buildOrchestratorInput('S3.1', asffFinding, 'Rollback', fakeIdGenerator, fakeClock);
+      const rollbackInput = buildOrchestratorInput(
+        'S3.1',
+        asffFinding,
+        'Rollback',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        fakeIdGenerator,
+        fakeClock,
+      );
       const parsedRollback = JSON.parse(rollbackInput);
       expect(parsedRollback.detail.docParameters).toBeUndefined();
       expect(parsedRollback.detail.actionName).toBe('ASR:Rollback');
@@ -674,9 +688,10 @@ describe('FindingsService', () => {
         'GuardDuty.IAMUser',
         asffFinding,
         'Rollback',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
         fakeIdGenerator,
         fakeClock,
-        '2026/06/12/20/59/exec-contain.json',
+        { rollbackBackupKey: '2026/06/12/20/59/exec-contain.json' },
       );
       expect(JSON.parse(rollbackWithKey).detail.docParameters).toEqual({
         Action: 'Restore',
@@ -687,6 +702,7 @@ describe('FindingsService', () => {
         'S3.1',
         asffFinding,
         'RemediateAndGenerateTicket',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
         fakeIdGenerator,
         fakeClock,
       );
@@ -718,7 +734,14 @@ describe('FindingsService', () => {
       });
 
       const parsed = JSON.parse(
-        buildOrchestratorInput(guardDutyItem.findingType, guardDutyAsff, 'Remediate', fakeIdGenerator, fakeClock),
+        buildOrchestratorInput(
+          guardDutyItem.findingType,
+          guardDutyAsff,
+          'Remediate',
+          ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+          fakeIdGenerator,
+          fakeClock,
+        ),
       );
 
       // resolve_ssm_doc_for_finding._resolve_doc_for_multi_service_finding
@@ -739,6 +762,7 @@ describe('FindingsService', () => {
           iamAccessAnalyzerItem.findingType,
           guardDutyAsff,
           'Remediate',
+          ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
           fakeIdGenerator,
           fakeClock,
         ),
@@ -830,6 +854,8 @@ describe('FindingsService', () => {
       // The Contain backup key from history flows through to the Step Function
       // input (Action=Restore) so the Restore can locate the backup.
       const parsed = JSON.parse(startCalls[0].args[0].input.input ?? '{}');
+      // An operator request must be labeled API Action so the orchestrator classifies it as manual.
+      expect(parsed['detail-type']).toBe('Security Hub Findings - API Action');
       expect(parsed.detail.docParameters).toEqual({
         Action: 'Restore',
         BackupS3KeyName: '2026/06/12/20/59/exec-contain.json',

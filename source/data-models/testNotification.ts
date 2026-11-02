@@ -7,7 +7,8 @@ import { ConfigIdSchema, DeliveryChannelTypeSchema } from './notification';
 // --- Test Notification Request ---
 
 export const TestNotificationRequestSchema = z.object({
-  channels: z.array(DeliveryChannelTypeSchema).optional(),
+  // A test sends to each channel type once, so the list holds at most one entry per type.
+  channels: z.array(DeliveryChannelTypeSchema).max(DeliveryChannelTypeSchema.options.length).optional(),
 });
 
 // --- Channel Test Result ---

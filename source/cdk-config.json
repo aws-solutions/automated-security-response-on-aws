@@ -31,7 +31,8 @@
   "memberStackLimits": {
     "sc": 85,
     "nist": 63,
-    "afsbp": 63
+    "afsbp": 63,
+    "runbook": 79
   },
   "development": {
     "region": "us-east-1",

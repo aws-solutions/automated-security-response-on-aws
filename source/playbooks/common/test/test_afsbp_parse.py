@@ -268,6 +268,46 @@ def test_empty_product_arn_derived_from_finding_id(mocker: MockerFixture) -> Non
     )
 
 
+@pytest.mark.parametrize(
+    "product_arn",
+    [
+        "badvalue",
+        "arn:aws:securityhub:us-east-1::product/evil/thing",
+        "arn:aws:securityhub:us-east-1::product/aws/guardduty",
+    ],
+)
+def test_non_allowlisted_product_arn_is_rejected_not_derived(
+    mocker: MockerFixture, product_arn: str
+) -> None:
+    test_event = event()
+    test_event["Finding"]["ProductArn"] = product_arn
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        parse_event(test_event, {})
+    assert pytest_wrapped_e.value.code == f"ERROR: ProductArn is invalid: {product_arn}"
+
+
+def test_missing_product_arn_derived_from_finding_id(mocker: MockerFixture) -> None:
+    test_event = event()
+    del test_event["Finding"]["ProductArn"]
+    parsed_event = parse_event(test_event, {})
+    assert (
+        parsed_event["product_arn"]
+        == "arn:aws:securityhub:us-east-1::product/aws/securityhub"
+    )
+
+
+def test_allowlisted_productv2_arn_is_accepted_unchanged(mocker: MockerFixture) -> None:
+    test_event = event()
+    test_event["Finding"][
+        "ProductArn"
+    ] = "arn:aws:securityhub:us-east-1::productv2/aws/securityhub"
+    parsed_event = parse_event(test_event, {})
+    assert (
+        parsed_event["product_arn"]
+        == "arn:aws:securityhub:us-east-1::productv2/aws/securityhub"
+    )
+
+
 def test_derivation_does_not_mutate_caller_finding(mocker: MockerFixture) -> None:
     # Guards against re-introducing the side-effect where FindingEvent
     # mutated the caller's finding dict when deriving ProductArn.

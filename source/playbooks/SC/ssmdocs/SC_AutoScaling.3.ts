@@ -16,9 +16,9 @@ export class ConfigureLaunchConfigToRequireIMDSv2Document extends ControlRunbook
       securityControlId: 'AutoScaling.3',
       remediationName: 'ConfigureAutoScalingLaunchConfigToRequireIMDSv2',
       scope: RemediationScope.REGIONAL,
-      resourceIdName: 'LaunchConfigurationName',
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:launchConfiguration:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):launchConfigurationName/(.{1,255})$`,
-      updateDescription: HardCodedString.of('AutoScaling Group Launch Configuration updated to require IMDSv2'),
+      resourceIdName: 'AutoScalingResourceId',
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:autoScalingGroup:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):autoScalingGroupName|launchConfiguration:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):launchConfigurationName)/(.{1,255})$`,
+      updateDescription: HardCodedString.of('Auto Scaling group migrated to a Launch Template that requires IMDSv2'),
     });
   }
 }

@@ -6,6 +6,7 @@ Covers the two guarantees that make this worth shipping as code: (1) it produces
 files that are themselves valid ASR artifacts, and (2) it is idempotent — a
 second run never overwrites hand-edited files.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,6 +14,7 @@ from pathlib import Path
 import generate_runbook
 import pytest
 import validate_runbook
+import yaml  # type: ignore[import-untyped]
 
 
 def test_generates_three_skeleton_files(tmp_path: Path) -> None:
@@ -166,6 +168,8 @@ def test_generated_yaml_has_valid_schema_scaffold(tmp_path: Path) -> None:
         any(err.startswith(code) for code in scaffold_codes) for err in result["errors"]
     ), f"scaffold emitted a structural error: {result['errors']}"
     assert "  Finding:" in content
+    description = yaml.safe_load(content)["description"]
+    assert description.endswith('AIGenerated: "true"\n')
 
 
 def test_builtin_scaffold_does_not_declare_finding(tmp_path: Path) -> None:

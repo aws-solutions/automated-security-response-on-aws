@@ -36,6 +36,8 @@ export class SynchronizationFindingsConstruct extends Construct {
   public readonly synchronizationLambda: lambda.Function;
   public readonly synchronizationRole: Role;
   public readonly customResourceProvider: lambda.Function;
+  /** Attached to the provider's role separately, so a custom resource using the provider must depend on it. */
+  public readonly customResourcePolicy: Policy;
   public readonly sweepStateMachine: sfn.StateMachine;
 
   constructor(scope: Construct, id: string, props: SynchronizationFindingsConstructProps) {
@@ -238,6 +240,7 @@ export class SynchronizationFindingsConstruct extends Construct {
     });
 
     customResourceRole.attachInlinePolicy(customResourcePolicy);
+    this.customResourcePolicy = customResourcePolicy;
 
     {
       const childToMod = customResourceRole.node.findChild('Resource') as CfnRole;

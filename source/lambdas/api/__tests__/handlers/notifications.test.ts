@@ -28,6 +28,8 @@ import {
   getEmailSubscriptions,
 } from '../../handlers/notifications';
 import { createMockContext, createMockEvent, TEST_REQUEST_CONTEXT } from '../utils';
+import { resetApiLambdaEnvironmentCache } from '../../apiLambdaEnvironment';
+import { InternalServerError } from '../../../common/utils/httpErrors';
 import {
   setupMetricsMocks,
   cleanupMetricsMocks,
@@ -430,6 +432,86 @@ describe('Notification Configurations Handler', () => {
       expect(body.version).toBe(1);
       expect(body.createdBy).toBe('admin@example.com');
       expect(body.createdAt).toBe(FIXED_DATE.toISOString());
+    });
+
+    describe('ServiceNow endpoint host allowlist', () => {
+      const withServiceNow = (endpointUrl: string) => ({
+        ...VALID_CREATE_BODY,
+        deliveryChannels: [
+          {
+            type: 'servicenow',
+            enabled: true,
+            endpointUrl,
+            tableName: 'incident',
+            credentialsSecretArn: 'arn:aws:secretsmanager:us-east-1:111111111111:secret:servicenow-abc123',
+          },
+        ],
+      });
+
+      afterEach(() => {
+        delete process.env.SERVICENOW_ALLOWED_DOMAINS;
+        resetApiLambdaEnvironmentCache();
+      });
+
+      it('accepts a *.service-now.com endpoint', async () => {
+        const result = await createNotificationConfiguration(
+          createPostEvent(withServiceNow('https://acme.service-now.com')),
+          createMockContext(),
+        );
+        expect(result.statusCode).toBe(201);
+      });
+
+      it('rejects a custom-domain endpoint on save when the domain is not configured', async () => {
+        await expect(
+          createNotificationConfiguration(
+            createPostEvent(withServiceNow('https://servicenow.example.com')),
+            createMockContext(),
+          ),
+        ).rejects.toThrow(/deliveryChannels\[0\] \(servicenow\): .*service-now\.com domain/);
+      });
+
+      it('accepts a custom-domain endpoint listed in SERVICENOW_ALLOWED_DOMAINS', async () => {
+        process.env.SERVICENOW_ALLOWED_DOMAINS = 'servicenow.example.com';
+        resetApiLambdaEnvironmentCache();
+
+        const result = await createNotificationConfiguration(
+          createPostEvent(withServiceNow('https://servicenow.example.com')),
+          createMockContext(),
+        );
+        expect(result.statusCode).toBe(201);
+      });
+
+      it('still saves a configuration without a ServiceNow channel when SERVICENOW_ALLOWED_DOMAINS is invalid', async () => {
+        process.env.SERVICENOW_ALLOWED_DOMAINS = '*.not-a-bare-domain';
+        resetApiLambdaEnvironmentCache();
+
+        const result = await createNotificationConfiguration(createPostEvent(VALID_CREATE_BODY), createMockContext());
+        expect(result.statusCode).toBe(201);
+      });
+
+      it('reports an invalid SERVICENOW_ALLOWED_DOMAINS as a server error, not a client error', async () => {
+        process.env.SERVICENOW_ALLOWED_DOMAINS = '*.not-a-bare-domain';
+        resetApiLambdaEnvironmentCache();
+
+        const saving = createNotificationConfiguration(
+          createPostEvent(withServiceNow('https://acme.service-now.com')),
+          createMockContext(),
+        );
+
+        await expect(saving).rejects.toThrow(InternalServerError);
+        await expect(saving).rejects.toMatchObject({ statusCode: 500 });
+        // The misconfigured value stays in the logs; the caller only learns the setting is invalid.
+        await expect(saving).rejects.not.toThrow(/not-a-bare-domain/);
+      });
+
+      it('rejects a private-address endpoint on save even if it parses as a URL', async () => {
+        await expect(
+          createNotificationConfiguration(
+            createPostEvent(withServiceNow('https://169.254.169.254')),
+            createMockContext(),
+          ),
+        ).rejects.toThrow(/loopback, link-local, metadata, or private/);
+      });
     });
 
     it('should throw on missing name', async () => {

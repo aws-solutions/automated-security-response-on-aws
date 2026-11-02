@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod';
+import {
+  MAX_FINDING_ACTION_ITEMS,
+  MAX_SEARCH_COMPOSITE_FILTERS,
+  MAX_SEARCH_SORT_CRITERIA,
+  MAX_SEARCH_STRING_FILTERS,
+} from './requestLimits';
 
 // Branded type for FindingId — prevents mixing up arbitrary strings with finding identifiers
 export type FindingId = string & { readonly __brand: 'FindingId' };
@@ -44,7 +50,7 @@ export const StringFilterSchema = z.object({
 
 export const CompositeFilterSchema = z.object({
   Operator: z.enum(['AND', 'OR']),
-  StringFilters: z.array(StringFilterSchema),
+  StringFilters: z.array(StringFilterSchema).max(MAX_SEARCH_STRING_FILTERS),
 });
 
 export const SortCriteriaSchema = z.object({
@@ -55,11 +61,11 @@ export const SortCriteriaSchema = z.object({
 export const FindingsRequestSchema = z.object({
   Filters: z
     .object({
-      CompositeFilters: z.array(CompositeFilterSchema).optional(),
+      CompositeFilters: z.array(CompositeFilterSchema).max(MAX_SEARCH_COMPOSITE_FILTERS).optional(),
       CompositeOperator: z.enum(['AND', 'OR']).optional(),
     })
     .optional(),
-  SortCriteria: z.array(SortCriteriaSchema).optional(),
+  SortCriteria: z.array(SortCriteriaSchema).max(MAX_SEARCH_SORT_CRITERIA).optional(),
   NextToken: z.string().optional(),
 });
 
@@ -76,10 +82,10 @@ export const FindingKeySchema = z.object({
 
 export const FindingsActionRequestSchema = z.object({
   actionType: z.enum(['Suppress', 'Unsuppress', 'Remediate', 'RemediateAndGenerateTicket', 'Rollback']),
-  findingIds: z.array(FindingIdSchema).min(1, 'At least one finding ID is required'),
+  findingIds: z.array(FindingIdSchema).min(1, 'At least one finding ID is required').max(MAX_FINDING_ACTION_ITEMS),
   // Optional explicit keys for the same findings, aligned by findingId. When present the API
   // resolves findings by key; findingIds is retained for backward compatibility with older clients.
-  findingKeys: z.array(FindingKeySchema).optional(),
+  findingKeys: z.array(FindingKeySchema).max(MAX_FINDING_ACTION_ITEMS).optional(),
 });
 
 export type FindingsRequest = z.infer<typeof FindingsRequestSchema>;

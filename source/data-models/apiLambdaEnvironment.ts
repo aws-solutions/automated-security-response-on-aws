@@ -53,6 +53,11 @@ export interface ApiLambdaEnvironmentConfig {
   /** Exact "true" when the optional MCP stack is deployed. */
   readonly MCP_ENABLED?: string;
   /**
+   * Comma-separated extra ServiceNow instance domains allowed alongside *.service-now.com, from the
+   * ServiceNowAllowedDomains stack parameter. Empty or absent allows only *.service-now.com.
+   */
+  readonly SERVICENOW_ALLOWED_DOMAINS?: string;
+  /**
    * Name of the NotificationBatches table, where reconciliation tasks are written when enforcement
    * settings change. Optional because not every deployment grants the API Lambda access to this
    * table; the service skips reconciliation gracefully when it is absent.

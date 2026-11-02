@@ -27,6 +27,7 @@ does not, as a child document) and the `nextSteps` the report suggests.
 Exit codes: 0 = files created (or already existed), 2 = usage/error.
 Prints a JSON report ({mode, controlId, created, nextSteps}) to stdout.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -105,6 +106,10 @@ def render_remediation_yaml(
             # must not hand the author a shape the rules then reject.
             "description: |",
             f"  {indented}",
+            "",
+            # Provenance marker reported in metrics. A built-in runbook also needs
+            # its control in AI_GENERATED_REMEDIATION_IDS in layer/metrics.py.
+            '  AIGenerated: "true"',
             'assumeRole: "{{ AutomationAssumeRole }}"',
             "parameters:",
             "  AutomationAssumeRole:",

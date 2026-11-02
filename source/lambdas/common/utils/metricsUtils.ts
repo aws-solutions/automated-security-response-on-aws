@@ -22,7 +22,6 @@ interface FailureMetric {
   class_uid: number | undefined;
   region: string | undefined;
   error: string | undefined;
-  truncatedRecordBody: string | undefined;
 }
 
 /**
@@ -67,16 +66,14 @@ const DEFAULT_FAILURE_METRIC: FailureMetric = {
   class_uid: undefined,
   region: undefined,
   error: undefined,
-  truncatedRecordBody: undefined,
 };
 
-export function buildFailureMetric(error: unknown, truncatedRecord?: string, finding?: unknown): FailureMetric {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+export function buildFailureMetric(error: unknown, finding?: unknown): FailureMetric {
+  const errorType = error instanceof Error ? error.name : 'UnknownError';
   if (!finding)
     return {
       ...DEFAULT_FAILURE_METRIC,
-      truncatedRecordBody: truncatedRecord,
-      error: errorMessage,
+      error: errorType,
     };
 
   const asffResult = ASFFSchema.safeParse(finding);
@@ -86,8 +83,7 @@ export function buildFailureMetric(error: unknown, truncatedRecord?: string, fin
       control_id: tryResolveControlId(asffResult.data),
       product_arn: asffResult.data.ProductArn,
       region: asffResult.data.Region,
-      error: errorMessage,
-      truncatedRecordBody: truncatedRecord,
+      error: errorType,
     };
   }
 
@@ -99,8 +95,7 @@ export function buildFailureMetric(error: unknown, truncatedRecord?: string, fin
       product_arn: ocsfResult.data.metadata?.product?.uid,
       class_uid: ocsfResult.data.class_uid,
       region: ocsfResult.data.cloud.region,
-      error: errorMessage,
-      truncatedRecordBody: truncatedRecord,
+      error: errorType,
     };
   }
 
@@ -109,8 +104,7 @@ export function buildFailureMetric(error: unknown, truncatedRecord?: string, fin
     ...DEFAULT_FAILURE_METRIC,
     product_arn: shapeHint.success ? (shapeHint.data.ProductArn ?? shapeHint.data.metadata?.product?.uid) : undefined,
     class_uid: shapeHint.success ? shapeHint.data.class_uid : undefined,
-    truncatedRecordBody: truncatedRecord,
-    error: errorMessage,
+    error: errorType,
   };
 }
 

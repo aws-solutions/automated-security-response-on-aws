@@ -136,3 +136,97 @@ export const mockSpoofedGuardDutyAsffFindingWithControlId = {
   Workflow: { Status: 'NEW' },
   RecordState: 'ACTIVE',
 };
+
+/** Genuine Amazon Inspector package-vulnerability finding on an EC2 instance, as delivered in ASFF. */
+export const mockInspectorEc2AsffFinding = {
+  SchemaVersion: '2018-10-08',
+  Id: 'arn:aws:inspector2:us-east-1:123456789012:finding/0123456789abcdef0123456789abcdef',
+  ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/inspector',
+  ProductName: 'Inspector',
+  CompanyName: 'Amazon',
+  Region: 'us-east-1',
+  GeneratorId: 'AWSInspector',
+  AwsAccountId: '123456789012',
+  Types: ['Software and Configuration Checks/Vulnerabilities/CVE'],
+  CreatedAt: '2026-10-20T00:00:00.000Z',
+  UpdatedAt: '2026-10-20T00:00:00.000Z',
+  Severity: { Label: 'HIGH', Normalized: 70 },
+  Title: 'CVE-2024-1234 - openssl',
+  Resources: [
+    { Type: 'AwsEc2Instance', Id: 'arn:aws:ec2:us-east-1:123456789012:instance/i-0abc', Region: 'us-east-1' },
+  ],
+  Workflow: { Status: 'NEW' },
+  RecordState: 'ACTIVE',
+};
+
+/** Inspector finding on a Lambda function, which no ASR remediation supports. */
+export const mockInspectorLambdaAsffFinding = {
+  ...mockInspectorEc2AsffFinding,
+  Id: 'arn:aws:inspector2:us-east-1:123456789012:finding/fedcba9876543210fedcba9876543210',
+  Title: 'CWE-798,259 - Hardcoded credentials',
+  Resources: [
+    {
+      Type: 'AwsLambdaFunction',
+      Id: 'arn:aws:lambda:us-east-1:123456789012:function:BaselineConfigFunction:$LATEST',
+      Region: 'us-east-1',
+    },
+  ],
+};
+
+/**
+ * Genuine GuardDuty finding that lists the actor's access key first but is not an IAMUser
+ * credential finding, so it must not route to GuardDuty.IAMUser key containment.
+ */
+export const mockGuardDutyNonCredentialAsffFinding = {
+  SchemaVersion: '2018-10-08',
+  Id: 'arn:aws:guardduty:us-east-1:123456789012:detector/abc123/finding/def456',
+  ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/guardduty',
+  ProductName: 'GuardDuty',
+  CompanyName: 'Amazon',
+  Region: 'us-east-1',
+  GeneratorId: 'arn:aws:guardduty:us-east-1:123456789012:detector/abc123',
+  AwsAccountId: '123456789012',
+  Types: ['Effects/Data Exposure/Policy:S3-BucketBlockPublicAccessDisabled'],
+  CreatedAt: '2026-10-20T00:00:00.000Z',
+  UpdatedAt: '2026-10-20T00:00:00.000Z',
+  Severity: { Label: 'LOW', Normalized: 20 },
+  Title: 'Amazon S3 Block Public Access was disabled for S3 bucket example-bucket.',
+  Resources: [
+    { Type: 'AwsIamAccessKey', Id: 'AKIAIOSFODNN7EXAMPLE', Region: 'us-east-1' },
+    { Type: 'AwsS3Bucket', Id: 'arn:aws:s3:::example-bucket', Region: 'us-east-1' },
+  ],
+  Workflow: { Status: 'NEW' },
+  RecordState: 'ACTIVE',
+};
+
+/** IAM Access Analyzer finding on an IAM role, a resource IAMAccessAnalyzer.ExternalAccess does not support. */
+export const mockIamAccessAnalyzerRoleAsffFinding = {
+  ...mockIamAccessAnalyzerAsffFinding,
+  Id: 'arn:aws:access-analyzer:us-east-1:123456789012:analyzer/test-analyzer/arn:aws:iam::123456789012:role/example-role',
+  Resources: [{ Partition: 'aws', Type: 'AwsIamRole', Id: 'arn:aws:iam::123456789012:role/example-role' }],
+};
+
+/**
+ * Custom-product finding whose free-form Id imitates a native Inspector ARN. Its ProductName
+ * matches no multi-service rule, so only the Id could route it to a multi-service remediation.
+ */
+export const mockCustomProductNativeInspectorIdAsffFinding = {
+  ...mockInspectorEc2AsffFinding,
+  Id: 'arn:aws:inspector2:us-east-1:123456789012:finding/custom-imitation',
+  ProductArn: SPOOFED_DEFAULT_PRODUCT_ARN,
+  ProductName: 'Custom Scanner',
+  CompanyName: 'Example',
+  ProductFields: { 'aws/securityhub/ProductName': 'Custom Scanner' },
+};
+
+/**
+ * Custom-product finding that names a multi-service remediation in Compliance.SecurityControlId.
+ * Its ProductName matches no multi-service rule, so only the control id could route it.
+ */
+export const mockCustomProductComplianceGuardDutyAsffFinding = {
+  ...mockSpoofedGuardDutyAsffFindingWithControlId,
+  Id: 'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/custom-imitation',
+  ProductName: 'Custom Scanner',
+  CompanyName: 'Example',
+  ProductFields: { 'aws/securityhub/ProductName': 'Custom Scanner' },
+};

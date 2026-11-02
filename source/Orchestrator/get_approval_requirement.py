@@ -20,6 +20,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 from layer import utils
 from layer.awsapi_cached_client import BotoSession
+from layer.event_transformers import MANUAL_TRIGGER_EVENT_TYPES
 from layer.powertools_logger import get_logger
 from layer.sechub_findings import Finding
 from layer.simple_validation import extract_safe_product_name, safe_ssm_path
@@ -56,18 +57,8 @@ def _is_account_sensitive(_):
     return False
 
 
-def _is_automatic_trigger(event_type):
-    if event_type == "Security Hub Findings - Imported":
-        return False
-    else:
-        return True
-
-
-def _is_custom_action_trigger(event_type):
-    if event_type == "Security Hub Findings - Imported":
-        return True
-    else:
-        return False
+def _is_automatic_trigger(event_type: str) -> bool:
+    return event_type not in MANUAL_TRIGGER_EVENT_TYPES
 
 
 def get_running_account():

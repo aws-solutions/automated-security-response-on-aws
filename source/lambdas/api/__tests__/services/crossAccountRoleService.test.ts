@@ -197,6 +197,41 @@ describe('CrossAccountRoleService — required_iam_actions validation', () => {
     expect(iamMock.commandCalls(CreateRoleCommand)).toHaveLength(1);
   });
 
+  it('restricts the SSM trust to the member account without conditioning the orchestrator trust', async () => {
+    iamMock.on(GetRoleCommand).rejects(new NoSuchEntityException({ message: 'not found', $metadata: {} }));
+    iamMock.on(CreateRoleCommand).resolves({});
+    iamMock.on(PutRolePolicyCommand).resolves({});
+    iamMock.on(TagRoleCommand).resolves({});
+
+    await service().provisionRolesInAccounts(
+      [MEMBER_ACCOUNT_ID],
+      ROLE_NAME,
+      ['s3:PutBucketLogging'],
+      'ASR-Custom-SC_2.0.0_S3.9',
+      'S3.9',
+    );
+
+    const trustPolicy: unknown = JSON.parse(
+      iamMock.commandCalls(CreateRoleCommand)[0].args[0].input.AssumeRolePolicyDocument ?? '{}',
+    );
+    expect(trustPolicy).toEqual({
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { AWS: `arn:aws:iam::${MEMBER_ACCOUNT_ID}:role/SO0111-ASR-Orchestrator-Member` },
+          Action: 'sts:AssumeRole',
+        },
+        {
+          Effect: 'Allow',
+          Principal: { Service: 'ssm.amazonaws.com' },
+          Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'aws:SourceAccount': MEMBER_ACCOUNT_ID } },
+        },
+      ],
+    });
+  });
+
   it('re-asserts the permissions boundary (and trust policy) when the role already exists', async () => {
     // GetRole succeeds → existing-role path. The boundary must be re-applied here,
     // not only on CreateRole, so a role pre-created without a boundary cannot

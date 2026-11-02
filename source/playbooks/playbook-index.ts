@@ -64,5 +64,5 @@ export const scPlaybookProps: PlaybookProps = {
   totalControls: SC_REMEDIATIONS.length,
   defaultParameterValue: 'yes',
   description:
-    'If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.',
+    'If the consolidated control findings feature is turned on in Security Hub, enable the Security Control (SC) playbook. If the feature is turned off, enable the playbooks for the security standards that are enabled in Security Hub. The SC playbook also carries the remediations for GuardDuty, Inspector, and Macie findings. The deployment fails when the selection cannot remediate control findings under the Security Hub setting.',
 };

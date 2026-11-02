@@ -9,6 +9,7 @@ import {
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { mockClient } from 'aws-sdk-client-mock';
+import nock from 'nock';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBTestSetup } from '../../../common/__tests__/dynamodbSetup';
 import {
@@ -28,6 +29,10 @@ const FIXED_DATE = new Date('2025-06-15T12:00:00.000Z');
 
 let uuidCounter = 0;
 const nextUUID = () => `11111111-2222-4333-a444-${String(++uuidCounter).padStart(12, '0')}`;
+
+jest.mock('node:dns/promises', () => ({
+  lookup: jest.fn(async () => [{ address: '203.0.113.10', family: 4 }]),
+}));
 
 jest.mock('../../../common/utils/idGenerator', () => ({
   getIdGenerator: () => ({ randomUUID: () => nextUUID() }),
@@ -293,13 +298,22 @@ describe('POST /notifications/configurations/{id}/test', () => {
     secretsManagerMock
       .on(GetSecretValueCommand)
       .resolves({ SecretString: '{"webhookUrl":"https://hooks.slack.com/services/T0001/B0001/xxxxx"}' });
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 200 } as Response);
+    // Mock the Slack webhook at the HTTP boundary so the real fetchWithRetry and transport run. Block every
+    // other outbound connection, except DynamoDB Local on loopback, so a missed interceptor fails here.
+    const slackWebhook = nock('https://hooks.slack.com').post('/services/T0001/B0001/xxxxx').reply(200, 'ok');
+    nock.disableNetConnect();
+    nock.enableNetConnect(/^(127\.0\.0\.1|localhost)(:\d+)?$/);
     const event = createTestNotificationEvent(created.configId, {
       body: { channels: ['slack'] },
     });
 
     // ACT
-    const response = await testNotificationConfiguration(event, createMockContext());
+    let response: Awaited<ReturnType<typeof testNotificationConfiguration>>;
+    try {
+      response = await testNotificationConfiguration(event, createMockContext());
+    } finally {
+      nock.enableNetConnect();
+    }
 
     // ASSERT
     expect(response.statusCode).toBe(200);
@@ -307,8 +321,7 @@ describe('POST /notifications/configurations/{id}/test', () => {
     expect(body.results.slack).toBeDefined();
     expect(body.results.slack.status).toBe('success');
     expect(body.results.email).toBeUndefined();
-    expect(fetchSpy).toHaveBeenCalled();
-    fetchSpy.mockRestore();
+    expect(slackWebhook.isDone()).toBe(true);
   });
 
   it('should allow DelegatedAdminGroup users to send test notifications', async () => {

@@ -3,7 +3,7 @@
 
 import { inflate } from 'pako';
 import { ACTION_TYPE_TO_ASR_ACTION_NAME, MULTI_SERVICE_REMEDIATION_IDS } from '@asr/data-models';
-import type { ASFFFinding, FindingTableItem } from '@asr/data-models';
+import type { ASFFFinding, AsrOrchestratorDetailType, FindingTableItem } from '@asr/data-models';
 import type { Clock } from './clock';
 import { ErrorUtils } from './errorUtils';
 import type { IdGenerator } from './idGenerator';
@@ -21,14 +21,25 @@ export function extractASFFFinding(findingTableItem: FindingTableItem): ASFFFind
   }
 }
 
+export interface SnapshotRollbackParams {
+  executionId: string;
+  remediationConfigBucket: string;
+  snapshotVersionId?: string;
+}
+
+export interface RollbackInputs {
+  rollbackBackupKey?: string;
+  snapshotRollbackParams?: SnapshotRollbackParams;
+}
+
 export function buildOrchestratorInput(
   remediationId: string,
   asffFinding: ASFFFinding,
   actionType: keyof typeof ACTION_TYPE_TO_ASR_ACTION_NAME,
+  detailType: AsrOrchestratorDetailType,
   idGenerator: IdGenerator,
   clock: Clock,
-  rollbackBackupKey?: string,
-  snapshotRollbackParams?: { executionId: string; remediationConfigBucket: string; snapshotVersionId?: string },
+  { rollbackBackupKey, snapshotRollbackParams }: RollbackInputs = {},
 ): string {
   const actionName = ACTION_TYPE_TO_ASR_ACTION_NAME[actionType];
   const isMultiService = MULTI_SERVICE_REMEDIATION_IDS.has(remediationId);
@@ -38,7 +49,7 @@ export function buildOrchestratorInput(
   return JSON.stringify({
     version: '0',
     id: idGenerator.randomUUID(),
-    'detail-type': 'Security Hub Findings - API Action',
+    'detail-type': detailType,
     source: 'aws.securityhub',
     account: asffFinding.AwsAccountId,
     region: asffFinding.Region,

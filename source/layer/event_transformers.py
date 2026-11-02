@@ -27,6 +27,19 @@ class GenerateTicket(TypedDict):
     ResponseReason: str
 
 
+class AutomationDocumentState(TypedDict):
+    """The resolved document state the state machine forwards to notify."""
+
+    AIGenerated: NotRequired[bool]
+
+
+class OrchestratorFailurePayload(TypedDict):
+    """The full execution state that the Orchestrator Failed state nests under Payload."""
+
+    AIGenerated: NotRequired[bool]
+    AutomationDocument: NotRequired[AutomationDocumentState]
+
+
 class Event(TypedDict):
     Notification: Notification
     Finding: dict[str, Any]
@@ -40,19 +53,31 @@ class Event(TypedDict):
     Resources: NotRequired[Union[list[dict[str, Any]], dict[str, Any]]]
     Severity: NotRequired[dict[str, Any]]
     SSMExecution: NotRequired[dict[str, Any]]
+    AutomationDocument: NotRequired[AutomationDocumentState]
+    AIGenerated: NotRequired[bool]
+    Payload: NotRequired[OrchestratorFailurePayload]
 
 
-# EventType values EventBridge stamps when a human triggers a remediation:
-# a Security Hub custom action from the console, or the API action. Everything
-# else (scheduled, event-driven) is automation. This is the single definition of
-# "a person did this" shared by is_notified_workflow, extract_triggered_by, and
-# the SSM document resolver's manual-trigger gate.
+CUSTOM_ACTION_EVENT_TYPE = "Security Hub Findings - Custom Action"
+# ASR stamps these two itself; keep them in sync with ASR_ORCHESTRATOR_DETAIL_TYPES in
+# source/data-models/apiActions.ts.
+API_ACTION_EVENT_TYPE = "Security Hub Findings - API Action"
+DEADLINE_ENFORCEMENT_EVENT_TYPE = "Security Hub Findings - Deadline Enforcement"
+
+# EventType values for a remediation a person requested: a Security Hub custom action
+# (console or the MCP execute_runbook tool) or an API action (Web UI, REST API, MCP).
+# Everything else, including deadline enforcement, is automation. This is the single
+# definition of "a person did this" shared by extract_triggered_by, the approval check,
+# and the SSM document resolver's manual-trigger gate.
 MANUAL_TRIGGER_EVENT_TYPES = frozenset(
-    {
-        "Security Hub Findings - Custom Action",
-        "Security Hub Findings - API Action",
-    }
+    {CUSTOM_ACTION_EVENT_TYPE, API_ACTION_EVENT_TYPE}
 )
+
+# EventType values for a run that was explicitly requested rather than echoed from a
+# finding import, so it must update the finding even when it is already NOTIFIED.
+REQUESTED_REMEDIATION_EVENT_TYPES = MANUAL_TRIGGER_EVENT_TYPES | {
+    DEADLINE_ENFORCEMENT_EVENT_TYPE
+}
 
 
 def extract_stepfunctions_execution_id(event: Event) -> str:
@@ -81,9 +106,9 @@ def is_notified_workflow(event: Event) -> bool:
 
     event_type = event.get("EventType", "")
     event_dict = cast(dict[str, Any], cast(object, event))
-    if event_type in MANUAL_TRIGGER_EVENT_TYPES:
+    if event_type in REQUESTED_REMEDIATION_EVENT_TYPES:
         logger.debug(
-            "NOTIFIED workflow detected but EventType indicates custom/API action - not skipping database updates",
+            "NOTIFIED workflow detected but EventType indicates a requested remediation - not skipping database updates",
             extra={
                 "findingId": extract_finding_id(event_dict),
                 "eventType": event_type,

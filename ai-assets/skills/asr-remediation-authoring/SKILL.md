@@ -231,4 +231,4 @@ Before reporting completion:
 - `references/validation-rules.md` — validator rule catalog.
 - `references/remediation-iam.md` — remediation-role construction.
 - `references/deployment-topology.md` — multi-account and multi-Region stacks.
-- `references/ai-generated-metrics.md` — built-in provenance metadata.
+- `references/ai-generated-metrics.md` — AI provenance for built-in remediations and Custom Runbooks.

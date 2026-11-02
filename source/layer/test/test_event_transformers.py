@@ -68,12 +68,22 @@ def test_is_notified_workflow_true():
     assert result is True
 
 
-def test_is_notified_workflow_with_event_type():
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "Security Hub Findings - Custom Action",
+        "Security Hub Findings - API Action",
+        "Security Hub Findings - Deadline Enforcement",
+    ],
+)
+def test_is_notified_workflow_is_false_for_a_requested_remediation(
+    event_type: str,
+) -> None:
     # ARRANGE
     event: Event = {
         "Notification": {"Message": "test", "State": "SUCCESS"},
         "Finding": {"Id": "test-id", "Workflow": {"Status": "NOTIFIED"}},
-        "EventType": "Security Hub Findings - Custom Action",
+        "EventType": event_type,
     }
 
     # ACT
@@ -81,6 +91,21 @@ def test_is_notified_workflow_with_event_type():
 
     # ASSERT
     assert result is False
+
+
+def test_is_notified_workflow_is_true_for_an_imported_finding() -> None:
+    # ARRANGE
+    event: Event = {
+        "Notification": {"Message": "test", "State": "SUCCESS"},
+        "Finding": {"Id": "test-id", "Workflow": {"Status": "NOTIFIED"}},
+        "EventType": "Security Hub Findings - Imported",
+    }
+
+    # ACT
+    result = is_notified_workflow(event)
+
+    # ASSERT
+    assert result is True
 
 
 def test_is_notified_workflow_false():
@@ -627,10 +652,11 @@ def test_the_custom_action_name_distinguishes_two_operator_actions() -> None:
     "event_type",
     [
         "Security Hub Findings - Imported",
+        "Security Hub Findings - Deadline Enforcement",
         "Scheduled Event",
         "",
     ],
-    ids=["imported", "scheduled", "empty"],
+    ids=["imported", "deadline-enforcement", "scheduled", "empty"],
 )
 def test_any_other_event_type_is_automation(event_type: str) -> None:
     # ARRANGE

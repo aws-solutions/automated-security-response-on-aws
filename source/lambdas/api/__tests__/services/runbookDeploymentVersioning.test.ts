@@ -171,6 +171,30 @@ describe('RunbookDeploymentService — versioned register', () => {
     expect(dynamoMock.commandCalls(PutCommand)[0].args[0].input.Item?.deployedAccounts).toBeUndefined();
   });
 
+  it.each([
+    ['quoted marker', 'description: |\n  ### Document name\n\n  AIGenerated: "true"\n', true],
+    ['single-quoted marker', "description: |\n  AIGenerated: 'true'\n", true],
+    ['unquoted marker', 'description: |\n  AIGenerated: true\n', true],
+    ['no marker', 'description: |\n  ### Document name\n', false],
+    ['marker set to false', 'description: |\n  AIGenerated: "false"\n', false],
+    ['unbalanced quote', 'description: |\n  AIGenerated: "true\n', false],
+    ['differently cased key', 'description: |\n  aigenerated: true\n', false],
+    ['marker only inside a step', 'description: plain\nmainSteps:\n  - description: \'AIGenerated: "true"\'\n', false],
+    ['non-string description', 'description:\n  AIGenerated: "true"\n', false],
+    ['scalar document', 'just a string', false],
+    ['unparseable YAML', 'description: [unclosed', false],
+  ])('records isAiGenerated from the description marker (%s)', async (_case, runbookYaml, expectedAiGenerated) => {
+    // ARRANGE
+    dynamoMock.on(QueryCommand).resolves({ Items: [], Count: 0 });
+    dynamoMock.on(PutCommand).resolves({});
+
+    // ACT
+    await service().execute({ action: 'register', runbook_yaml: runbookYaml, control_id: 'S3.9' });
+
+    // ASSERT
+    expect(dynamoMock.commandCalls(PutCommand)[0].args[0].input.Item?.isAiGenerated).toBe(expectedAiGenerated);
+  });
+
   // Registering must not change what any account runs — a new version is staged
   // for release, and only a later deploy naming an account installs it there.
   it('carries the previous version’s accounts onto the new version as PENDING', async () => {

@@ -116,6 +116,7 @@ class CustomRunbookRecord(TypedDict):
     remediationRole: NotRequired[str]
     deployedAt: NotRequired[str]
     createdAt: NotRequired[str]
+    isAiGenerated: NotRequired[bool]
     # accountId -> {"runbookVersion": ..., "status": ..., ...}
     deployedAccounts: NotRequired[dict[str, Any]]
 
@@ -128,6 +129,8 @@ class CustomRunbookInfo(TypedDict):
     # when that account has no recorded release of this runbook.
     memberRunbookVersion: int | None
     memberStatus: str | None
+    # Whether the version that account runs declares itself AI-generated.
+    isAiGenerated: bool
 
 
 def _get_dynamodb_resource() -> "DynamoDBServiceResource":
@@ -274,6 +277,27 @@ def _log_member_release_state(
         )
 
 
+def _is_member_version_ai_generated(
+    usable_items: list[CustomRunbookRecord],
+    selected: CustomRunbookRecord,
+    member_version: int | None,
+) -> bool:
+    """Report the flag of the version the finding's account runs, which can be older
+    than the selected record. Falls back to the selected record when that version has
+    no DEPLOYED record."""
+    member_record = next(
+        (
+            candidate
+            for candidate in usable_items
+            if member_version is not None
+            and candidate.get("runbookId") == selected.get("runbookId")
+            and _as_int(candidate.get("version")) == member_version
+        ),
+        selected,
+    )
+    return member_record.get("isAiGenerated") is True
+
+
 def _check_custom_runbook(
     control_id: str, *, account_id: str = ""
 ) -> CustomRunbookInfo | None:
@@ -386,6 +410,9 @@ def _check_custom_runbook(
         runbookVersion=runbook_version,
         memberRunbookVersion=member_version,
         memberStatus=member_status,
+        isAiGenerated=_is_member_version_ai_generated(
+            usable_items, item, member_version
+        ),
     )
 
 
@@ -685,6 +712,7 @@ def _resolve_doc_for_custom_runbook(
                 "automationdocid": custom_doc,
                 "remediationrole": custom_role,
                 "message": "",
+                "aigenerated": custom_runbook["isAiGenerated"],
             }
         )
         _add_doc_state_to_answer(
@@ -719,6 +747,9 @@ def _resolve_doc_for_custom_runbook(
 @tracer.capture_lambda_handler  # type: ignore[untyped-decorator]
 def lambda_handler(event: dict[str, Any], _: Any) -> utils.StepFunctionLambdaAnswerDict:
     answer: utils.StepFunctionLambdaAnswer = utils.StepFunctionLambdaAnswer()
+    # The state machine selects this field on every result, so it must be present on
+    # every return path; only a deployed Custom Runbook sets it true.
+    answer.update({"aigenerated": False})
     logger.info(
         "Processing SSM doc state check",
         remediation_id=event.get("Detail", {}).get("remediationId"),

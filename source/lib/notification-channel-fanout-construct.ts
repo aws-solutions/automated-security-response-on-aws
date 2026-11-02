@@ -28,6 +28,7 @@ export interface NotificationChannelFanoutProps {
   readonly channelFanoutTopic: sns.ITopic;
   readonly webUiUrl: string;
   readonly iacTemplatesBucket: IBucket;
+  readonly serviceNowAllowedDomains: string;
 }
 
 export interface ChannelFunctionOptions {
@@ -36,7 +37,7 @@ export interface ChannelFunctionOptions {
   readonly handlerPath: string;
   readonly serviceName: string;
   readonly timeoutSeconds: number;
-  readonly extraEnvironment?: Record<string, string>;
+  readonly extraEnvironment?: Pick<ChannelLambdaEnvironmentConfig, 'SERVICENOW_ALLOWED_DOMAINS'>;
   readonly iamPolicy: PolicyStatement | PolicyStatement[];
 }
 
@@ -72,7 +73,8 @@ export class NotificationChannelFanoutConstruct extends Construct {
       RESOURCE_NAME_PREFIX: props.resourceNamePrefix,
       WEB_UI_URL: props.webUiUrl,
       IAC_TEMPLATES_BUCKET: props.iacTemplatesBucket.bucketName,
-    } satisfies Record<keyof ChannelLambdaEnvironmentConfig, string>;
+      // SERVICENOW_ALLOWED_DOMAINS is set only on the ServiceNow channel, through extraEnvironment.
+    } satisfies Record<Exclude<keyof ChannelLambdaEnvironmentConfig, 'SERVICENOW_ALLOWED_DOMAINS'>, string>;
 
     const secretsManagerResources = [
       `arn:${stack.partition}:secretsmanager:${stack.region}:${stack.account}:secret:${channelConfig.secretsResourcePattern}*`,
@@ -200,6 +202,7 @@ export class NotificationChannelFanoutConstruct extends Construct {
       handlerPath: 'notification-channels/servicenow-channel.handler',
       serviceName: 'notification_servicenow_channel',
       timeoutSeconds: channelConfig.webhookLambdaTimeoutSeconds,
+      extraEnvironment: { SERVICENOW_ALLOWED_DOMAINS: props.serviceNowAllowedDomains },
       iamPolicy: secretsManagerPolicy,
     });
 

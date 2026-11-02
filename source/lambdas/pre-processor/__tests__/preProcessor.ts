@@ -51,7 +51,7 @@ import {
   ThrottlingException,
 } from '@aws-sdk/client-securityhub';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { Context, SQSBatchResponse, SQSEvent, SQSRecord } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 import nock from 'nock';
@@ -83,9 +83,16 @@ import {
   mockSpoofedIamAccessAnalyzerAsffFinding,
   mockSpoofedIamAccessAnalyzerAsffFindingWithControlId,
   mockSpoofedGuardDutyAsffFindingWithControlId,
+  mockInspectorEc2AsffFinding,
+  mockInspectorLambdaAsffFinding,
+  mockGuardDutyNonCredentialAsffFinding,
+  mockIamAccessAnalyzerRoleAsffFinding,
+  mockCustomProductNativeInspectorIdAsffFinding,
+  mockCustomProductComplianceGuardDutyAsffFinding,
 } from './fixtures/multiServiceFixtures';
 import { mockSecurityHubCoverageFinding } from './fixtures/securityHubCoverageFixtures';
 import { Logger } from '@aws-lambda-powertools/logger';
+import { FindingSchema } from '../Normalizer/findingEventNormalizer';
 import { asFindingId, asConfigId, asResolvedFindingType, asSecurityHubCspmFinding } from '../../common/__tests__/utils';
 
 describe('PreProcessor Lambda', () => {
@@ -2943,6 +2950,123 @@ describe('PreProcessor Lambda', () => {
       );
       expect(findingResult.Item).toBeDefined();
       expect(findingResult.Item?.remediationStatus).toBe('IN_PROGRESS');
+    });
+
+    describe('unsupported multi-service findings are dropped instead of reaching control routing', () => {
+      let loggerInfoSpy: jest.SpyInstance;
+
+      beforeEach(() => {
+        loggerInfoSpy = jest.spyOn(Logger.prototype, 'info');
+      });
+
+      afterEach(() => {
+        loggerInfoSpy.mockRestore();
+      });
+
+      const ocsfComplianceGuardDutyFinding = createMockOCSFFinding({
+        finding_info: {
+          ...createMockOCSFFinding().finding_info,
+          uid: 'arn:aws:securityhub:us-east-1:123456789012:security-control/GuardDuty.IAMUser/finding/ocsf-imitation',
+        },
+        compliance: { status: 'fail', control: 'GuardDuty.IAMUser', standards: [] },
+      });
+
+      // The control is enabled in every case, so a regressed drop would persist the finding
+      // and start the orchestrator.
+      it.each([
+        [
+          'an Inspector finding on a Lambda function',
+          mockInspectorLambdaAsffFinding,
+          mockInspectorLambdaAsffFinding.Id,
+          'Inspector.InstanceVulnerability',
+          FindingSchema.ASFF,
+        ],
+        [
+          'a non-credential GuardDuty finding listing an access key',
+          mockGuardDutyNonCredentialAsffFinding,
+          mockGuardDutyNonCredentialAsffFinding.Id,
+          'GuardDuty.IAMUser',
+          FindingSchema.ASFF,
+        ],
+        [
+          'an IAM Access Analyzer finding on an IAM role',
+          mockIamAccessAnalyzerRoleAsffFinding,
+          mockIamAccessAnalyzerRoleAsffFinding.Id,
+          'IAMAccessAnalyzer.ExternalAccess',
+          FindingSchema.ASFF,
+        ],
+        [
+          'a custom-product finding whose Id imitates an Inspector ARN',
+          mockCustomProductNativeInspectorIdAsffFinding,
+          mockCustomProductNativeInspectorIdAsffFinding.Id,
+          'Inspector.InstanceVulnerability',
+          FindingSchema.ASFF,
+        ],
+        [
+          'a custom-product finding whose SecurityControlId names GuardDuty.IAMUser',
+          mockCustomProductComplianceGuardDutyAsffFinding,
+          mockCustomProductComplianceGuardDutyAsffFinding.Id,
+          'GuardDuty.IAMUser',
+          FindingSchema.ASFF,
+        ],
+        [
+          'an OCSF compliance finding whose control names GuardDuty.IAMUser',
+          ocsfComplianceGuardDutyFinding,
+          ocsfComplianceGuardDutyFinding.finding_info.uid,
+          'GuardDuty.IAMUser',
+          FindingSchema.OCSF,
+        ],
+      ])('drops %s', async (_description, finding, findingId, remediationId, schema) => {
+        // ARRANGE
+        await setupControlConfig(remediationId, true);
+        setupFilterMetricsMocks();
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:should-not-run',
+        });
+
+        // ACT
+        await expect(PreProcessor.recordHandler(createMultiServiceSQSRecord(finding))).resolves.toBeUndefined();
+
+        // ASSERT
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        const findingRows = await docClient.send(
+          new ScanCommand({
+            TableName: findingsTableName,
+            FilterExpression: 'findingId = :findingId',
+            ExpressionAttributeValues: { ':findingId': findingId },
+          }),
+        );
+        expect(findingRows.Items).toEqual([]);
+        expect(loggerInfoSpy).toHaveBeenCalledWith(
+          'Dropping multi-service finding with no supported remediation for its resource or finding type',
+          expect.objectContaining({ findingId, schema }),
+        );
+      });
+
+      it('still routes a genuine ASFF Inspector finding on an EC2 instance', async () => {
+        // ARRANGE
+        await setupControlConfig('Inspector.InstanceVulnerability', true);
+        setupFilterMetricsMocks();
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test:inspector-asff-exec',
+        });
+
+        // ACT
+        await PreProcessor.recordHandler(createMultiServiceSQSRecord(mockInspectorEc2AsffFinding));
+
+        // ASSERT
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+        const findingResult = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: {
+              findingType: 'Inspector.InstanceVulnerability',
+              findingId: asFindingId(mockInspectorEc2AsffFinding.Id),
+            },
+          }),
+        );
+        expect(findingResult.Item?.remediationStatus).toBe('IN_PROGRESS');
+      });
     });
 
     describe('source authenticity — unverified ProductArn is dropped, not routed', () => {

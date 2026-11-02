@@ -16,6 +16,9 @@ import { Key } from 'aws-cdk-lib/aws-kms';
 import { getConfig } from './config/cdk-config';
 import { applyConditionToSubtree } from './cdk-helper/apply-condition-to-subtree';
 
+/** Logical id of the nested-stack parameter carrying the joined ServiceNow allowed domains. */
+export const WEBUI_SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID = 'ServiceNowAllowedDomains';
+
 export interface WebUINestedStackProps extends cdk.NestedStackProps {
   solutionId: string;
   solutionVersion: string;
@@ -69,6 +72,12 @@ export class WebUINestedStack extends cdk.NestedStack {
 
   constructor(scope: Construct, id: string, props: WebUINestedStackProps) {
     super(scope, id, props);
+
+    const serviceNowAllowedDomains = new cdk.CfnParameter(this, WEBUI_SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID, {
+      type: 'String',
+      description: 'Comma-separated extra ServiceNow endpoint domains supplied by the parent stack.',
+      default: '',
+    });
 
     const config = getConfig();
 
@@ -194,6 +203,7 @@ export class WebUINestedStack extends cdk.NestedStack {
       enableRollback: props.enableRollback,
       findingsTtlDays: props.findingsTtlDays,
       mcpEnabled: props.mcpEnabled,
+      serviceNowAllowedDomains: serviceNowAllowedDomains.valueAsString,
     });
 
     this.api = apiConstruct.api;

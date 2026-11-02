@@ -84,6 +84,25 @@ describe('CustomRunbookTestRoleService', () => {
     );
   });
 
+  it('lets only SSM automations in the test account assume the role', async () => {
+    await service().provisionRole(params());
+
+    const trustPolicy: unknown = JSON.parse(
+      iamMock.commandCalls(CreateRoleCommand)[0].args[0].input.AssumeRolePolicyDocument ?? '{}',
+    );
+    expect(trustPolicy).toEqual({
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { Service: 'ssm.amazonaws.com' },
+          Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'aws:SourceAccount': '123456789012' } },
+        },
+      ],
+    });
+  });
+
   it('uses different role names for different permission sets on the same version', async () => {
     const first = await service().provisionRole(params(['s3:GetBucketLogging']));
     iamMock.reset();

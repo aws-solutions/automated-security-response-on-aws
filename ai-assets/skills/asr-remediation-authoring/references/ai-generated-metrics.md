@@ -1,8 +1,7 @@
 # Recording AI-generated remediation provenance
 
-ASR records whether a built-in remediation was AI-generated. This metadata is
-part of the source contribution and must match the registered remediation
-identifier.
+ASR records whether a remediation was AI-generated, for both built-in
+remediations and runtime Custom Runbooks. Each path records it differently.
 
 ## Built-in remediations
 
@@ -36,14 +35,19 @@ runtime telemetry value; one does not replace the other.
 ## Runtime Custom Runbooks
 
 A Custom Runbook created in a deployed environment cannot modify the solution's
-packaged `metrics.py` set. Keep the provenance marker in the runbook description,
-but do not claim that the deployed solution reports it as AI-generated unless the
-identifier is already present in the packaged set.
+packaged `metrics.py` set. Instead, put `AIGenerated: "true"` on its own line in
+the runbook's top-level `description`, after the last section. ASR records the
+marker when the runbook is registered and reports the remediations that version
+runs, queues, or fails as AI-generated. A version registered without the marker
+reports `false`; register a new version to change it. An execution that Step
+Functions times out or aborts is reported without the flag.
 
 ## Completion check
 
-1. The built-in remediation identifier is present in
-   `AI_GENERATED_REMEDIATION_IDS`.
-2. It exactly matches the registered `control` value.
+1. A built-in remediation identifier is present in
+   `AI_GENERATED_REMEDIATION_IDS`, and exactly matches the registered `control`
+   value.
+2. A Custom Runbook's top-level `description` carries `AIGenerated: "true"` on
+   its own line.
 3. Every generated artifact carries the appropriate provenance marker.
 4. Existing identifiers remain unchanged.

@@ -24,13 +24,16 @@ import {
   SnsChannelValidationContext,
   TestNotificationRequest,
   TestNotificationRequestSchema,
+  checkServiceNowInstanceUrl,
+  readServiceNowAllowedDomains,
 } from '@asr/data-models';
 import { SCOPE_NAME } from '../../common/constants/apiConstant';
+import { isDisallowedAddress } from '../../notification-channels/disallowed-addresses';
 import { NotificationConfigurationService } from '../services/notificationConfigurationService';
 import { API_HEADERS, createResponse } from './apiHandler';
 import { BaseHandler, getClaims } from './baseHandler';
 import { apiLambdaEnvironment, apiLambdaRuntimeEnvironment } from '../apiLambdaEnvironment';
-import { BadRequestError, ForbiddenError } from '../../common/utils/httpErrors';
+import { BadRequestError, ForbiddenError, InternalServerError } from '../../common/utils/httpErrors';
 import { AuthenticatedUser } from '../services/authorization';
 import { sendMetrics } from '../../common/utils/metricsUtils';
 import { TestNotificationService } from '../services/testNotificationService';
@@ -60,6 +63,29 @@ function validateSnsChannels(body: { readonly deliveryChannels: ReadonlyArray<De
   });
 }
 
+function validateServiceNowChannels(body: { readonly deliveryChannels: ReadonlyArray<DeliveryChannelConfig> }): void {
+  if (!body.deliveryChannels.some((channel) => channel.type === 'servicenow')) return;
+  const allowedDomains = readServiceNowAllowedDomains(apiLambdaEnvironment().SERVICENOW_ALLOWED_DOMAINS);
+  if (!allowedDomains.ok) {
+    // A deployment misconfiguration the caller cannot fix: log the detail, return a server error.
+    logger.error('ServiceNowAllowedDomains stack parameter is invalid', { reason: allowedDomains.error });
+    throw new InternalServerError(
+      'ServiceNow channels cannot be saved because the ServiceNowAllowedDomains stack parameter is invalid. Ask an administrator to correct it.',
+    );
+  }
+  const additionalAllowedDomains = allowedDomains.domains;
+  body.deliveryChannels.forEach((channel, index) => {
+    if (channel.type !== 'servicenow') return;
+    const error = checkServiceNowInstanceUrl(channel.endpointUrl.trim(), {
+      additionalAllowedDomains,
+      isDisallowedHost: isDisallowedAddress,
+    });
+    if (error) {
+      throw new BadRequestError(`deliveryChannels[${index}] (servicenow): ${error}`);
+    }
+  });
+}
+
 /** Zod-style schema shape accepted by BaseHandler.extractValidatedBody. */
 interface ValidatableSchema<T> {
   safeParse: (data: unknown) => {
@@ -80,6 +106,7 @@ async function validateConfigurationRequest<
   try {
     const body = baseHandler.extractValidatedBody<T>(event, schema, errorPrefix);
     validateSnsChannels(body);
+    validateServiceNowChannels(body);
     return body;
   } catch (error) {
     if (error instanceof BadRequestError) {

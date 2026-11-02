@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { stripForInlining } from '../lib/stripped-script-code';
 
@@ -17,6 +17,27 @@ const commonScriptsDir = path.join(__dirname, '..', 'playbooks', 'common');
 
 // The three shared scripts inlined by the SC base control runbook (inherited by NIST/AFSBP).
 const inlinedScripts = ['parse_input.py', 'get_input_params.py', 'get_remediation_details.py'];
+
+// Every remediation runbook script that is inlined (and stripped) into RunbookStack. The strip
+// runs on these at build time, so each one must stay AST-identical after stripping.
+const remediationScriptsDir = path.join(__dirname, '..', 'remediation_runbooks', 'scripts');
+
+/** Recursively collect every `.py` file under `dir`, skipping any `test/` directory. */
+function collectPythonScripts(dir: string): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'test') {
+        continue;
+      }
+      found.push(...collectPythonScripts(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.py')) {
+      found.push(fullPath);
+    }
+  }
+  return found;
+}
 
 /** Returns `ast.dump(ast.parse(code))` from python3.11 (a required test-time dependency). */
 function pythonAstDump(code: string): string {
@@ -55,5 +76,23 @@ describe('stripForInlining preserves the Python AST (behavior safety)', () => {
   it.each(adversarial)('keeps AST identical with CRLF endings for: %s', (_label, lfSource) => {
     const crlfSource = lfSource.replace(/\n/g, '\r\n');
     expect(pythonAstDump(stripForInlining(crlfSource))).toBe(pythonAstDump(lfSource));
+  });
+});
+
+// The remediation path (runbook_factory.ts) strips every inlined remediation script to recover
+// RunbookStack headroom. Sweep all of them so a future script that defeats the stripper (e.g. a
+// triple-quoted string used as data with a `#`-line inside it) fails loudly instead of silently
+// corrupting the inlined copy.
+describe('stripForInlining preserves the AST of every inlined remediation script', () => {
+  const scriptPaths = collectPythonScripts(remediationScriptsDir);
+  const cases = scriptPaths.map((fullPath) => [path.relative(remediationScriptsDir, fullPath), fullPath] as const);
+
+  it('discovers the remediation scripts to check', () => {
+    expect(cases.length).toBeGreaterThan(0);
+  });
+
+  it.each(cases)('keeps %s AST-identical after stripping', (_relativePath, fullPath) => {
+    const source = readFileSync(fullPath, 'utf8');
+    expect(pythonAstDump(stripForInlining(source))).toBe(pythonAstDump(source));
   });
 });

@@ -7,6 +7,7 @@ from typing import Any
 import boto3
 import exec_ssm_doc
 import pytest
+from botocore.exceptions import ClientError
 from botocore.stub import ANY, Stubber
 from exec_ssm_doc import _validate_doc_parameters, lambda_handler
 from pytest_mock import MockerFixture
@@ -728,6 +729,117 @@ def test_per_control_role_is_passed_to_ssm_not_assumed_by_this_lambda(
     assert assumed_role != per_control_role
     ssm_stub.deactivate()
     iam_stub.deactivate()
+
+
+def _step_input_with_role(remediation_role: str, document_name: str) -> dict[str, Any]:
+    return _guardduty_step_input(
+        AutomationDocument={
+            "AccountId": "111111111111",
+            "AutomationDocId": document_name,
+            "RemediationRole": remediation_role,
+            "ControlId": "APIGateway.3",
+            "SecurityStandard": "SC",
+            "ResourceRegion": "us-east-1",
+        }
+    )
+
+
+def _iam_client_without_role() -> Any:
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    iam_stub.add_client_error("get_role", "NoSuchEntity")
+    iam_stub.activate()
+    return iam_client
+
+
+def test_missing_custom_runbook_role_fails_without_starting_the_automation(
+    mocker: MockerFixture,
+) -> None:
+    # ARRANGE
+    custom_runbook_role = "SO0111-Remediate-Custom-SC-2.0.0-APIGateway.3"
+    mocker.patch(
+        "exec_ssm_doc._get_iam_client", return_value=_iam_client_without_role()
+    )
+    # No queued responses: any SSM call, such as starting the automation, fails the test.
+    ssm_client = boto3.client("ssm")
+    Stubber(ssm_client).activate()
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_client)
+
+    # ACT / ASSERT
+    with pytest.raises(
+        exec_ssm_doc.MissingCustomRunbookRoleError,
+        match=f"{custom_runbook_role} does not exist .* Redeploy the Custom Runbook",
+    ):
+        lambda_handler(
+            _step_input_with_role(
+                custom_runbook_role, "ASR-Custom-SC_2.0.0_APIGateway.3"
+            ),
+            create_lambda_context(),
+        )
+
+
+@pytest.mark.parametrize(
+    "requested_role",
+    [
+        "SO0111-ASR-Inspector-Automation",
+        # The resolver derives this name for built-in playbooks; it is never deployed.
+        "SO0111-Remediate-SC-2.0.0-APIGateway.3",
+    ],
+    ids=["inspector-automation", "built-in-playbook"],
+)
+def test_missing_non_custom_role_runs_as_orchestrator_member(
+    mocker: MockerFixture, requested_role: str
+) -> None:
+    # ARRANGE
+    mocker.patch(
+        "exec_ssm_doc._get_iam_client", return_value=_iam_client_without_role()
+    )
+    ssm_client = boto3.client("ssm")
+    ssm_stub = Stubber(ssm_client)
+    ssm_stub.add_response(
+        "start_automation_execution",
+        {"AutomationExecutionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {
+            "DocumentName": "ASR-SC_2.0.0_APIGateway.3",
+            "Parameters": {
+                "Finding": [ANY],
+                "AutomationAssumeRole": [
+                    f"arn:{exec_ssm_doc.AWS_PARTITION}:iam::111111111111:role/SO0111-ASR-Orchestrator-Member"
+                ],
+            },
+        },
+    )
+    ssm_stub.activate()
+    mocker.patch("exec_ssm_doc._get_ssm_client", return_value=ssm_client)
+
+    # ACT
+    response = lambda_handler(
+        _step_input_with_role(requested_role, "ASR-SC_2.0.0_APIGateway.3"),
+        create_lambda_context(),
+    )
+
+    # ASSERT
+    assert response["status"] == "QUEUED"
+    ssm_stub.assert_no_pending_responses()
+
+
+def test_unexpected_error_checking_the_role_is_raised(mocker: MockerFixture) -> None:
+    # ARRANGE
+    iam_client = boto3.client("iam")
+    iam_stub = Stubber(iam_client)
+    iam_stub.add_client_error("get_role", "AccessDenied")
+    iam_stub.activate()
+    mocker.patch("exec_ssm_doc._get_iam_client", return_value=iam_client)
+
+    # ACT / ASSERT
+    with pytest.raises(ClientError):
+        lambda_handler(
+            _step_input_with_role(
+                "SO0111-Remediate-Custom-SC-2.0.0-APIGateway.3",
+                "ASR-Custom-SC_2.0.0_APIGateway.3",
+            ),
+            create_lambda_context(),
+        )
 
 
 def test_validate_doc_parameters_allows_all_snapshot_rollback_params() -> None:

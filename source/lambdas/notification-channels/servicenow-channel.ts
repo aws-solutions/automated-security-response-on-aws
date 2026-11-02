@@ -3,6 +3,8 @@
 
 import { createChannelHandler } from './base-channel-handler';
 import { channelDependencies } from './channel-setup';
+import { channelLambdaEnvironment } from './channelLambdaEnvironment';
+import { isDisallowedAddress } from './disallowed-addresses';
 import { getCachedSecretValue } from '../common/utils/secrets-utils';
 import { InputValidationError } from './notification-channel-errors';
 import {
@@ -15,13 +17,23 @@ import {
 } from './types';
 import {
   checkServiceNowInstanceUrl,
+  readServiceNowAllowedDomains,
   SERVICENOW_TABLE_NAME_PATTERN,
   ServiceNowCustomFieldMapping,
 } from '@asr/data-models';
 import { ServiceNowClient } from './servicenow-client';
 
+function readAllowedDomains(): readonly string[] {
+  const result = readServiceNowAllowedDomains(channelLambdaEnvironment().SERVICENOW_ALLOWED_DOMAINS);
+  if (!result.ok) throw new InputValidationError(`The ServiceNowAllowedDomains setting is invalid. ${result.error}`);
+  return result.domains;
+}
+
 function validateServiceNowInstanceUrl(url: string): string {
-  const error = checkServiceNowInstanceUrl(url);
+  const error = checkServiceNowInstanceUrl(url, {
+    additionalAllowedDomains: readAllowedDomains(),
+    isDisallowedHost: isDisallowedAddress,
+  });
   if (error) {
     throw new InputValidationError(error);
   }

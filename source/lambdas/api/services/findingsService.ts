@@ -9,6 +9,7 @@ import {
   ExportRequest,
   SearchCriteria,
   ACTION_TYPE_TO_ASR_ACTION_NAME,
+  ASR_ORCHESTRATOR_DETAIL_TYPES,
   ROLLBACK_ELIGIBLE_FINDING_TYPES,
   ROLLBACK_TIMEOUT_MS,
   getRemediationConfigBucketName,
@@ -28,7 +29,11 @@ import type {
   RemediationHistoryBaseData,
 } from '@asr/data-models';
 import { ErrorUtils } from '../../common/utils/errorUtils';
-import { extractASFFFinding, buildOrchestratorInput } from '../../common/utils/findingExtraction';
+import {
+  extractASFFFinding,
+  buildOrchestratorInput,
+  type SnapshotRollbackParams,
+} from '../../common/utils/findingExtraction';
 import { toCsv, FINDING_CSV_COLUMNS } from '../../common/utils/csvExport';
 import { getSecurityHubConsoleUrl, tryFindingKeyFromFindingId } from '../../common/utils/findingUtils';
 import { BadRequestError } from '../../common/utils/httpErrors';
@@ -733,16 +738,16 @@ export class FindingsService extends BaseSearchService {
     asffFinding: ASFFFinding,
     actionType: keyof typeof ACTION_TYPE_TO_ASR_ACTION_NAME,
     rollbackBackupKey?: string,
-    snapshotRollbackParams?: { executionId: string; remediationConfigBucket: string; snapshotVersionId?: string },
+    snapshotRollbackParams?: SnapshotRollbackParams,
   ): string {
     return buildOrchestratorInput(
       remediationId,
       asffFinding,
       actionType,
+      ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
       this.idGenerator,
       this.clock,
-      rollbackBackupKey,
-      snapshotRollbackParams,
+      { rollbackBackupKey, snapshotRollbackParams },
     );
   }
 

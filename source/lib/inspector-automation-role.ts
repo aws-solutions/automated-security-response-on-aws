@@ -169,7 +169,11 @@ export class InspectorAutomationRole extends Construct {
     assumeRoleStatement.addActions('sts:AssumeRole');
     assumeRoleStatement.effect = Effect.ALLOW;
     principals.addToPolicy(assumeRoleStatement);
-    principals.addPrincipals(new ServicePrincipal('ssm.amazonaws.com'));
+    principals.addPrincipals(
+      new ServicePrincipal('ssm.amazonaws.com', {
+        conditions: { StringEquals: { 'aws:SourceAccount': stack.account } },
+      }),
+    );
     return principals;
   }
 }

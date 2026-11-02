@@ -35,6 +35,7 @@ properties = [
     "workflowrole",
     "eventtype",
     "resourceregion",
+    "aigenerated",
     "workflow_data",
     "executionaccount",
     "executionregion",
@@ -65,6 +66,7 @@ class StepFunctionLambdaAnswerDict(TypedDict):
     automationdocid: NotRequired[str]
     remediationrole: NotRequired[str]
     resourceregion: NotRequired[str]
+    aigenerated: NotRequired[bool]
 
     # exec_ssm_doc
     executionid: NotRequired[str]

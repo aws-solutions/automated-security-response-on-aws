@@ -160,6 +160,13 @@ test('Test SsmRole Generation', () => {
         },
         {
           Action: 'sts:AssumeRole',
+          Condition: {
+            StringEquals: {
+              'aws:SourceAccount': {
+                Ref: 'AWS::AccountId',
+              },
+            },
+          },
           Effect: 'Allow',
           Principal: {
             Service: 'ssm.amazonaws.com',
@@ -167,23 +174,29 @@ test('Test SsmRole Generation', () => {
         },
         {
           Action: 'sts:AssumeRole',
+          Condition: {
+            ArnEquals: {
+              'aws:PrincipalArn': [
+                {
+                  'Fn::Join': [
+                    '',
+                    [
+                      'arn:',
+                      { Ref: 'AWS::Partition' },
+                      ':iam::',
+                      { Ref: 'AWS::AccountId' },
+                      ':role/ASR-RemediationRoleName-',
+                      { Ref: 'Namespace' },
+                    ],
+                  ],
+                },
+              ],
+            },
+          },
           Effect: 'Allow',
           Principal: {
             AWS: {
-              'Fn::Join': [
-                '',
-                [
-                  'arn:',
-                  {
-                    Ref: 'AWS::Partition',
-                  },
-                  ':iam::',
-                  {
-                    Ref: 'AWS::AccountId',
-                  },
-                  ':root',
-                ],
-              ],
+              'Fn::Join': ['', ['arn:', { Ref: 'AWS::Partition' }, ':iam::', { Ref: 'AWS::AccountId' }, ':root']],
             },
           },
         },

@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import json
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 import boto3
 from botocore.config import Config
@@ -21,7 +21,9 @@ def connect_to_s3(boto_config):
     return boto3.client("s3", config=boto_config)
 
 
-def create_bucket(bucket_name, aws_region):
+def create_bucket(
+    bucket_name: str, aws_region: str
+) -> Literal["created", "already exists"]:
     s3 = connect_to_s3(boto_config)
     try:
         if aws_region == "us-east-1":
@@ -36,10 +38,17 @@ def create_bucket(bucket_name, aws_region):
 
     except ClientError as ex:
         exception_type = ex.response["Error"]["Code"]
-        # bucket already exists - return
-        if exception_type in ["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]:
-            print("Bucket " + bucket_name + " already exists")
+        # Reuse the bucket only if this account owns it.
+        if exception_type == "BucketAlreadyOwnedByYou":
+            print("Bucket " + bucket_name + " already exists and is owned by you")
             return "already exists"
+        # BucketAlreadyExists means another account owns the name. Fail rather than enable AWS
+        # Config against it, which would deliver this account's configuration data to that account.
+        elif exception_type == "BucketAlreadyExists":
+            exit(
+                f"ERROR creating bucket {bucket_name}: the name is already owned by another AWS "
+                "account (BucketAlreadyExists). AWS Config was not enabled."
+            )
         else:
             exit(f"ERROR creating bucket {bucket_name}: {str(ex)}")
     except Exception as e:

@@ -13,6 +13,7 @@ import {
 } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
+import { createSecurityHubFindingUpdateStatements } from './cdk-helper/security-hub-finding-update-statements';
 import { stripDevelopmentPrefix } from './config/cdk-config';
 
 export interface OrchRoleProps {
@@ -67,14 +68,22 @@ export class OrchestratorMemberRole extends Construct {
         resourceName: 'ASR-*',
         arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
       }),
-      stack.formatArn({
-        service: 'ssm',
-        region: '*',
-        resource: 'document',
-        account: '',
-        resourceName: '*',
-        arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
-      }),
+      // AWS-owned runbooks that playbooks start, as nested automations or from their scripts.
+      ...[
+        'AWS-ConfigureS3BucketLogging',
+        'AWS-DisablePublicAccessForSecurityGroup',
+        'AWS-TerminateEC2Instance',
+        'AWSSupport-ContainIAMPrincipal',
+      ].map((documentName) =>
+        stack.formatArn({
+          service: 'ssm',
+          region: '*',
+          resource: 'document',
+          account: '',
+          resourceName: documentName,
+          arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+        }),
+      ),
       stack.formatArn({
         service: 'ssm',
         region: '*',
@@ -142,13 +151,16 @@ export class OrchestratorMemberRole extends Construct {
       }),
     );
 
-    const sechubPerms = new PolicyStatement();
-    sechubPerms.addActions('cloudwatch:PutMetricData');
-    sechubPerms.addActions('securityhub:BatchUpdateFindings');
-    sechubPerms.effect = Effect.ALLOW;
-    sechubPerms.addResources('*');
-
-    memberPolicy.addStatements(sechubPerms);
+    memberPolicy.addStatements(
+      // cloudwatch:PutMetricData does not support resource-level permissions, so scope it by namespace.
+      new PolicyStatement({
+        actions: ['cloudwatch:PutMetricData'],
+        resources: ['*'],
+        effect: Effect.ALLOW,
+        conditions: { StringEquals: { 'cloudwatch:namespace': 'ASR' } },
+      }),
+      ...createSecurityHubFindingUpdateStatements(),
+    );
 
     // Custom Runbook role provisioning — allows the deploy service to create
     // scoped remediation roles in member accounts for custom runbooks.
@@ -255,8 +267,11 @@ export class OrchestratorMemberRole extends Construct {
     const principals = new CompositePrincipal(roleprincipal);
     principals.addToPolicy(principalPolicyStatement);
 
-    const serviceprincipal = new ServicePrincipal('ssm.amazonaws.com');
-    principals.addPrincipals(serviceprincipal);
+    principals.addPrincipals(
+      new ServicePrincipal('ssm.amazonaws.com', {
+        conditions: { StringEquals: { 'aws:SourceAccount': stack.account } },
+      }),
+    );
 
     const memberRole = new Role(this, `MemberAccountRole`, {
       assumedBy: principals,

@@ -3,17 +3,24 @@
 
 import {
   checkServiceNowInstanceUrl,
+  checkJiraInstanceUrl,
+  parseServiceNowAllowedDomains,
+  readServiceNowAllowedDomains,
+  InvalidServiceNowAllowedDomainError,
   checkServiceNowChannelFields,
   ServiceNowChannelConfigSchema,
   JiraChannelConfigSchema,
   NOTIFICATION_CHANNEL_SECRET_PREFIX,
   type ServiceNowChannelFieldInput,
 } from '@asr/data-models';
+import { isDisallowedAddress } from '../disallowed-addresses';
+
+const withAddressCheck = { isDisallowedHost: isDisallowedAddress };
 
 describe('checkServiceNowInstanceUrl', () => {
-  it('returns null for valid HTTPS URLs', () => {
+  it('returns null for valid HTTPS service-now.com URLs', () => {
     // ARRANGE
-    const urls = ['https://company.service-now.com', 'https://custom.domain.com'];
+    const urls = ['https://company.service-now.com', 'https://dev12345.service-now.com', 'https://service-now.com'];
 
     // ACT & ASSERT
     for (const url of urls) {
@@ -41,6 +48,70 @@ describe('checkServiceNowInstanceUrl', () => {
 
     // ASSERT
     expect(result).toMatch(/HTTPS/);
+  });
+
+  it('returns error when URL targets a loopback, link-local, metadata, or private address', () => {
+    // ARRANGE
+    const blocked = [
+      'https://127.0.0.1',
+      'https://localhost',
+      'https://localhost.',
+      'https://api.localhost',
+      'https://169.254.169.254',
+      'https://10.0.0.5',
+      'https://192.168.1.10',
+      'https://172.16.0.1',
+      'https://172.31.255.255',
+      'https://100.64.0.1',
+      'https://100.127.255.255',
+      'https://2130706433',
+      'https://0x7f000001',
+      'https://0177.0.0.1',
+      'https://127.1',
+      'https://[::1]',
+      'https://[0:0:0:0:0:0:0:1]',
+      'https://[fe80::1]',
+      'https://[fd00:ec2::254]',
+      'https://[::ffff:169.254.169.254]',
+      'https://[::ffff:127.0.0.1]',
+      'https://[::169.254.169.254]',
+      'https://[64:ff9b::7f00:1]',
+      'https://[64:ff9b::a9fe:a9fe]',
+      'https://[2002:a9fe:a9fe::]',
+      'https://[2001:0:abcd::]',
+    ];
+
+    // ACT & ASSERT
+    for (const url of blocked) {
+      expect(checkServiceNowInstanceUrl(url, withAddressCheck)).toMatch(/loopback, link-local, metadata, or private/);
+    }
+  });
+
+  it('allows any service-now.com host but rejects every other host (credential-disclosure control)', () => {
+    // ARRANGE
+    const allowed = ['https://company.service-now.com', 'https://dev12345.service-now.com', 'https://service-now.com'];
+    const rejected = [
+      'https://custom.domain.com',
+      'https://evil.example.com',
+      'https://8.8.8.8',
+      'https://service-now.com.evil.com',
+      'https://evilservice-now.com',
+    ];
+
+    // ACT & ASSERT
+    for (const url of allowed) {
+      expect(checkServiceNowInstanceUrl(url)).toBeNull();
+    }
+    for (const url of rejected) {
+      expect(checkServiceNowInstanceUrl(url)).toMatch(/service-now\.com domain/);
+    }
+  });
+
+  it('rejects URLs that carry embedded credentials (userinfo)', () => {
+    const blocked = ['https://user:pass@company.service-now.com', 'https://user@company.service-now.com'];
+    for (const url of blocked) {
+      expect(checkServiceNowInstanceUrl(url)).toMatch(/embedded credentials/);
+    }
   });
 
   it('returns error when URL exceeds 2,048 characters', () => {
@@ -75,6 +146,131 @@ describe('checkServiceNowInstanceUrl', () => {
 
     // ASSERT
     expect(result).toMatch(/not a valid URL/);
+  });
+});
+
+describe('checkServiceNowInstanceUrl with deployment-configured domains', () => {
+  it('allows a ServiceNow custom URL only when its domain is configured', () => {
+    expect(checkServiceNowInstanceUrl('https://servicenow.example.com')).toMatch(/service-now\.com domain/);
+    expect(
+      checkServiceNowInstanceUrl('https://servicenow.example.com', {
+        additionalAllowedDomains: ['servicenow.example.com'],
+      }),
+    ).toBeNull();
+    expect(
+      checkServiceNowInstanceUrl('https://snow.corp.example.com', { additionalAllowedDomains: ['corp.example.com'] }),
+    ).toBeNull();
+  });
+
+  it('still allows *.service-now.com when additional domains are configured', () => {
+    expect(
+      checkServiceNowInstanceUrl('https://acme.service-now.com', {
+        additionalAllowedDomains: ['servicenow.example.com'],
+      }),
+    ).toBeNull();
+  });
+
+  it('does not match a configured domain by suffix trickery', () => {
+    const options = { additionalAllowedDomains: ['servicenow.example.com'] };
+    expect(checkServiceNowInstanceUrl('https://servicenow.example.com.evil.com', options)).toMatch(/domain/);
+    expect(checkServiceNowInstanceUrl('https://evilservicenow.example.com', options)).toMatch(/domain/);
+  });
+
+  it('keeps the syntactic checks when the host allowlist is skipped (Web UI)', () => {
+    expect(checkServiceNowInstanceUrl('https://servicenow.example.com', { skipHostAllowlist: true })).toBeNull();
+    // The browser has no address check; the API rejects private addresses on save.
+    expect(checkServiceNowInstanceUrl('https://169.254.169.254', { skipHostAllowlist: true })).toBeNull();
+    expect(checkServiceNowInstanceUrl('http://servicenow.example.com', { skipHostAllowlist: true })).toMatch(/HTTPS/);
+    expect(checkServiceNowInstanceUrl('https://u:p@servicenow.example.com', { skipHostAllowlist: true })).toMatch(
+      /embedded credentials/,
+    );
+  });
+});
+
+describe('readServiceNowAllowedDomains', () => {
+  it('returns the parsed domains for a valid setting', () => {
+    expect(readServiceNowAllowedDomains(' ServiceNow.Example.com , itsm.example.org ')).toEqual({
+      ok: true,
+      domains: ['servicenow.example.com', 'itsm.example.org'],
+    });
+  });
+
+  it('reports an invalid setting as an error instead of throwing', () => {
+    const result = readServiceNowAllowedDomains('*.example.com');
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toMatch(/Invalid ServiceNow allowed domain/);
+  });
+});
+
+describe('parseServiceNowAllowedDomains', () => {
+  it('returns an empty list when unset or blank', () => {
+    expect(parseServiceNowAllowedDomains(undefined)).toEqual([]);
+    expect(parseServiceNowAllowedDomains('')).toEqual([]);
+  });
+
+  it('splits, trims, and lowercases comma-separated domains', () => {
+    expect(parseServiceNowAllowedDomains(' ServiceNow.Example.com , snow.corp.example.com. ')).toEqual([
+      'servicenow.example.com',
+      'snow.corp.example.com',
+    ]);
+  });
+
+  it('throws on entries that are not bare domains, so a misconfiguration is not silently ignored', () => {
+    for (const invalid of [
+      '*.example.com',
+      'https://example.com',
+      'example.com/path',
+      '10.0.0.1',
+      'example',
+      'bad_domain.com',
+      '-servicenow.example.com',
+      'servicenow-.example.com',
+      'servicenow.example-',
+      `${'a'.repeat(64)}.example.com`,
+    ]) {
+      expect(() => parseServiceNowAllowedDomains(invalid)).toThrow(InvalidServiceNowAllowedDomainError);
+    }
+  });
+
+  it('accepts hyphens inside a label and labels of up to 63 characters', () => {
+    expect(parseServiceNowAllowedDomains(`my-service-now.example.com,${'a'.repeat(63)}.example.com`)).toEqual([
+      'my-service-now.example.com',
+      `${'a'.repeat(63)}.example.com`,
+    ]);
+  });
+});
+
+describe('checkJiraInstanceUrl (no host allowlist, so the private-range denylist stands alone)', () => {
+  it('allows arbitrary public hosts', () => {
+    const allowed = [
+      'https://company.atlassian.net',
+      'https://jira.internal-tools.example.com',
+      'https://8.8.8.8',
+      'https://100.63.0.1',
+      'https://[64:ff9b::808:808]',
+      'https://[2002:808:808::]',
+      'https://[2001:4860:4860::8888]',
+    ];
+    for (const url of allowed) {
+      expect(checkJiraInstanceUrl(url, withAddressCheck)).toBeNull();
+    }
+  });
+
+  it('still blocks loopback, link-local, metadata, and private addresses, including CGNAT and NAT64-embedded', () => {
+    const blocked = [
+      'https://127.0.0.1',
+      'https://169.254.169.254',
+      'https://10.0.0.5',
+      'https://100.64.0.1',
+      'https://[::1]',
+      'https://[64:ff9b::7f00:1]',
+      'https://[64:ff9b::a9fe:a9fe]',
+      'https://[2002:a9fe:a9fe::]',
+      'https://[2001:0:abcd::]',
+    ];
+    for (const url of blocked) {
+      expect(checkJiraInstanceUrl(url, withAddressCheck)).toMatch(/loopback, link-local, metadata, or private/);
+    }
   });
 });
 

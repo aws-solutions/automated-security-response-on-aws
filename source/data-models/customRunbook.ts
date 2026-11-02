@@ -2,6 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod';
+import {
+  boundedStringRecordSchema,
+  MAX_CONTROL_IDS,
+  MAX_CUSTOM_EMAIL_ADDRESSES,
+  MAX_IAM_ACTIONS,
+  MAX_IAM_POLICY_RESOURCE_ARNS,
+  MAX_RUNBOOK_DYNAMIC_VALUES,
+} from './requestLimits';
 
 // --- Branded RunbookId ---
 
@@ -120,6 +128,11 @@ export interface RunbookMetadata {
    * compares, which detects out-of-band tampering with the bucket.
    */
   registeredContentDigest?: string;
+  /**
+   * Set at register time from the `AIGenerated: "true"` line in the YAML description, and
+   * reported on remediation metrics. Absent on versions registered before this attribute existed.
+   */
+  isAiGenerated?: boolean;
   // Test-run results for the version's mandatory test-account run.
   testStatus?: RunbookTestStatus;
   testedAt?: string;
@@ -171,7 +184,10 @@ export const RemediationGuidanceInputSchema = z.object({
     action: z.string().describe('API action (e.g. "PutPublicAccessBlock")'),
     parameters: z.record(z.string(), z.unknown()).optional().describe('API parameters'),
   }),
-  requiredPermissions: z.array(z.string()).describe('IAM actions needed (e.g. ["s3:PutBucketPublicAccessBlock"])'),
+  requiredPermissions: z
+    .array(z.string())
+    .max(MAX_IAM_ACTIONS)
+    .describe('IAM actions needed (e.g. ["s3:PutBucketPublicAccessBlock"])'),
   resourceType: z.string().optional().describe('CloudFormation resource type (e.g. "AWS::S3::Bucket")'),
   verifyAction: z.string().optional().describe('API action to verify remediation (e.g. "GetPublicAccessBlock")'),
 });
@@ -180,8 +196,7 @@ export const GenerateRunbookSchema = z.object({
   description: z.string().min(10).max(4000),
   control_id: z.string().regex(controlIdPattern).optional(),
   service_name: z.string().optional(),
-  dynamic_values: z
-    .record(z.string(), z.string())
+  dynamic_values: boundedStringRecordSchema(MAX_RUNBOOK_DYNAMIC_VALUES)
     .optional()
     .describe(
       'Key-value pairs for dynamic data to embed in the runbook (e.g. {"ContactEmail":"security@acme.com"}). These become SSM parameter defaults.',
@@ -277,6 +292,7 @@ export const CreateRemediationRoleSchema = z.object({
   iam_actions: z
     .array(z.string())
     .min(1)
+    .max(MAX_IAM_ACTIONS)
     .superRefine((actions, ctx) => {
       actions.forEach((action, index) => {
         const message = checkIamAction(action);
@@ -291,6 +307,7 @@ export const CreateRemediationRoleSchema = z.object({
   resource_arns: z
     .array(z.string())
     .min(1, 'resource_arns must name at least one ARN; omit it entirely to leave the policy unscoped')
+    .max(MAX_IAM_POLICY_RESOURCE_ARNS)
     .optional()
     .describe(
       'Resource ARNs to scope the policy. Omit to leave it unscoped ("*"), capped by the remediation ' +
@@ -449,12 +466,20 @@ export const CreateNotificationSchema = z.object({
   name: z.string().min(1).describe('Human-readable configuration name'),
   channel: NotificationChannelSchema,
   notification_type: z.enum(['finding', 'remediation']).describe('Whether to notify on findings or on remediations'),
-  recipients: z.array(z.string()).optional().describe('Custom email addresses or recipient identifiers'),
+  recipients: z
+    .array(z.string())
+    .max(MAX_CUSTOM_EMAIL_ADDRESSES)
+    .optional()
+    .describe('Custom email addresses or recipient identifiers'),
   severity_threshold: z
     .enum(['Critical', 'High', 'Medium', 'Low', 'Informational', 'All'])
     .optional()
     .describe('Minimum severity that triggers a notification'),
-  control_ids: z.array(z.string()).optional().describe('Controls this configuration applies to; omit for all controls'),
+  control_ids: z
+    .array(z.string())
+    .max(MAX_CONTROL_IDS)
+    .optional()
+    .describe('Controls this configuration applies to; omit for all controls'),
   batch_window_minutes: z
     .number()
     .int()
@@ -473,7 +498,7 @@ export const UpdateNotificationSchema = z.object({
   configuration_id: z.string().min(1).describe('Notification configuration ID to update'),
   name: z.string().min(1).optional(),
   severity_threshold: z.enum(['Critical', 'High', 'Medium', 'Low', 'Informational', 'All']).optional(),
-  control_ids: z.array(z.string()).optional(),
+  control_ids: z.array(z.string()).max(MAX_CONTROL_IDS).optional(),
   batch_window_minutes: z.number().int().min(5).optional(),
   channel_config: z.record(z.string(), z.unknown()).optional(),
 });
@@ -524,7 +549,10 @@ export type ListRemediationTargetsParams = z.infer<typeof ListRemediationTargets
 /** Schema for get_remediation_guidance — full guidance per target */
 export const GetRemediationGuidanceSchema = z.object({
   target_id: z.string().min(1).describe('Remediation target ID from list_remediation_targets'),
-  include_iac: z.array(z.enum(['cloudformation', 'terraform', 'cdk'])).optional(),
+  include_iac: z
+    .array(z.enum(['cloudformation', 'terraform', 'cdk']))
+    .max(3)
+    .optional(),
 });
 export type GetRemediationGuidanceParams = z.infer<typeof GetRemediationGuidanceSchema>;
 
@@ -661,7 +689,7 @@ export const DeployRunbookActionSchema = z.object({
    */
   security_standard: z.string().min(1),
   standard_version: z.string().min(1),
-  required_iam_actions: z.array(z.string()).optional(),
+  required_iam_actions: z.array(z.string()).max(MAX_IAM_ACTIONS).optional(),
   member_account_ids: MemberAccountIdsSchema,
   /**
    * Which registered version to release. Omitted means the latest, which is the

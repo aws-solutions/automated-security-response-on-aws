@@ -230,6 +230,12 @@ main() {
     zip -q ${build_dist_dir}/lambda/enable_adaptive_concurrency.zip enable_adaptive_concurrency.py cfnresponse.py
     popd
 
+    header "[Pack] Playbook Selection Validator Lambda"
+
+    pushd "$source_dir"/solution_deploy/source
+    zip -q ${build_dist_dir}/lambda/playbook_selection_validator.zip playbook_selection_validator.py cfnresponse.py
+    popd
+
     header "[Pack] Wait Provider Lambda"
 
     pushd "$source_dir"/solution_deploy/source
@@ -255,7 +261,16 @@ main() {
     header "[Pack] Non-Orchestrator Lambdas"
     pushd "$source_dir"/lambdas
     npm run build:clean && npm run build:install && npm run build:ts
-    zip -r -q "$build_dist_dir"/lambda/asr_lambdas.zip . -x "__tests__/*" "*.ts" "**/*.ts" "**/jest.config.js"
+    # Dev dependencies (jest, ts-jest, typescript, ...) are only needed to compile and test.
+    # Drop them so they are not deployed to every Lambda that uses asr_lambdas.zip.
+    # --no-save keeps npm from rewriting the tracked package-lock.json.
+    npm prune --omit=dev --no-save
+    # Zip wildcards match across "/", so "*/__tests__/*" excludes test directories at any depth;
+    # "__tests__/*" alone only matches a root-level __tests__ directory.
+    zip -r -q "$build_dist_dir"/lambda/asr_lambdas.zip . -x "__tests__/*" "*/__tests__/*" "*.ts" "**/*.ts" "**/jest.config.js"
+    # Restore the dev dependencies: run-unit-tests.sh runs the lambda tests against this
+    # node_modules tree right after this script in the same CodeBuild job.
+    npm run build:install
     popd
 
     header "[Pack] Blueprint Lambdas"
@@ -456,7 +471,21 @@ main() {
   mv "$template_dist_dir"/SolutionDeployStack.template "$template_dist_dir"/automated-security-response-admin.template
   mv "$template_dist_dir"/MemberStack.template "$template_dist_dir"/automated-security-response-member.template
   mv "$template_dist_dir"/MemberCloudTrail*.template "$template_dist_dir"/automated-security-response-member-cloudtrail.template
+  # Chunk 0 is mandatory. runbookStackSuffix gives it the empty suffix, so RunbookStack.template
+  # maps directly to the unsuffixed deploy name. Rename it without a guard: under set -eu -o
+  # pipefail a missing chunk-0 template makes this mv fail and aborts the build, rather than
+  # silently shipping a member template whose nested-stack TemplateURL points at a never-produced
+  # template.
   mv "$template_dist_dir"/RunbookStack.template "$template_dist_dir"/automated-security-response-remediation-runbooks.template
+  # Additional chunks are optional: the catalogue only splits into RunbookStack<N>.template once it
+  # exceeds the chunk limit, so the [0-9] glob matches nothing in a normal single-chunk build. The
+  # [0-9] guard also avoids matching unrelated stacks (e.g. nested RunbookStackNoRoles templates).
+  for runbook_template in "$template_dist_dir"/RunbookStack[0-9]*.template; do
+    [ -e "$runbook_template" ] || continue
+    runbook_suffix="$(basename "$runbook_template" .template)"
+    runbook_suffix="${runbook_suffix#RunbookStack}"
+    mv "$runbook_template" "$template_dist_dir"/automated-security-response-remediation-runbooks${runbook_suffix}.template
+  done
   mv "$template_dist_dir"/OrchestratorLogStack.template "$template_dist_dir"/automated-security-response-orchestrator-log.template
   mv "$template_dist_dir"/MemberRolesStack.template "$template_dist_dir"/automated-security-response-member-roles.template
   mv "$template_dist_dir"/SolutionDeployStackWebUINestedStack*.template "$template_dist_dir"/automated-security-response-webui-nested-stack.template

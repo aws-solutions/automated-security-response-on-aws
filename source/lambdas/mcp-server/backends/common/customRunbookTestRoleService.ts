@@ -73,6 +73,7 @@ export class CustomRunbookTestRoleService {
           Effect: 'Allow',
           Principal: { Service: 'ssm.amazonaws.com' },
           Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'aws:SourceAccount': params.accountId } },
         },
       ],
     });

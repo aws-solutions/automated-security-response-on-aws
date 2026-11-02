@@ -37,6 +37,8 @@ description: |
   * EncryptSNSTopic.Response - The standard HTTP response from the SetTopicAttributes API call.
   ## Security Standards / Controls
   * AWS FSBP v1.0.0: SNS.1
+
+  AIGenerated: "true"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
@@ -118,6 +120,8 @@ description: |
   * EnableRDSClusterDeletionProtection.ModifyDBClusterResponse: The standard HTTP response from the ModifyDBCluster API.
   ## Security Standards / Controls
   * AWS FSBP v1.0.0: RDS.7
+
+  AIGenerated: "true"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:
@@ -210,6 +214,8 @@ description: |
   * ConfigureS3BucketPublicAccessBlock.Output - Response from the remediation script.
   ## Security Standards / Controls
   * AWS FSBP v1.0.0: S3.2
+
+  AIGenerated: "true"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   BucketName:
@@ -314,6 +320,8 @@ description: |
   * SetRetention.Response - The HTTP response from PutRetentionPolicy.
   ## Security Standards / Controls
   * NIST 800-53 Rev5: CloudWatch.16
+
+  AIGenerated: "true"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:

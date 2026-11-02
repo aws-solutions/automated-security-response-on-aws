@@ -17,7 +17,7 @@ const REQUIRED_KEYS: readonly (keyof ChannelLambdaEnvironmentConfig)[] = [
   'IAC_TEMPLATES_BUCKET',
 ] as const;
 
-const OPTIONAL_KEYS = ['WEB_UI_URL'] as const;
+const OPTIONAL_KEYS = ['WEB_UI_URL', 'SERVICENOW_ALLOWED_DOMAINS'] as const;
 
 export function channelLambdaEnvironment(): ChannelLambdaEnvironmentConfig {
   if (cached) return cached;

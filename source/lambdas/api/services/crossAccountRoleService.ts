@@ -129,9 +129,14 @@ export class CrossAccountRoleService {
           Effect: 'Allow',
           Principal: {
             AWS: `arn:${AWS_PARTITION}:iam::${memberAccountId}:role/${SOLUTION_PREFIX}-ASR-Orchestrator-Member`,
-            Service: 'ssm.amazonaws.com',
           },
           Action: 'sts:AssumeRole',
+        },
+        {
+          Effect: 'Allow',
+          Principal: { Service: 'ssm.amazonaws.com' },
+          Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'aws:SourceAccount': memberAccountId } },
         },
       ],
     });

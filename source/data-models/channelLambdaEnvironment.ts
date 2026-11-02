@@ -10,4 +10,5 @@ export interface ChannelLambdaEnvironmentConfig {
   readonly RESOURCE_NAME_PREFIX: string;
   readonly WEB_UI_URL?: string;
   readonly IAC_TEMPLATES_BUCKET: string;
+  readonly SERVICENOW_ALLOWED_DOMAINS?: string;
 }

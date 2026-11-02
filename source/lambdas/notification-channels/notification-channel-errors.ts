@@ -31,3 +31,11 @@ export class ChannelApiError extends Error {
     this.statusCode = statusCode;
   }
 }
+
+/** A channel request failed in transit: it timed out or the response was too large. */
+export class ChannelTransportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ChannelTransportError';
+  }
+}

@@ -50,6 +50,7 @@ const OPTIONAL_KEYS: readonly (keyof ApiLambdaEnvironmentConfig)[] = [
   'CUSTOM_RUNBOOK_TABLE_NAME',
   'CUSTOM_RUNBOOK_DEV_LOOP_ENABLED',
   'MCP_ENABLED',
+  'SERVICENOW_ALLOWED_DOMAINS',
 ] as const;
 
 /**

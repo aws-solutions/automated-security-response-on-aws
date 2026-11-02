@@ -115,7 +115,7 @@ def write_snapshot(
     """Write pre-remediation snapshot to S3. Returns (success, versionId).
 
     Fail-open for I/O errors: S3 failures return (False, None) without raising.
-    Empty parameters return (False, None) — a runbook started without the rollback
+    Empty parameters return (False, None): a runbook started without the rollback
     parameters resolves the document's empty default, leaving nothing to write to.
     """
     if not bucket or not execution_id or not control_id:

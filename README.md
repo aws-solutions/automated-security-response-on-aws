@@ -695,6 +695,14 @@ templates:
   a stack rule); leaving it empty fails stack creation.
 - `MEMBER_LOG_GROUP_NAME` — the name of an existing CloudWatch log group in the
   member account. The value shown is only an example; replace it.
+- The `Load*AdminStack` and `Load*MemberStack` playbook selection must be able to
+  remediate the account's control findings. When Security Hub consolidated control
+  findings are turned on, set `LoadSC*Stack=yes`. When they are turned off, set at
+  least one other playbook to `yes`. SC together with other playbooks deploys with
+  a warning in the validator's log. The Admin stack fails when Security Hub is not
+  enabled in the account and Region. The Member stack logs a warning and deploys.
+  A selection that cannot remediate fails the stack (enforced by a stack rule and
+  a custom resource).
 
 For example:
 

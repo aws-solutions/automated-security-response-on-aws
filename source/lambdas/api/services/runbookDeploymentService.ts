@@ -31,6 +31,7 @@ import {
 import { ControlsRepository } from '../../common/repositories/controlsRepository';
 import { CrossAccountRoleService, validateIamActions } from './crossAccountRoleService';
 import { MemberRunbookDocumentService } from './memberRunbookDocumentService';
+import { isAiGeneratedRunbookYaml } from './aiGeneratedRunbookMarker';
 import { Clock, getClock } from '../../common/utils/clock';
 import { IdGenerator, getIdGenerator } from '../../common/utils/idGenerator';
 import { createDynamoDBClient } from '../../common/utils/dynamodb';
@@ -210,6 +211,7 @@ export class RunbookDeploymentService {
       // it made every registered version look like a pre-digest legacy record, so the
       // recorded-test path rejected it and no version could ever be deployed.
       registeredContentDigest: createHash('sha256').update(runbook_yaml, 'utf8').digest('hex'),
+      isAiGenerated: isAiGeneratedRunbookYaml(runbook_yaml),
       createdBy: actor ?? 'mcp-deploy',
       createdAt: this.clock.now().toISOString(),
       deployedAccounts: stageAccountsForNewVersion(allVersions),
