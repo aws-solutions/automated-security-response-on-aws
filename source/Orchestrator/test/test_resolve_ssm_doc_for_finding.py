@@ -6,6 +6,7 @@ import botocore.session
 from botocore.config import Config
 from botocore.stub import Stubber
 from layer.awsapi_cached_client import AWSCachedClient
+from pytest_mock import MockerFixture
 from resolve_ssm_doc_for_finding import lambda_handler
 
 from .test_orc_utils import create_lambda_context
@@ -62,7 +63,7 @@ def workflow_doc():
     }
 
 
-def test_sunny_day(mocker):
+def test_sunny_day(mocker: MockerFixture) -> None:
     test_input = {
         "EventType": "Security Hub Findings - Custom Action",
         "Finding": {
@@ -100,6 +101,7 @@ def test_sunny_day(mocker):
         "remediation_status": "",
         "remediationrole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
         "resourceregion": "us-east-1",
+        "aigenerated": False,
         "securitystandard": "AFSBP",
         "securitystandardversion": "1.0.0",
         "playbookenabled": "True",
@@ -204,7 +206,7 @@ def test_sunny_day(mocker):
     ssmc_stub.deactivate()
 
 
-def test_doc_not_active(mocker):
+def test_doc_not_active(mocker: MockerFixture) -> None:
     test_input = {
         "EventType": "Security Hub Findings - Custom Action",
         "Finding": {
@@ -250,6 +252,7 @@ def test_doc_not_active(mocker):
         "message": "Document ASR-AFSBP_1.0.0_AutoScaling.17 does not exist.",
         "remediation_status": "",
         "resourceregion": "us-east-1",
+        "aigenerated": False,
         "remediationrole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.17",
         "securitystandard": "AFSBP",
         "securitystandardversion": "1.0.0",
@@ -305,7 +308,7 @@ def test_doc_not_active(mocker):
     ssmc_stub.deactivate()
 
 
-def test_client_error(mocker):
+def test_client_error(mocker: MockerFixture) -> None:
     test_input = {
         "EventType": "Security Hub Findings - Custom Action",
         "Finding": {
@@ -343,6 +346,7 @@ def test_client_error(mocker):
         "remediation_status": "",
         "remediationrole": "SO0111-Remediate-AFSBP-1.0.0-AutoScaling.1",
         "resourceregion": "us-east-1",
+        "aigenerated": False,
         "securitystandard": "AFSBP",
         "securitystandardversion": "1.0.0",
         "playbookenabled": "True",
@@ -479,7 +483,7 @@ def test_throttling_exception(mocker):
     ssmc_stub.deactivate()
 
 
-def test_control_remap(mocker):
+def test_control_remap(mocker: MockerFixture) -> None:
     test_input = {
         "EventType": "Security Hub Findings - Custom Action",
         "Finding": {
@@ -514,6 +518,7 @@ def test_control_remap(mocker):
         "message": "",
         "remediation_status": "",
         "resourceregion": "us-east-1",
+        "aigenerated": False,
         "remediationrole": "SO0111-Remediate-CIS-1.2.0-1.5",
         "securitystandard": "CIS",
         "securitystandardversion": "1.2.0",
@@ -632,7 +637,7 @@ def test_control_remap(mocker):
 
 
 # ===============================================================================
-def test_alt_workflow_with_role(mocker):
+def test_alt_workflow_with_role(mocker: MockerFixture) -> None:
     test_input = {
         "EventType": "Security Hub Findings - Custom Action",
         "Finding": {
@@ -668,6 +673,7 @@ def test_alt_workflow_with_role(mocker):
         "message": "",
         "remediation_status": "",
         "resourceregion": "us-east-1",
+        "aigenerated": False,
         "remediationrole": "SO0111-Remediate-CIS-1.2.0-1.6",
         "securitystandard": "CIS",
         "securitystandardversion": "1.2.0",
@@ -867,7 +873,7 @@ def test_playbook_not_enabled(mocker):
 # ===============================================================================
 
 
-def test_multi_service_inspector_ocsf_finding(mocker):
+def test_multi_service_inspector_ocsf_finding(mocker: MockerFixture) -> None:
     """Test that an OCSF Inspector finding with remediationId is handled correctly."""
     test_input = {
         "EventType": "Security Hub Findings - Imported",
@@ -919,6 +925,7 @@ def test_multi_service_inspector_ocsf_finding(mocker):
         # ssm:GetCommandInvocation grant stays confined.
         "remediationrole": "SO0111-ASR-Inspector-Automation",
         "resourceregion": "us-east-1",
+        "aigenerated": False,
         "securitystandard": "MultiService",
         "securitystandardversion": "4.0.0",
         "playbookenabled": "True",
@@ -947,7 +954,7 @@ def test_multi_service_inspector_ocsf_finding(mocker):
     ssmc_stub.deactivate()
 
 
-def test_multi_service_guardduty_ocsf_finding(mocker):
+def test_multi_service_guardduty_ocsf_finding(mocker: MockerFixture) -> None:
     """Test that an OCSF GuardDuty finding with remediationId is handled correctly."""
     test_input = {
         "EventType": "Security Hub Findings - Imported",
@@ -983,6 +990,7 @@ def test_multi_service_guardduty_ocsf_finding(mocker):
         "remediation_status": "",
         "remediationrole": "SO0111-ASR-Orchestrator-Member",
         "resourceregion": "eu-west-1",
+        "aigenerated": False,
         "securitystandard": "MultiService",
         "securitystandardversion": "4.0.0",
         "playbookenabled": "True",
@@ -1011,7 +1019,7 @@ def test_multi_service_guardduty_ocsf_finding(mocker):
     ssmc_stub.deactivate()
 
 
-def test_multi_service_iam_access_analyzer_asff_finding(mocker):
+def test_multi_service_iam_access_analyzer_asff_finding(mocker: MockerFixture) -> None:
     """Test that an ASFF IAM Access Analyzer finding with remediationId is handled correctly."""
     test_input = {
         "EventType": "Security Hub Findings - Imported",
@@ -1045,6 +1053,7 @@ def test_multi_service_iam_access_analyzer_asff_finding(mocker):
         "remediation_status": "",
         "remediationrole": "SO0111-ASR-Orchestrator-Member",
         "resourceregion": "us-west-2",
+        "aigenerated": False,
         "securitystandard": "MultiService",
         "securitystandardversion": "4.0.0",
         "playbookenabled": "True",

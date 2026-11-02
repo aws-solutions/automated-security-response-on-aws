@@ -6,6 +6,7 @@ import { channelDependencies } from './channel-setup';
 import { getCachedSecretValue } from '../common/utils/secrets-utils';
 import { InputValidationError } from './notification-channel-errors';
 import { JiraClient } from './jira-client';
+import { isDisallowedAddress } from './disallowed-addresses';
 import {
   BatchChannelFanoutMessage,
   ChannelFanoutMessage,
@@ -26,7 +27,7 @@ export type { JiraInstanceUrl, JiraProjectKey, JiraIssueType } from './types';
  * Throws InputValidationError if the URL is invalid.
  */
 function validateJiraInstanceUrl(url: string): JiraInstanceUrl {
-  const error = checkJiraInstanceUrl(url);
+  const error = checkJiraInstanceUrl(url, { isDisallowedHost: isDisallowedAddress });
   if (error) {
     throw new InputValidationError(error);
   }

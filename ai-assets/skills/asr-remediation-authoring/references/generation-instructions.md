@@ -108,6 +108,8 @@ The top-level `description` MUST be a multi-line YAML literal block (`descriptio
 - "Output Parameters" heading (h2) with bullet list of step outputs
 - "Security Standards / Controls" heading (h2) with the standard and control ID
 
+After the last section, add the line `AIGenerated: "true"` on its own line inside the `description` block. It records that an AI agent wrote the runbook. For a Custom Runbook, ASR also reads it at registration to report the runbook's remediations as AI-generated in solution metrics. A built-in remediation needs its `metrics.py` entry as well; see `ai-generated-metrics.md`.
+
 See the examples for the exact formatting.
 
 **Parameter Conventions**
@@ -450,6 +452,7 @@ Before returning the generated YAML, verify every item:
 - No prohibited destructive actions
 - No hardcoded account IDs or secrets
 - `description` follows the required multi-line format (one h3 title + four h2 sub-sections)
+- `description` carries the line `AIGenerated: "true"` on its own line, after the last section
 - All step outputs declare `Name`, `Selector`, `Type`
 - Top-level `outputs` lists all step outputs
 - `timeoutSeconds: 600` on every step

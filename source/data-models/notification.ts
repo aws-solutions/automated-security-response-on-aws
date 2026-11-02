@@ -4,6 +4,14 @@
 import { z } from 'zod';
 import { FindingIdSchema } from './finding';
 import { RemediationStatusEnum, remediationStatus } from './schemaTypes';
+import {
+  MAX_ACCOUNT_IDS,
+  MAX_CONTROL_IDS,
+  MAX_CUSTOM_EMAIL_ADDRESSES,
+  MAX_EMAIL_RECIPIENT_GROUPS,
+  MAX_IAC_FORMATS,
+  MAX_RESOURCE_FILTER_IDS,
+} from './requestLimits';
 
 // --- Enums & primitives ---
 
@@ -189,9 +197,76 @@ export const RESERVED_SERVICENOW_FIELD_KEYS = new Set([
   'work_notes',
 ]);
 
+/**
+ * Reports whether a URL hostname is a non-public address. Supplied by Node callers (the API and the
+ * channel Lambdas); this module also runs in the browser, so it holds no address ranges itself.
+ */
+export type DisallowedHostCheck = (hostname: string) => boolean;
+
 interface InstanceUrlValidationOptions {
   readonly label: string;
   readonly maxLength: number;
+  readonly allowedHostSuffixes?: readonly string[];
+  readonly isDisallowedHost?: DisallowedHostCheck;
+}
+
+export const SERVICENOW_ALLOWED_HOST_SUFFIXES: readonly string[] = ['service-now.com'];
+
+// Labels of 1-63 characters that do not start or end with a hyphen. Written without lookbehind, which
+// some older browsers cannot parse, because this module is also bundled into the Web UI.
+const ALLOWED_DOMAIN_PATTERN =
+  /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+export class InvalidServiceNowAllowedDomainError extends Error {
+  constructor(readonly domain: string) {
+    super(`Invalid ServiceNow allowed domain "${domain}": expected a bare domain such as servicenow.example.com`);
+    this.name = 'InvalidServiceNowAllowedDomainError';
+  }
+}
+
+function stripTrailingDots(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '.') end--;
+  return value.slice(0, end);
+}
+
+export function parseServiceNowAllowedDomains(raw: string | undefined): readonly string[] {
+  if (!raw) return [];
+  const domains = raw
+    .split(/[,\n]/)
+    .map((entry) => stripTrailingDots(entry.trim().toLowerCase()))
+    .filter((entry) => entry.length > 0);
+  for (const domain of domains) {
+    if (!ALLOWED_DOMAIN_PATTERN.test(domain) || /^[\d.]+$/.test(domain)) {
+      throw new InvalidServiceNowAllowedDomainError(domain);
+    }
+  }
+  return domains;
+}
+
+/** Lowercases a URL hostname and removes IPv6 brackets and trailing dots, so host checks compare one form. */
+export function normalizeHostname(hostname: string): string {
+  return stripTrailingDots(hostname.replace(/^\[/, '').replace(/\]$/, '')).toLowerCase();
+}
+
+export type ServiceNowAllowedDomainsResult =
+  | { readonly ok: true; readonly domains: readonly string[] }
+  | { readonly ok: false; readonly error: string };
+
+/** Parses the ServiceNowAllowedDomains setting, reporting an invalid value instead of throwing. */
+export function readServiceNowAllowedDomains(raw: string | undefined): ServiceNowAllowedDomainsResult {
+  try {
+    return { ok: true, domains: parseServiceNowAllowedDomains(raw) };
+  } catch (error) {
+    if (!(error instanceof InvalidServiceNowAllowedDomainError)) throw error;
+    return { ok: false, error: error.message };
+  }
+}
+
+/** Suffixes must already be lowercase, as SERVICENOW_ALLOWED_HOST_SUFFIXES and parseServiceNowAllowedDomains are. */
+function isHostAllowed(hostname: string, allowedSuffixes: readonly string[]): boolean {
+  const host = normalizeHostname(hostname);
+  return allowedSuffixes.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
 }
 
 /**
@@ -199,7 +274,7 @@ interface InstanceUrlValidationOptions {
  * Returns an error message string if invalid, or null if valid.
  */
 function checkInstanceUrl(url: string, options: InstanceUrlValidationOptions): string | null {
-  const { label, maxLength } = options;
+  const { label, maxLength, allowedHostSuffixes, isDisallowedHost } = options;
 
   if (!url) {
     return `${label} instance URL is required.`;
@@ -218,6 +293,18 @@ function checkInstanceUrl(url: string, options: InstanceUrlValidationOptions): s
 
   if (parsed.protocol !== 'https:') {
     return `${label} instance URL must use HTTPS protocol.`;
+  }
+
+  if (parsed.username || parsed.password) {
+    return `${label} instance URL must not contain embedded credentials.`;
+  }
+
+  if (isDisallowedHost?.(parsed.hostname)) {
+    return `${label} instance URL must not target a loopback, link-local, metadata, or private address.`;
+  }
+
+  if (allowedHostSuffixes && !isHostAllowed(parsed.hostname, allowedHostSuffixes)) {
+    return `${label} instance URL host must be a ${allowedHostSuffixes.join(' or ')} domain.`;
   }
 
   if (parsed.search) {
@@ -239,16 +326,39 @@ function checkInstanceUrl(url: string, options: InstanceUrlValidationOptions): s
  * Checks that a JIRA instance URL is well-formed and safe to use as an API base URL.
  * Returns an error message string if invalid, or null if valid.
  */
-export function checkJiraInstanceUrl(url: string): string | null {
-  return checkInstanceUrl(url, { label: 'JIRA', maxLength: MAX_JIRA_INSTANCE_URL_LENGTH });
+export interface JiraInstanceUrlOptions {
+  readonly isDisallowedHost?: DisallowedHostCheck;
+}
+
+export function checkJiraInstanceUrl(url: string, options: JiraInstanceUrlOptions = {}): string | null {
+  return checkInstanceUrl(url, {
+    label: 'JIRA',
+    maxLength: MAX_JIRA_INSTANCE_URL_LENGTH,
+    isDisallowedHost: options.isDisallowedHost,
+  });
+}
+
+export interface ServiceNowInstanceUrlOptions {
+  /** Extra domains (ServiceNow custom URLs) allowed alongside *.service-now.com. */
+  readonly additionalAllowedDomains?: readonly string[];
+  readonly skipHostAllowlist?: boolean;
+  readonly isDisallowedHost?: DisallowedHostCheck;
 }
 
 /**
- * Checks that a ServiceNow instance URL is well-formed and safe to use as an API base URL.
+ * Checks that a ServiceNow instance URL is well-formed and safe to use as an API base URL, and that its
+ * host is *.service-now.com or one of the deployment's additional allowed domains.
  * Returns an error message string if invalid, or null if valid.
  */
-export function checkServiceNowInstanceUrl(url: string): string | null {
-  return checkInstanceUrl(url, { label: 'ServiceNow', maxLength: MAX_SERVICENOW_INSTANCE_URL_LENGTH });
+export function checkServiceNowInstanceUrl(url: string, options: ServiceNowInstanceUrlOptions = {}): string | null {
+  return checkInstanceUrl(url, {
+    label: 'ServiceNow',
+    maxLength: MAX_SERVICENOW_INSTANCE_URL_LENGTH,
+    allowedHostSuffixes: options.skipHostAllowlist
+      ? undefined
+      : [...SERVICENOW_ALLOWED_HOST_SUFFIXES, ...(options.additionalAllowedDomains ?? [])],
+    isDisallowedHost: options.isDisallowedHost,
+  });
 }
 
 export interface ServiceNowCustomFieldMapping {
@@ -274,10 +384,13 @@ export interface ServiceNowChannelFieldErrors {
  * Checks all ServiceNow channel configuration fields.
  * Returns an object with field-keyed error messages. An empty object means all fields are valid.
  */
-export function checkServiceNowChannelFields(input: ServiceNowChannelFieldInput): ServiceNowChannelFieldErrors {
+export function checkServiceNowChannelFields(
+  input: ServiceNowChannelFieldInput,
+  urlOptions: ServiceNowInstanceUrlOptions = {},
+): ServiceNowChannelFieldErrors {
   const errors: { -readonly [K in keyof ServiceNowChannelFieldErrors]?: string } = {};
 
-  const urlError = checkServiceNowInstanceUrl(input.endpointUrl.trim());
+  const urlError = checkServiceNowInstanceUrl(input.endpointUrl.trim(), urlOptions);
   if (urlError) {
     errors.endpointUrl = urlError;
   }
@@ -776,20 +889,52 @@ export interface ReconciliationTaskProgress {
 
 // --- Create request schema (fields submitted by the client) ---
 
+// Request-only list limits (see requestLimits.ts). NotificationConfigurationItemSchema also parses rows that were
+// saved before these limits existed, so the shared channel and content schemas stay unbounded and the requests
+// use these bounded variants instead.
+const EmailChannelConfigRequestSchema = EmailChannelConfigSchema.extend({
+  recipients: z
+    .array(
+      z.object({
+        recipientType: RecipientTypeSchema,
+        emailAddresses: z.array(z.email()).max(MAX_CUSTOM_EMAIL_ADDRESSES).optional(),
+      }),
+    )
+    .max(MAX_EMAIL_RECIPIENT_GROUPS),
+});
+
+const DeliveryChannelConfigRequestSchema = z.union([
+  EmailChannelConfigRequestSchema,
+  SlackChannelConfigSchema,
+  JiraChannelConfigSchema,
+  ServiceNowChannelConfigSchema,
+  SnsChannelConfigSchema,
+]);
+
+const ContentOptionsRequestSchema = ContentOptionsSchema.safeExtend({
+  iacFormats: z.array(IaCFormatSchema).max(MAX_IAC_FORMATS).optional(),
+});
+
 export const CreateNotificationConfigurationRequestSchema = z
   .object({
     name: NotificationConfigurationItemSchema.shape.name,
     enabled: z.boolean(),
     notificationType: NotificationTypeSchema,
-    severityFilter: SeverityFilterSchema.optional(),
-    remediationStatusFilter: RemediationStatusFilterSchema.optional(),
-    controlIds: z.array(z.string()).max(500).optional(),
-    resourceFilterIds: z.array(z.uuid()).max(100).optional(),
-    accountIds: AccountScopeSchema.optional(),
-    deliveryChannels: z.array(DeliveryChannelConfigSchema).min(1, 'At least one delivery channel is required').max(10),
+    // Each filter lists distinct values, so it can hold at most one entry per value the field accepts.
+    severityFilter: SeverityFilterSchema.max(SeverityFilterSchema.element.options.length).optional(),
+    remediationStatusFilter: RemediationStatusFilterSchema.max(
+      RemediationStatusFilterValueSchema.options.length,
+    ).optional(),
+    controlIds: z.array(z.string()).max(MAX_CONTROL_IDS).optional(),
+    resourceFilterIds: z.array(z.uuid()).max(MAX_RESOURCE_FILTER_IDS).optional(),
+    accountIds: AccountScopeSchema.max(MAX_ACCOUNT_IDS).optional(),
+    deliveryChannels: z
+      .array(DeliveryChannelConfigRequestSchema)
+      .min(1, 'At least one delivery channel is required')
+      .max(10),
     batchWindow: BatchWindowSchema,
     batchExport: BatchExportSchema.optional(),
-    contentOptions: ContentOptionsSchema,
+    contentOptions: ContentOptionsRequestSchema,
   })
   .refine((data) => data.deliveryChannels.some((ch) => ch.enabled), {
     message: 'At least one delivery channel must be enabled',
@@ -802,9 +947,9 @@ export const CreateNotificationConfigurationRequestSchema = z
         .flatMap((ch) => ch.recipients)
         .filter((r) => r.recipientType === 'custom')
         .flatMap((r) => r.emailAddresses ?? []).length;
-      return totalCustomEmails <= 50;
+      return totalCustomEmails <= MAX_CUSTOM_EMAIL_ADDRESSES;
     },
-    { message: 'Custom email addresses must not exceed 50', path: ['deliveryChannels'] },
+    { message: `Custom email addresses must not exceed ${MAX_CUSTOM_EMAIL_ADDRESSES}`, path: ['deliveryChannels'] },
   )
   .refine(
     (data) => {

@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { AdminGetUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import type { APIGatewayProxyEvent } from 'aws-lambda';
+import type { APIGatewayEventIdentity, APIGatewayProxyEvent } from 'aws-lambda';
 import {
   GenerateRunbookSchema,
   ListRunbooksSchema,
@@ -804,13 +804,23 @@ async function invokeApiLambda(
   return result.data;
 }
 
+/**
+ * The API Gateway proxy event sent to the API Lambda, minus the identity credential fields
+ * (accessKey, apiKey, apiKeyId). A direct invocation carries no credentials; see the comment
+ * on `identity` in `createApiGatewayEvent` for why the keys are left out rather than null.
+ */
+type DirectInvocationIdentity = Omit<APIGatewayEventIdentity, 'accessKey' | 'apiKey' | 'apiKeyId'>;
+type DirectInvocationEvent = Omit<APIGatewayProxyEvent, 'requestContext'> & {
+  requestContext: Omit<APIGatewayProxyEvent['requestContext'], 'identity'> & { identity: DirectInvocationIdentity };
+};
+
 function createApiGatewayEvent(
   routePath: string,
   params: unknown,
   claims: Readonly<Record<string, unknown>>,
   context: AgentCoreContext,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
-): APIGatewayProxyEvent {
+): DirectInvocationEvent {
   const { accountId } = parseInvokedFunctionArn(context.invokedFunctionArn);
   return {
     body: JSON.stringify(params),
@@ -832,11 +842,13 @@ function createApiGatewayEvent(
       apiId: 'mcp-direct-invocation',
       authorizer: { claims },
       httpMethod: method,
+      // The credential fields (accessKey, apiKey, apiKeyId) are omitted on purpose: a direct
+      // invocation carries no credentials, and null literals for these keys are reported by
+      // Amazon Inspector Lambda code scanning as hardcoded credentials (CWE-798) on every
+      // function that ships this package. No API handler reads requestContext.identity, and
+      // the event is JSON-serialized for the Invoke call, so absent and null are equivalent.
       identity: {
-        accessKey: null,
         accountId: null,
-        apiKey: null,
-        apiKeyId: null,
         caller: null,
         clientCert: null,
         cognitoAuthenticationProvider: null,

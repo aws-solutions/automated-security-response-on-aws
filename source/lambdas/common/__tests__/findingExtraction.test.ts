@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { deflate } from 'pako';
-import { ASFFFinding, FindingTableItem } from '@asr/data-models';
+import { ASFFFinding, ASR_ORCHESTRATOR_DETAIL_TYPES, FindingTableItem } from '@asr/data-models';
 import { buildOrchestratorInput, extractASFFFinding } from '../utils/findingExtraction';
 import type { Clock } from '../utils/clock';
 import type { IdGenerator } from '../utils/idGenerator';
@@ -21,7 +21,16 @@ describe('buildOrchestratorInput', () => {
   const parse = (s: string) => JSON.parse(s);
 
   it('builds the base Security Hub API-action envelope', () => {
-    const result = parse(buildOrchestratorInput('S3.1', asffFinding, 'Remediate', idGenerator, clock));
+    const result = parse(
+      buildOrchestratorInput(
+        'S3.1',
+        asffFinding,
+        'Remediate',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        idGenerator,
+        clock,
+      ),
+    );
 
     expect(result).toMatchObject({
       version: '0',
@@ -39,7 +48,16 @@ describe('buildOrchestratorInput', () => {
   });
 
   it('omits the multi-service envelope for a non-multi-service remediation id', () => {
-    const { detail } = parse(buildOrchestratorInput('S3.1', asffFinding, 'Remediate', idGenerator, clock));
+    const { detail } = parse(
+      buildOrchestratorInput(
+        'S3.1',
+        asffFinding,
+        'Remediate',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        idGenerator,
+        clock,
+      ),
+    );
     expect(detail.findingType).toBeUndefined();
     expect(detail.remediationId).toBeUndefined();
     expect(detail.findingFormat).toBeUndefined();
@@ -47,7 +65,16 @@ describe('buildOrchestratorInput', () => {
   });
 
   it('adds the multi-service routing envelope for a multi-service remediation id', () => {
-    const { detail } = parse(buildOrchestratorInput('GuardDuty.IAMUser', asffFinding, 'Remediate', idGenerator, clock));
+    const { detail } = parse(
+      buildOrchestratorInput(
+        'GuardDuty.IAMUser',
+        asffFinding,
+        'Remediate',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        idGenerator,
+        clock,
+      ),
+    );
     expect(detail.findingType).toBe('multiService');
     expect(detail.remediationId).toBe('GuardDuty.IAMUser');
     expect(detail.findingFormat).toBe('ASFF');
@@ -55,14 +82,31 @@ describe('buildOrchestratorInput', () => {
 
   it('adds Restore docParameters with the backup key for a Rollback action', () => {
     const { detail } = parse(
-      buildOrchestratorInput('GuardDuty.IAMUser', asffFinding, 'Rollback', idGenerator, clock, 'backups/key-1.json'),
+      buildOrchestratorInput(
+        'GuardDuty.IAMUser',
+        asffFinding,
+        'Rollback',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        idGenerator,
+        clock,
+        { rollbackBackupKey: 'backups/key-1.json' },
+      ),
     );
     expect(detail.actionName).toBe('ASR:Rollback');
     expect(detail.docParameters).toEqual({ Action: 'Restore', BackupS3KeyName: 'backups/key-1.json' });
   });
 
   it('adds Restore docParameters without a backup key when none is provided', () => {
-    const { detail } = parse(buildOrchestratorInput('GuardDuty.IAMUser', asffFinding, 'Rollback', idGenerator, clock));
+    const { detail } = parse(
+      buildOrchestratorInput(
+        'GuardDuty.IAMUser',
+        asffFinding,
+        'Rollback',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        idGenerator,
+        clock,
+      ),
+    );
     expect(detail.docParameters).toEqual({ Action: 'Restore' });
   });
 });
@@ -210,10 +254,10 @@ describe('buildOrchestratorInput', () => {
         'KMS.4',
         minimalAsffFinding,
         'Rollback',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
         fakeIdGenerator,
         fakeClock,
-        undefined,
-        snapshotRollbackParams,
+        { snapshotRollbackParams },
       ),
     );
 
@@ -244,10 +288,10 @@ describe('buildOrchestratorInput', () => {
         'GuardDuty.IAMUser',
         guardDutyFinding,
         'Rollback',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
         fakeIdGenerator,
         fakeClock,
-        'backups/guardduty/key.json',
-        snapshotRollbackParams,
+        { rollbackBackupKey: 'backups/guardduty/key.json', snapshotRollbackParams },
       ),
     );
 
@@ -263,7 +307,14 @@ describe('buildOrchestratorInput', () => {
   it('does not include docParameters for non-rollback actions', () => {
     // WHEN
     const result = JSON.parse(
-      buildOrchestratorInput('KMS.4', minimalAsffFinding, 'Remediate', fakeIdGenerator, fakeClock),
+      buildOrchestratorInput(
+        'KMS.4',
+        minimalAsffFinding,
+        'Remediate',
+        ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION,
+        fakeIdGenerator,
+        fakeClock,
+      ),
     );
 
     // THEN

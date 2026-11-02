@@ -30,6 +30,24 @@ export const ACTION_TYPE_TO_ASR_ACTION_NAME: Readonly<
   Rollback: ASR_ACTION_NAMES.ROLLBACK,
 };
 
+/**
+ * ASR-defined `detail-type` values for orchestrator input. Security Hub never emits these. The
+ * orchestrator decides whether a person requested a run from this value, so each producer must
+ * use the one that matches what started the run.
+ *
+ * IMPORTANT: keep these strings in sync with the Python constants in
+ * `source/layer/event_transformers.py`.
+ */
+export const ASR_ORCHESTRATOR_DETAIL_TYPES = {
+  /** An operator request through the Web UI, the REST API, or the MCP server. */
+  API_ACTION: 'Security Hub Findings - API Action',
+  /** An automated remediation started because a finding passed its remediation deadline. */
+  DEADLINE_ENFORCEMENT: 'Security Hub Findings - Deadline Enforcement',
+} as const;
+
+export type AsrOrchestratorDetailType =
+  (typeof ASR_ORCHESTRATOR_DETAIL_TYPES)[keyof typeof ASR_ORCHESTRATOR_DETAIL_TYPES];
+
 /** Finding type eligible for the GuardDuty IAM credential rollback flow. */
 export const ROLLBACK_ELIGIBLE_FINDING_TYPE = 'GuardDuty.IAMUser';
 

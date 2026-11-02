@@ -6,6 +6,8 @@ import { MemberRolesStack } from '../lib/member-roles-stack';
 import { RunbookFactory } from '../lib/runbook_factory';
 import { omitWaitResourceHash } from './utils';
 import { RemediationRunbookStack } from '../lib/remediation-runbook-stack';
+import { runbookStackCount } from '../lib/remediation-runbooks';
+import { getMemberStackLimit } from '../lib/config/cdk-config';
 
 describe('MemberRolesStack tests', () => {
   function getRoleTestStack(): MemberRolesStack {
@@ -164,6 +166,84 @@ describe('MemberRolesStack tests', () => {
     expect(iamDeny?.Condition).toEqual({ StringNotEquals: { 'iam:PassedToService': 'ssm.amazonaws.com' } });
   });
 
+  test('Remediation roles trust the account root only for themselves, and the SSM trust is source-account scoped', () => {
+    // ARRANGE
+    const app = new App();
+    const roleStack = new MemberRolesStack(app, 'roles', {
+      synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
+      description: 'test;',
+      solutionId: 'SO0111',
+      solutionVersion: 'v1.1.1',
+      solutionDistBucket: 'sharrbukkit',
+    });
+    new RemediationRunbookStack(app, 'stack', {
+      synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
+      description: 'test;',
+      solutionId: 'SO0111',
+      solutionVersion: 'v1.1.1',
+      solutionDistBucket: 'sharrbukkit',
+      ssmdocs: 'remediation_runbooks',
+      roleStack,
+      parameters: { Namespace: 'myNamespace' },
+    });
+
+    // ACT
+    const template = Template.fromStack(roleStack);
+    const roles = template.findResources('AWS::IAM::Role');
+    const remediationRoles = Object.entries(roles).filter(
+      ([logicalId]) => logicalId.includes('RemediationRole') && logicalId.includes('MemberAccountRole'),
+    );
+
+    // ASSERT
+    expect(remediationRoles.length).toBeGreaterThan(0);
+    // A root trust is allowed only when aws:PrincipalArn pins it to specific role ARNs, starting with
+    // the role itself (TargetLocations automations assume the remediation role from within itself).
+    const roleArn = (roleName: unknown) => {
+      const [first, ...rest] = (roleName as { 'Fn::Join': [string, unknown[]] })['Fn::Join'][1];
+      return {
+        'Fn::Join': [
+          '',
+          ['arn:', { Ref: 'AWS::Partition' }, ':iam::', { Ref: 'AWS::AccountId' }, `:role/${first}`, ...rest],
+        ],
+      };
+    };
+    const rootTrustCallerArns = (role: (typeof remediationRoles)[number][1]) =>
+      (role.Properties.AssumeRolePolicyDocument.Statement as Array<Record<string, unknown>>)
+        .filter((statement) => JSON.stringify(statement.Principal ?? '').includes(':root'))
+        .map(
+          (statement) =>
+            (statement.Condition as { ArnEquals?: Record<string, unknown> } | undefined)?.ArnEquals?.[
+              'aws:PrincipalArn'
+            ],
+        );
+    const rolesTrustingRootBroadly = remediationRoles
+      .filter(([, role]) =>
+        rootTrustCallerArns(role).some(
+          (callerArns) =>
+            !Array.isArray(callerArns) ||
+            JSON.stringify(callerArns[0]) !== JSON.stringify(roleArn(role.Properties.RoleName)) ||
+            JSON.stringify(callerArns).includes('*'),
+        ),
+      )
+      .map(([logicalId]) => logicalId);
+    expect(rolesTrustingRootBroadly).toEqual([]);
+
+    // The Inspector control runbook runs as the Inspector automation role and assumes its remediation role directly.
+    const inspectorRole = remediationRoles.find(([logicalId]) => logicalId.includes('InspectorInstanceVulnerability'));
+    expect(JSON.stringify(rootTrustCallerArns(inspectorRole![1]))).toContain(':role/SO0111-ASR-Inspector-Automation');
+
+    // The SSM service trust is scoped to this account via aws:SourceAccount rather than left open.
+    const [, sampleRole] = remediationRoles[0];
+    const statements = sampleRole.Properties.AssumeRolePolicyDocument.Statement as Array<Record<string, unknown>>;
+    const ssmStatement = statements.find((statement) =>
+      JSON.stringify((statement.Principal as { Service?: unknown } | undefined)?.Service ?? '').includes(
+        'ssm.amazonaws.com',
+      ),
+    );
+    expect(ssmStatement).toBeDefined();
+    expect(JSON.stringify(ssmStatement?.Condition ?? '')).toContain('aws:SourceAccount');
+  });
+
   function getSsmTestStack(): Stack {
     const app = new App();
     return new RemediationRunbookStack(app, 'stack', {
@@ -187,6 +267,23 @@ describe('MemberRolesStack tests', () => {
     const templateJSON = template.toJSON();
     omitWaitResourceHash(template, templateJSON);
     expect(templateJSON).toMatchSnapshot();
+  });
+
+  test('all runbooks fit in a single member stack (chunk 0)', () => {
+    // Two call sites assume exactly one runbook member stack: the static reference in
+    // solution-manifest.yaml and deploy_stack.py::_member_stack_document_names. Neither
+    // enumerates additional runbook stacks, so this guard fails the build the day a second
+    // chunk would appear, forcing both to be updated before release.
+    const runbookStacks = runbookStackCount(getMemberStackLimit('runbook'));
+    if (runbookStacks !== 1) {
+      throw new Error(
+        `Runbooks now require ${runbookStacks} member stacks, but the solution assumes exactly one ` +
+          '(chunk 0). The single-stack assumption is hardcoded in solution-manifest.yaml and in ' +
+          'deploy_stack.py::_member_stack_document_names; both must be updated to enumerate all ' +
+          'runbook member stacks before this build can ship.',
+      );
+    }
+    expect(runbookStacks).toBe(1);
   });
 
   test('GuardDuty.IAMUser role scopes iam:GetPolicy to managed-policy ARNs', () => {

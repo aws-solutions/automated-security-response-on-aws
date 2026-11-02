@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Logger } from '@aws-lambda-powertools/logger';
+import { ASR_ORCHESTRATOR_DETAIL_TYPES } from '@asr/data-models';
 import type { ASFFFinding, FindingTableItem } from '@asr/data-models';
 import { FindingRepository, OverdueFindingProjection } from '../common/repositories/findingRepository';
 import { RemediationHistoryRepository } from '../common/repositories/remediationHistoryRepository';
@@ -363,6 +364,7 @@ export class OverdueRemediationService {
         finding.findingType,
         asffFinding,
         OVERDUE_REMEDIATION_ACTION_TYPE,
+        ASR_ORCHESTRATOR_DETAIL_TYPES.DEADLINE_ENFORCEMENT,
         this.idGenerator,
         this.clock,
       );

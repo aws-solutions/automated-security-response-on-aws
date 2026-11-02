@@ -233,6 +233,23 @@ describe('OverdueRemediationService', () => {
       );
     });
 
+    it('marks the orchestrator input as a deadline-enforcement run so it is classified as automated', async () => {
+      // ARRANGE
+      queryFindingsByDueBy.mockResolvedValueOnce({
+        items: [buildProjection({ findingId: 'finding-001' })],
+        lastEvaluatedKey: undefined,
+      });
+      findByKeys.mockResolvedValueOnce([buildFindingItem('finding-001')]);
+      executeOrchestratorMock.mockResolvedValueOnce('exec-1');
+
+      // ACT
+      await buildService(50).remediateOverdueFindings();
+
+      // ASSERT
+      const orchestratorInput = JSON.parse(executeOrchestratorMock.mock.calls[0][0]);
+      expect(orchestratorInput['detail-type']).toBe('Security Hub Findings - Deadline Enforcement');
+    });
+
     it('does not write finding status when the orchestrator invocation throws', async () => {
       // ARRANGE
       queryFindingsByDueBy.mockResolvedValueOnce({

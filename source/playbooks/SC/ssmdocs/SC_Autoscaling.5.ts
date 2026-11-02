@@ -16,10 +16,10 @@ export class ConfigureLaunchConfigNoPublicIPDocument extends ControlRunbookDocum
       securityControlId: 'Autoscaling.5',
       remediationName: 'ConfigureAutoScalingLaunchConfigNoPublicIP',
       scope: RemediationScope.REGIONAL,
-      resourceIdName: 'LaunchConfigurationName',
-      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:launchConfiguration:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):launchConfigurationName/(.{1,255})$`,
+      resourceIdName: 'AutoScalingResourceId',
+      resourceIdRegex: String.raw`^arn:(?:aws|aws-cn|aws-us-gov):autoscaling:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:autoScalingGroup:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):autoScalingGroupName|launchConfiguration:(?:[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}):launchConfigurationName)/(.{1,255})$`,
       updateDescription: HardCodedString.of(
-        'AutoScaling Group Launch Configuration updated to not assign a public IP address',
+        'Auto Scaling group migrated to a Launch Template that does not assign a public IP address',
       ),
     });
   }

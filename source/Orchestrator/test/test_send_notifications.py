@@ -6,7 +6,7 @@ import json
 import os
 import urllib.parse
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import Any, Literal, cast
 from unittest.mock import Mock
 
 import boto3
@@ -486,6 +486,56 @@ def test_process_metrics_excludes_failure_message_on_success_status(mocker):
     assert "failure_message" not in request_data["Data"]
     # ai_generated is tagged on every remediation; default registry is empty
     assert request_data["Data"]["ai_generated"] is False
+
+
+@pytest.mark.parametrize(
+    "notification_state, flag_location, is_ai_generated",
+    [
+        ("SUCCESS", "top_level", True),
+        ("FAILED", "automation_document", True),
+        ("QUEUED", "automation_document", True),
+        ("LAMBDA_ERROR", "orchestrator_failure_top_level", True),
+        ("LAMBDA_ERROR", "orchestrator_failure_automation_document", True),
+        ("SUCCESS", "top_level", False),
+        ("SUCCESS", "absent", False),
+    ],
+)
+@mock_aws
+def test_process_metrics_reports_the_custom_runbook_ai_generated_flag(
+    mocker: MockerFixture,
+    notification_state: Literal["SUCCESS", "FAILED", "QUEUED", "LAMBDA_ERROR"],
+    flag_location: Literal[
+        "top_level",
+        "automation_document",
+        "orchestrator_failure_top_level",
+        "orchestrator_failure_automation_document",
+        "absent",
+    ],
+    is_ai_generated: bool,
+) -> None:
+    """Each notification path forwards the provenance in a different place, and every
+    one must reach the metric."""
+    # ARRANGE
+    setup_ssm_parameters()
+    setup_dynamodb_tables()
+    mock_urlopen = mocker.patch("layer.metrics.urlopen")
+    setup(mocker)
+    event = copy.deepcopy(default_event)
+    event["Notification"]["State"] = notification_state
+    if flag_location == "top_level":
+        event["AIGenerated"] = is_ai_generated
+    elif flag_location == "automation_document":
+        event["AutomationDocument"] = {"AIGenerated": is_ai_generated}
+    elif flag_location == "orchestrator_failure_top_level":
+        event["Payload"] = {"AIGenerated": is_ai_generated}
+    elif flag_location == "orchestrator_failure_automation_document":
+        event["Payload"] = {"AutomationDocument": {"AIGenerated": is_ai_generated}}
+
+    # ACT
+    lambda_handler(event, {})
+
+    # ASSERT
+    assert _parse_metric_payload(mock_urlopen)["ai_generated"] is is_ai_generated
 
 
 def _parse_metric_payload(mock_urlopen: Any) -> dict[str, Any]:

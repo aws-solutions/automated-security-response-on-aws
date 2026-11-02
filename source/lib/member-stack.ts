@@ -18,8 +18,11 @@ import { MemberPlaybook } from './member-playbook';
 import { scPlaybookProps, standardPlaybookProps } from '../playbooks/playbook-index';
 import NamespaceParam from './parameters/namespace-param';
 import MetricResources from './cdk-helper/metric-resources';
+import { PlaybookSelectionValidator } from './cdk-helper/playbook-selection-validator';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
+import { getMemberStackLimit } from './config/cdk-config';
+import { runbookStackCount, runbookStackSuffix } from './remediation-runbooks';
 
 export interface SolutionProps extends StackProps {
   solutionId: string;
@@ -94,34 +97,45 @@ export class MemberStack extends Stack {
       runtimePython: props.runtimePython,
     });
 
-    const nestedStackNoRoles = nestedStackFactory.addNestedStack('RunbookStackNoRoles', {
-      templateRelativePath: 'automated-security-response-remediation-runbooks.template',
-      parameters: {
-        WaitProviderServiceToken: waitProvider.serviceToken,
-        Namespace: namespaceParam.value,
-      },
-    });
-    const noRolesCfnResource = nestedStackNoRoles.nestedStackResource as CfnResource;
-    noRolesCfnResource.overrideLogicalId('RunbookStackNoRoles');
-
-    const securityStandardPlaybookNames: string[] = [];
-    standardPlaybookProps.forEach((playbookProps) => {
-      const playbook = new MemberPlaybook(this, {
-        name: playbookProps.name,
-        defaultState: playbookProps.defaultParameterValue,
-        description: playbookProps.description,
-        nestedStackFactory,
-        stackLimit: playbookProps.memberStackLimit,
-        totalControls: playbookProps.totalControls,
+    // Reference one runbook nested stack per document chunk. Count and per-index naming come from the
+    // shared helpers in remediation-runbooks.ts so this referencing loop and the synthesizing loop in
+    // solution_deploy.ts stay in lock-step: every stack this file references matches a template that
+    // file emits.
+    const numRunbookStacks = runbookStackCount(getMemberStackLimit('runbook'));
+    const runbookNestedStacks: Stack[] = [];
+    for (let runbookStackIndex = 0; runbookStackIndex < numRunbookStacks; runbookStackIndex++) {
+      const runbookStackSuffixValue = runbookStackSuffix(runbookStackIndex);
+      const runbookStackId = `RunbookStackNoRoles${runbookStackSuffixValue}`;
+      const templateRelativePath = `automated-security-response-remediation-runbooks${runbookStackSuffixValue}.template`;
+      const nestedStackNoRoles = nestedStackFactory.addNestedStack(runbookStackId, {
+        templateRelativePath,
         parameters: {
-          SecHubAdminAccount: adminAccountParam.value,
           WaitProviderServiceToken: waitProvider.serviceToken,
           Namespace: namespaceParam.value,
         },
       });
+      const noRolesCfnResource = nestedStackNoRoles.nestedStackResource as CfnResource;
+      noRolesCfnResource.overrideLogicalId(runbookStackId);
+      runbookNestedStacks.push(nestedStackNoRoles);
+    }
 
-      securityStandardPlaybookNames.push(playbook.parameterName);
-    });
+    const standardPlaybooks = standardPlaybookProps.map(
+      (playbookProps) =>
+        new MemberPlaybook(this, {
+          name: playbookProps.name,
+          defaultState: playbookProps.defaultParameterValue,
+          description: playbookProps.description,
+          nestedStackFactory,
+          stackLimit: playbookProps.memberStackLimit,
+          totalControls: playbookProps.totalControls,
+          parameters: {
+            SecHubAdminAccount: adminAccountParam.value,
+            WaitProviderServiceToken: waitProvider.serviceToken,
+            Namespace: namespaceParam.value,
+          },
+        }),
+    );
+    const securityStandardPlaybookNames = standardPlaybooks.map((playbook) => playbook.parameterName);
 
     const scPlaybook = new MemberPlaybook(this, {
       name: scPlaybookProps.name,
@@ -185,6 +199,21 @@ export class MemberStack extends Stack {
       solutionsBucket: solutionsBucket,
       lambdaLayer: asrLambdaLayer,
     });
+
+    const playbookSelectionValidator = new PlaybookSelectionValidator(this, 'PlaybookSelectionValidator', {
+      solutionTradeMarkName: props.solutionTradeMarkName,
+      solutionVersion: props.solutionVersion,
+      runtimePython: props.runtimePython,
+      solutionsBucket,
+      securityControlPlaybookParameter: scPlaybook.stackOption,
+      standardPlaybookParameters: standardPlaybooks.map((playbook) => playbook.stackOption),
+      isSecurityHubRequired: false,
+    });
+    [...standardPlaybooks, scPlaybook]
+      .flatMap((playbook) => [playbook.playbookPrimaryStack, ...playbook.playbookOverflowStacks])
+      .forEach((playbookStack) => playbookSelectionValidator.addDependent(playbookStack));
+    runbookNestedStacks.forEach((runbookStack) => playbookSelectionValidator.addDependent(runbookStack));
+    playbookSelectionValidator.addDependent(memberCloudTrailNestedStack);
 
     /********************
      ** Metadata

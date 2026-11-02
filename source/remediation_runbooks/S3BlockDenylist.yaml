@@ -7,7 +7,7 @@ description: |
   ## What does this document do?
   This document adds an explicit DENY to the bucket policy to prevent cross-account access to specific sensitive API calls. By default these are s3:DeleteBucketPolicy, s3:PutBucketAcl, s3:PutBucketPolicy, s3:PutEncryptionConfiguration, and s3:PutObjectAcl.
 
-  When invoked with Rollback=ROLLBACK, it removes the ASR-added cross-account deny statement using a snapshot stored in S3.
+  A re-run rebuilds an existing ASR deny. With Rollback=ROLLBACK, it removes the ASR deny, or restores the one it replaced, from a snapshot in S3.
 
   ## Input Parameters
   * BucketName: (Required) Bucket whose bucket policy is to be restricted.
@@ -80,7 +80,7 @@ mainSteps:
     description: |
       ## SnapshotRemediateOrRollback
       Snapshots the pre-remediation bucket policy to S3, then appends an explicit cross-account deny
-      statement (tagged with a stable Sid). When Rollback=ROLLBACK, removes that ASR statement using the snapshot.
+      statement (tagged with a stable Sid). When Rollback=ROLLBACK, removes it or restores the one it replaced.
     timeoutSeconds: 600
     isEnd: true
     inputs:

@@ -160,7 +160,7 @@ class FindingEvent:
             r"^arn:(aws|aws-cn|aws-us-gov):securityhub:([a-z]{2}(?:-gov)?-[a-z]+-\d):",
             self.finding_id or "",
         )
-        if id_match:
+        if not self.product_arn and id_match:
             self.product_arn = f"arn:{id_match.group(1)}:securityhub:{id_match.group(2)}::product/aws/securityhub"
             self.finding_json["ProductArn"] = self.product_arn
             return

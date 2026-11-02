@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""ElastiCache.1 — EnableElastiCacheBackups rollback script (shared rollback framework).
+"""ElastiCache.1: EnableElastiCacheBackups rollback script (shared rollback framework).
 
 capture_and_remediate is fail-open (a snapshot failure never blocks remediation); execute_rollback
 is fail-closed (any safety-gate failure aborts, raising RuntimeError so SSM reports ROLLBACK_FAILED).
@@ -20,7 +20,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Local import for tests/IDE; the build (runbook_factory.ts) strips this block and inlines
-# snapshot_utils.py via the %%INCLUDE directive below — do not remove.
+# snapshot_utils.py via the %%INCLUDE directive below. Do not remove.
 # fmt: off
 from common.snapshot_utils import (  # noqa: E402
     ROLLBACK_BOTO_CONFIG,
@@ -76,7 +76,7 @@ class ElastiCacheClient(Protocol):
         self, *, ReplicationGroupId: str
     ) -> dict[str, Any]: ...  # NOSONAR boto3 API parameter name
 
-    # modify_cache_cluster is always called with exactly these two args — type them so call sites are checked.
+    # modify_cache_cluster is always called with exactly these two args, so type them so call sites are checked.
     def modify_cache_cluster(
         self, *, CacheClusterId: str, SnapshotRetentionLimit: int
     ) -> dict[str, Any]: ...  # NOSONAR boto3 API parameter names
@@ -356,7 +356,7 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
             "rollbackDescription": f"No remediation needed: SnapshotRetentionLimit ({current_retention}) already meets the minimum ({target_retention}).",
         }
 
-    # Snapshot the pre-remediation state before modifying. The S3 write is fail-open — a snapshot failure
+    # Snapshot the pre-remediation state before modifying. The S3 write is fail-open: a snapshot failure
     # never blocks the remediation (rollback is simply unavailable for this execution).
     is_snapshot_stored, snapshot_version_id = capture_snapshot(
         bucket,

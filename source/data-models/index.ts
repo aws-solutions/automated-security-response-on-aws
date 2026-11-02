@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export * from './notificationConstants';
+export * from './requestLimits';
 export * from './user';
 export * from './apiActions';
 export * from './finding';

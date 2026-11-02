@@ -18,6 +18,7 @@ import { deliver as snsDeliver } from '../sns-channel';
 import { deliver as jiraDeliver, deliverBatch as jiraDeliverBatch } from '../jira-channel';
 import { deliver as slackDeliver, deliverBatch as slackDeliverBatch } from '../slack-channel';
 import { deliver as servicenowDeliver, deliverBatch as servicenowDeliverBatch } from '../servicenow-channel';
+import { resetChannelLambdaEnvironmentCache } from '../channelLambdaEnvironment';
 import { createDependencies, createMessage, createContentOptions, createEvent } from './test-factories';
 
 const snsMock = mockClient(SNSClient);
@@ -655,6 +656,16 @@ describe('jira-channel deliver', () => {
     await expect(jiraDeliver(createMessage(jiraChannel), deps)).rejects.toThrow(ChannelApiError);
   });
 
+  it('rejects an instance URL that targets a private address before sending', async () => {
+    const fetchMock = jest.fn();
+    const deps = createDependencies(fetchMock);
+    const message = createMessage({ ...jiraChannel, endpointUrl: 'https://169.254.169.254' });
+
+    await expect(jiraDeliver(message, deps)).rejects.toThrow(InputValidationError);
+    await expect(jiraDeliver(message, deps)).rejects.toThrow(/loopback, link-local, metadata, or private/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('should throw when response is missing issue key', async () => {
     secretsMock.on(GetSecretValueCommand).resolves({
       SecretString: JSON.stringify({ username: 'user', apiToken: 'token' }),
@@ -1098,6 +1109,14 @@ describe('servicenow-channel deliver', () => {
     await expect(servicenowDeliver(message, deps)).rejects.toThrow(/trailing/);
   });
 
+  it('rejects an instance URL that targets a private address before the host allowlist', async () => {
+    const deps = createDependencies();
+    const message = createMessage({ ...snowChannel, endpointUrl: 'https://[fd00:ec2::254]' });
+
+    await expect(servicenowDeliver(message, deps)).rejects.toThrow(InputValidationError);
+    await expect(servicenowDeliver(message, deps)).rejects.toThrow(/loopback, link-local, metadata, or private/);
+  });
+
   it('should throw InputValidationError when table name is uppercase', async () => {
     // ARRANGE
     const deps = createDependencies();
@@ -1116,6 +1135,55 @@ describe('servicenow-channel deliver', () => {
     // ACT & ASSERT
     await expect(servicenowDeliver(message, deps)).rejects.toThrow(InputValidationError);
     await expect(servicenowDeliver(message, deps)).rejects.toThrow(/table name/);
+  });
+
+  describe('custom instance domains (SERVICENOW_ALLOWED_DOMAINS)', () => {
+    const customDomainChannel = { ...snowChannel, endpointUrl: 'https://servicenow.example.com' };
+
+    afterEach(() => {
+      delete process.env.SERVICENOW_ALLOWED_DOMAINS;
+      resetChannelLambdaEnvironmentCache();
+    });
+
+    it('refuses to send credentials to a custom domain that is not configured', async () => {
+      const fetchMock = jest.fn();
+      const deps = createDependencies(fetchMock);
+
+      await expect(servicenowDeliver(createMessage(customDomainChannel), deps)).rejects.toThrow(/service-now\.com/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('fails as an input validation error when SERVICENOW_ALLOWED_DOMAINS is invalid', async () => {
+      process.env.SERVICENOW_ALLOWED_DOMAINS = '*.not-a-bare-domain';
+      resetChannelLambdaEnvironmentCache();
+      const fetchMock = jest.fn();
+
+      await expect(servicenowDeliver(createMessage(snowChannel), createDependencies(fetchMock))).rejects.toThrow(
+        InputValidationError,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('sends to a custom domain listed in SERVICENOW_ALLOWED_DOMAINS', async () => {
+      process.env.SERVICENOW_ALLOWED_DOMAINS = 'servicenow.example.com';
+      resetChannelLambdaEnvironmentCache();
+      secretsMock.on(GetSecretValueCommand).resolves({
+        SecretString: JSON.stringify({ username: 'admin', password: 'pass' }),
+      });
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve({ result: { sys_id: 'abc', number: 'INC001' } }),
+      });
+      const deps = createDependencies(fetchMock);
+
+      await servicenowDeliver(createMessage(customDomainChannel), deps);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://servicenow.example.com/api/now/table/incident',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 
   it('should create a ServiceNow record with correct payload', async () => {

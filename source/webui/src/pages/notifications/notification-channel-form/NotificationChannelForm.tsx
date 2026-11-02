@@ -349,12 +349,15 @@ export default function NotificationChannelForm({
   };
 
   const validateServiceNowChannel = (): FormErrors => {
-    const result = checkServiceNowChannelFields({
-      credentialsSecretArn: serviceNowSecretArn,
-      endpointUrl: serviceNowEndpointUrl,
-      tableName: serviceNowTableName,
-      customFieldMappings: serviceNowCustomFields,
-    });
+    const result = checkServiceNowChannelFields(
+      {
+        credentialsSecretArn: serviceNowSecretArn,
+        endpointUrl: serviceNowEndpointUrl,
+        tableName: serviceNowTableName,
+        customFieldMappings: serviceNowCustomFields,
+      },
+      { skipHostAllowlist: true },
+    );
     const e: FormErrors = {};
     if (result.credentialsSecretArn) e.serviceNowSecretArn = result.credentialsSecretArn;
     if (result.endpointUrl) e.serviceNowEndpointUrl = result.endpointUrl;

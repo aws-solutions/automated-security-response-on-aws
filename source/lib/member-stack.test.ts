@@ -12,6 +12,8 @@ import {
   expectNoUngatedReferencesToCommercialPartitionGatedResources,
   expectNoUngatedCommercialOnlyGrants,
 } from '../test/commercial-partition-gating';
+import { expectPlaybookSelectionValidated } from '../test/playbook-selection-gating';
+import { standardPlaybookProps } from '../playbooks/playbook-index';
 
 const config = getConfig();
 const SC_MEMBER_STACK_LIMIT = config.memberStackLimits.sc;
@@ -75,6 +77,15 @@ describe('member stack', function () {
 
   it('has no ungated resource or output referencing a commercial-partition-gated resource', function () {
     expectNoUngatedReferencesToCommercialPartitionGatedResources(template);
+  });
+
+  it('validates the playbook selection before creating any runbook, playbook, or CloudTrail nested stack', function () {
+    // ASSERT
+    expectPlaybookSelectionValidated(template, {
+      securityControlParameter: 'LoadSCMemberStack',
+      standardPlaybookParameters: standardPlaybookProps.map((playbook) => `Load${playbook.name}MemberStack`),
+      gatedNestedStackPrefixes: ['RunbookStackNoRoles', 'PlaybookMemberStack', 'MemberCloudTrailNestedStack'],
+    });
   });
 
   it('description is present', function () {

@@ -14,6 +14,7 @@ export interface AdminPlaybookProps {
 export class AdminPlaybook {
   parameterName = '';
   playbookStack: Stack;
+  stackOption: CfnParameter;
 
   constructor(scope: Construct, props: AdminPlaybookProps) {
     const templateFile = `${props.name}Stack.template`;
@@ -24,7 +25,7 @@ export class AdminPlaybook {
     //---------------------------------------------------------------------
     // Playbook Template Nested Stack
     //
-    const stackOption = new CfnParameter(scope, `LoadAdminStack${playbookName}`, {
+    this.stackOption = new CfnParameter(scope, `LoadAdminStack${playbookName}`, {
       type: 'String',
       description:
         props.description ??
@@ -32,7 +33,7 @@ export class AdminPlaybook {
       default: props.defaultState ?? 'no',
       allowedValues: ['yes', 'no'],
     });
-    stackOption.overrideLogicalId(this.parameterName);
+    this.stackOption.overrideLogicalId(this.parameterName);
 
     this.playbookStack = new NestedStack(scope, `PlaybookAdminStack${playbookName}`);
     const cfnStack = this.playbookStack.nestedStackResource as CfnResource;
@@ -46,7 +47,7 @@ export class AdminPlaybook {
         templateFile,
     );
     cfnStack.cfnOptions.condition = new CfnCondition(scope, `load${playbookName}Cond`, {
-      expression: Fn.conditionEquals(stackOption, 'yes'),
+      expression: Fn.conditionEquals(this.stackOption, 'yes'),
     });
     props.stackDependencies?.forEach((dependency) => {
       cfnStack.node.addDependency(dependency);

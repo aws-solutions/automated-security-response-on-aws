@@ -6,6 +6,7 @@ import { Policy } from 'aws-cdk-lib/aws-iam';
 import { CfnDocument } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as yaml from 'js-yaml';
+import { stripForInlining } from './stripped-script-code';
 
 export interface IssmPlaybookProps {
   securityStandard: string; // ex. AFSBP
@@ -137,7 +138,7 @@ export class RunbookFactory extends Construct {
       const foundScriptMatch = scriptRegex.exec(line);
       const foundRoleMatch = assumeRoleRegex.exec(line);
       if (foundScriptMatch?.groups?.script) {
-        ssmDocOut += this.processScriptLine(foundScriptMatch, scriptPath, commonScripts);
+        ssmDocOut += this.processScriptLine(foundScriptMatch, scriptPath, commonScripts, true /* shouldStrip */);
       } else if (foundRoleMatch?.groups?.role) {
         ssmDocOut += this.processRoleLine(foundRoleMatch, props);
       } else {
@@ -152,6 +153,7 @@ export class RunbookFactory extends Construct {
     foundScriptMatch: RegExpExecArray,
     scriptPath: string,
     commonScripts?: string,
+    shouldStrip = false,
   ): string {
     const { padding, script } = foundScriptMatch.groups as unknown as ScriptLineGroups;
     const commonPrefix = 'common/';
@@ -159,7 +161,12 @@ export class RunbookFactory extends Construct {
       ? `${commonScripts}/${script.replace(commonPrefix, '')}`
       : `${scriptPath}/${script}`;
     const scriptIn = readFileSync(pathAndFileToInsert, 'utf8');
-    const resolvedScript = this.resolveIncludes(scriptIn, scriptPath, commonScripts);
+    const includedScript = this.resolveIncludes(scriptIn, scriptPath, commonScripts);
+    // Strip the license header, full-line comments, and blank lines from the embedded copy on the
+    // remediation path to recover member-template headroom. This is scoped to remediation runbooks
+    // so the control-runbook output (AFSBP/CIS120/PCI321 snapshots) is unchanged. The strip is
+    // AST-preserving (see stripForInlining) and the on-disk source is never modified.
+    const resolvedScript = shouldStrip ? stripForInlining(includedScript) : includedScript;
     return (
       resolvedScript
         .split('\n')

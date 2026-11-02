@@ -78,6 +78,37 @@ describe('ResourceFilterEvaluator', () => {
     });
   });
 
+  describe('stored filters above the request limits', () => {
+    // Request limits apply on write only. A filter saved before them, with lists above the limits, must still be
+    // read and evaluated so existing deployments keep remediating as configured.
+    it('still evaluates a stored filter whose account, OU and ARN lists exceed the request limits', async () => {
+      const accountIds = new Set(Array.from({ length: 10_001 }, (_, index) => String(100000000000 + index)));
+      accountIds.add('111111111111');
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: resourceFiltersTableName,
+          Item: {
+            filterId: 'filter-over-limits',
+            name: 'Saved before limits',
+            accountIds,
+            organizationalUnits: [],
+            tags: [],
+            arnPatterns: new Set(
+              Array.from({ length: 501 }, (_, index) => `arn:aws:s3:::bucket-${index}`).concat(
+                'arn:aws:s3:::my-test-bucket',
+              ),
+            ),
+          },
+        }),
+      );
+
+      const result = await evaluator.evaluateFilters(createMockFinding(), ['filter-over-limits'], 'include');
+
+      expect(result.passed).toBe(true);
+      expect(result.reason).toBe('all_filters_matched');
+    });
+  });
+
   describe('filter definition cache', () => {
     const putAccountFilter = async (filterId: string): Promise<void> => {
       await dynamoDBDocumentClient.send(

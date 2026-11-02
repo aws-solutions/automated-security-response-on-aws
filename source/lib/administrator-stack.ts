@@ -27,7 +27,9 @@ import { ActionLog } from './action-log';
 import { AdminPlaybook } from './admin-playbook';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import { createLogGroup } from './cdk-helper/log-group';
-import MetricResources from './cdk-helper/metric-resources';
+import { createSecurityHubFindingUpdateStatements } from './cdk-helper/security-hub-finding-update-statements';
+import MetricResources, { SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID } from './cdk-helper/metric-resources';
+import { PlaybookSelectionValidator } from './cdk-helper/playbook-selection-validator';
 import { CloudWatchMetrics } from './cloudwatch_metrics';
 import { OrchestratorConstruct } from './common-orchestrator-construct';
 import { getConfig, stripDevelopmentPrefix } from './config/cdk-config';
@@ -43,7 +45,7 @@ import { NotificationChannelFanoutConstruct } from './notification-channel-fanou
 import { IaCTemplatesMonitoringConstruct } from './iac-templates-monitoring-construct';
 import { BatchProcessorConstruct } from './batch-processor-construct';
 import { EmailTopicCleanupConstruct } from './email-topic-cleanup-construct';
-import { WebUINestedStack } from './webui-nested-stack';
+import { WEBUI_SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID, WebUINestedStack } from './webui-nested-stack';
 import { MCP_CALLBACK_URL_NESTED_STACK_DELIMITER, McpGatewayNestedStack } from './mcp-gateway-nested-stack';
 import { RemediationBoundaryPolicy } from './member/remediation-boundary-policy';
 import { AttributeType, BillingMode, ProjectionType, Table, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
@@ -686,10 +688,7 @@ export class AdministratorStack extends cdk.Stack {
           actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
           resources: ['*'],
         }),
-        new PolicyStatement({
-          actions: ['securityhub:BatchUpdateFindings'],
-          resources: ['*'],
-        }),
+        ...createSecurityHubFindingUpdateStatements(),
         new PolicyStatement({
           actions: ['ssm:GetParameter', 'ssm:PutParameter', 'ssm:DeleteParameter'],
           resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter/Solutions/SO0111/*`],
@@ -810,6 +809,18 @@ export class AdministratorStack extends cdk.Stack {
         'Additional OAuth callback URLs for MCP clients. Each URL must use HTTPS, or HTTP on a loopback host. Leave blank to use only the built-in Kiro, Claude Code, and Codex callbacks.',
       default: '',
     });
+
+    const serviceNowAllowedDomains = new cdk.CfnParameter(this, SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID, {
+      type: 'CommaDelimitedList',
+      description:
+        'Additional domains allowed for ServiceNow notification channel endpoints, for ServiceNow custom URLs (for example servicenow.example.com). Subdomains of each entry are also allowed. Leave blank to allow only *.service-now.com.',
+      default: '',
+      // Each entry, up to the 253-character DNS name limit the runtime parser also enforces.
+      allowedPattern: String.raw`^$|^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$`,
+      constraintDescription:
+        'Each entry must be a bare domain such as servicenow.example.com (no scheme, path, port, or wildcard).',
+    });
+    const serviceNowAllowedDomainsValue = Fn.join(',', serviceNowAllowedDomains.valueAsList);
 
     const agentCoreGatewayEnabled = new cdk.CfnCondition(this, 'agentCoreGatewayEnabled', {
       expression: Fn.conditionEquals(enableMcpServer.valueAsString, 'yes'),
@@ -1413,6 +1424,11 @@ export class AdministratorStack extends cdk.Stack {
     // or the AgentCore Gateway is enabled. The frontend-only resources inside it are
     // gated on ShouldDeployWebUI via the deployFrontend prop.
     webUINestedStackResource.cfnOptions.condition = coreServicesEnabled;
+    // Nested stack parameters must be strings, so pass the joined list rather than the list Ref.
+    webUINestedStackResource.addPropertyOverride(
+      `Parameters.${WEBUI_SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID}`,
+      serviceNowAllowedDomainsValue,
+    );
 
     // Permissions boundary attached to the short-lived roles that recorded custom-runbook
     // testing creates in THIS (admin) account via the MCP gateway. test_runbook_yaml
@@ -1555,6 +1571,7 @@ export class AdministratorStack extends cdk.Stack {
 
     // Ensure the custom resource is created after the WebUI nested stack
     initialSyncTrigger.node.addDependency(webUINestedStack);
+    initialSyncTrigger.node.addDependency(synchronizationConstruct.customResourcePolicy);
 
     //---------------------------------------------------------------------
     // OneTrigger - Remediate with ASR custom action
@@ -1594,16 +1611,16 @@ export class AdministratorStack extends cdk.Stack {
     //-------------------------------------------------------------------------
     // Loop through all of the Playbooks and create an option to load each
     //
-    const securityStandardPlaybookNames: string[] = [];
-    standardPlaybookProps.forEach((playbookProps) => {
-      const playbook = new AdminPlaybook(this, {
-        name: playbookProps.name,
-        stackDependencies: [stateMachineConstruct, orchestratorArn],
-        defaultState: playbookProps.defaultParameterValue,
-        description: playbookProps.description,
-      });
-      securityStandardPlaybookNames.push(playbook.parameterName);
-    });
+    const standardPlaybooks = standardPlaybookProps.map(
+      (playbookProps) =>
+        new AdminPlaybook(this, {
+          name: playbookProps.name,
+          stackDependencies: [stateMachineConstruct, orchestratorArn],
+          defaultState: playbookProps.defaultParameterValue,
+          description: playbookProps.description,
+        }),
+    );
+    const securityStandardPlaybookNames = standardPlaybooks.map((playbook) => playbook.parameterName);
 
     const scPlaybook = new AdminPlaybook(this, {
       name: scPlaybookProps.name,
@@ -1611,6 +1628,21 @@ export class AdministratorStack extends cdk.Stack {
       defaultState: scPlaybookProps.defaultParameterValue,
       description: scPlaybookProps.description,
     });
+
+    const playbookSelectionValidator = new PlaybookSelectionValidator(this, 'PlaybookSelectionValidator', {
+      solutionTradeMarkName: props.solutionTMN,
+      solutionVersion: props.solutionVersion,
+      runtimePython: props.runtimePython,
+      solutionsBucket: sourceCodeBucket,
+      securityControlPlaybookParameter: scPlaybook.stackOption,
+      standardPlaybookParameters: standardPlaybooks.map((playbook) => playbook.stackOption),
+      isSecurityHubRequired: true,
+    });
+    [...standardPlaybooks, scPlaybook].forEach((playbook) =>
+      playbookSelectionValidator.addDependent(playbook.playbookStack),
+    );
+    playbookSelectionValidator.addDependent(webUINestedStack);
+    playbookSelectionValidator.addDependent(mcpGatewayNestedStack);
 
     //---------------------------------------------------------------------
     // Scheduling Table for SQS Remediation Throttling
@@ -1784,6 +1816,7 @@ export class AdministratorStack extends cdk.Stack {
       channelFanoutTopic: notificationDispatcherConstruct.channelFanoutTopic,
       webUiUrl,
       iacTemplatesBucket: iacTemplatesBucket.bucket,
+      serviceNowAllowedDomains: serviceNowAllowedDomainsValue,
     });
 
     //---------------------------------------------------------------------
@@ -1904,6 +1937,9 @@ export class AdministratorStack extends cdk.Stack {
     });
 
     remediationConfigResource.node.addDependency(remediationConfigTable);
+    // The policy is attached separately from the role, so nothing else stops CloudFormation from invoking the
+    // provider before its S3 and DynamoDB permissions exist.
+    remediationConfigResource.node.addDependency(remediationConfigPolicy);
 
     //-------------------------------------------------------------------------
     // Custom Resource for v2 Auto-Remediation Migration
@@ -1995,6 +2031,7 @@ export class AdministratorStack extends cdk.Stack {
       },
     });
     migrationResource.node.addDependency(remediationConfigResource);
+    migrationResource.node.addDependency(migrationPolicy);
 
     const cloudWatchMetrics = new CloudWatchMetrics(this, {
       solutionId: props.solutionId,
@@ -2057,6 +2094,10 @@ export class AdministratorStack extends cdk.Stack {
           {
             Label: { default: '(Optional) Ticketing Service Integration' },
             Parameters: [orchestrator.ticketGenFunctionNameParamId],
+          },
+          {
+            Label: { default: '(Optional) ServiceNow Notification Channels' },
+            Parameters: [serviceNowAllowedDomains.logicalId],
           },
           {
             Label: { default: 'Namespace' },

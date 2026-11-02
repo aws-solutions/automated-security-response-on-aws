@@ -55,7 +55,7 @@ import { emitMetric } from '../common/utils/cloudWatchMetrics';
 import { getClock } from '../common/utils/clock';
 import { getLogger } from '../common/utils/logger';
 import { getTracer } from '../common/utils/tracer';
-import { sanitizeControlId, sanitizeFindingId } from '../common/utils/findingUtils';
+import { MULTI_SERVICE_FINDING_TYPES, sanitizeControlId, sanitizeFindingId } from '../common/utils/findingUtils';
 import { FINDING_PRINCIPAL } from '../common/constants/apiConstant';
 import { preProcessorEnvironment } from './preProcessorEnvironment';
 
@@ -686,10 +686,10 @@ export class PreProcessor implements LambdaInterface {
 
   /**
    * Resolves an unprocessed finding to a NormalizedFinding based on its detected
-   * schema and multi-service mapping. Returns null for an intentionally dropped
-   * finding — a multi-service (Inspector/GuardDuty/Macie) OCSF finding whose type
-   * has no supported remediation (e.g. an Inspector finding on a Lambda function
-   * or ECR image); this is an expected drop, logged here without a failure metric.
+   * schema and multi-service mapping. Returns null for an expected drop, logged
+   * here without a failure metric: a multi-service finding with no supported
+   * remediation, or any control-routed finding that resolves to a multi-service
+   * remediation id the mapper did not produce.
    * Throws {@link InvalidFindingSchemaError} for a genuinely unrecognized schema.
    */
   private static async mapRecordToNormalized(
@@ -705,25 +705,58 @@ export class PreProcessor implements LambdaInterface {
     if (schema === FindingSchema.OCSF) {
       // OCSF Compliance finding: normalize to ASFF, then map
       const asffNormalized = await findingNormalizer.normalizeFinding(unprocessedFinding);
-      return ocsfComplianceToNormalized(unprocessedFinding as OCSFComplianceFinding, asffNormalized);
+      return PreProcessor.dropUnmappedMultiServiceId(
+        ocsfComplianceToNormalized(unprocessedFinding as OCSFComplianceFinding, asffNormalized),
+        unprocessedFinding,
+        schema,
+        sqsMessageId,
+      );
     }
     if (schema === FindingSchema.ASFF) {
-      // Standard ASFF finding
-      return asffToNormalized(unprocessedFinding as ASFFFinding);
+      return PreProcessor.dropUnmappedMultiServiceId(
+        asffToNormalized(unprocessedFinding as ASFFFinding),
+        unprocessedFinding,
+        schema,
+        sqsMessageId,
+      );
     }
     if (
       schema === FindingSchema.OCSF_VULNERABILITY ||
       schema === FindingSchema.OCSF_DETECTION ||
       schema === FindingSchema.OCSF_DATA_SECURITY
     ) {
-      logger.info('Dropping multi-service finding with no supported remediation for its resource or finding type', {
-        findingId: PreProcessor.rawFindingId(unprocessedFinding),
-        schema,
-        sqsMessageId,
-      });
+      PreProcessor.logUnsupportedMultiServiceDrop(unprocessedFinding, schema, sqsMessageId);
       return null;
     }
     throw new InvalidFindingSchemaError(['ASFF', 'OCSF', 'OCSF_VULNERABILITY', 'OCSF_DETECTION', 'OCSF_DATA_SECURITY']);
+  }
+
+  /**
+   * Drops a control-routed finding whose control id is a multi-service remediation id. Only the
+   * multi-service mapper may produce those ids, because it also verifies product, type and resource;
+   * reaching one here means the id came from the finding id prefix or a finding-supplied control id.
+   */
+  private static dropUnmappedMultiServiceId(
+    normalized: NormalizedFinding,
+    unprocessedFinding: Record<string, unknown>,
+    schema: FindingSchema,
+    sqsMessageId: string | undefined,
+  ): NormalizedFinding | null {
+    if (!MULTI_SERVICE_FINDING_TYPES.has(getRemediationIdentifier(normalized))) return normalized;
+    PreProcessor.logUnsupportedMultiServiceDrop(unprocessedFinding, schema, sqsMessageId);
+    return null;
+  }
+
+  private static logUnsupportedMultiServiceDrop(
+    unprocessedFinding: Record<string, unknown>,
+    schema: FindingSchema,
+    sqsMessageId: string | undefined,
+  ): void {
+    logger.info('Dropping multi-service finding with no supported remediation for its resource or finding type', {
+      findingId: PreProcessor.rawFindingId(unprocessedFinding),
+      schema,
+      sqsMessageId,
+    });
   }
 
   /**
@@ -746,8 +779,7 @@ export class PreProcessor implements LambdaInterface {
         recordBody: record?.body,
         error,
       });
-      const truncatedBody = record?.body?.substring(0, 500) ?? '';
-      await sendMetrics(buildFailureMetric(error, truncatedBody, unprocessedFinding));
+      await sendMetrics(buildFailureMetric(error, unprocessedFinding));
       return;
     }
 
@@ -775,8 +807,8 @@ export class PreProcessor implements LambdaInterface {
       const multiServiceMapping = mapFindingType(unprocessedFinding, findingLogger);
 
       // Step 2: Map to NormalizedFinding based on schema + mapping. Returns null
-      // for an intentionally dropped finding (a multi-service OCSF finding with no
-      // supported remediation), which the mapper has already logged.
+      // for an intentionally dropped finding (a multi-service finding with no
+      // supported remediation), which mapRecordToNormalized has already logged.
       const normalized = await PreProcessor.mapRecordToNormalized(
         unprocessedFinding,
         schema,
@@ -892,7 +924,7 @@ export class PreProcessor implements LambdaInterface {
       emitMetric('FindingsTableItemCollectionLimitExceeded', 1, [{ name: 'Source', value: 'PreProcessor' }]);
       return;
     }
-    await sendMetrics(buildFailureMetric(error, undefined, unprocessedFinding));
+    await sendMetrics(buildFailureMetric(error, unprocessedFinding));
     logger.error(`Error processing finding from SQS Record ${sqsMessageId}`, { findingId, sqsMessageId });
     if (error instanceof InvalidFindingSchemaError) {
       return;

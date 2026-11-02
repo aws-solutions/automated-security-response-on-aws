@@ -193,6 +193,8 @@ export interface RoleProps {
   readonly ssmDocName: string;
   readonly remediationPolicy: Policy;
   readonly remediationRoleName: string;
+  /** Names of other roles in this account that assume this remediation role directly. */
+  readonly additionalTrustedRoleNames?: string[];
 }
 
 export class SsmRole extends Construct {
@@ -242,12 +244,24 @@ export class SsmRole extends Construct {
     const principals = new CompositePrincipal(roleprincipal);
     principals.addToPolicy(principalPolicyStatement);
 
-    const serviceprincipal = new ServicePrincipal('ssm.amazonaws.com');
-    principals.addPrincipals(serviceprincipal);
+    principals.addPrincipals(
+      new ServicePrincipal('ssm.amazonaws.com', {
+        conditions: { StringEquals: { 'aws:SourceAccount': stack.account } },
+      }),
+    );
 
-    // Multi-account/region automations must be able to assume the remediation role
-    const accountPrincipal = new AccountPrincipal(stack.account);
-    principals.addPrincipals(accountPrincipal);
+    // TargetLocations automations run as this role and assume it again as the ExecutionRoleName,
+    // so the role must trust itself, plus any role that assumes it directly from a runbook script.
+    // A role cannot name a role that does not exist yet as a principal, so trust the account root
+    // and pin it to exactly these role ARNs.
+    const trustedCallerRoleArns = [roleNameWithNamespace, ...(props.additionalTrustedRoleNames ?? [])].map(
+      (roleName) => `arn:${stack.partition}:iam::${stack.account}:role/${roleName}`,
+    );
+    principals.addPrincipals(
+      new AccountPrincipal(stack.account).withConditions({
+        ArnEquals: { 'aws:PrincipalArn': trustedCallerRoleArns },
+      }),
+    );
 
     const memberRole = new Role(this, 'MemberAccountRole', {
       assumedBy: principals,

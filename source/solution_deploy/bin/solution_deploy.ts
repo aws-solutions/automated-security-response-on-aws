@@ -9,7 +9,13 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 import { RemediationRunbookStack } from '../../lib/remediation-runbook-stack';
 import { MemberCloudTrailStack } from '../../lib/member/cloud-trail';
-import { getConfig, applyDynamicTags, TAG_EXCLUDED_RESOURCE_TYPES } from '../../lib/config/cdk-config';
+import {
+  getConfig,
+  applyDynamicTags,
+  getMemberStackLimit,
+  TAG_EXCLUDED_RESOURCE_TYPES,
+} from '../../lib/config/cdk-config';
+import { runbookStackCount, runbookStackSuffix } from '../../lib/remediation-runbooks';
 import { buildOrchestratorLogGroupName, buildStatusTopicName } from '../../lib/cdk-helper/solution-resource-names';
 
 const config = getConfig();
@@ -74,19 +80,29 @@ const roleStack = new MemberRolesStack(app, 'MemberRolesStack', {
 });
 roleStack.templateOptions.templateFormatVersion = '2010-09-09';
 
-const runbookStack = new RemediationRunbookStack(app, 'RunbookStack', {
-  analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
-  synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
-  description: '(' + SOLUTION_ID + 'R) ' + SOLUTION_NAME + ' Remediation Runbooks, ' + SOLUTION_VERSION,
-  solutionId: SOLUTION_ID,
-  solutionVersion: SOLUTION_VERSION,
-  solutionDistBucket: SOLUTION_BUCKET,
-  roleStack: roleStack,
-  parameters: {
-    Namespace: roleStack.getNamespace(),
-  },
-});
-runbookStack.templateOptions.templateFormatVersion = '2010-09-09';
+// Synthesize one runbook stack per document chunk. Count and per-index naming come from the shared
+// helpers in remediation-runbooks.ts so this synthesizing loop and the referencing loop in
+// member-stack.ts stay in lock-step.
+const runbookChunkLimit = getMemberStackLimit('runbook');
+const numRunbookStacks = runbookStackCount(runbookChunkLimit);
+for (let runbookStackIndex = 0; runbookStackIndex < numRunbookStacks; runbookStackIndex++) {
+  const runbookStackId = `RunbookStack${runbookStackSuffix(runbookStackIndex)}`;
+  const runbookStack = new RemediationRunbookStack(app, runbookStackId, {
+    analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions
+    synthesizer: new cdk.DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
+    description: '(' + SOLUTION_ID + 'R) ' + SOLUTION_NAME + ' Remediation Runbooks, ' + SOLUTION_VERSION,
+    solutionId: SOLUTION_ID,
+    solutionVersion: SOLUTION_VERSION,
+    solutionDistBucket: SOLUTION_BUCKET,
+    roleStack: roleStack,
+    runbookStackIndex,
+    runbookChunkLimit,
+    parameters: {
+      Namespace: roleStack.getNamespace(),
+    },
+  });
+  runbookStack.templateOptions.templateFormatVersion = '2010-09-09';
+}
 
 const memberCloudTrailStack = new MemberCloudTrailStack(app, 'MemberCloudTrailStack', {
   analyticsReporting: false, // CDK::Metadata breaks StackSets in some regions

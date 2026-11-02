@@ -162,6 +162,11 @@ block:
 - "Output Parameters" heading (h2) with bullet list of step outputs
 - "Security Standards / Controls" heading (h2) with the standard and control ID
 
+After the last section, add the line `AIGenerated: "true"` on its own line
+inside the `description` block. ASR reads it when the runbook is registered and
+reports the runbook's remediations as AI-generated in solution metrics. Include
+it whenever you, the model, wrote the runbook.
+
 See the examples for the exact formatting.
 
 **Parameter Conventions**
@@ -278,6 +283,8 @@ Before returning the generated YAML, verify every item:
 - No hardcoded account IDs or secrets
 - `description` follows the required multi-line format (the h3 title and all
   four h2 sub-sections)
+- `description` carries the line `AIGenerated: "true"` on its own line, after
+  the last section
 - All step outputs declare `Name`, `Selector`, `Type`
 - Top-level `outputs` lists all step outputs
 - `timeoutSeconds: 600` on every step

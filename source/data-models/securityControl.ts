@@ -2,6 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod';
+import {
+  MAX_ACCOUNT_IDS,
+  MAX_BULK_EDIT_CONTROLS,
+  MAX_ORGANIZATIONAL_UNITS,
+  MAX_RESOURCE_FILTER_ARN_PATTERNS,
+  MAX_RESOURCE_FILTER_IDS,
+  MAX_RESOURCE_FILTER_STORED_BYTES,
+  MAX_RESOURCE_FILTER_TAGS,
+  MAX_TAG_KEY_LENGTH,
+  MAX_TAG_VALUE_LENGTH,
+  MAX_ARN_PATTERN_LENGTH,
+} from './requestLimits';
 
 export const FilterModeSchema = z.enum(['include', 'exclude']);
 
@@ -16,7 +28,7 @@ export const SecurityControlSchema = z.object({
   automatedRemediationEnabled: z.boolean(),
   rollbackEnabled: z.boolean().optional(),
   rollbackSupported: z.boolean().optional(),
-  filters: z.array(z.string()),
+  filters: z.array(z.string()).max(MAX_RESOURCE_FILTER_IDS),
   filterMode: FilterModeSchema,
   version: z.number(),
   lastModified: z.string(),
@@ -98,21 +110,36 @@ type ResourceFilterDynamoDBOverrides = {
 export type ResourceFilterDynamoDBItem = Omit<ResourceFilter, 'accountIds' | 'organizationalUnits' | 'arnPatterns'> &
   ResourceFilterDynamoDBOverrides;
 
+// Request-only tag pair: AWS caps tag keys and values, so a longer pair could never match a resource.
+const RequestTagPairSchema = z.object({
+  key: z
+    .string()
+    .min(1, 'Tag key cannot be empty')
+    .max(MAX_TAG_KEY_LENGTH, `Tag key cannot exceed ${MAX_TAG_KEY_LENGTH} characters`),
+  value: z
+    .string()
+    .min(1, 'Tag value cannot be empty')
+    .max(MAX_TAG_VALUE_LENGTH, `Tag value cannot exceed ${MAX_TAG_VALUE_LENGTH} characters`),
+});
+
 const BaseFilterFieldsSchema = z.object({
   name: z.string().min(1, 'Filter name cannot be empty').max(100, 'Filter name cannot exceed 100 characters'),
-  accountIds: z.array(z.string().regex(/^\d{12}$/, 'Account ID must be exactly 12 digits')),
-  organizationalUnits: z.array(
-    z.string().regex(/^ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$/, 'OU identifier must match pattern ou-xxxx-xxxxxxxx'),
-  ),
-  tags: z.array(TagPairSchema),
-  arnPatterns: z.array(
-    z
-      .string()
-      .regex(
-        /^arn:[^:]+:[^:]*:[^:]*:[^:]*:.+$/,
-        'ARN pattern must follow arn:partition:service:region:account-id:resource-id format',
-      ),
-  ),
+  accountIds: z.array(z.string().regex(/^\d{12}$/, 'Account ID must be exactly 12 digits')).max(MAX_ACCOUNT_IDS),
+  organizationalUnits: z
+    .array(z.string().regex(/^ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$/, 'OU identifier must match pattern ou-xxxx-xxxxxxxx'))
+    .max(MAX_ORGANIZATIONAL_UNITS),
+  tags: z.array(RequestTagPairSchema).max(MAX_RESOURCE_FILTER_TAGS),
+  arnPatterns: z
+    .array(
+      z
+        .string()
+        .max(MAX_ARN_PATTERN_LENGTH, `ARN pattern cannot exceed ${MAX_ARN_PATTERN_LENGTH} characters`)
+        .regex(
+          /^arn:[^:]+:[^:]*:[^:]*:[^:]*:.+$/,
+          'ARN pattern must follow arn:partition:service:region:account-id:resource-id format',
+        ),
+    )
+    .max(MAX_RESOURCE_FILTER_ARN_PATTERNS),
 });
 
 const atLeastOneFilterCriterion = (data: z.infer<typeof BaseFilterFieldsSchema>) =>
@@ -121,26 +148,46 @@ const atLeastOneFilterCriterion = (data: z.infer<typeof BaseFilterFieldsSchema>)
   data.tags.length > 0 ||
   data.arnPatterns.length > 0;
 
+// A filter is one DynamoDB item (400 KB). Reject a request too large to store with a clear error, instead
+// of letting the write fail with a server error. Counts what DynamoDB stores, not the JSON request text.
+const utf8 = new TextEncoder();
+const storedBytes = (data: z.infer<typeof BaseFilterFieldsSchema>): number =>
+  [
+    data.name,
+    ...data.accountIds,
+    ...data.organizationalUnits,
+    ...data.arnPatterns,
+    ...data.tags.flatMap((t) => [t.key, t.value]),
+  ].reduce((total, text) => total + utf8.encode(text).length, 0);
+const fitsInOneItem = (data: z.infer<typeof BaseFilterFieldsSchema>) =>
+  storedBytes(data) <= MAX_RESOURCE_FILTER_STORED_BYTES;
+
+const filterTooLargeMessage = {
+  message: `Resource filter is too large to store (max ${MAX_RESOURCE_FILTER_STORED_BYTES.toLocaleString('en-US')} bytes of filter values)`,
+};
+
 const filterCriterionMessage = {
   message: 'At least one filter criterion (accountIds, organizationalUnits, tags, or arnPatterns) is required',
 };
 
 export const UpdateFilterRequestSchema = BaseFilterFieldsSchema.extend({
   version: z.number().int().min(1, 'Version must be a positive integer'),
-}).refine(atLeastOneFilterCriterion, filterCriterionMessage);
+})
+  .refine(atLeastOneFilterCriterion, filterCriterionMessage)
+  .refine(fitsInOneItem, filterTooLargeMessage);
 
 export type UpdateFilterRequest = z.infer<typeof UpdateFilterRequestSchema>;
 
 export const CreateFilterRequestSchema = BaseFilterFieldsSchema.refine(
   atLeastOneFilterCriterion,
   filterCriterionMessage,
-);
+).refine(fitsInOneItem, filterTooLargeMessage);
 
 export type CreateFilterRequest = z.infer<typeof CreateFilterRequestSchema>;
 
 export const BulkEditUpdateRequestSchema = z.object({
   operation: z.literal('update'),
-  data: z.array(SecurityControlSchema).min(1, 'At least one control is required'),
+  data: z.array(SecurityControlSchema).min(1, 'At least one control is required').max(MAX_BULK_EDIT_CONTROLS),
 });
 
 export const BulkEditApplyFilterRequestSchema = z.object({

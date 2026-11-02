@@ -77,6 +77,22 @@ describe('WebUINestedStack', () => {
     };
   });
 
+  test('API Lambda receives the ServiceNow allowed domains so channels are checked when saved', () => {
+    const webUINestedStack = new WebUINestedStack(stack, 'WebUINestedStack', props);
+
+    const apiFunctions = Object.values(
+      Template.fromStack(webUINestedStack).findResources('AWS::Lambda::Function', {
+        Properties: { Handler: 'api/handlers/apiHandler.handler' },
+      }),
+    );
+    expect(apiFunctions).toHaveLength(1);
+    expect(apiFunctions[0].Properties.Environment.Variables.SERVICENOW_ALLOWED_DOMAINS).toEqual({
+      Ref: 'ServiceNowAllowedDomains',
+    });
+    // Nested stack parameters must be simple strings.
+    Template.fromStack(webUINestedStack).hasParameter('ServiceNowAllowedDomains', { Type: 'String', Default: '' });
+  });
+
   test('WebUINestedStack creates API and WebUI components', () => {
     // Act
     const webUINestedStack = new WebUINestedStack(stack, 'WebUINestedStack', props);

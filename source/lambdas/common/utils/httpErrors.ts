@@ -50,6 +50,16 @@ export class BadRequestError extends HttpError {
   }
 }
 
+export const INTERNAL_SERVER_ERROR_MESSAGE = 'The service encountered an internal error.';
+
+/** A failure on the server side, such as a deployment misconfiguration, that the caller cannot fix. */
+export class InternalServerError extends HttpError {
+  constructor(message = INTERNAL_SERVER_ERROR_MESSAGE) {
+    super(500, message);
+    this.name = 'InternalServerError';
+  }
+}
+
 export const SERVICE_UNAVAILABLE_ERROR_MESSAGE =
   'The service is temporarily unable to complete this request, please retry.';
 

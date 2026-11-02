@@ -8,6 +8,7 @@ tests cover what the resolver reads back from the CustomRunbookTable — the
 account's own installed version — and that it never builds an owner-qualified
 ``{adminAccountId}:{documentName}`` reference.
 """
+
 from __future__ import annotations
 
 import os
@@ -274,6 +275,51 @@ def test_reports_the_version_the_findings_own_account_runs() -> None:
     assert result["runbookVersion"] == 2
     assert result["memberRunbookVersion"] == 2
     assert result["memberStatus"] == "DEPLOYED"
+    # A record without the attribute predates it and counts as not AI-generated.
+    assert result["isAiGenerated"] is False
+
+
+@pytest.mark.parametrize(
+    "member_runbook_version, expected_ai_generated",
+    [(1, True), (2, False), (7, False)],
+)
+@mock_aws
+def test_reports_the_ai_generated_flag_of_the_version_the_account_runs(
+    member_runbook_version: int, expected_ai_generated: bool
+) -> None:
+    # ARRANGE: v1 is AI-generated and v2, deployed later, is not. Version 7 has no
+    # DEPLOYED record, so it falls back to the selected (latest) v2.
+    table = _create_table()
+    for version, is_ai_generated, deployed_at in (
+        (1, True, "2026-04-01T00:00:00.000Z"),
+        (2, False, "2026-05-01T00:00:00.000Z"),
+    ):
+        table.put_item(
+            Item={
+                "runbookId": "rb-1",
+                "version": version,
+                "controlId": CONTROL_ID,
+                "status": "DEPLOYED",
+                "ssmDocumentName": DOCUMENT_NAME,
+                "remediationRole": "SO0111-Remediate-Custom-SC-2.0.0-S3.9",
+                "deployedAt": deployed_at,
+                "isAiGenerated": is_ai_generated,
+                "deployedAccounts": {
+                    FINDING_ACCOUNT: {
+                        "runbookVersion": member_runbook_version,
+                        "status": "DEPLOYED",
+                    }
+                },
+            }
+        )
+
+    # ACT
+    result = _check_custom_runbook(CONTROL_ID, account_id=FINDING_ACCOUNT)
+
+    # ASSERT
+    assert result is not None
+    assert result["runbookVersion"] == 2
+    assert result["isAiGenerated"] is expected_ai_generated
 
 
 @mock_aws

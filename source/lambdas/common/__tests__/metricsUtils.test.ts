@@ -9,6 +9,7 @@ import {
   getSolutionUuid,
 } from '../utils/metricsUtils';
 import { ASFFFinding, OCSFComplianceFinding } from '@asr/data-models';
+import { UnresolvableControlIdError } from '../utils/findingUtils';
 import { setupMetricsMocks, cleanupMetricsMocks, createMetricsTestScope, ssmMock } from './metricsMockSetup';
 import { GetParameterCommand, PutParameterCommand, DeleteParameterCommand } from '@aws-sdk/client-ssm';
 import { mockAccountId } from './envSetup';
@@ -47,7 +48,7 @@ describe('metricsUtils', () => {
         Resources: [{ Type: 'AWS::S3::Bucket', Id: 'test-bucket' }],
       };
 
-      const result = buildFailureMetric(Error('error'), undefined, asffFinding);
+      const result = buildFailureMetric(Error('error'), asffFinding);
 
       expect(result).toEqual({
         status: 'FAILED',
@@ -55,8 +56,7 @@ describe('metricsUtils', () => {
         product_arn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
         control_id: 'S3.1',
         region: 'us-east-1',
-        truncatedRecordBody: undefined,
-        error: 'error',
+        error: 'Error',
       });
     });
 
@@ -75,7 +75,7 @@ describe('metricsUtils', () => {
         resources: [],
       };
 
-      const result = buildFailureMetric(Error('error'), 'truncated record', ocsfFinding);
+      const result = buildFailureMetric(Error('error'), ocsfFinding);
 
       expect(result).toEqual({
         status: 'FAILED',
@@ -84,8 +84,7 @@ describe('metricsUtils', () => {
         product_arn: 'arn:aws:securityhub:us-west-2::product/aws/securityhub',
         class_uid: 2003,
         region: 'us-west-2',
-        truncatedRecordBody: 'truncated record',
-        error: 'error',
+        error: 'Error',
       });
     });
 
@@ -99,7 +98,7 @@ describe('metricsUtils', () => {
       };
 
       // ACT
-      const result = buildFailureMetric(Error('error'), undefined, unrecognizedOcsfFinding);
+      const result = buildFailureMetric(Error('error'), unrecognizedOcsfFinding);
 
       // ASSERT
       expect(result).toEqual({
@@ -109,8 +108,7 @@ describe('metricsUtils', () => {
         product_arn: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product',
         class_uid: 2003,
         region: undefined,
-        truncatedRecordBody: undefined,
-        error: 'error',
+        error: 'Error',
       });
     });
 
@@ -120,8 +118,8 @@ describe('metricsUtils', () => {
       const bareFinding = { unexpected: 'shape', class_uid: 'not-a-number' };
 
       // ACT
-      const asffLikeResult = buildFailureMetric(Error('error'), undefined, asffLikeFinding);
-      const bareResult = buildFailureMetric(Error('error'), undefined, bareFinding);
+      const asffLikeResult = buildFailureMetric(Error('error'), asffLikeFinding);
+      const bareResult = buildFailureMetric(Error('error'), bareFinding);
 
       // ASSERT
       expect(asffLikeResult.product_arn).toBe('arn:aws:securityhub:us-east-1::product/aws/securityhub');
@@ -144,8 +142,8 @@ describe('metricsUtils', () => {
       };
 
       // ACT
-      const malformedMetadataResult = buildFailureMetric(Error('error'), undefined, malformedMetadata);
-      const malformedProductArnResult = buildFailureMetric(Error('error'), undefined, malformedProductArn);
+      const malformedMetadataResult = buildFailureMetric(Error('error'), malformedMetadata);
+      const malformedProductArnResult = buildFailureMetric(Error('error'), malformedProductArn);
 
       // ASSERT
       expect(malformedMetadataResult.class_uid).toBe(2003);
@@ -163,9 +161,33 @@ describe('metricsUtils', () => {
         control_id: undefined,
         product_arn: undefined,
         region: undefined,
-        truncated_record: undefined,
-        error: 'error',
+        error: 'Error',
       });
+    });
+
+    it('records only the error type, never the parse-error message that echoes the raw record body', () => {
+      let parseError: unknown;
+      try {
+        JSON.parse('{"b": test-secret}');
+      } catch (error) {
+        parseError = error;
+      }
+
+      const result = buildFailureMetric(parseError, undefined);
+
+      expect(result.error).toBe('SyntaxError');
+      expect(JSON.stringify(result)).not.toContain('test-secret');
+    });
+
+    it('records only the error type for a processing error, never a message carrying a finding-id ARN', () => {
+      const findingArn =
+        'arn:aws:securityhub:us-east-1:111111111111:subscription/aws-foundational-security-best-practices/v/1.0.0/RDS.1/finding/abc-123';
+      const processingError = new UnresolvableControlIdError(findingArn);
+
+      const result = buildFailureMetric(processingError, undefined);
+
+      expect(result.error).toBe('UnresolvableControlIdError');
+      expect(JSON.stringify(result)).not.toContain(findingArn);
     });
   });
 

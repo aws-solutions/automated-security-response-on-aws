@@ -76,6 +76,7 @@
           "maxLength": 100
         },
         "accountIds": {
+          "maxItems": 10000,
           "type": "array",
           "items": {
             "type": "string",
@@ -83,6 +84,7 @@
           }
         },
         "organizationalUnits": {
+          "maxItems": 2000,
           "type": "array",
           "items": {
             "type": "string",
@@ -90,26 +92,31 @@
           }
         },
         "tags": {
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "key": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "value": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 256
               }
             },
             "required": ["key", "value"]
           }
         },
         "arnPatterns": {
+          "maxItems": 500,
           "type": "array",
           "items": {
             "type": "string",
+            "maxLength": 2048,
             "pattern": "^arn:[^:]+:[^:]*:[^:]*:[^:]*:.+$"
           }
         },
@@ -141,6 +148,7 @@
           "enum": ["finding", "remediation"]
         },
         "severityFilter": {
+          "maxItems": 6,
           "type": "array",
           "items": {
             "type": "string",
@@ -148,6 +156,7 @@
           }
         },
         "remediationStatusFilter": {
+          "maxItems": 8,
           "type": "array",
           "items": {
             "type": "string",
@@ -181,6 +190,7 @@
         },
         "accountIds": {
           "minItems": 1,
+          "maxItems": 10000,
           "type": "array",
           "items": {
             "type": "string",
@@ -202,6 +212,7 @@
                 "type": "boolean"
               },
               "recipients": {
+                "maxItems": 20,
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -211,11 +222,12 @@
                       "enum": ["rootAccountEmail", "securityContact", "operationsContact", "accountOperators", "custom"]
                     },
                     "emailAddresses": {
+                      "maxItems": 50,
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "email",
-                        "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                       }
                     }
                   },
@@ -322,6 +334,7 @@
               "type": "boolean"
             },
             "iacFormats": {
+              "maxItems": 10,
               "type": "array",
               "items": {
                 "type": "string",
@@ -427,6 +440,7 @@
           "minLength": 1
         },
         "required_iam_actions": {
+          "maxItems": 100,
           "type": "array",
           "items": {
             "type": "string"
@@ -504,12 +518,14 @@
         },
         "findingIds": {
           "minItems": 1,
+          "maxItems": 100,
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "findingKeys": {
+          "maxItems": 100,
           "type": "array",
           "items": {
             "type": "object",
@@ -566,6 +582,7 @@
           "type": "object",
           "properties": {
             "CompositeFilters": {
+              "maxItems": 20,
               "type": "array",
               "items": {
                 "type": "object",
@@ -575,6 +592,7 @@
                     "enum": ["AND", "OR"]
                   },
                   "StringFilters": {
+                    "maxItems": 100,
                     "type": "array",
                     "items": {
                       "type": "object",
@@ -617,6 +635,7 @@
           }
         },
         "SortCriteria": {
+          "maxItems": 10,
           "type": "array",
           "items": {
             "type": "object",
@@ -662,11 +681,11 @@
         },
         "dynamic_values": {
           "description": "Key-value pairs for dynamic data to embed in the runbook (e.g. {\"ContactEmail\":\"security@acme.com\"}). These become SSM parameter defaults.",
-          "type": "object",
-          "propertyNames": {
+          "additionalProperties": {
             "type": "string"
           },
-          "additionalProperties": {
+          "type": "object",
+          "propertyNames": {
             "type": "string"
           }
         },
@@ -697,6 +716,7 @@
               "required": ["service", "action"]
             },
             "requiredPermissions": {
+              "maxItems": 100,
               "type": "array",
               "items": {
                 "type": "string"
@@ -882,6 +902,7 @@
           "type": "object",
           "properties": {
             "StringFilters": {
+              "maxItems": 100,
               "type": "array",
               "items": {
                 "type": "object",
@@ -914,6 +935,7 @@
               }
             },
             "CompositeFilters": {
+              "maxItems": 20,
               "type": "array",
               "items": {
                 "type": "object",
@@ -923,6 +945,7 @@
                     "enum": ["AND", "OR"]
                   },
                   "StringFilters": {
+                    "maxItems": 100,
                     "type": "array",
                     "items": {
                       "type": "object",
@@ -965,6 +988,7 @@
           }
         },
         "SortCriteria": {
+          "maxItems": 10,
           "type": "array",
           "items": {
             "type": "object",
@@ -1117,6 +1141,7 @@
         "required_iam_actions": {
           "description": "Exact IAM actions the registered runbook needs. Required with runbook_id/version. ASR provisions a bounded test role scoped to this version and permission set; deploy_runbook later requires the same set.",
           "minItems": 1,
+          "maxItems": 100,
           "type": "array",
           "items": {
             "type": "string"
@@ -1157,6 +1182,7 @@
         "data": {
           "description": "For `update`: the controls to write, each carrying its current `version` from list_controls.",
           "minItems": 1,
+          "maxItems": 500,
           "type": "array",
           "items": {
             "type": "object",
@@ -1177,6 +1203,7 @@
                 "type": "boolean"
               },
               "filters": {
+                "maxItems": 100,
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -1243,6 +1270,7 @@
           "maxLength": 100
         },
         "accountIds": {
+          "maxItems": 10000,
           "type": "array",
           "items": {
             "type": "string",
@@ -1250,6 +1278,7 @@
           }
         },
         "organizationalUnits": {
+          "maxItems": 2000,
           "type": "array",
           "items": {
             "type": "string",
@@ -1257,26 +1286,31 @@
           }
         },
         "tags": {
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "key": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "value": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 256
               }
             },
             "required": ["key", "value"]
           }
         },
         "arnPatterns": {
+          "maxItems": 500,
           "type": "array",
           "items": {
             "type": "string",
+            "maxLength": 2048,
             "pattern": "^arn:[^:]+:[^:]*:[^:]*:[^:]*:.+$"
           }
         },
@@ -1317,6 +1351,7 @@
           "enum": ["finding", "remediation"]
         },
         "severityFilter": {
+          "maxItems": 6,
           "type": "array",
           "items": {
             "type": "string",
@@ -1324,6 +1359,7 @@
           }
         },
         "remediationStatusFilter": {
+          "maxItems": 8,
           "type": "array",
           "items": {
             "type": "string",
@@ -1357,6 +1393,7 @@
         },
         "accountIds": {
           "minItems": 1,
+          "maxItems": 10000,
           "type": "array",
           "items": {
             "type": "string",
@@ -1378,6 +1415,7 @@
                 "type": "boolean"
               },
               "recipients": {
+                "maxItems": 20,
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -1387,11 +1425,12 @@
                       "enum": ["rootAccountEmail", "securityContact", "operationsContact", "accountOperators", "custom"]
                     },
                     "emailAddresses": {
+                      "maxItems": 50,
                       "type": "array",
                       "items": {
                         "type": "string",
                         "format": "email",
-                        "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                       }
                     }
                   },
@@ -1498,6 +1537,7 @@
               "type": "boolean"
             },
             "iacFormats": {
+              "maxItems": 10,
               "type": "array",
               "items": {
                 "type": "string",

@@ -1,12 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
+from typing import Literal
 from unittest.mock import Mock
 
 import pytest
 from botocore.stub import Stubber
 from get_approval_requirement import lambda_handler
 from layer.awsapi_cached_client import AWSCachedClient
+from pytest_mock import MockerFixture
 
 from .test_orc_utils import create_lambda_context
 
@@ -262,26 +264,6 @@ def test_missing_event_type():
     result = lambda_handler(test_input, {})
     assert result["status"] == "ERROR"
     assert result["message"] == "Missing required data in request"
-
-
-def test_automatic_trigger_detection():
-    from get_approval_requirement import _is_automatic_trigger
-
-    assert _is_automatic_trigger("Security Hub Findings - Imported") is False
-
-    assert _is_automatic_trigger("Security Hub Findings - Custom Action") is True
-
-    assert _is_automatic_trigger("Some Other Event Type") is True
-
-
-def test_custom_action_trigger_detection():
-    from get_approval_requirement import _is_custom_action_trigger
-
-    assert _is_custom_action_trigger("Security Hub Findings - Imported") is True
-
-    assert _is_custom_action_trigger("Security Hub Findings - Custom Action") is False
-
-    assert _is_custom_action_trigger("Some Other Event Type") is False
 
 
 def test_is_remediation_destructive():
@@ -1281,22 +1263,41 @@ def test_multi_service_finding_honors_alt_workflow(mocker):
     assert result["workflowaccount"] == "111111111111"
 
 
-def test_multi_service_finding_requires_approval_when_destructive_and_sensitive(mocker):
-    """A customer that extends the destructive/sensitive stubs has approval enforced
-    for multiService findings, closing the gap where they bypassed those checks."""
+@pytest.mark.parametrize(
+    "event_type, expected_impact, expected_approval",
+    [
+        ("Security Hub Findings - Imported", "destructive", "true"),
+        ("Findings Imported V2", "destructive", "true"),
+        ("Security Hub Findings - Deadline Enforcement", "destructive", "true"),
+        ("Unrecognized Event Type", "destructive", "true"),
+        ("Security Hub Findings - Custom Action", "nondestructive", "false"),
+        ("Security Hub Findings - API Action", "nondestructive", "false"),
+    ],
+)
+def test_approval_required_only_for_automatic_triggers(
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    event_type: str,
+    expected_impact: Literal["destructive", "nondestructive"],
+    expected_approval: Literal["true", "false"],
+) -> None:
     # ARRANGE
-    os.environ["WORKFLOW_RUNBOOK"] = "ASR-RunWorkflow"
-    os.environ["WORKFLOW_RUNBOOK_ACCOUNT"] = "member"
+    monkeypatch.setenv("WORKFLOW_RUNBOOK", "ASR-RunWorkflow")
+    monkeypatch.setenv("WORKFLOW_RUNBOOK_ACCOUNT", "member")
     mocker.patch("get_approval_requirement._doc_is_active", return_value=True)
     mocker.patch(
         "get_approval_requirement._is_remediation_destructive", return_value=True
     )
     mocker.patch("get_approval_requirement._is_account_sensitive", return_value=True)
+    event = _multi_service_event()
+    event["EventType"] = event_type
 
     # ACT
-    result = lambda_handler(_multi_service_event(), create_lambda_context())
+    result = lambda_handler(event, create_lambda_context())
 
     # ASSERT
-    assert result["workflow_data"]["approvalrequired"] == "true"
-    assert result["workflow_data"]["impact"] == "destructive"
+    assert result["workflow_data"] == {
+        "impact": expected_impact,
+        "approvalrequired": expected_approval,
+    }
     assert result["workflowdoc"] == "ASR-RunWorkflow"

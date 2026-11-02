@@ -12,6 +12,10 @@ import { CfnParameter, Duration, Stack } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
 import { attachCommercialPartitionSecurityHubV2Policy } from './is-commercial-partition';
 
+export const SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID = 'ServiceNowAllowedDomains';
+
+const METRICS_EXCLUDED_PARAMETERS: ReadonlySet<string> = new Set([SERVICENOW_ALLOWED_DOMAINS_PARAMETER_ID]);
+
 interface MetricResourcesProps {
   solutionTMN: string;
   solutionVersion: string;
@@ -131,7 +135,8 @@ export default class MetricResources extends Construct {
 
     const children = stack.node.findAll();
     children.forEach((child) => {
-      if (child instanceof CfnParameter) {
+      // logicalId is a lazy token until synthesis, so resolve it before comparing against the exclusion list.
+      if (child instanceof CfnParameter && !METRICS_EXCLUDED_PARAMETERS.has(stack.resolve(child.logicalId))) {
         parameters[child.logicalId] = MetricResources.getParameterValue(child);
       }
     });

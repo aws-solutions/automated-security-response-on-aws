@@ -13,6 +13,9 @@ import {
   expectNoUngatedReferencesToCommercialPartitionGatedResources,
   expectNoUngatedCommercialOnlyGrants,
 } from './commercial-partition-gating';
+import { expectPlaybookSelectionValidated } from './playbook-selection-gating';
+import { parseServiceNowAllowedDomains } from '@asr/data-models';
+import { standardPlaybookProps } from '../playbooks/playbook-index';
 
 // Mock Date to return consistent timestamp
 beforeAll(() => {
@@ -80,6 +83,31 @@ test('deployment metrics custom resource is ordered after the gated Security Hub
       'Fn::If': ['IsCommercialPartition', { Ref: policyLogicalIds[0] }, { Ref: 'AWS::NoValue' }],
     },
   });
+});
+
+test.each([
+  ['RemediationConfigResource', 'RemediationConfigPolicy'],
+  ['MigrationAutoRemediationResource', 'MigrationAutoRemediationPolicy'],
+  ['InitialSynchronizationTrigger', 'CustomResourcePolicy'],
+])('%s waits for %s, which grants its provider Lambda its permissions', (customResourceId, policyId) => {
+  // ARRANGE
+  const template = Template.fromStack(getTestStack());
+  const logicalIdStartingWith = (prefix: string, type: string) => {
+    const ids = Object.keys(template.findResources(type)).filter((id) => id.startsWith(prefix));
+    expect(ids).toHaveLength(1);
+    return ids[0];
+  };
+
+  // ACT
+  const customResource =
+    template.toJSON().Resources[logicalIdStartingWith(customResourceId, 'AWS::CloudFormation::CustomResource')];
+  const policyLogicalId = Object.keys(template.findResources('AWS::IAM::Policy')).find(
+    (id) => id.startsWith(policyId) || id.includes(`SynchronizationFindingsConstruct${policyId}`),
+  );
+
+  // ASSERT
+  expect(policyLogicalId).toBeDefined();
+  expect(customResource.DependsOn).toContain(policyLogicalId);
 });
 
 test('APIEndpoint output reads the nested stack conditioned ApiEndpoint output, not the frontend-gated API directly', () => {
@@ -156,6 +184,77 @@ test('MCP parameters expose optional callbacks without a whole-list regex', () =
     Description: 'Exact Codex OAuth callback URL registered for this MCP gateway deployment.',
     Value: Match.anyValue(),
   });
+});
+
+test('ServiceNowAllowedDomains stack validation never accepts an entry the runtime parser rejects', () => {
+  const pattern = new RegExp(
+    Template.fromStack(getTestStack()).toJSON().Parameters.ServiceNowAllowedDomains.AllowedPattern,
+  );
+  const label = 'a'.repeat(63);
+  const entries = [
+    'servicenow.example.com',
+    'itsm.servicenow.example.com',
+    `${label}.${label}.${label}.${'a'.repeat(57)}.com`, // 253 characters
+    `${label}.${label}.${label}.${'a'.repeat(58)}.com`, // 254 characters
+    `${'a'.repeat(64)}.example.com`,
+    '-servicenow.example.com',
+    'servicenow-.example.com',
+    '*.example.com',
+    'https://servicenow.example.com',
+    'servicenow',
+  ];
+
+  for (const entry of entries) {
+    const acceptedByRuntime = (() => {
+      try {
+        parseServiceNowAllowedDomains(entry);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    // An entry the stack accepts but the runtime rejects would make every ServiceNow save and send fail.
+    expect({ entry, acceptedByStackButRejectedAtRuntime: pattern.test(entry) && !acceptedByRuntime }).toEqual({
+      entry,
+      acceptedByStackButRejectedAtRuntime: false,
+    });
+  }
+  // The length limit must not make the stack stricter than DNS allows.
+  expect(pattern.test(entries[2])).toBe(true);
+});
+
+test('ServiceNowAllowedDomains reaches the ServiceNow channel and API Lambdas but not deployment metrics', () => {
+  const template = Template.fromStack(getTestStack());
+  const synthesizedTemplate = template.toJSON();
+  const joinedParameter = { 'Fn::Join': [',', { Ref: 'ServiceNowAllowedDomains' }] };
+
+  template.hasParameter('ServiceNowAllowedDomains', { Type: 'CommaDelimitedList', Default: '' });
+  expect(synthesizedTemplate.Metadata['AWS::CloudFormation::Interface'].ParameterGroups).toContainEqual({
+    Label: { default: '(Optional) ServiceNow Notification Channels' },
+    Parameters: ['ServiceNowAllowedDomains'],
+  });
+
+  // Send-time enforcement: the ServiceNow channel Lambda in the admin stack.
+  const serviceNowChannel = Object.values(template.findResources('AWS::Lambda::Function')).find(
+    (fn) => fn.Properties.Handler === 'notification-channels/servicenow-channel.handler',
+  );
+  expect(serviceNowChannel?.Properties.Environment.Variables.SERVICENOW_ALLOWED_DOMAINS).toEqual(joinedParameter);
+
+  // Config-time enforcement: the Web UI nested stack sets it on the API Lambda. CloudFormation rejects a
+  // list Ref as a nested stack parameter, so the value passed in must be the joined string.
+  const webUiNestedStack = Object.values(template.findResources('AWS::CloudFormation::Stack')).find(
+    (stack) => stack.Properties.Parameters?.ServiceNowAllowedDomains !== undefined,
+  );
+  expect(webUiNestedStack?.Properties.Parameters.ServiceNowAllowedDomains).toEqual(joinedParameter);
+  for (const nested of Object.values(template.findResources('AWS::CloudFormation::Stack'))) {
+    for (const value of Object.values(nested.Properties.Parameters ?? {})) {
+      expect(value).not.toEqual({ Ref: 'ServiceNowAllowedDomains' });
+    }
+  }
+
+  // The customer's internal domains must not be sent to the external deployment-metrics endpoint.
+  const [deploymentMetrics] = Object.values(template.findResources('Custom::DeploymentMetrics'));
+  expect(deploymentMetrics.Properties.StackParameters).not.toHaveProperty('ServiceNowAllowedDomains');
 });
 
 test('Lambda log groups use ten-year retention and none is left at one year', () => {
@@ -525,4 +624,16 @@ test('Admin stack alarms when the pre-processor drops findings for a full findin
   expect(itemCollectionAlarm.Properties?.TreatMissingData).toEqual('notBreaching');
   expect(itemCollectionAlarm.Condition).toEqual('isUsingCloudWatchMetricsAlarms');
   expect(itemCollectionAlarm.Properties?.AlarmActions).toEqual(preProcessorDlqAlarm.Properties?.AlarmActions);
+});
+
+test('Admin stack validates the playbook selection before creating any playbook, Web UI, or MCP nested stack', () => {
+  // ARRANGE
+  const template = Template.fromStack(getTestStack());
+
+  // ASSERT
+  expectPlaybookSelectionValidated(template, {
+    securityControlParameter: 'LoadSCAdminStack',
+    standardPlaybookParameters: standardPlaybookProps.map((playbook) => `Load${playbook.name}AdminStack`),
+    gatedNestedStackPrefixes: ['PlaybookAdminStack', 'WebUINestedStack', 'McpGatewayNestedStack'],
+  });
 });

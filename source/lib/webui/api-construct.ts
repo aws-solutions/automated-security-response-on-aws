@@ -58,6 +58,8 @@ export interface ApiConstructProps {
   findingsTtlDays: string;
   /** 'yes'/'no' — sets MCP_ENABLED on the API Lambda so the MCP grant endpoints are reachable. */
   mcpEnabled: string;
+  /** Comma-separated extra ServiceNow endpoint domains, enforced when a channel is saved. */
+  serviceNowAllowedDomains: string;
 }
 
 /**
@@ -411,6 +413,7 @@ export class ApiConstruct extends Construct {
         ENABLE_ROLLBACK: props.enableRollback,
         FINDINGS_TTL_DAYS: props.findingsTtlDays,
         MCP_ENABLED: props.mcpEnabled,
+        SERVICENOW_ALLOWED_DOMAINS: props.serviceNowAllowedDomains,
       } satisfies ApiLambdaEnvironmentConfig,
       memorySize: 512,
       timeout: cdk.Duration.seconds(29), // Match API Gateway timeout (29s hard limit)

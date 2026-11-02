@@ -1,11 +1,15 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+from unittest import mock
+
 import boto3
+import pytest
+from botocore.config import Config
+from moto import mock_aws
+
 import EnableAWSConfig_createconfigbucket as createconfigbucket
 import EnableAWSConfig_createtopic as createtopic
 import EnableAWSConfig_enableconfig as enableconfig
-from botocore.config import Config
-from moto import mock_aws
 
 REGION = "us-east-1"
 BOTO_CONFIG = Config(retries={"mode": "standard"}, region_name="us-east-1")
@@ -226,3 +230,76 @@ def test_create_config_bucket_returns_arn_for_existing_bucket():
         result2["ResourceArn"]
         == "arn:aws:s3:::so0111-aws-config-us-east-1-123456789012"
     )
+
+
+@mock_aws
+def test_create_config_bucket_fails_when_another_account_owns_the_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bucket name owned by another account must not be used as the Config bucket."""
+    bucket_name = "so0111-aws-config-us-east-1-111111111111"
+    monkeypatch.setenv("MOTO_ACCOUNT_ID", "999999999999")
+    boto3.client("s3", region_name="us-east-1").create_bucket(Bucket=bucket_name)
+    monkeypatch.setenv("MOTO_ACCOUNT_ID", "111111111111")
+
+    event = {
+        "kms_key_arn": "arn:aws:kms:us-east-1:111111111111:key/unused",
+        "partition": "aws",
+        "account": "111111111111",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
+    }
+
+    with pytest.raises(SystemExit, match="already owned by another AWS account"):
+        createconfigbucket.create_encrypted_bucket(event, {})
+
+
+def test_create_config_bucket_fails_closed_on_an_unexpected_s3_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Any CreateBucket error other than BucketAlreadyOwnedByYou must stop, not adopt the bucket."""
+    from botocore.exceptions import ClientError
+
+    def raise_access_denied(*_args, **_kwargs):
+        raise ClientError(
+            {"Error": {"Code": "AccessDenied", "Message": "denied"}}, "CreateBucket"
+        )
+
+    fake_s3 = mock.Mock()
+    fake_s3.create_bucket.side_effect = raise_access_denied
+    monkeypatch.setattr(createconfigbucket, "connect_to_s3", lambda _config: fake_s3)
+
+    event = {
+        "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/unused",
+        "partition": "aws",
+        "account": "123456789012",
+        "region": "us-east-1",
+        "logging_bucket": "my-logging-bucket",
+    }
+
+    with pytest.raises(SystemExit, match="AccessDenied"):
+        createconfigbucket.create_encrypted_bucket(event, {})
+
+
+@mock_aws
+def test_create_config_bucket_reuses_bucket_owned_by_this_account_outside_us_east_1() -> (
+    None
+):
+    """Outside us-east-1, S3 reports BucketAlreadyOwnedByYou for a bucket this account owns; reuse it."""
+    region = "eu-west-1"
+    bucket_name = f"so0111-aws-config-{region}-123456789012"
+    boto3.client("s3", region_name=region).create_bucket(
+        Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region}
+    )
+
+    event = {
+        "kms_key_arn": "arn:aws:kms:eu-west-1:123456789012:key/unused",
+        "partition": "aws",
+        "account": "123456789012",
+        "region": region,
+        "logging_bucket": "my-logging-bucket",
+    }
+
+    result = createconfigbucket.create_encrypted_bucket(event, {})
+
+    assert result["config_bucket"] == bucket_name

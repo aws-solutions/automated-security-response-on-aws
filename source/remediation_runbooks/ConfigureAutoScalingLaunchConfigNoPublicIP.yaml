@@ -6,14 +6,19 @@ description: |
   ### Document name - ASR-ConfigureAutoScalingLaunchConfigNoPublicIP
 
   ## What does this document do?
-    This document configures AutoScaling Launch Configuration to not assign a public IP address
+    This document migrates the Auto Scaling group to a Launch Template that does not assign a public IP address.
+    Auto Scaling groups still backed by a Launch Configuration are migrated to a Launch Template as part of the remediation.
+    The original non-compliant launch configuration is deleted once no Auto Scaling group still references it.
 
   ## Input Parameters
   * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
-  * LaunchConfigurationName: (Required) The Name of the Launch Configuration.
+  * AutoScalingResourceId: (Required) The name of the Auto Scaling group or launch configuration from the finding.
+
+  ## Output Parameters
+  * Remediation.Output - the per-Auto-Scaling-group remediation results
 
   ## Security Standards / Controls
-  * NIST 800-53 Rev5: AutoScaling.5
+  * NIST 800-53 Rev5: Autoscaling.5
 
 assumeRole: '{{ AutomationAssumeRole }}'
 parameters:
@@ -21,89 +26,55 @@ parameters:
     type: String
     description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
     allowedPattern: '^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$'
-  LaunchConfigurationName:
+  AutoScalingResourceId:
     type: String
-    description: (Required) The name of the Launch Configuration.
+    description: (Required) The name of the Auto Scaling group or launch configuration from the finding.
     allowedPattern: '^.{1,255}$'
+outputs:
+  - Remediation.Output
 mainSteps:
-  - name: 'GetLaunchConfiguration'
-    action: 'aws:executeAwsApi'
+  - name: 'ResolveTarget'
+    action: 'aws:executeScript'
     timeoutSeconds: 600
     isEnd: false
     inputs:
-      Service: autoscaling
-      Api: DescribeLaunchConfigurations
-      LaunchConfigurationNames:
-        - '{{LaunchConfigurationName}}'
-    outputs:
-      - Name: LaunchConfiguration
-        Selector: $.LaunchConfigurations[0]
-        Type: StringMap
-  - name: 'GetNewLaunchConfigurationName'
-    action: 'aws:executeScript'
-    inputs:
       Runtime: 'python3.11'
-      Handler: 'append_suffix'
+      Handler: 'resolve_auto_scaling_group_launch_source'
       InputPayload:
-        OriginalString: '{{LaunchConfigurationName}}'
-        MaxLen: 255
-        Suffix: '-NoPublicIP'
+        AutoScalingResourceId: '{{AutoScalingResourceId}}'
       Script: |-
-        %%SCRIPT=AppendSuffix.py%%
+        %%SCRIPT=ResolveAutoScalingGroupLaunchSource.py%%
     outputs:
-      - Name: LaunchConfigurationName
-        Selector: '$.Payload'
-        Type: 'String'
-  - name: 'UpdateLaunchConfiguration'
-    action: 'aws:executeScript'
-    inputs:
-      Runtime: 'python3.11'
-      Handler: 'event_handler'
-      InputPayload:
-        LaunchConfiguration: '{{GetLaunchConfiguration.LaunchConfiguration}}'
-        LaunchConfigurationName: '{{GetNewLaunchConfigurationName.LaunchConfigurationName}}'
-      Script: |-
-        %%SCRIPT=ConfigureAutoScalingLaunchConfigurationToDisablePublicIP.py%%
-    outputs:
-      - Name: 'LaunchConfiguration'
+      - Name: Context
         Selector: '$.Payload'
         Type: 'StringMap'
-  - name: 'CreateNewLaunchConfiguration'
+  - name: 'BuildLaunchTemplateData'
     action: 'aws:executeScript'
     isEnd: false
-    timeoutSeconds: 600
     inputs:
-      InputPayload:
-        LaunchConfiguration: '{{UpdateLaunchConfiguration.LaunchConfiguration}}'
       Runtime: 'python3.11'
-      Handler: 'create_auto_scaling_launch_configuration'
-      Script: |-
-        %%SCRIPT=CreateAutoScalingLaunchConfiguration.py%%
-  - name: 'UpdateAutoScalingGroupsWithLaunchConfiguration'
-    action: 'aws:executeScript'
-    isEnd: false
-    timeoutSeconds: 600
-    inputs:
+      Handler: 'set_launch_template_data_disable_public_ip'
       InputPayload:
-        OldLaunchConfigurationName: '{{LaunchConfigurationName}}'
-        NewLaunchConfigurationName: '{{GetNewLaunchConfigurationName.LaunchConfigurationName}}'
-      Runtime: 'python3.11'
-      Handler: 'update_auto_scaling_groups_with_launch_configuration'
+        Context: '{{ResolveTarget.Context}}'
       Script: |-
-        %%SCRIPT=UpdateAutoScalingGroupsWithLaunchConfiguration.py%%
+        %%SCRIPT=SetLaunchTemplateDataDisablePublicIp.py%%
     outputs:
-      - Name: Output
-        Selector: $.Payload.response
-        Type: StringMap
-  - name: 'DeleteLaunchConfiguration'
-    action: 'aws:executeAwsApi'
+      - Name: Context
+        Selector: '$.Payload'
+        Type: 'StringMap'
+  - name: 'Remediation'
+    action: 'aws:executeScript'
     timeoutSeconds: 600
     isEnd: true
     inputs:
-      Service: autoscaling
-      Api: DeleteLaunchConfiguration
-      LaunchConfigurationName: '{{LaunchConfigurationName}}'
+      Runtime: 'python3.11'
+      Handler: 'apply_launch_template_to_auto_scaling_group'
+      InputPayload:
+        Context: '{{BuildLaunchTemplateData.Context}}'
+        ControlProperty: no_public_ip
+      Script: |-
+        %%SCRIPT=ApplyLaunchTemplateToAutoScalingGroup.py%%
     outputs:
       - Name: Output
-        Selector: $.Payload.response
-        Type: StringMap
+        Selector: '$.Payload.response'
+        Type: 'StringMap'

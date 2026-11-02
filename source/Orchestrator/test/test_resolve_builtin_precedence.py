@@ -280,7 +280,10 @@ def _create_table() -> Table:
 
 
 def _seed_deployed_custom_runbook(
-    *, control_id: str = CONTROL_ID, document_name: str = CUSTOM_DOC
+    *,
+    control_id: str = CONTROL_ID,
+    document_name: str = CUSTOM_DOC,
+    is_ai_generated: bool = False,
 ) -> None:
     """A DEPLOYED custom runbook for the requested security control."""
     _create_table().put_item(
@@ -291,6 +294,7 @@ def _seed_deployed_custom_runbook(
             "status": "DEPLOYED",
             "ssmDocumentName": document_name,
             "remediationRole": "SO0111-Remediate-Custom",
+            "isAiGenerated": is_ai_generated,
             "deployedAccounts": {
                 ACCOUNT_ID: {"runbookVersion": 1, "status": "DEPLOYED"}
             },
@@ -306,7 +310,8 @@ def test_active_builtin_is_used_and_custom_runbook_is_never_consulted(
     # consulted. An ACTIVE built-in must win anyway, and only the built-in document's
     # state is checked — the stubber queues exactly one describe_document, so a second
     # one would fail the test.
-    _seed_deployed_custom_runbook()
+    # ARRANGE
+    _seed_deployed_custom_runbook(is_ai_generated=True)
     ssm_stubber.add_response(
         "describe_document",
         _active_automation_document(BUILTIN_DOC),
@@ -314,13 +319,42 @@ def test_active_builtin_is_used_and_custom_runbook_is_never_consulted(
     )
     ssm_stubber.activate()
 
+    # ACT
     result = lambda_handler(
         _finding_event("Security Hub Findings - Custom Action"), create_lambda_context()
     )
 
+    # ASSERT
     assert result["status"] == "ACTIVE"
     assert result["automationdocid"] == BUILTIN_DOC
+    # The unused custom runbook's provenance must not leak onto the built-in.
+    assert result["aigenerated"] is False
     ssm_stubber.assert_no_pending_responses()
+
+
+@pytest.mark.parametrize("is_ai_generated", [True, False])
+@mock_aws
+def test_a_deployed_custom_runbook_reports_its_ai_generated_flag(
+    ssm_stubber: Stubber, is_ai_generated: bool
+) -> None:
+    # ARRANGE
+    _seed_deployed_custom_runbook(is_ai_generated=is_ai_generated)
+    ssm_stubber.add_client_error("describe_document", "InvalidDocument")
+    ssm_stubber.add_response(
+        "describe_document",
+        _active_automation_document(CUSTOM_DOC),
+        {"Name": CUSTOM_DOC},
+    )
+    ssm_stubber.activate()
+
+    # ACT
+    result = lambda_handler(
+        _finding_event("Security Hub Findings - Custom Action"), create_lambda_context()
+    )
+
+    # ASSERT
+    assert result["automationdocid"] == CUSTOM_DOC
+    assert result["aigenerated"] is is_ai_generated
 
 
 @mock_aws
@@ -433,8 +467,15 @@ def test_missing_builtin_and_no_custom_reports_builtin_notfound(
 
 
 @mock_aws
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "Security Hub Findings - Imported",
+        "Security Hub Findings - Deadline Enforcement",
+    ],
+)
 def test_an_automated_trigger_never_consults_a_custom_runbook(
-    ssm_stubber: Stubber,
+    ssm_stubber: Stubber, event_type: str
 ) -> None:
     # Custom runbooks are manual-trigger only. Even with a DEPLOYED custom runbook for
     # this control, an automatically-triggered finding must report the built-in
@@ -445,9 +486,7 @@ def test_an_automated_trigger_never_consults_a_custom_runbook(
     ssm_stubber.add_client_error("describe_document", "InvalidDocument")
     ssm_stubber.activate()
 
-    result = lambda_handler(
-        _finding_event("Security Hub Findings - Imported"), create_lambda_context()
-    )
+    result = lambda_handler(_finding_event(event_type), create_lambda_context())
 
     assert result["status"] == "NOTFOUND"
     assert result["automationdocid"] == BUILTIN_DOC

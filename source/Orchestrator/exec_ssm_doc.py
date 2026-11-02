@@ -16,6 +16,9 @@ AWS_PARTITION = os.getenv("AWS_PARTITION")
 AWS_REGION = os.getenv("AWS_REGION")
 SOLUTION_ID = os.getenv("SOLUTION_ID", "SO0111")
 SOLUTION_ID = re.sub(r"^DEV-", "", SOLUTION_ID)
+ORCHESTRATOR_MEMBER_ROLE = f"{SOLUTION_ID}-ASR-Orchestrator-Member"
+INSPECTOR_AUTOMATION_ROLE = f"{SOLUTION_ID}-ASR-Inspector-Automation"
+CUSTOM_RUNBOOK_ROLE_PREFIX = f"{SOLUTION_ID}-Remediate-Custom-"
 
 logger = get_logger("exec_ssm_doc")
 tracer = init_tracer()
@@ -90,17 +93,43 @@ def _validate_doc_parameters(event: dict[str, Any]) -> dict[str, list[str]]:
 
 
 def lambda_role_exists(account: str, rolename: str) -> bool:
-    iam = _get_iam_client(account, SOLUTION_ID + "-ASR-Orchestrator-Member")
+    iam = _get_iam_client(account, ORCHESTRATOR_MEMBER_ROLE)
     try:
         iam.get_role(RoleName=rolename)
         return True
     except ClientError as ex:
-        exception_type = ex.response["Error"]["Code"]
-        if exception_type == "NoSuchEntity":
+        if ex.response["Error"]["Code"] == "NoSuchEntity":
             return False
-        exit("An unhandled client error occurred: " + exception_type)
-    except Exception as e:
-        exit("An unhandled error occurred: " + str(e))
+        raise
+
+
+class MissingCustomRunbookRoleError(RuntimeError):
+    """The Custom Runbook's remediation role does not exist in the target account."""
+
+
+def _select_remediation_role(execution_account: str, requested_role: str) -> str:
+    """Return the role the automation runs as.
+
+    Built-in playbooks run as Orchestrator-Member by design: the name the resolver
+    derives for them is never deployed, and each nested remediation runbook assumes
+    its own scoped role. A Custom Runbook has no nested runbook, so running it as
+    Orchestrator-Member would bypass its declared permissions and boundary; a missing
+    Custom Runbook role therefore fails the execution instead of falling back. Raising
+    sends the failure through the state machine's catch, so it is notified and recorded.
+    """
+    if lambda_role_exists(execution_account, requested_role):
+        return requested_role
+    if requested_role.startswith(CUSTOM_RUNBOOK_ROLE_PREFIX):
+        raise MissingCustomRunbookRoleError(
+            f"Custom Runbook role {requested_role} does not exist in account "
+            f"{execution_account}. Redeploy the Custom Runbook to recreate it."
+        )
+    if requested_role == INSPECTOR_AUTOMATION_ROLE:
+        logger.warning(
+            f"{INSPECTOR_AUTOMATION_ROLE} does not exist in account {execution_account}; "
+            f"running as {ORCHESTRATOR_MEMBER_ROLE}. Update the member roles stack to deploy it.",
+        )
+    return ORCHESTRATOR_MEMBER_ROLE
 
 
 def _validate_rollback_parameters_allowed(ssm_parameters: dict[str, list[str]]) -> None:
@@ -217,13 +246,14 @@ def lambda_handler(event: dict[str, Any], _: Any) -> StepFunctionLambdaAnswerDic
     # every custom runbook execution failed with AccessDenied on sts:AssumeRole
     # before SSM was ever called. The alt-workflow role keeps assuming directly:
     # Inspector-Automation is in Admin's allow list and trusts it.
-    remediation_role = SOLUTION_ID + "-ASR-Orchestrator-Member"  # default
-    session_role = remediation_role
     if alt_workflow_doc and alt_workflow_role:
         remediation_role = alt_workflow_role
         session_role = alt_workflow_role
-    elif lambda_role_exists(execution_account, automation_doc["RemediationRole"]):
-        remediation_role = automation_doc["RemediationRole"]
+    else:
+        remediation_role = _select_remediation_role(
+            execution_account, automation_doc["RemediationRole"]
+        )
+        session_role = ORCHESTRATOR_MEMBER_ROLE
 
     print(
         f"Using role {session_role} to start {remote_workflow_doc} in {execution_account}  {execution_region}, "

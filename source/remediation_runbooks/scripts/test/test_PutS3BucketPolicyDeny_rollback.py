@@ -6,9 +6,11 @@ moto implements S3 get/put/delete_bucket_policy, so these tests use real moto-ba
 the drift check is the ASR deny statement (Sid=ASR-S3.6-DenyCrossAccountAccess); rollback removes only
 that statement, preserving other statements in the current policy.
 """
+
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import boto3
@@ -41,6 +43,16 @@ ALLOW_CROSS_ACCOUNT_STATEMENT = {
     "Effect": "Allow",
     "Principal": {"AWS": CROSS_ACCOUNT_PRINCIPAL},
     "Action": "s3:GetObject",
+    "Resource": f"arn:aws:s3:::{BUCKET}/*",
+}
+
+
+NEW_CROSS_ACCOUNT_PRINCIPAL = "arn:aws:iam::888888888888:root"
+NEW_CROSS_ACCOUNT_STATEMENT = {
+    "Sid": "AllowNewAccount",
+    "Effect": "Allow",
+    "Principal": {"AWS": NEW_CROSS_ACCOUNT_PRINCIPAL},
+    "Action": ["s3:GetObject", "s3:PutBucketPolicy"],
     "Resource": f"arn:aws:s3:::{BUCKET}/*",
 }
 
@@ -81,6 +93,38 @@ def _asr_statement(policy: dict[str, Any] | None) -> dict[str, Any] | None:
         if isinstance(s, dict) and s.get("Sid") == ASR_SID:
             return s
     return None
+
+
+# Edits that keep the statement a Deny but stop it denying unconditionally on the whole bucket.
+NARROWED_DENY_TAMPERS = [
+    pytest.param(
+        {
+            "Resource": [
+                f"arn:aws:s3:::{BUCKET}",
+                f"arn:aws:s3:::{BUCKET}/no-such-prefix/*",
+            ]
+        },
+        id="narrowed-object-resource",
+    ),
+    pytest.param(
+        {"Condition": {"StringEquals": {"aws:SourceVpce": "vpce-never"}}},
+        id="never-matching-condition",
+    ),
+]
+NEUTERING_TAMPERS = [
+    pytest.param({"Effect": "Allow"}, id="effect-allow"),
+    *NARROWED_DENY_TAMPERS,
+]
+
+
+def _latest_snapshot_version_id() -> str:
+    """Version id of the newest snapshot object for this test's execution."""
+    s3 = boto3.client("s3", config=BOTO_CONFIG)
+    versions = s3.list_object_versions(
+        Bucket=SNAPSHOT_BUCKET, Prefix=f"snapshots/{EXECUTION_ID}/"
+    ).get("Versions", [])
+    latest = [version for version in versions if version.get("IsLatest")]
+    return latest[0]["VersionId"] if latest else ""
 
 
 def _create_snapshot_bucket() -> None:
@@ -416,6 +460,24 @@ def test_normalize_treats_single_element_list_as_scalar() -> None:
 # ── capture_and_remediate ────────────────────────────────────────────────────
 
 
+def test_unconditional_bucket_deny_accepts_the_s3_read_back_form() -> None:
+    written = _built_asr_statement()
+    read_back = {**written, "Principal": {"AWS": written["Principal"]["AWS"][0]}}
+    assert rollback._is_unconditional_bucket_deny(
+        read_back, bucket=BUCKET, partition=PARTITION
+    )
+
+
+@pytest.mark.parametrize("tamper", [*NEUTERING_TAMPERS, {"Principal": "*"}])
+def test_unconditional_bucket_deny_rejects_other_statements(
+    tamper: dict[str, Any],
+) -> None:
+    statement = {**_built_asr_statement(), **tamper}
+    assert not rollback._is_unconditional_bucket_deny(
+        statement, bucket=BUCKET, partition=PARTITION
+    )
+
+
 class TestCaptureAndRemediate:
     @mock_aws
     def test_stale_read_back_is_retried_and_succeeds(
@@ -457,6 +519,40 @@ class TestCaptureAndRemediate:
         )  # don't wait out the real backoff
         with pytest.raises(rollback.RemediationError, match="Verification failed"):
             rollback.capture_and_remediate(_make_capture_event(), None)
+
+    @mock_aws
+    def test_verification_failure_reports_snapshot_version_for_manual_rollback(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _create_snapshot_bucket()
+        original_policy = {
+            "Version": "2012-10-17",
+            "Statement": [ALLOW_CROSS_ACCOUNT_STATEMENT],
+        }
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT])
+        _freeze_policy_reads(monkeypatch, original_policy)
+        monkeypatch.setattr(rollback.time, "sleep", lambda _seconds: None)
+
+        with caplog.at_level(logging.ERROR, logger=rollback.logger.name):
+            with pytest.raises(rollback.RemediationError) as raised:
+                rollback.capture_and_remediate(_make_capture_event(), None)
+
+        monkeypatch.undo()
+        version_id = _latest_snapshot_version_id()
+        assert version_id
+        assert f"SnapshotVersionId {version_id}" in str(raised.value)
+        logged = [
+            record for record in caplog.records if record.levelno == logging.ERROR
+        ]
+        assert any(
+            getattr(record, "snapshotVersionId", None) == version_id
+            for record in logged
+        )
+
+    def test_read_back_retries_for_at_least_fifteen_seconds(self) -> None:
+        # Bucket policies are eventually consistent; a short window fails remediations that did apply.
+        retry_window = (rollback._VERIFY_ATTEMPTS - 1) * rollback._VERIFY_DELAY_SECONDS
+        assert retry_window >= 15
 
     @mock_aws
     def test_successful_snapshot_and_remediation(self) -> None:
@@ -502,6 +598,196 @@ class TestCaptureAndRemediate:
             Bucket=SNAPSHOT_BUCKET, Prefix=f"snapshots/{EXECUTION_ID}/"
         )
         assert objs.get("KeyCount", 0) == 0
+
+    @mock_aws
+    def test_no_op_when_asr_statement_is_in_s3_read_back_form(self) -> None:
+        _create_snapshot_bucket()
+        written = _built_asr_statement()
+        principal_arns = written["Principal"]["AWS"]
+        assert len(principal_arns) == 1
+        read_back_form = {**written, "Principal": {"AWS": principal_arns[0]}}
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT, read_back_form])
+
+        result = rollback.capture_and_remediate(_make_capture_event(), None)
+
+        assert result["snapshotStored"] == "false"
+        assert "already present" in result["rollbackDescription"]
+
+    @pytest.mark.parametrize("tamper", NEUTERING_TAMPERS)
+    @mock_aws
+    def test_rerun_rebuilds_asr_statement_that_was_neutered(
+        self, tamper: dict[str, Any]
+    ) -> None:
+        # Someone with PutBucketPolicy kept the ASR Sid, principals and actions but changed the statement so
+        # it no longer denies anything. Matching principals and actions alone must not count as covered.
+        _create_snapshot_bucket()
+        neutered = {**_built_asr_statement(), **tamper}
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT, neutered])
+
+        result = rollback.capture_and_remediate(_make_capture_event(), None)
+
+        assert result["snapshotStored"] == "true"
+        live = _asr_statement(_require_policy())
+        assert live is not None
+        assert rollback._normalize(live) == rollback._normalize(_built_asr_statement())
+
+    @mock_aws
+    def test_rerun_denies_cross_account_principal_granted_after_first_run(
+        self,
+    ) -> None:
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                _built_asr_statement(),
+                NEW_CROSS_ACCOUNT_STATEMENT,
+            ]
+        )
+        result = rollback.capture_and_remediate(_make_capture_event(), None)
+        assert result["snapshotStored"] == "true"
+        assert result["snapshotVersionId"] != ""
+        assert "Restore the earlier" in result["rollbackDescription"]
+        policy = _require_policy()
+        asr_statements = [s for s in policy["Statement"] if s.get("Sid") == ASR_SID]
+        assert len(asr_statements) == 1
+        assert asr_statements[0]["Principal"]["AWS"] == [
+            CROSS_ACCOUNT_PRINCIPAL,
+            NEW_CROSS_ACCOUNT_PRINCIPAL,
+        ]
+        assert [s["Sid"] for s in policy["Statement"]] == [
+            "AllowOtherAccount",
+            ASR_SID,
+            "AllowNewAccount",
+        ]
+        snap = json.loads(
+            boto3.client("s3", config=BOTO_CONFIG)
+            .get_object(
+                Bucket=SNAPSHOT_BUCKET,
+                Key=f"snapshots/{EXECUTION_ID}/{CONTROL_ID}.json",
+            )["Body"]
+            .read()
+        )
+        assert snap["preRemediationState"]["PreviousAsrStatement"] == (
+            _built_asr_statement()
+        )
+
+    @mock_aws
+    def test_rerun_verification_fails_when_old_statement_stays(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _create_snapshot_bucket()
+        statements = [
+            ALLOW_CROSS_ACCOUNT_STATEMENT,
+            _built_asr_statement(),
+            NEW_CROSS_ACCOUNT_STATEMENT,
+        ]
+        _create_bucket(statements)
+        _freeze_policy_reads(
+            monkeypatch, {"Version": "2012-10-17", "Statement": statements}
+        )
+        monkeypatch.setattr(rollback, "_VERIFY_DELAY_SECONDS", 0)
+        with pytest.raises(rollback.RemediationError, match="Verification failed"):
+            rollback.capture_and_remediate(_make_capture_event(), None)
+
+    @mock_aws
+    def test_rerun_adds_newly_denylisted_action(self) -> None:
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                _built_asr_statement(actions=["s3:PutBucketAcl"]),
+            ]
+        )
+        result = rollback.capture_and_remediate(_make_capture_event(), None)
+        assert result["snapshotStored"] == "true"
+        asr = _asr_statement(_require_policy())
+        assert asr is not None
+        assert asr["Action"] == ["s3:PutBucketAcl", "s3:PutBucketPolicy"]
+
+    @mock_aws
+    def test_rerun_rebuilds_a_statement_whose_principal_is_no_longer_an_aws_map(
+        self,
+    ) -> None:
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                {**_built_asr_statement(), "Principal": "*"},
+            ]
+        )
+        result = rollback.capture_and_remediate(_make_capture_event(), None)
+        assert result["snapshotStored"] == "true"
+        asr = _asr_statement(_require_policy())
+        assert asr is not None
+        assert asr["Principal"] == {"AWS": [CROSS_ACCOUNT_PRINCIPAL]}
+
+    @mock_aws
+    def test_rerun_drops_a_covered_principal_that_names_no_account(self) -> None:
+        # S3 shows a deleted IAM principal as its unique ID; the rebuilt deny must not carry that ID forward.
+        deleted_role_id = "AROAEXAMPLEDELETEDROLE"
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                _built_asr_statement(
+                    principals=[CROSS_ACCOUNT_PRINCIPAL, deleted_role_id]
+                ),
+                NEW_CROSS_ACCOUNT_STATEMENT,
+            ]
+        )
+        rollback.capture_and_remediate(_make_capture_event(), None)
+        asr = _asr_statement(_require_policy())
+        assert asr is not None
+        assert asr["Principal"] == {
+            "AWS": [CROSS_ACCOUNT_PRINCIPAL, NEW_CROSS_ACCOUNT_PRINCIPAL]
+        }
+
+    @pytest.mark.parametrize(
+        "existing",
+        [
+            pytest.param(
+                {"Effect": "Allow", "Action": "s3:*"}, id="edited-to-allow-all"
+            ),
+            pytest.param(
+                {
+                    "Action": "s3:*",
+                    "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+                },
+                id="conditional-deny-all",
+            ),
+        ],
+    )
+    @mock_aws
+    def test_rerun_takes_actions_only_from_an_unconditional_bucket_deny(
+        self, existing: dict[str, Any]
+    ) -> None:
+        _create_snapshot_bucket()
+        _create_bucket(
+            [ALLOW_CROSS_ACCOUNT_STATEMENT, {**_built_asr_statement(), **existing}]
+        )
+        rollback.capture_and_remediate(_make_capture_event(), None)
+        asr = _asr_statement(_require_policy())
+        assert asr is not None
+        assert asr["Effect"] == "Deny" and "Condition" not in asr
+        assert sorted(rollback._as_str_list(asr["Action"])) == sorted(
+            DENYLIST.split(",")
+        )
+
+    @mock_aws
+    def test_rerun_keeps_actions_removed_from_the_denylist(self) -> None:
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                _built_asr_statement(),
+                NEW_CROSS_ACCOUNT_STATEMENT,
+            ]
+        )
+        event = {**_make_capture_event(), "DenyList": "s3:PutBucketAcl"}
+        rollback.capture_and_remediate(event, None)
+        asr = _asr_statement(_require_policy())
+        assert asr is not None
+        assert asr["Action"] == ["s3:PutBucketAcl", "s3:PutBucketPolicy"]
 
     @mock_aws
     def test_fail_open_when_config_bucket_missing(self) -> None:
@@ -620,6 +906,178 @@ class TestExecuteRollback:
         policy = _require_policy()
         assert _asr_statement(policy) is None
         assert [s["Sid"] for s in policy["Statement"]] == ["AllowOtherAccount"]
+
+    @mock_aws
+    def test_rollback_of_rerun_does_not_restore_a_granting_statement(self) -> None:
+        # The ASR statement was changed to an Allow; restoring it would grant access, so rollback removes it.
+        _create_snapshot_bucket()
+        neutered = {**_built_asr_statement(), "Effect": "Allow"}
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT, neutered])
+        capture = rollback.capture_and_remediate(_make_capture_event(), None)
+        assert capture["snapshotStored"] == "true"
+        assert capture["rollbackDescription"].startswith("Remove the ASR")
+
+        result = rollback.execute_rollback(
+            _make_rollback_event(snapshot_version_id=capture["snapshotVersionId"]),
+            None,
+        )
+
+        assert result["Status"] == "SUCCESS"
+        assert _asr_statement(_require_policy()) is None
+        assert [s["Sid"] for s in _require_policy()["Statement"]] == [
+            "AllowOtherAccount"
+        ]
+
+    @pytest.mark.parametrize("tamper", NARROWED_DENY_TAMPERS)
+    @mock_aws
+    def test_rollback_of_rerun_restores_an_edited_deny(
+        self, tamper: dict[str, Any]
+    ) -> None:
+        _create_snapshot_bucket()
+        edited = {**_built_asr_statement(), **tamper}
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT, edited])
+        capture = rollback.capture_and_remediate(_make_capture_event(), None)
+        assert capture["rollbackDescription"].startswith("Restore the earlier")
+
+        result = rollback.execute_rollback(
+            _make_rollback_event(snapshot_version_id=capture["snapshotVersionId"]),
+            None,
+        )
+
+        assert result["Status"] == "SUCCESS"
+        assert rollback._normalize(
+            _asr_statement(_require_policy())
+        ) == rollback._normalize(edited)
+
+    @mock_aws
+    def test_rollback_of_rerun_restores_earlier_asr_statement(self) -> None:
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                _built_asr_statement(),
+                NEW_CROSS_ACCOUNT_STATEMENT,
+            ]
+        )
+        capture = rollback.capture_and_remediate(_make_capture_event(), None)
+        result = rollback.execute_rollback(
+            _make_rollback_event(snapshot_version_id=capture["snapshotVersionId"]),
+            None,
+        )
+        assert result["Status"] == "SUCCESS"
+        assert "restored the earlier" in result["Message"]
+        policy = _require_policy()
+        assert rollback._normalize(_asr_statement(policy)) == rollback._normalize(
+            _built_asr_statement()
+        )
+        assert [s["Sid"] for s in policy["Statement"]] == [
+            "AllowOtherAccount",
+            ASR_SID,
+            "AllowNewAccount",
+        ]
+        # A second rollback finds the earlier statement already back and does nothing.
+        again = rollback.execute_rollback(
+            _make_rollback_event(snapshot_version_id=capture["snapshotVersionId"]),
+            None,
+        )
+        assert "already in its pre-remediation state" in again["Message"]
+
+    @mock_aws
+    def test_rollback_of_first_run_aborts_while_a_widened_statement_is_live(
+        self,
+    ) -> None:
+        _create_snapshot_bucket()
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT])
+        first = rollback.capture_and_remediate(
+            _make_capture_event(execution_id="exec-first"), None
+        )
+        policy = _require_policy()
+        policy["Statement"].append(NEW_CROSS_ACCOUNT_STATEMENT)
+        boto3.client("s3", config=BOTO_CONFIG).put_bucket_policy(
+            Bucket=BUCKET, Policy=json.dumps(policy)
+        )
+        second = rollback.capture_and_remediate(
+            _make_capture_event(execution_id="exec-second"), None
+        )
+        widened = _asr_statement(_require_policy())
+
+        with pytest.raises(RollbackError, match="modified"):
+            rollback.execute_rollback(
+                _make_rollback_event(
+                    execution_id="exec-first",
+                    snapshot_version_id=first["snapshotVersionId"],
+                ),
+                None,
+            )
+        assert _asr_statement(_require_policy()) == widened
+
+        # Rolled back newest first, both runs unwind.
+        rollback.execute_rollback(
+            _make_rollback_event(
+                execution_id="exec-second",
+                snapshot_version_id=second["snapshotVersionId"],
+            ),
+            None,
+        )
+        rollback.execute_rollback(
+            _make_rollback_event(
+                execution_id="exec-first",
+                snapshot_version_id=first["snapshotVersionId"],
+            ),
+            None,
+        )
+        assert [s["Sid"] for s in _require_policy()["Statement"]] == [
+            "AllowOtherAccount",
+            "AllowNewAccount",
+        ]
+
+    @mock_aws
+    def test_malformed_previous_asr_statement_in_snapshot_raises(self) -> None:
+        _create_snapshot_bucket()
+        _create_bucket([ALLOW_CROSS_ACCOUNT_STATEMENT, _built_asr_statement()])
+        snapshot = {
+            "schemaVersion": 1,
+            "resourceId": BUCKET,
+            "controlId": CONTROL_ID,
+            "capturedAt": "2025-01-01T00:00:00+00:00",
+            "preRemediationState": {
+                "BucketPolicy": "{}",
+                "PreviousAsrStatement": "not-an-object",
+            },
+            "postRemediationState": {"AsrStatement": _built_asr_statement()},
+        }
+        version_id = boto3.client("s3", config=BOTO_CONFIG).put_object(
+            Bucket=SNAPSHOT_BUCKET,
+            Key=f"snapshots/{EXECUTION_ID}/{CONTROL_ID}.json",
+            Body=json.dumps(snapshot),
+            ContentType="application/json",
+        )["VersionId"]
+        with pytest.raises(SnapshotValidationError, match="PreviousAsrStatement"):
+            rollback.execute_rollback(
+                _make_rollback_event(snapshot_version_id=version_id), None
+            )
+        assert _asr_statement(_require_policy()) is not None
+
+    @mock_aws
+    def test_rollback_of_rerun_raises_when_earlier_statement_does_not_stick(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rollback, "_VERIFY_DELAY_SECONDS", 0)
+        _create_snapshot_bucket()
+        _create_bucket(
+            [
+                ALLOW_CROSS_ACCOUNT_STATEMENT,
+                _built_asr_statement(),
+                NEW_CROSS_ACCOUNT_STATEMENT,
+            ]
+        )
+        capture = rollback.capture_and_remediate(_make_capture_event(), None)
+        _freeze_policy_reads(monkeypatch, _require_policy())
+        with pytest.raises(RollbackError, match="earlier ASR statement is not back"):
+            rollback.execute_rollback(
+                _make_rollback_event(snapshot_version_id=capture["snapshotVersionId"]),
+                None,
+            )
 
     @mock_aws
     def test_delete_policy_when_only_asr_statement(self) -> None:

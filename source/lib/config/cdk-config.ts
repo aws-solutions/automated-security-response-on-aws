@@ -58,10 +58,14 @@ export interface CDKConfig {
       sensitiveWritesPerMinute: number;
     };
   };
+  /**
+   * Per-member-stack document limits. `runbook` is the maximum number of runbooks per runbook member stack.
+   */
   memberStackLimits: {
     sc: number;
     nist: number;
     afsbp: number;
+    runbook: number;
   };
   notificationChannels: {
     lambdaMemorySize: number;
@@ -160,6 +164,7 @@ const DEFAULT_CONFIG: CDKConfig = {
     sc: 85,
     nist: 63,
     afsbp: 63,
+    runbook: 79,
   },
   notificationChannels: {
     lambdaMemorySize: 256,

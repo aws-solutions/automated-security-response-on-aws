@@ -24,6 +24,7 @@ import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import TicketingFunctionNameParam from './parameters/ticketing-function-name-param';
 import { addCfnGuardSuppression } from './cdk-helper/add-cfn-guard-suppression';
 import { stripDevelopmentPrefix } from './config/cdk-config';
+import { ASR_ORCHESTRATOR_DETAIL_TYPES } from '@asr/data-models';
 
 export interface ConstructProps {
   roleArn: string;
@@ -139,6 +140,7 @@ export class OrchestratorConstruct extends Construct {
         'RemediationRole.$': '$.Payload.remediationrole',
         'AutomationDocId.$': '$.Payload.automationdocid',
         'ResourceRegion.$': '$.Payload.resourceregion',
+        'AIGenerated.$': '$.Payload.aigenerated',
       },
       resultPath: '$.AutomationDocument',
     });
@@ -460,6 +462,7 @@ export class OrchestratorConstruct extends Construct {
         'ControlId.$': '$.AutomationDocument.ControlId',
         'SecurityStandard.$': '$.AutomationDocument.SecurityStandard',
         'SecurityStandardVersion.$': '$.AutomationDocument.SecurityStandardVersion',
+        'AIGenerated.$': '$.AutomationDocument.AIGenerated',
         Notification: {
           'Message.$':
             "States.Format('Remediation succeeded for {} control {} in account {}: {}', $.AutomationDocument.SecurityStandard, $.AutomationDocument.ControlId, $.AutomationDocument.AccountId, $.Remediation.Message)",
@@ -505,7 +508,8 @@ export class OrchestratorConstruct extends Construct {
     checkWorkflowNew.when(
       sfn.Condition.or(
         sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - Custom Action'),
-        sfn.Condition.stringEquals('$.EventType', 'Security Hub Findings - API Action'),
+        sfn.Condition.stringEquals('$.EventType', ASR_ORCHESTRATOR_DETAIL_TYPES.API_ACTION),
+        sfn.Condition.stringEquals('$.EventType', ASR_ORCHESTRATOR_DETAIL_TYPES.DEADLINE_ENFORCEMENT),
         sfn.Condition.and(
           // OCSF findings from multi-service integrations (Inspector, GuardDuty, Macie)
           // don't carry Workflow.Status — without isPresent the stringEquals check throws.

@@ -27,6 +27,58 @@ exports[`member stack snapshot matches 1`] = `
         "aws",
       ],
     },
+    "PlaybookSelectionValidatorStandardPlaybookSelectedE86D7971": {
+      "Fn::Or": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoadAFSBPMemberStack",
+            },
+            "yes",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoadCIS120MemberStack",
+            },
+            "yes",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoadCIS140MemberStack",
+            },
+            "yes",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoadNIST80053MemberStack",
+            },
+            "yes",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoadPCI321MemberStack",
+            },
+            "yes",
+          ],
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoadCIS300MemberStack",
+            },
+            "yes",
+          ],
+        },
+      ],
+    },
     "loadAFSBP1Cond": {
       "Fn::Equals": [
         {
@@ -252,7 +304,7 @@ exports[`member stack snapshot matches 1`] = `
         "no",
       ],
       "Default": "yes",
-      "Description": "If the consolidated control findings feature is turned on in Security Hub, only enable the Security Control (SC) playbook. If the feature is not turned on, enable the playbooks for the security standards that are enabled in Security Hub. Enabling additional playbooks can result in reaching the quota for EventBridge Rules.",
+      "Description": "If the consolidated control findings feature is turned on in Security Hub, enable the Security Control (SC) playbook. If the feature is turned off, enable the playbooks for the security standards that are enabled in Security Hub. The SC playbook also carries the remediations for GuardDuty, Inspector, and Macie findings. The deployment fails when the selection cannot remediate control findings under the Security Hub setting.",
       "Type": "String",
     },
     "LogGroupName": {
@@ -618,6 +670,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGateMemberCloudTrailStackD769B835",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1500,6 +1553,7 @@ def sort_filter_rules(json_obj):
       "Condition": "loadAFSBPCond",
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1550,6 +1604,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackAFSBP137036A57",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1600,6 +1655,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS120E08EFB8B",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1650,6 +1706,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS1402A4735A6",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1700,6 +1757,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackCIS300FA804242",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1750,6 +1808,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackNIST80053C3D22DE7",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1800,6 +1859,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackNIST8005311D6A30FD",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1850,6 +1910,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackPCI3214A12B906",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1900,6 +1961,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackSC0515DB36",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1950,6 +2012,7 @@ def sort_filter_rules(json_obj):
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "NestedStackFactoryGatePlaybookMemberStackSC1042EDDD9",
+        "PlaybookSelectionValidatorValidation1A2A95E6",
         "RunbookStackNoRoles",
       ],
       "Properties": {
@@ -1993,6 +2056,175 @@ def sort_filter_rules(json_obj):
         },
       },
       "Type": "AWS::CloudFormation::Stack",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "PlaybookSelectionValidatorFunction3A33AC6B": {
+      "DependsOn": [
+        "PlaybookSelectionValidatorRoleD5419340",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": my-solution-tmn/v9.9.9/lambda/playbook_selection_validator.zip,
+        },
+        "Description": "ASR - Validates the playbook selection against the Security Hub settings",
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "INFO",
+          },
+        },
+        "Handler": "playbook_selection_validator.lambda_handler",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "PlaybookSelectionValidatorLogGroup23A7D958",
+          },
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "PlaybookSelectionValidatorRoleD5419340",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.11",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "PlaybookSelectionValidatorLogGroup23A7D958": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "PlaybookSelectionValidatorRoleD5419340": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Reads the Security Hub settings to validate the ASR playbook selection",
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "securityhub:DescribeHub",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":securityhub:",
+                        {
+                          "Ref": "AWS::Region",
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":hub/default",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "cloudformation:DescribeStacks",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Ref": "AWS::StackId",
+                  },
+                },
+                {
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "PlaybookSelectionValidatorLogGroup23A7D958",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "PlaybookSelectionValidatorPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "PlaybookSelectionValidatorValidation1A2A95E6": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "SecurityControlPlaybookSelected": {
+          "Ref": "LoadSCMemberStack",
+        },
+        "SecurityHubRequired": "no",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "PlaybookSelectionValidatorFunction3A33AC6B",
+            "Arn",
+          ],
+        },
+        "StandardPlaybookSelected": {
+          "Fn::If": [
+            "PlaybookSelectionValidatorStandardPlaybookSelectedE86D7971",
+            "yes",
+            "no",
+          ],
+        },
+        "Timestamp": "1735689600000",
+      },
+      "Type": "Custom::PlaybookSelectionValidator",
       "UpdateReplacePolicy": "Delete",
     },
     "RemediationConfigAccessLogs08FBABE2": {
@@ -2612,6 +2844,9 @@ def sort_filter_rules(json_obj):
     },
     "RunbookStackNoRoles": {
       "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "PlaybookSelectionValidatorValidation1A2A95E6",
+      ],
       "Properties": {
         "Parameters": {
           "Namespace": {
@@ -3044,6 +3279,79 @@ def sort_filter_rules(json_obj):
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+  },
+  "Rules": {
+    "PlaybookSelectionValidatorSelectionRule40554867": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Or": [
+              {
+                "Fn::Equals": [
+                  {
+                    "Ref": "LoadSCMemberStack",
+                  },
+                  "yes",
+                ],
+              },
+              {
+                "Fn::Or": [
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "LoadAFSBPMemberStack",
+                      },
+                      "yes",
+                    ],
+                  },
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "LoadCIS120MemberStack",
+                      },
+                      "yes",
+                    ],
+                  },
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "LoadCIS140MemberStack",
+                      },
+                      "yes",
+                    ],
+                  },
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "LoadNIST80053MemberStack",
+                      },
+                      "yes",
+                    ],
+                  },
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "LoadPCI321MemberStack",
+                      },
+                      "yes",
+                    ],
+                  },
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "LoadCIS300MemberStack",
+                      },
+                      "yes",
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "Select at least one playbook: the Security Control (SC) playbook when consolidated control findings are turned on in Security Hub, or the security standard playbooks when they are turned off.",
+        },
+      ],
     },
   },
 }

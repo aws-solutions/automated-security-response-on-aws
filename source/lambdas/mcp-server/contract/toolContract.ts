@@ -33,6 +33,7 @@ import {
   BulkEditRequest,
   BulkEditUpdateRequestSchema,
   checkIamAction,
+  MAX_IAM_ACTIONS,
 } from '@asr/data-models';
 
 /**
@@ -242,6 +243,7 @@ export const TestRunbookYamlSchema = z
     required_iam_actions: z
       .array(z.string())
       .min(1)
+      .max(MAX_IAM_ACTIONS)
       .optional()
       .superRefine((actions, context) => {
         actions?.forEach((action, index) => {

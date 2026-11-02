@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""RDS.6 — EnableEnhancedMonitoringOnRDSInstance rollback script (shared rollback framework).
+"""RDS.6: EnableEnhancedMonitoringOnRDSInstance rollback script (shared rollback framework).
 
 capture_and_remediate is fail-open (a snapshot failure never blocks remediation); execute_rollback
 is fail-closed (any safety-gate failure aborts, raising RuntimeError so SSM reports ROLLBACK_FAILED).
@@ -20,7 +20,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Local import for tests/IDE; the build (runbook_factory.ts) strips this block and inlines
-# snapshot_utils.py via the %%INCLUDE directive below — do not remove.
+# snapshot_utils.py via the %%INCLUDE directive below. Do not remove.
 # fmt: off
 from common.snapshot_utils import (  # noqa: E402
     ROLLBACK_BOTO_CONFIG,
@@ -181,7 +181,7 @@ def _require_interval(
 def _validate_monitoring_interval(value: object) -> TargetMonitoringInterval:
     # Validate the remediation *target* interval at the boundary. SSM sends it as an Integer parameter
     # (int or str in the payload). 0 (disabled) is rejected: RDS.6 enables enhanced monitoring, so the
-    # target must be positive — mirroring the SSM parameter's allowedValues of [1, 5, 10, 15, 30, 60].
+    # target must be positive, mirroring the SSM parameter's allowedValues of [1, 5, 10, 15, 30, 60].
     if isinstance(value, bool) or not isinstance(value, (int, str)):
         raise ValueError(f"Invalid MonitoringInterval: {value!r} (expected an integer)")
     try:
@@ -305,7 +305,7 @@ def _wait_and_verify_state(
     # ModifyDBInstance is asynchronous: describe_db_instances can briefly still report the OLD value after the
     # call returns, so poll the instance's state until it matches rather than checking once. Polling the target
     # field directly (no db_instance_available waiter, which has its own unbounded timeout) keeps the worst
-    # case bounded to _VERIFY_MAX_ATTEMPTS x _VERIFY_DELAY_SECONDS (10 x 15s = 150s) — well under the runbook
+    # case bounded to _VERIFY_MAX_ATTEMPTS x _VERIFY_DELAY_SECONDS (10 x 15s = 150s), well under the runbook
     # step's 600s timeoutSeconds, so a genuine mismatch surfaces as MonitoringVerificationError rather than a
     # generic step timeout. Role is compared normalized (irrelevant at interval 0; see _monitoring_state_key).
     expected_key = _monitoring_state_key(expected_interval, expected_role)
@@ -335,7 +335,7 @@ def _validate_capture_event(event: dict[str, object]) -> CaptureAndRemediateEven
     rds_instance_arn = _validate_instance_arn(event, account_id)
     target_interval = _validate_monitoring_interval(event.get("MonitoringInterval", 60))
     # The target always enables enhanced monitoring (interval > 0), which RDS requires a MonitoringRoleArn
-    # for — so validate it at the boundary rather than deferring to _modify_monitoring.
+    # for, so validate it at the boundary rather than deferring to _modify_monitoring.
     monitoring_role_arn = _optional_str(event.get("MonitoringRoleArn", ""))
     if not monitoring_role_arn:
         raise ValueError("MonitoringRoleArn is required to enable enhanced monitoring.")
