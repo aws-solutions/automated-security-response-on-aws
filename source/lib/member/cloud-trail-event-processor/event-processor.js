@@ -68,7 +68,8 @@ async function assumeRoleInAdminAccount(AssumeRoleCommand, stsClient) {
   const assumeRoleCommand = new AssumeRoleCommand({
     RoleArn: process.env.LOG_WRITER_ROLE_ARN,
     RoleSessionName: 'EventProcessorSession',
-    ExternalId: process.env.LOG_WRITER_EXTERNAL_ID,
+    // The hub writer role requires this account as the source identity and limits writes to streams prefixed with it.
+    SourceIdentity: process.env.AWS_ACCOUNT_ID,
   });
   const assumeRoleResponse = await stsClient.send(assumeRoleCommand);
 
@@ -83,7 +84,7 @@ async function assumeRoleInAdminAccount(AssumeRoleCommand, stsClient) {
 }
 
 async function sendToCloudWatchLogGroup(asrEvents) {
-  const logStreamName = new Date().toISOString().split('T')[0]; // use current date as logStreamName
+  const logStreamName = `${process.env.AWS_ACCOUNT_ID}-${new Date().toISOString().split('T')[0]}`;
 
   const putLogEventsCommand = new PutLogEventsCommand({
     logGroupName,

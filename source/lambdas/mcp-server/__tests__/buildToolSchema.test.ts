@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as z from 'zod';
-import { AdvertisedTool, buildToolSchema } from '../buildToolSchema';
+import { AdvertisedTool, buildToolSchema, toInputSchema } from '../buildToolSchema';
 import { TOOL_INPUT_SCHEMAS } from '../mcpServerHandler';
 
 const TOOL_SCHEMA_PATH = join(__dirname, '..', 'toolSchema.json');
@@ -203,5 +203,95 @@ describe('toolSchema.json is generated from the schemas the Lambda validates', (
 
       expect(((advertised.inputSchema.required as string[] | undefined) ?? []).sort()).toEqual([...expected].sort());
     }
+  });
+});
+
+describe('toInputSchema conversion rules', () => {
+  const AUTHORIZATION = '__authorizationHeader';
+  const propertiesOf = (schema: Record<string, unknown>) =>
+    schema.properties as Record<string, Record<string, unknown>>;
+
+  describe('intersections', () => {
+    // Zod merges an intersection of plain objects itself; it only leaves an `allOf` for branches it
+    // cannot merge, such as an object with a record, which is what these use.
+    const anyStringRecord = z.record(z.string(), z.string());
+
+    it('merges the properties and required fields of every branch into one object', () => {
+      const schema = toInputSchema(z.object({ id: z.string(), name: z.string().optional() }).and(anyStringRecord));
+
+      expect(schema.type).toBe('object');
+      expect(schema).not.toHaveProperty('allOf');
+      expect(Object.keys(propertiesOf(schema)).sort()).toEqual([AUTHORIZATION, 'id', 'name']);
+      expect(schema.required).toEqual(['id']);
+    });
+
+    it('advertises no required list when no branch requires anything', () => {
+      const schema = toInputSchema(z.object({ note: z.string().optional() }).and(anyStringRecord));
+
+      expect(Object.keys(propertiesOf(schema)).sort()).toEqual([AUTHORIZATION, 'note']);
+      expect(schema).not.toHaveProperty('required');
+    });
+
+    it('merges an intersection nested inside another', () => {
+      const schema = toInputSchema(
+        z
+          .object({ id: z.string() })
+          .and(anyStringRecord)
+          .and(z.object({ version: z.number() })),
+      );
+
+      expect(Object.keys(propertiesOf(schema)).sort()).toEqual([AUTHORIZATION, 'id', 'version']);
+      expect([...(schema.required as string[])].sort()).toEqual(['id', 'version']);
+    });
+  });
+
+  describe('unions', () => {
+    it('advertises no required field when no field is required in every branch', () => {
+      const schema = toInputSchema(
+        z.union([z.object({ a: z.string() }), z.object({ b: z.string() }), z.object({ c: z.string() })]),
+      );
+
+      expect(Object.keys(propertiesOf(schema)).sort()).toEqual([AUTHORIZATION, 'a', 'b', 'c']);
+      expect(schema).not.toHaveProperty('required');
+    });
+
+    it('keeps a literal that every branch agrees on as a const', () => {
+      const schema = toInputSchema(
+        z.union([z.object({ kind: z.literal('a'), x: z.string() }), z.object({ kind: z.literal('a'), y: z.number() })]),
+      );
+
+      expect(propertiesOf(schema).kind).toEqual({ type: 'string', const: 'a' });
+    });
+
+    it('turns differing literals, and an enum alongside a literal, into one enum without duplicates', () => {
+      const schema = toInputSchema(
+        z.union([
+          z.object({ kind: z.enum(['a', 'b']) }),
+          z.object({ kind: z.literal('c') }),
+          z.object({ kind: z.literal('a') }),
+        ]),
+      );
+
+      expect(propertiesOf(schema).kind).toEqual({ type: 'string', enum: ['a', 'b', 'c'] });
+    });
+
+    it('keeps the first branch whole when the branches disagree on the type of a field', () => {
+      const schema = toInputSchema(
+        z.union([z.object({ data: z.array(z.string()).min(1) }), z.object({ data: z.uuid() })]),
+      );
+
+      const data = propertiesOf(schema).data;
+      expect(data.type).toBe('array');
+      expect(data).toHaveProperty('minItems', 1);
+      expect(data).not.toHaveProperty('format');
+    });
+  });
+
+  describe('nodes without a type', () => {
+    it('fails loudly for a schema construct it cannot express', () => {
+      expect(() => toInputSchema(z.object({ anything: z.any() }))).toThrow(
+        /Cannot express schema node as an AgentCore tool schema/,
+      );
+    });
   });
 });

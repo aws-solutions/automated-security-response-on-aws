@@ -4,7 +4,11 @@
 const { mockClient } = require('aws-sdk-client-mock');
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
-const { CloudWatchLogsClient, PutLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
+const {
+  CloudWatchLogsClient,
+  CreateLogStreamCommand,
+  PutLogEventsCommand,
+} = require('@aws-sdk/client-cloudwatch-logs');
 
 jest.mock('node:zlib', () => ({
   gunzip: jest.fn()
@@ -208,6 +212,7 @@ test('ignores events from irrelevant sources', async () => {
 
 test('sends ASR events to CloudWatch', async () => {
   // GIVEN
+  process.env.AWS_ACCOUNT_ID = '111122223333';
   const s3ClientMock = mockClient(S3Client);
   s3ClientMock.on(GetObjectCommand).resolvesOnce({
     Body: {
@@ -242,7 +247,16 @@ test('sends ASR events to CloudWatch', async () => {
   expect(putLogEventsCalls).toHaveLength(2);
   const firstCallInput = putLogEventsCalls[1].args[0].input;
 
+  const expectedLogStreamName = `111122223333-${new Date().toISOString().split('T')[0]}`;
   expect(firstCallInput.logGroupName).toEqual('/aws/lambda/SO0111-ASR-CloudTrailEvents');
-  expect(firstCallInput.logStreamName).toEqual(new Date().toISOString().split('T')[0]);
+  expect(firstCallInput.logStreamName).toEqual(expectedLogStreamName);
   expect(JSON.parse(firstCallInput.logEvents[0].message)).toEqual(expectedResult);
+
+  const createLogStreamCalls = cloudWatchClientMock.commandCalls(CreateLogStreamCommand);
+  expect(createLogStreamCalls).toHaveLength(1);
+  expect(createLogStreamCalls[0].args[0].input.logStreamName).toEqual(expectedLogStreamName);
+
+  const assumeRoleInput = stsClientMock.commandCalls(AssumeRoleCommand)[0].args[0].input;
+  expect(assumeRoleInput.SourceIdentity).toEqual('111122223333');
+  expect(assumeRoleInput).not.toHaveProperty('ExternalId');
 });

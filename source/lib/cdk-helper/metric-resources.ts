@@ -8,6 +8,7 @@ import { createLogGroup } from './log-group';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { getLambdaCode } from './lambda-code-manifest';
 import { CfnPolicy, Policy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { IStringParameter } from 'aws-cdk-lib/aws-ssm';
 import { CfnParameter, Duration, Stack } from 'aws-cdk-lib';
 import * as cdk from 'aws-cdk-lib';
 import { attachCommercialPartitionSecurityHubV2Policy } from './is-commercial-partition';
@@ -23,6 +24,7 @@ interface MetricResourcesProps {
   runtimePython: lambda.Runtime;
   solutionsBucket: IBucket;
   lambdaLayer: lambda.ILayerVersion;
+  versionParameter: IStringParameter;
 }
 
 export default class MetricResources extends Construct {
@@ -108,6 +110,8 @@ export default class MetricResources extends Construct {
     const deploymentMetricsCustomResource = new cdk.CustomResource(this, `ASR-DeploymentMetricsCustomResource`, {
       properties: {
         StackParameters: MetricResources.getAllStackParameters(Stack.of(this)),
+        // A Ref, so CloudFormation writes the version before this resource reads it and deletes the parameter after it.
+        VersionParameterName: props.versionParameter.parameterName,
         Timestamp: Date.now().toString(), // Forces the custom resource to run on stack updates
         // Orders the invoke after the gated policy so describe_security_hub_v2 does not run before the grant exists.
         // A DependsOn would fail CreateStack in aws-us-gov and aws-cn, where the policy is not created.

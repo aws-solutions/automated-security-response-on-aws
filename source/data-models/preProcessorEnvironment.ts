@@ -20,6 +20,7 @@ export interface PreProcessorEnvironmentConfig {
   readonly AWS_ACCOUNT_ID: string;
   readonly STACK_ID: string;
   readonly NOTIFICATION_QUEUE_URL: string;
+  readonly PRE_PROCESSOR_QUEUE_URL: string;
   // Optional tunables for the auto-remediation retry cap + cooldown. Absent in
   // deployments that have not set them; sensible defaults apply in that case.
   readonly MAX_REMEDIATION_ATTEMPTS?: string;

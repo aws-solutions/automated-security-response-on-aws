@@ -1,5 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
@@ -208,6 +209,8 @@ function orchestratorMemberStartAutomationResources(): string[] {
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
+    solutionTradeMarkName: 'automated-security-response-on-aws',
+    runtimePython: Runtime.PYTHON_3_11,
   });
   const roles = Template.fromStack(roleStack).findResources('AWS::IAM::Role', {
     Properties: { RoleName: 'SO0111-ASR-Orchestrator-Member' },

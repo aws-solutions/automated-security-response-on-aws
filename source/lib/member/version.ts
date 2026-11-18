@@ -9,12 +9,14 @@ export interface MemberVersionProps {
 }
 
 export class MemberVersion extends Construct {
+  readonly parameter: StringParameter;
+
   constructor(scope: Construct, id: string, props: MemberVersionProps) {
     super(scope, id);
 
     // Create all resource at `scope` scope rather than `this` to maintain logical IDs
 
-    new StringParameter(scope, 'SHARR Member Version', {
+    this.parameter = new StringParameter(scope, 'SHARR Member Version', {
       description: 'Version of the AWS Security Hub Automated Response and Remediation solution',
       parameterName: `/Solutions/${props.resourceNamePrefix}/member-version`,
       stringValue: props.solutionVersion,

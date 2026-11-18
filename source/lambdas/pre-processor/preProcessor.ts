@@ -35,7 +35,7 @@ import {
   normalizeSeverity,
   ResolvedFindingType,
 } from '@asr/data-models';
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { ChangeMessageVisibilityCommand, SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { SecurityHubClient } from '@aws-sdk/client-securityhub';
 import {
   FindingDataService,
@@ -49,15 +49,19 @@ import { NotificationConfigurationRepository } from '../common/repositories/noti
 import { createDynamoDBClient, isItemCollectionSizeLimitError } from '../common/utils/dynamodb';
 import { executeOrchestrator } from '../common/utils/orchestrator';
 import { SecurityHubUtils } from '../common/utils/securityHub';
+import { getSleeper } from '../common/utils/sleeper';
+import { SuppressionLookupBatcher, SuppressionLookupHandle } from './suppressionLookupBatcher';
 import { triggerRemediationForFinding } from '../common/utils/remediationTrigger';
 import { buildFailureMetric, sendMetrics } from '../common/utils/metricsUtils';
 import { emitMetric } from '../common/utils/cloudWatchMetrics';
 import { getClock } from '../common/utils/clock';
+import { getRandomNumberSource } from '../common/utils/randomNumberSource';
 import { getLogger } from '../common/utils/logger';
 import { getTracer } from '../common/utils/tracer';
 import { MULTI_SERVICE_FINDING_TYPES, sanitizeControlId, sanitizeFindingId } from '../common/utils/findingUtils';
 import { FINDING_PRINCIPAL } from '../common/constants/apiConstant';
 import { preProcessorEnvironment } from './preProcessorEnvironment';
+import { computeThrottleVisibilityDelaySeconds, isThrottle, parseReceiveCount } from './throttleBackoff';
 
 const env = preProcessorEnvironment();
 
@@ -92,6 +96,13 @@ const findingNotificationConfigEvaluator = new FindingNotificationConfigEvaluato
 );
 
 const SECURITY_HUB_V2_DETAIL_TYPE = 'Findings Imported V2';
+
+/** What a record needs to read its finding's live suppression status. */
+interface LiveSuppressionLookup {
+  isSecurityHubV2Event: boolean;
+  handle: SuppressionLookupHandle;
+}
+
 const securityHubUtils = new SecurityHubUtils(
   tracer.captureAWSv3Client(new SecurityHubClient({ retryMode: 'adaptive', maxAttempts: 5 })),
 );
@@ -100,7 +111,16 @@ export class PreProcessor implements LambdaInterface {
   @tracer.captureLambdaHandler()
   @logger.injectLambdaContext()
   async handler(event: SQSEvent, context: Context) {
-    return processPartialResponse(event, PreProcessor.recordHandler, processor, { context });
+    const suppressionLookupBatcher = new SuppressionLookupBatcher(securityHubUtils, event.Records.length, getSleeper());
+    const handleRecordInBatch = async (record: SQSRecord): Promise<void> => {
+      const suppressionLookup = suppressionLookupBatcher.createRecordHandle();
+      try {
+        await PreProcessor.recordHandler(record, suppressionLookup);
+      } finally {
+        suppressionLookup.finish();
+      }
+    };
+    return processPartialResponse(event, handleRecordInBatch, processor, { context });
   }
 
   /**
@@ -253,28 +273,26 @@ export class PreProcessor implements LambdaInterface {
    */
   private static async shouldSkipForLiveSuppression(
     normalized: NormalizedFinding,
-    isSecurityHubV2Event: boolean,
+    { isSecurityHubV2Event, handle }: LiveSuppressionLookup,
   ): Promise<boolean> {
     const isSecurityControl = normalized.findingTypeIdentifier.type === 'securityControl';
     try {
       const shouldCheckSecurityHubV2 =
         (normalized.format === 'OCSF' || isSecurityControl) &&
         (isSecurityHubV2Event || (await securityHubUtils.isSecurityHubV2Enabled()));
-      const { suppressedFindingIds, unresolvedFindingIds } = await securityHubUtils.findSuppressedFindings([
-        {
-          findingId: normalized.id,
-          shouldCheckCspm: true,
-          shouldCheckSecurityHubV2,
-        },
-      ]);
-      if (suppressedFindingIds.has(normalized.id)) {
+      const verdict = await handle.lookUp({
+        findingId: normalized.id,
+        shouldCheckCspm: true,
+        shouldCheckSecurityHubV2,
+      });
+      if (verdict === 'SUPPRESSED') {
         logger.info('Finding is suppressed in Security Hub CSPM or Security Hub V2; skipping auto-remediation', {
           findingId: normalized.id,
         });
         emitMetric('RemediationSkippedSuppressed', 1, [{ name: 'Source', value: 'PreProcessor' }]);
         return true;
       }
-      if (unresolvedFindingIds.has(normalized.id)) {
+      if (verdict === 'UNRESOLVED') {
         logger.warn(
           'Live finding status not found in Security Hub CSPM or Security Hub V2; using the status from the event',
           {
@@ -501,7 +519,7 @@ export class PreProcessor implements LambdaInterface {
     autoRemediationEnabled: boolean,
     isResourceRemediable: boolean,
     orchestratorInput: string,
-    isSecurityHubV2Event: boolean,
+    liveSuppressionLookup: LiveSuppressionLookup,
     eventBridgeTime?: string,
   ): Promise<void> {
     const asffShape = toAsffShape(normalized);
@@ -520,7 +538,7 @@ export class PreProcessor implements LambdaInterface {
       now: getClock().now(),
     });
     const triggerRemediation =
-      shouldTrigger && !(await this.shouldSkipForLiveSuppression(normalized, isSecurityHubV2Event));
+      shouldTrigger && !(await this.shouldSkipForLiveSuppression(normalized, liveSuppressionLookup));
     const status = triggerRemediation ? 'IN_PROGRESS' : 'NOT_STARTED';
     const notified = this.isNotified(normalized, orchestratorInput);
 
@@ -563,7 +581,7 @@ export class PreProcessor implements LambdaInterface {
     autoRemediationEnabled: boolean,
     isResourceRemediable: boolean,
     orchestratorInput: string,
-    isSecurityHubV2Event: boolean,
+    liveSuppressionLookup: LiveSuppressionLookup,
     eventBridgeTime?: string,
   ): Promise<void> {
     const asffShape = toAsffShape(normalized);
@@ -593,7 +611,7 @@ export class PreProcessor implements LambdaInterface {
       emitMetric('RemediationRetryCapReached', 1, [{ name: 'Source', value: 'PreProcessor' }]);
     }
     const triggerRemediation =
-      shouldTrigger && !(await this.shouldSkipForLiveSuppression(normalized, isSecurityHubV2Event));
+      shouldTrigger && !(await this.shouldSkipForLiveSuppression(normalized, liveSuppressionLookup));
     const notified = this.isNotified(normalized, orchestratorInput);
     const status = triggerRemediation && !notified ? 'IN_PROGRESS' : undefined;
     const evaluation = await this.evaluateFindingConfigsSafely(normalized);
@@ -704,7 +722,7 @@ export class PreProcessor implements LambdaInterface {
     }
     if (schema === FindingSchema.OCSF) {
       // OCSF Compliance finding: normalize to ASFF, then map
-      const asffNormalized = await findingNormalizer.normalizeFinding(unprocessedFinding);
+      const asffNormalized = await findingNormalizer.normalizeFinding(unprocessedFinding, schema);
       return PreProcessor.dropUnmappedMultiServiceId(
         ocsfComplianceToNormalized(unprocessedFinding as OCSFComplianceFinding, asffNormalized),
         unprocessedFinding,
@@ -763,7 +781,10 @@ export class PreProcessor implements LambdaInterface {
    * Unified record handler. Detects finding schema, maps to NormalizedFinding,
    * then runs a single pipeline regardless of finding format.
    */
-  static async recordHandler(record: SQSRecord): Promise<void> {
+  static async recordHandler(
+    record: SQSRecord,
+    suppressionLookup: SuppressionLookupHandle = new SuppressionLookupBatcher(securityHubUtils, 1).createRecordHandle(),
+  ): Promise<void> {
     // Records in a batch run in parallel, and the finding row is also written by the orchestrator and by
     // other containers, so the service that caches finding reads is scoped to this record.
     const findingDataService = new FindingDataService(env.FINDINGS_TABLE_NAME, dynamoDBClient, FINDING_PRINCIPAL);
@@ -785,8 +806,8 @@ export class PreProcessor implements LambdaInterface {
 
     try {
       // Security Hub V2 Coverage findings carry no control and have no remediation.
-      // Drop them here, before schema detection, so they produce neither a
-      // PRE_PROCESSOR_FAILED metric nor an ERROR log on every coverage refresh.
+      // The AutoTrigger rule already filters them out; this drop is a second line of
+      // defense, and the Hydra settle canary relies on it to stay quiet.
       if (isSecurityHubCoverageFinding(unprocessedFinding)) {
         logger.debug('Dropping Security Hub Coverage finding: coverage findings have no remediation', {
           findingId: unprocessedFinding?.finding_info?.uid ?? unprocessedFinding?.Id ?? 'unknown',
@@ -862,7 +883,7 @@ export class PreProcessor implements LambdaInterface {
           autoRemediationEnabled,
           isResourceRemediable,
           orchestratorInput,
-          isSecurityHubV2Event,
+          { isSecurityHubV2Event, handle: suppressionLookup },
           eventBridgeTime,
         );
       } else {
@@ -872,7 +893,7 @@ export class PreProcessor implements LambdaInterface {
           autoRemediationEnabled,
           isResourceRemediable,
           orchestratorInput,
-          isSecurityHubV2Event,
+          { isSecurityHubV2Event, handle: suppressionLookup },
           eventBridgeTime,
         );
       }
@@ -929,7 +950,41 @@ export class PreProcessor implements LambdaInterface {
     if (error instanceof InvalidFindingSchemaError) {
       return;
     }
+    if (isThrottle(error)) {
+      await PreProcessor.delayThrottledRecordRetry(record);
+    }
     throw error;
+  }
+
+  /**
+   * Shortens a throttled record's visibility so it is retried after an exponential, jittered delay
+   * instead of the queue's full visibility timeout. If that fails, the record keeps the full timeout.
+   */
+  private static async delayThrottledRecordRetry(record: SQSRecord): Promise<void> {
+    const receiveCount = parseReceiveCount(record.attributes.ApproximateReceiveCount);
+    const visibilityTimeoutSeconds = computeThrottleVisibilityDelaySeconds(
+      receiveCount,
+      getRandomNumberSource().next(),
+    );
+    try {
+      await sqsClient.send(
+        new ChangeMessageVisibilityCommand({
+          QueueUrl: env.PRE_PROCESSOR_QUEUE_URL,
+          ReceiptHandle: record.receiptHandle,
+          VisibilityTimeout: visibilityTimeoutSeconds,
+        }),
+      );
+      logger.info('Delaying the retry of a throttled SQS record', {
+        sqsMessageId: record.messageId,
+        receiveCount,
+        visibilityTimeoutSeconds,
+      });
+    } catch (visibilityError) {
+      logger.warn('Could not delay the retry of a throttled SQS record; it will wait the full visibility timeout', {
+        sqsMessageId: record.messageId,
+        visibilityError,
+      });
+    }
   }
 }
 

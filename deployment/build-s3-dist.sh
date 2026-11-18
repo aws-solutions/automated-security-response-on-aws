@@ -236,6 +236,12 @@ main() {
     zip -q ${build_dist_dir}/lambda/playbook_selection_validator.zip playbook_selection_validator.py cfnresponse.py
     popd
 
+    header "[Pack] Custom Runbook Role Cleanup Lambda"
+
+    pushd "$source_dir"/solution_deploy/source
+    zip -q ${build_dist_dir}/lambda/custom_runbook_role_cleanup.zip custom_runbook_role_cleanup.py cfnresponse.py
+    popd
+
     header "[Pack] Wait Provider Lambda"
 
     pushd "$source_dir"/solution_deploy/source
@@ -265,9 +271,12 @@ main() {
     # Drop them so they are not deployed to every Lambda that uses asr_lambdas.zip.
     # --no-save keeps npm from rewriting the tracked package-lock.json.
     npm prune --omit=dev --no-save
-    # Zip wildcards match across "/", so "*/__tests__/*" excludes test directories at any depth;
-    # "__tests__/*" alone only matches a root-level __tests__ directory.
-    zip -r -q "$build_dist_dir"/lambda/asr_lambdas.zip . -x "__tests__/*" "*/__tests__/*" "*.ts" "**/*.ts" "**/jest.config.js"
+    # Zip wildcards match across "/", so "*/__tests__/*" excludes test directories at any depth,
+    # while "__tests__/*" alone only matches a root-level __tests__ directory. The same applies to
+    # jest.config.js. Test helpers that live outside __tests__ are excluded by path.
+    zip -r -q "$build_dist_dir"/lambda/asr_lambdas.zip . \
+        -x "__tests__/*" "*/__tests__/*" "*/test-helpers/*" "common/services/mockResolver.*" \
+           "*.ts" "**/*.ts" "jest.config.js" "*/jest.config.js"
     # Restore the dev dependencies: run-unit-tests.sh runs the lambda tests against this
     # node_modules tree right after this script in the same CodeBuild job.
     npm run build:install

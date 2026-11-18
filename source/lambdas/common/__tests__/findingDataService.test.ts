@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ASFFFinding } from '@asr/data-models';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { ASFFFinding, remediationStatus } from '@asr/data-models';
+import { DynamoDBDocumentClient, GetCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { Clock } from '../utils/clock';
 import { FindingDataService } from '../services/findingDataService';
 import { IAM_ACCESS_ANALYZER_EXTERNAL_ACCESS_FINDING_TYPE } from '../utils/findingUtils';
@@ -502,6 +502,217 @@ describe('FindingDataService', () => {
       if (!updatedItem) throw new Error('expected findingTableItem to be defined');
       const persisted = await getPersistedSecurityHubUpdatedAtTime(updatedItem.findingType, updatedItem.findingId);
       expect(persisted).toBe(eventBridgeTimeLater);
+    });
+  });
+});
+
+// The finding lifecycle questions the pre-processor asks (is it new, was it triggered, did it fail, how
+// often was it retried) and how incoming data is stored or removed, checked against DynamoDB Local.
+
+const FINDING_TYPE = asResolvedFindingType('security-control/S3.1');
+const fixedClock: Clock = { now: () => new Date('2024-01-15T10:00:00Z') };
+
+const createFinding = (overrides: Partial<ASFFFinding> = {}): ASFFFinding =>
+  ({
+    SchemaVersion: '2018-10-08',
+    Id: 'arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/test-123',
+    ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+    GeneratorId: 'security-control/S3.1',
+    AwsAccountId: '123456789012',
+    Types: ['Software and Configuration Checks'],
+    CreatedAt: '2024-01-10T00:00:00Z',
+    UpdatedAt: '2024-01-12T00:00:00Z',
+    Severity: { Label: 'HIGH' },
+    Title: 'S3.1 S3 Block Public Access setting should be enabled',
+    Region: 'us-east-1',
+    Resources: [{ Type: 'AWS::S3::Bucket', Id: 'arn:aws:s3:::test-bucket' }],
+    Compliance: { SecurityControlId: 'S3.1', Status: 'FAILED' },
+    RecordState: 'ACTIVE',
+    ...overrides,
+  }) as ASFFFinding;
+
+describe('FindingDataService finding lifecycle (DynamoDB Local)', () => {
+  let docClient: DynamoDBDocumentClient;
+  let service: FindingDataService;
+
+  const storedItems = async () => (await docClient.send(new ScanCommand({ TableName: findingsTableName }))).Items ?? [];
+
+  /** Stores the finding and returns the key its row was written under. */
+  const store = async (finding: ASFFFinding, status?: remediationStatus) => {
+    const result = await service.updateWithIncomingData(finding, FINDING_TYPE, status);
+    expect(result.status).toBe('SUCCESS');
+    const [item] = await storedItems();
+    return { findingType: item.findingType as string, findingId: item.findingId as string };
+  };
+
+  beforeAll(async () => {
+    await DynamoDBTestSetup.initialize();
+    docClient = DynamoDBTestSetup.getDocClient();
+    await DynamoDBTestSetup.createFindingsTable(findingsTableName);
+  });
+
+  afterAll(async () => {
+    await DynamoDBTestSetup.deleteTable(findingsTableName);
+  });
+
+  beforeEach(async () => {
+    await DynamoDBTestSetup.clearTable(findingsTableName, 'findings');
+    service = new FindingDataService(findingsTableName, docClient, 'test-user', fixedClock);
+  });
+
+  describe('asking about a finding', () => {
+    it('is new until it has been stored', async () => {
+      const finding = createFinding();
+      expect(await service.isNew(finding, FINDING_TYPE)).toBe(true);
+
+      await store(finding);
+
+      expect(await service.isNew(finding, FINDING_TYPE)).toBe(false);
+    });
+
+    it('has not been triggered when it is unknown or has not started', async () => {
+      const finding = createFinding();
+      expect(await service.hasBeenTriggered(finding, FINDING_TYPE)).toBe(false);
+
+      await store(finding, 'NOT_STARTED');
+
+      expect(await service.hasBeenTriggered(finding, FINDING_TYPE)).toBe(false);
+    });
+
+    it('has failed before only when its stored status is FAILED', async () => {
+      const finding = createFinding();
+      expect(await service.hasPreviouslyFailedRemediation(finding, FINDING_TYPE)).toBe(false);
+
+      await store(finding, 'SUCCESS');
+      expect(await service.hasPreviouslyFailedRemediation(finding, FINDING_TYPE)).toBe(false);
+
+      await service.updateWithIncomingData(
+        createFinding({ UpdatedAt: '2024-01-13T00:00:00Z' }),
+        FINDING_TYPE,
+        'FAILED',
+      );
+      // Stored findings are cached per service instance, as they are within one Lambda invocation.
+      const afterTheFailure = new FindingDataService(findingsTableName, docClient, 'test-user', fixedClock);
+      expect(await afterTheFailure.hasPreviouslyFailedRemediation(finding, FINDING_TYPE)).toBe(true);
+    });
+
+    it('reports no attempts for a finding that is not stored', async () => {
+      expect(await service.getRemediationAttemptInfo(createFinding(), FINDING_TYPE)).toEqual({
+        attempts: 0,
+        lastAttemptTime: undefined,
+      });
+    });
+
+    it.each(['IN_PROGRESS', 'SUCCESS', 'FAILED'] as const)('has been triggered once it is %s', async (status) => {
+      const finding = createFinding();
+      await store(finding, status);
+
+      expect(await service.hasBeenTriggered(finding, FINDING_TYPE)).toBe(true);
+    });
+
+    it('reports how often a finding was retried and when last', async () => {
+      const finding = createFinding();
+      const key = await store(finding);
+      await docClient.send(
+        new UpdateCommand({
+          TableName: findingsTableName,
+          Key: key,
+          UpdateExpression: 'SET remediationAttempts = :n, lastRemediationAttemptTime = :t',
+          ExpressionAttributeValues: { ':n': 3, ':t': '2024-01-14T00:00:00Z' },
+        }),
+      );
+
+      expect(await service.getRemediationAttemptInfo(finding, FINDING_TYPE)).toEqual({
+        attempts: 3,
+        lastAttemptTime: '2024-01-14T00:00:00Z',
+      });
+    });
+  });
+
+  describe('storing incoming data', () => {
+    it('keeps the suppression flag and status detail of the stored finding on an update', async () => {
+      const finding = createFinding();
+      const key = await store(finding);
+      await docClient.send(
+        new UpdateCommand({
+          TableName: findingsTableName,
+          Key: key,
+          UpdateExpression: 'SET suppressed = :s, remediationStatusDetail = :d',
+          ExpressionAttributeValues: { ':s': true, ':d': 'waiting for approval' },
+        }),
+      );
+
+      await service.updateWithIncomingData(createFinding({ UpdatedAt: '2024-01-13T00:00:00Z' }), FINDING_TYPE);
+
+      expect((await storedItems())[0]).toMatchObject({
+        suppressed: true,
+        remediationStatusDetail: 'waiting for approval',
+      });
+    });
+
+    it('orders updates by the creation time when the finding has no update time', async () => {
+      const result = await service.updateWithIncomingData(
+        createFinding({ UpdatedAt: undefined, CreatedAt: '2024-01-09T00:00:00Z' } as Partial<ASFFFinding>),
+        FINDING_TYPE,
+      );
+
+      expect(result.findingTableItem?.securityHubUpdatedAtTime).toBe('2024-01-09T00:00:00Z');
+    });
+
+    it.each([
+      ['title', { Title: '' }],
+      ['title made of blanks', { Title: '   ' }],
+      ['region', { Region: undefined }],
+      ['severity', { Severity: undefined }],
+      ['resource type', { Resources: [{ Id: 'arn:aws:s3:::test-bucket' }] }],
+      ['resource id', { Resources: [{ Type: 'AWS::S3::Bucket', Id: '' }] }],
+      ['account', { AwsAccountId: undefined }],
+    ])('does not store a finding with no %s, and reports an error', async (_missing, override) => {
+      const result = await service.updateWithIncomingData(
+        createFinding(override as Partial<ASFFFinding>),
+        FINDING_TYPE,
+        'NOT_STARTED',
+      );
+
+      expect(result.status).toBe('ERROR');
+      expect(await storedItems()).toHaveLength(0);
+    });
+  });
+
+  describe('findings that are no longer active', () => {
+    it.each([
+      ['archived', { RecordState: 'ARCHIVED' }],
+      ['passed', { Compliance: { SecurityControlId: 'S3.1', Status: 'PASSED' } }],
+    ])('removes the stored finding once it is %s', async (_state, override) => {
+      await store(createFinding());
+
+      const result = await service.updateWithIncomingData(
+        createFinding(override as Partial<ASFFFinding>),
+        FINDING_TYPE,
+      );
+
+      expect(result.status).toBe('SUCCESS');
+      expect(await storedItems()).toHaveLength(0);
+    });
+
+    it('leaves the stored finding alone during a full synchronization', async () => {
+      await store(createFinding());
+
+      const result = await service.updateWithIncomingData(
+        createFinding({ RecordState: 'ARCHIVED' }),
+        FINDING_TYPE,
+        undefined,
+        true,
+      );
+
+      expect(result.status).toBe('SUCCESS');
+      expect(await storedItems()).toHaveLength(1);
+    });
+
+    it('reports failure when there was nothing to remove', async () => {
+      const result = await service.updateWithIncomingData(createFinding({ RecordState: 'ARCHIVED' }), FINDING_TYPE);
+
+      expect(result.status).toBe('FAILED');
     });
   });
 });

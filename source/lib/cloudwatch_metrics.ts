@@ -636,14 +636,16 @@ This may indicate that ASR is attempting to remediate on a spoke account that do
 This widget displays AWS resource changes that ASR has conducted in member accounts.
 
 The actions shown are based on CloudTrail management events in the member accounts. Actions are only reported if the member stack is deployed with "Create Action Log CloudTrail" set to "Yes".
+
+The log stream name starts with the account that wrote the entry, which ASR verifies. The recipientAccountId field is reported by that account and is not verified.
 `,
-        height: 3,
+        height: 4,
         width: 24,
       }),
       new LogQueryWidget({
         logGroupNames: [props.actionLogLogGroupName],
         queryLines: [
-          'fields @timestamp, eventSource, eventName, awsRegion, recipientAccountId, resources.0.ARN, @message',
+          'fields @timestamp, @logStream, eventSource, eventName, awsRegion, recipientAccountId, resources.0.ARN, @message',
           'sort @timestamp desc',
           'limit 20',
         ],

@@ -33,13 +33,14 @@ jinja2 = "3.1.6"
 # dev tooling). Pinned to the fixed versions from the CVE scan:
 #   cryptography >= 50.0.0 - CVE-2026-69247 (PKCS#7 Bleichenbacher oracle),
 #     supersedes the earlier >= 48.0.1 floor for GHSA-537c-gmf6-5ccf
-#   joserfc >= 1.6.8 - CVE-2026-48990, CVE-2026-49852
+#   joserfc >= 1.8.0 - CVE-2026-48990, CVE-2026-49852, CVE-2026-119283 (DoS via
+#     unbounded JWE recipients), CVE-2026-119284 (DoS via JWS deserialization memory)
 #   click >= 8.3.3 - CVE-2026-7246 (pulled in via black)
-#   graphql-core >= 3.2.12 - CVE-2026-75507, CVE-2026-75508 (DoS; pulled in via moto)
+#   graphql-core >= 3.3.1 - CVE-2026-75507, CVE-2026-75508, CVE-2026-119286 (DoS; pulled in via moto)
 cryptography = ">=50.0.0"
-joserfc = ">=1.6.8"
+joserfc = ">=1.8.0"
 click = ">=8.3.3"
-graphql-core = ">=3.2.12"
+graphql-core = ">=3.3.1"
 
 [build-system]
 requires = ["poetry-core"]

@@ -71,6 +71,21 @@ describe('member stack', function () {
     expect(template).toMatchSnapshot();
   });
 
+  it('reads the member version parameter through a Ref in the deployment metrics custom resource', function () {
+    // ACT: the template is synthesized in beforeAll
+    const memberVersionParameterLogicalIds = Object.keys(
+      template.findResources('AWS::SSM::Parameter', {
+        Properties: { Name: `/Solutions/${solutionId}/member-version` },
+      }),
+    );
+
+    // ASSERT
+    expect(memberVersionParameterLogicalIds).toHaveLength(1);
+    template.hasResourceProperties('Custom::DeploymentMetrics', {
+      VersionParameterName: { Ref: memberVersionParameterLogicalIds[0] },
+    });
+  });
+
   it('grants no commercial-only IAM action without the commercial-partition condition', function () {
     expectNoUngatedCommercialOnlyGrants(template);
   });

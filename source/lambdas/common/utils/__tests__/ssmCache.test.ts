@@ -5,6 +5,7 @@ import { GetParameterCommand, GetParametersByPathCommand, SSMClient } from '@aws
 import { mockClient } from 'aws-sdk-client-mock';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { clearSSMCache, getCachedParameter, getCachedParametersByPath, getSSMClient } from '../ssmCache';
+import { Clock } from '../clock';
 
 const ssmMock = mockClient(SSMClient);
 
@@ -31,6 +32,41 @@ describe('ssmCache', () => {
       // Only one SDK call — the second resolves from cache.
       expect(ssmMock.commandCalls(GetParameterCommand)).toHaveLength(1);
       expect(logger.debug).toHaveBeenCalledWith('Using cached SSM parameter', { parameterName: '/asr/param' });
+    });
+
+    it('re-fetches once the cached value is older than maxAgeMilliseconds, and keeps the old value for another maxAgeMilliseconds if that fails', async () => {
+      // ARRANGE
+      let nowMilliseconds = Date.parse('2026-01-01T00:00:00Z');
+      const clock: Clock = { now: () => new Date(nowMilliseconds) };
+      const options = { maxAgeMilliseconds: 1000, clock };
+      const logger = makeLogger() as unknown as Logger;
+      ssmMock
+        .on(GetParameterCommand)
+        .resolvesOnce({ Parameter: { Value: 'old' } })
+        .resolvesOnce({ Parameter: { Value: 'new' } })
+        .rejects(new Error('throttled'));
+
+      // ACT
+      const first = await getCachedParameter('/asr/version', logger, options);
+      nowMilliseconds += 999;
+      const withinMaxAge = await getCachedParameter('/asr/version', logger, options);
+      nowMilliseconds += 1;
+      const afterMaxAge = await getCachedParameter('/asr/version', logger, options);
+      nowMilliseconds += 1000;
+      const afterFailedRefresh = await getCachedParameter('/asr/version', logger, options);
+      nowMilliseconds += 999;
+      const withinMaxAgeOfFailedRefresh = await getCachedParameter('/asr/version', logger, options);
+
+      // ASSERT
+      expect([first, withinMaxAge, afterMaxAge, afterFailedRefresh, withinMaxAgeOfFailedRefresh]).toEqual([
+        'old',
+        'old',
+        'new',
+        'new',
+        'new',
+      ]);
+      // The call after the failed refresh is served from the cache, so SSM is not retried on every call.
+      expect(ssmMock.commandCalls(GetParameterCommand)).toHaveLength(3);
     });
 
     it('returns undefined and logs on error', async () => {

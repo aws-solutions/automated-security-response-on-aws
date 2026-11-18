@@ -5,6 +5,7 @@
 import json
 from logging import basicConfig, getLevelName, getLogger
 from os import getenv
+from typing import Any
 
 import boto3
 import cfnresponse
@@ -52,7 +53,10 @@ def lambda_handler(event, context):
 
         if event.get("ResourceType", {}) == "Custom::DeploymentMetrics":
             send_deployment_metrics(
-                properties, event.get("RequestType", {}), securityhub_v2_enabled
+                properties,
+                event.get("RequestType", {}),
+                securityhub_v2_enabled,
+                read_version_parameter_name(properties),
             )
 
         response_data["securityhub_v2_enabled"] = str(securityhub_v2_enabled)
@@ -68,8 +72,19 @@ def lambda_handler(event, context):
         )
 
 
-def send_deployment_metrics(properties, request_type, securityhub_v2_enabled):
-    metrics_obj = Metrics()
+def read_version_parameter_name(properties: dict[str, Any]) -> str | None:
+    """Returns None when the name is absent, as in properties written by an older solution version."""
+    version_parameter_name = properties.get("VersionParameterName")
+    return version_parameter_name if isinstance(version_parameter_name, str) else None
+
+
+def send_deployment_metrics(
+    properties: dict[str, Any],
+    request_type: str,
+    securityhub_v2_enabled: bool,
+    version_parameter_name: str | None,
+) -> None:
+    metrics_obj = Metrics(version_parameter_name=version_parameter_name)
 
     stack_parameters = properties.get("StackParameters", {})
     metrics_data = {

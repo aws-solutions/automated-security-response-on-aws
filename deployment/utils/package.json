@@ -1,6 +1,6 @@
 {
   "name": "@amzn/asr-deployment-utils",
-  "version": "4.1.0",
+  "version": "4.1.2",
   "description": "Deployment scripts for Automated Security Response on AWS",
   "author": {
     "name": "Amazon Web Services",
@@ -15,5 +15,9 @@
   "devDependencies": {
     "fast-check": "^3.0.0",
     "jest": "30.5.2"
+  },
+  "overrides": {
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }

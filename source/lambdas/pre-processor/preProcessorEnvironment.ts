@@ -20,6 +20,7 @@ const REQUIRED_KEYS: readonly (keyof PreProcessorEnvironmentConfig)[] = [
   'AWS_ACCOUNT_ID',
   'STACK_ID',
   'NOTIFICATION_QUEUE_URL',
+  'PRE_PROCESSOR_QUEUE_URL',
 ] as const;
 
 // Optional tunables (retry cap + cooldown). Absent in deployments that have not

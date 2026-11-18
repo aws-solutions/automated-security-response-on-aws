@@ -16,6 +16,7 @@ import {
 import { expectPlaybookSelectionValidated } from './playbook-selection-gating';
 import { parseServiceNowAllowedDomains } from '@asr/data-models';
 import { standardPlaybookProps } from '../playbooks/playbook-index';
+import { getConfig } from '../lib/config/cdk-config';
 
 // Mock Date to return consistent timestamp
 beforeAll(() => {
@@ -82,6 +83,20 @@ test('deployment metrics custom resource is ordered after the gated Security Hub
     SecurityHubV2PolicyDependency: {
       'Fn::If': ['IsCommercialPartition', { Ref: policyLogicalIds[0] }, { Ref: 'AWS::NoValue' }],
     },
+  });
+});
+
+test('deployment metrics custom resource reads the admin version parameter through a Ref', () => {
+  // ACT
+  const template = Template.fromStack(getTestStack());
+  const versionParameterLogicalIds = Object.keys(
+    template.findResources('AWS::SSM::Parameter', { Properties: { Name: '/Solutions/SO0111/version' } }),
+  );
+
+  // ASSERT
+  expect(versionParameterLogicalIds).toHaveLength(1);
+  template.hasResourceProperties('Custom::DeploymentMetrics', {
+    VersionParameterName: { Ref: versionParameterLogicalIds[0] },
   });
 });
 
@@ -275,8 +290,7 @@ test('Lambda log groups use ten-year retention and none is left at one year', ()
   }
 });
 
-test('PreProcessorConstruct creates expected resources', () => {
-  // Create a test stack
+const synthesizePreProcessorConstruct = (): Template => {
   const app = new App();
   const stack = new Stack(app, 'TestStack');
 
@@ -308,8 +322,14 @@ test('PreProcessorConstruct creates expected resources', () => {
     notificationQueueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/test-notification-queue',
   });
 
-  const template = Template.fromStack(stack);
+  return Template.fromStack(stack);
+};
 
+test('PreProcessorConstruct creates expected resources', () => {
+  // ARRANGE / ACT
+  const template = synthesizePreProcessorConstruct();
+
+  // ASSERT
   template.resourceCountIs('AWS::SQS::Queue', 2);
 
   template.hasResourceProperties('AWS::SQS::Queue', {
@@ -332,6 +352,7 @@ test('PreProcessorConstruct creates expected resources', () => {
       Variables: {
         SOLUTION_TRADEMARKEDNAME: 'automated-security-response-on-aws',
         POWERTOOLS_LOG_LEVEL: 'INFO',
+        PRE_PROCESSOR_QUEUE_URL: { Ref: Match.stringLikeRegexp('^PreProcessorPreProcessorQueue[0-9A-F]{8}$') },
       },
     },
     TracingConfig: {
@@ -343,7 +364,36 @@ test('PreProcessorConstruct creates expected resources', () => {
     BatchSize: 10,
     MaximumBatchingWindowInSeconds: 5,
     FunctionResponseTypes: ['ReportBatchItemFailures'],
+    ScalingConfig: { MaximumConcurrency: 20 },
   });
+
+  template.hasResourceProperties('AWS::SQS::Queue', {
+    RedrivePolicy: Match.objectLike({ maxReceiveCount: 15 }),
+  });
+});
+
+test('PreProcessorConstruct caps event source concurrency at the configured reserved concurrency', () => {
+  // ARRANGE: a non-default value, so a hard-coded cap of 20 cannot pass
+  const preProcessorConfig = getConfig().preProcessor;
+  const defaultReservedConcurrency = preProcessorConfig.lambdaReservedConcurrency;
+  preProcessorConfig.lambdaReservedConcurrency = 7;
+
+  try {
+    // ACT
+    const template = synthesizePreProcessorConstruct();
+
+    // ASSERT
+    const functions = template.findResources('AWS::Lambda::Function', {
+      Properties: { ReservedConcurrentExecutions: 7 },
+    });
+    const eventSourceMappings = template.findResources('AWS::Lambda::EventSourceMapping', {
+      Properties: { ScalingConfig: { MaximumConcurrency: 7 } },
+    });
+    expect(Object.keys(functions)).toHaveLength(1);
+    expect(Object.keys(eventSourceMappings)).toHaveLength(1);
+  } finally {
+    preProcessorConfig.lambdaReservedConcurrency = defaultReservedConcurrency;
+  }
 });
 
 test('Synchronization handler supports both scheduled and custom resource events', () => {
@@ -636,4 +686,21 @@ test('Admin stack validates the playbook selection before creating any playbook,
     standardPlaybookParameters: standardPlaybookProps.map((playbook) => `Load${playbook.name}AdminStack`),
     gatedNestedStackPrefixes: ['PlaybookAdminStack', 'WebUINestedStack', 'McpGatewayNestedStack'],
   });
+});
+
+test('Action Log dashboard widget shows the log stream, which carries the verified writer account', () => {
+  // ARRANGE
+  const template = Template.fromStack(getTestStack());
+
+  // ACT
+  const dashboardBodies = Object.values(template.findResources('AWS::CloudWatch::Dashboard')).map((dashboard) =>
+    JSON.stringify(dashboard.Properties.DashboardBody),
+  );
+  const actionLogQueries = dashboardBodies.flatMap(
+    (body) => body.match(/fields [^|]*recipientAccountId[^|]*\|/g) ?? [],
+  );
+
+  // ASSERT
+  expect(actionLogQueries).toHaveLength(1);
+  expect(actionLogQueries[0]).toContain('@logStream');
 });

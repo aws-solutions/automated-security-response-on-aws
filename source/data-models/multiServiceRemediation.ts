@@ -41,6 +41,30 @@ export const REMEDIATION_SUPPORTED_RESOURCE_TYPES: Readonly<Record<string, reado
 };
 
 /**
+ * The AWS service that produces the findings of each multi-service remediation:
+ * the slug in its reserved Security Hub product ARN
+ * (arn:<partition>:securityhub:<region>::product/aws/<slug>) and its product name.
+ * The Pre-Processor's finding-type mapper and the AutoTrigger EventBridge rule both read this.
+ */
+export const MULTI_SERVICE_REMEDIATION_SOURCES: Readonly<
+  Record<string, { productArnService: string; productName: string }>
+> = {
+  'IAMAccessAnalyzer.ExternalAccess': { productArnService: 'access-analyzer', productName: 'IAM Access Analyzer' },
+  'Inspector.InstanceVulnerability': { productArnService: 'inspector', productName: 'Inspector' },
+  'GuardDuty.IAMUser': { productArnService: 'guardduty', productName: 'GuardDuty' },
+  'Macie.SensitiveDataS3Object': { productArnService: 'macie', productName: 'Macie' },
+};
+
+/** Resource types in the form OCSF findings use (AWS::S3::Object is not a CloudFormation type), keyed by ASFF form. */
+export const SUPPORTED_RESOURCE_TYPE_OCSF_FORM: Readonly<Record<string, string>> = {
+  AwsS3Bucket: 'AWS::S3::Bucket',
+  AwsKmsKey: 'AWS::KMS::Key',
+  AwsEc2Instance: 'AWS::EC2::Instance',
+  AwsIamAccessKey: 'AWS::IAM::AccessKey',
+  AwsS3Object: 'AWS::S3::Object',
+};
+
+/**
  * Normalizes a finding resource type to ASFF form. AWS CloudFormation form
  * (`AWS::EC2::Instance`) is converted to ASFF form (`AwsEc2Instance`); values
  * already in ASFF form pass through unchanged.

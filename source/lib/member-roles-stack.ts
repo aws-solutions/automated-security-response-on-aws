@@ -4,7 +4,9 @@
 import * as cdk from 'aws-cdk-lib';
 import { InspectorAutomationRole } from './inspector-automation-role';
 import { OrchestratorMemberRole } from './orchestrator_roles-construct';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { RemediationBoundaryPolicy } from './member/remediation-boundary-policy';
+import { CustomRunbookRoleCleanup } from './member/custom-runbook-role-cleanup';
 import AdminAccountParam from './parameters/admin-account-param';
 import NamespaceParam from './parameters/namespace-param';
 import { stripDevelopmentPrefix } from './config/cdk-config';
@@ -13,6 +15,8 @@ export interface MemberRolesStackProps extends cdk.StackProps {
   readonly solutionId: string;
   readonly solutionVersion: string;
   readonly solutionDistBucket: string;
+  readonly solutionTradeMarkName: string;
+  readonly runtimePython: lambda.Runtime;
 }
 
 export class MemberRolesStack extends cdk.Stack {
@@ -46,8 +50,19 @@ export class MemberRolesStack extends cdk.Stack {
       namespace: this.namespace.value,
     });
 
-    new RemediationBoundaryPolicy(this, 'RemediationBoundaryPolicy', {
+    const remediationBoundaryPolicy = new RemediationBoundaryPolicy(this, 'RemediationBoundaryPolicy', {
       solutionId: props.solutionId,
+    });
+
+    // ASR creates the Custom Runbook remediation roles at runtime with this boundary, so they must be
+    // deleted before the boundary policy can be. Name prefix matches CrossAccountRoleService.
+    new CustomRunbookRoleCleanup(this, 'CustomRunbookRoleCleanup', {
+      solutionTradeMarkName: props.solutionTradeMarkName,
+      solutionVersion: props.solutionVersion,
+      solutionDistBucket: props.solutionDistBucket,
+      runtimePython: props.runtimePython,
+      roleNamePrefix: `${RESOURCE_PREFIX}-Remediate-Custom-`,
+      remediationBoundaryPolicy: remediationBoundaryPolicy.managedPolicy,
     });
   }
   getOrchestratorMemberRole(): OrchestratorMemberRole {

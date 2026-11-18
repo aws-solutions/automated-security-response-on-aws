@@ -67,6 +67,23 @@ Start from only the APIs the runbook actually calls. Minimum template:
 }
 ```
 
+A role created this way has no other policy (only the deployed ASR MCP
+`deploy_runbook` path adds `ASR-Custom-Runbook-Base`), so also add:
+
+- `ssm:GetParameters` on each `{{ssm:...}}` parameter default the runbook resolves.
+  For the rollback parameters that is
+  `arn:<partition>:ssm:*:<account>:parameter/Solutions/SO0111/RemediationConfigurationBucket`.
+  Without it, the first step fails with `AccessDenied` before anything changes.
+- For a rollback-capable runbook, `s3:GetObject`, `s3:GetObjectVersion`, and
+  `s3:PutObject` on `arn:<partition>:s3:::so0111-asr-remediation-*-<account>/snapshots/*`.
+  The role is not granted `s3:ListBucketVersions`, so S3 answers a rollback that
+  names a missing or wrong `SnapshotVersionId` with `AccessDenied ...
+  s3:ListBucketVersions` rather than "not found". The rollback has still failed
+  closed. Do not widen the role to change the message.
+- The restore calls of the rollback path, translated to IAM action names. For
+  example, `DeleteBucketEncryption` is authorized as `s3:PutEncryptionConfiguration`,
+  and removing a backup selection needs `backup:DeleteBackupSelection`.
+  `read_remediation_guidance.py` lists them under `rollback.iamActions`.
 ## Deriving the base policy from step actions
 
 Build the inline policy from the APIs the runbook's steps **actually call**, not

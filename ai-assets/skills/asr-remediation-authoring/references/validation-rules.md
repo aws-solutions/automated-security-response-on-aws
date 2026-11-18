@@ -69,6 +69,8 @@ the tool blocks on what it knows and talks about what it suspects.
 | [`credential-exposure`](#credential-exposure) | advisory |
 | [`discouraged-api`](#discouraged-api) | hint |
 | [`destructive-verb`](#destructive-verb) | hint |
+| [`document-size`](#document-size) | hard (hint before expansion) |
+| [`ssm-parameter-permission`](#ssm-parameter-permission) | hint (custom mode) |
 
 ## What each rule reads
 
@@ -487,6 +489,51 @@ plaintext or in process arguments: `net user`, `runas`, `cmdkey`, `useradd`,
 
 Fix: read credentials from SSM Parameter Store or Secrets Manager inside the
 step instead of passing them on a command line.
+
+---
+
+### document-size
+
+The raw YAML is measured in UTF-8 bytes. SSM rejects document content larger than
+64 KiB (65,536 bytes) with `MaxDocumentSizeExceeded`, so a larger document is an
+error even though nothing else about it is wrong. Source that still contains a
+`%%SCRIPT=` or `%%INCLUDE=` directive line grows when the build expands it. For
+that source the rule is a hint, because the size it can measure is only a lower
+bound.
+
+A built-in runbook is deployed through CDK, which submits the document as JSON.
+Escaped scripts make that larger than the YAML, so for `--mode builtin` treat
+the measured size as an estimate and check the synthesized template too.
+
+The usual cause is inlining shared code into more than one `aws:executeScript`
+step. A rollback-capable runbook that expands `common/snapshot_utils.py` into both
+its remediation and its verification step can cross the limit.
+
+Fix: inline the shared module into the one step that needs it, and give the other
+script steps a minimal script of their own.
+
+---
+
+### ssm-parameter-permission
+
+Custom mode only. A parameter whose `default` is an `{{ssm:<name>}}` reference is
+resolved by Automation as the `AutomationAssumeRole`, so that role needs
+`ssm:GetParameters` on the parameter. Without it, the first step fails with
+`AccessDenied` before any remediation runs. Who needs to add the grant:
+
+- a role you create by hand for the manual path: always, because it has no base
+  policy;
+- a role from the deployed ASR MCP `deploy_runbook`: only for a parameter outside
+  `/Solutions/SO0111/*`, because its base policy covers reads under that path.
+
+The hint says which case applies. Built-in remediation roles receive the grant
+from the solution stack, so `--mode builtin` does not report it.
+
+Fix: add `ssm:GetParameters` on
+`arn:<partition>:ssm:<region>:<account>:parameter/<name without its leading slash>`
+to the remediation role (`remediation-iam.md`). The hint names the parameter
+without any `:<version>` or `:<label>` selector, and repeats a full ARN reference
+as given.
 
 ---
 

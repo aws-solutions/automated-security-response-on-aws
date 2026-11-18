@@ -19,6 +19,7 @@ const VALID_ENV: PreProcessorEnvironmentConfig = {
   AWS_ACCOUNT_ID: '123456789012',
   STACK_ID: 'test-stack-id',
   NOTIFICATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/123456789012/test-notification-queue',
+  PRE_PROCESSOR_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/123456789012/test-pre-processor-queue',
 };
 
 describe('preProcessorEnvironment', () => {
@@ -56,10 +57,16 @@ describe('preProcessorEnvironment', () => {
     expect(env.FINDINGS_TABLE_NAME).toBe('updated-findings-table');
   });
 
-  it('should throw MissingEnvironmentVariableError when a required variable is missing', () => {
-    delete process.env.NOTIFICATION_QUEUE_URL;
-    expect(() => preProcessorEnvironment()).toThrow(MissingEnvironmentVariableError);
-  });
+  it.each(['NOTIFICATION_QUEUE_URL', 'PRE_PROCESSOR_QUEUE_URL'])(
+    'should throw MissingEnvironmentVariableError when %s is missing',
+    (variableName) => {
+      // ARRANGE
+      delete process.env[variableName];
+
+      // ACT / ASSERT
+      expect(() => preProcessorEnvironment()).toThrow(MissingEnvironmentVariableError);
+    },
+  );
 
   it('should list all missing variables in the error', () => {
     delete process.env.NOTIFICATION_QUEUE_URL;

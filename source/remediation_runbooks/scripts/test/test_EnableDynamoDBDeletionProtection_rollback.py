@@ -273,11 +273,29 @@ class TestExecuteRollback:
         assert _get_deletion_protection() is True
 
     @mock_aws
-    def test_drift_detected_when_state_changed_after_remediation(self) -> None:
-        # GIVEN a snapshot (pre=disabled, post=enabled) but the table is now disabled again —
-        # i.e. the resource was modified after the ASR remediation
+    def test_repeated_rollback_is_noop_not_drift(self) -> None:
+        # GIVEN a snapshot (pre=disabled, post=enabled) and a table already restored to disabled — the
+        # state a completed rollback leaves. Reproduces a live failure: the second rollback of the same
+        # execution was reported as drift because drift was checked before the NOOP case.
         _create_snapshot_bucket()
         version_id = _put_snapshot(EXECUTION_ID, deletion_protection=False)
+        _create_table(deletion_protection=False)
+
+        # WHEN execute_rollback runs again THEN it is an idempotent success and the table is unchanged
+        result = rollback.execute_rollback(
+            _make_rollback_event(snapshot_version_id=version_id), None
+        )
+        assert result["Status"] == "SUCCESS"
+        assert "already in its pre-remediation state" in result["Message"]
+        assert _get_deletion_protection() is False
+
+    @mock_aws
+    def test_drift_detected_when_state_matches_neither_original_nor_post(self) -> None:
+        # GIVEN a fabricated pre == post == enabled snapshot and a table that is now disabled. For a
+        # binary setting this is the only state where current differs from both original and post, so it
+        # is how the DRIFT branch stays exercised once NOOP is decided first.
+        _create_snapshot_bucket()
+        version_id = _put_snapshot(EXECUTION_ID, deletion_protection=True)
         _create_table(deletion_protection=False)
 
         # WHEN execute_rollback is called THEN it aborts with a drift error and does not modify the table

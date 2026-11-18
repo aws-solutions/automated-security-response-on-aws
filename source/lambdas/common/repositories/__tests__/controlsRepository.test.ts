@@ -1,7 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { DynamoDBDocumentClient, PutCommand, GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  ScanCommand,
+  TransactWriteCommand,
+} from '@aws-sdk/lib-dynamodb';
+import { mockClient } from 'aws-sdk-client-mock';
 import type { ServiceInputTypes, ServiceOutputTypes } from '@aws-sdk/lib-dynamodb';
 import type { Command, HttpHandlerOptions } from '@smithy/types';
 import type { SmithyResolvedConfiguration } from '@smithy/smithy-client';
@@ -2226,6 +2234,232 @@ describe('ControlsRepository', () => {
       expect(result.size).toBe(1);
       expect(result.get('S3.1')).toBe(true);
       expect(result.has('MISSING.1')).toBe(false);
+    });
+  });
+
+  describe('findRollbackStateByControlIds', () => {
+    const insertControl = async (controlId: string, rollbackEnabled?: boolean) =>
+      dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId,
+            description: `Description for ${controlId}`,
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 1,
+            ...(rollbackEnabled !== undefined && { rollbackEnabled }),
+          },
+        }),
+      );
+
+    it('returns an empty map when input list is empty', async () => {
+      // ARRANGE / ACT
+      const result = await repository.findRollbackStateByControlIds([]);
+
+      // ASSERT
+      expect(result.size).toBe(0);
+    });
+
+    it('reads each control, treats a missing setting as on and omits controls that do not exist', async () => {
+      // ARRANGE
+      await insertControl('S3.1', false);
+      await insertControl('S3.2', true);
+      await insertControl('S3.3');
+
+      // ACT
+      const result = await repository.findRollbackStateByControlIds(['S3.1', 'S3.2', 'S3.3', 'S3.1', 'MISSING.1']);
+
+      // ASSERT
+      expect(Object.fromEntries(result)).toEqual({ 'S3.1': false, 'S3.2': true, 'S3.3': true });
+    });
+  });
+
+  describe('controls that use a filter', () => {
+    const insertControl = async (controlId: string, filters?: string[]) =>
+      dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId,
+            description: `Description for ${controlId}`,
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 1,
+            ...(filters && { filters: new Set(filters) }),
+          },
+        }),
+      );
+
+    beforeEach(async () => {
+      await insertControl('S3.1', ['filter-1', 'filter-2']);
+      await insertControl('S3.2', ['filter-2']);
+      await insertControl('S3.3', ['filter-3']);
+      await insertControl('S3.4');
+    });
+
+    it('findControlsUsingFilter finds every control that lists the filter, with either read', async () => {
+      // ACT
+      const eventuallyConsistent = await repository.findControlsUsingFilter('filter-2');
+      const consistent = await repository.findControlsUsingFilter('filter-2', { consistent: true });
+      const unused = await repository.findControlsUsingFilter('unused');
+
+      // ASSERT
+      expect(eventuallyConsistent.sort()).toEqual(['S3.1', 'S3.2']);
+      expect(consistent.sort()).toEqual(['S3.1', 'S3.2']);
+      expect(unused).toEqual([]);
+    });
+
+    it('controlsStillUsingFilter checks only the named controls', async () => {
+      // ACT
+      const using = await repository.controlsStillUsingFilter('filter-2', [
+        'S3.1',
+        'S3.3',
+        'S3.4',
+        'MISSING.1',
+        'S3.1',
+      ]);
+      const none = await repository.controlsStillUsingFilter('filter-2', []);
+
+      // ASSERT
+      expect(using).toEqual(['S3.1']);
+      expect(none).toEqual([]);
+    });
+  });
+
+  describe('createCustomControlIfAbsent when the table cannot be written', () => {
+    it('passes on a failure that is not an existing row', async () => {
+      // ARRANGE
+      const unreachable = new ControlsRepository('controls-table-that-does-not-exist', dynamoDBDocumentClient);
+
+      // ACT / ASSERT
+      await expect(
+        unreachable.createCustomControlIfAbsent({
+          controlId: 'S3.50',
+          description: 'Custom control',
+          modifiedBy: 'admin',
+          lastModified: '2024-01-01T00:00:00Z',
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('bulkUpdateControls rollback setting', () => {
+    it('writes rollbackEnabled for a control that sets it', async () => {
+      // ARRANGE
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: remediationConfigTableName,
+          Item: {
+            controlId: 'S3.1',
+            description: 'S3.1',
+            automatedRemediationEnabled: false,
+            filterMode: 'include',
+            version: 1,
+          },
+        }),
+      );
+
+      // ACT
+      const result = await repository.bulkUpdateControls(
+        [
+          {
+            controlId: 'S3.1',
+            description: 'S3.1',
+            automatedRemediationEnabled: true,
+            rollbackEnabled: false,
+            filters: ['filter-1'],
+            filterMode: 'include',
+            version: 1,
+            lastModified: '',
+            modifiedBy: '',
+            source: 'builtin',
+          },
+        ],
+        'admin',
+        '2024-02-01T00:00:00Z',
+      );
+
+      // ASSERT
+      expect(result).toEqual({ successCount: 1, failedControlIds: [] });
+      const stored = await dynamoDBDocumentClient.send(
+        new GetCommand({ TableName: remediationConfigTableName, Key: { controlId: 'S3.1' } }),
+      );
+      expect(stored.Item).toMatchObject({ rollbackEnabled: false, version: 2, modifiedBy: 'admin' });
+    });
+  });
+
+  describe('bulk filter changes when DynamoDB rejects the transaction', () => {
+    const sdkClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-1' }));
+    const sdkMock = mockClient(sdkClient);
+    let fake: ControlsRepository;
+
+    const controlFor = (controlId: string) => ({
+      controlId,
+      description: controlId,
+      automatedRemediationEnabled: false,
+      filters: [],
+      filterMode: 'include' as const,
+      version: 1,
+      lastModified: '',
+      modifiedBy: '',
+      source: 'builtin' as const,
+    });
+
+    beforeEach(() => {
+      sdkMock.reset();
+      fake = new ControlsRepository('fake-table', sdkClient, { sleep: async () => undefined });
+    });
+
+    it.each([
+      ['adding a filter to every control', 'applyFilterToAllControls'],
+      ['removing a filter from every control', 'removeFilterFromAllControls'],
+    ] as const)('names the control that lost the version check when %s', async (_name, method) => {
+      // ARRANGE
+      sdkMock.on(ScanCommand).resolves({ Items: [{ controlId: 'S3.1', version: 2 }, { controlId: 'S3.2' }] });
+      sdkMock.on(TransactWriteCommand).rejects(
+        Object.assign(new Error('cancelled'), {
+          name: 'TransactionCanceledException',
+          CancellationReasons: [{ Code: 'ConditionalCheckFailed' }, { Code: 'None' }],
+        }),
+      );
+
+      // ACT
+      const result = await fake[method]('filter-9', 'admin', '2024-02-01T00:00:00Z');
+
+      // ASSERT
+      expect(result.failedControlIds).toContain('S3.1');
+    });
+
+    it('fails the whole batch when the cancellation carries no usable reasons', async () => {
+      // ARRANGE
+      sdkMock
+        .on(TransactWriteCommand)
+        .rejects(Object.assign(new Error('cancelled'), { name: 'TransactionCanceledException' }));
+
+      // ACT
+      const result = await fake.bulkUpdateControls(
+        [{ ...controlFor('S3.1') }, { ...controlFor('S3.2') }],
+        'admin',
+        '2024-02-01T00:00:00Z',
+      );
+
+      // ASSERT
+      expect(result).toEqual({ successCount: 0, failedControlIds: ['S3.1', 'S3.2'] });
+      expect(sdkMock.commandCalls(TransactWriteCommand)).toHaveLength(1);
+    });
+
+    it('rejects a stored control whose id is not text', async () => {
+      // ARRANGE
+      sdkMock.on(ScanCommand).resolves({ Items: [{ controlId: 42 }] });
+
+      // ACT / ASSERT
+      await expect(fake.applyFilterToAllControls('filter-9', 'admin', '2024-02-01T00:00:00Z')).rejects.toThrow(
+        'Expected controlId to be a string, got number',
+      );
+      await expect(fake.findControlsUsingFilter('filter-9')).rejects.toThrow(
+        'Expected controlId to be a string, got number',
+      );
     });
   });
 });

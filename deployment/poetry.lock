@@ -1273,14 +1273,14 @@ pyflakes = ">=3.4.0,<3.5.0"
 
 [[package]]
 name = "graphql-core"
-version = "3.3.0"
+version = "3.3.1"
 description = "GraphQL-core is a Python port of GraphQL.js, the JavaScript reference implementation for GraphQL."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "graphql_core-3.3.0-py3-none-any.whl", hash = "sha256:d37fac6ef4dfc3eaa5daa59dcb498d7cbb118439d240993c68fddc4cb1bade44"},
-    {file = "graphql_core-3.3.0.tar.gz", hash = "sha256:fd3424e88af3f3211931c6ff96350f1cd9069cf0f1a31b9972899e35d39136b5"},
+    {file = "graphql_core-3.3.1-py3-none-any.whl", hash = "sha256:43ebcd0d9a0662a71b1a2f6562ba863d253057ec11cbc45835b2e2683a0a3770"},
+    {file = "graphql_core-3.3.1.tar.gz", hash = "sha256:8d9b6f95fb66b58b260904cf9e191f422782620533ec8fa0c96ab941b6659a2a"},
 ]
 
 [[package]]
@@ -1357,14 +1357,14 @@ files = [
 
 [[package]]
 name = "joserfc"
-version = "1.7.3"
+version = "1.8.0"
 description = "The ultimate Python library for JOSE RFCs, including JWS, JWE, JWK, JWA, JWT"
 optional = false
-python-versions = ">=3.10"
+python-versions = ">=3.11"
 groups = ["dev"]
 files = [
-    {file = "joserfc-1.7.3-py3-none-any.whl", hash = "sha256:7c39f3f2c943dbc03122747fa8ebbd8e156e54904cf25651b452f4d2634a6075"},
-    {file = "joserfc-1.7.3.tar.gz", hash = "sha256:116955c2587139dba20621fd0bd7fc9255fa960c9fe7f43c43ebef2e801dcfcf"},
+    {file = "joserfc-1.8.0-py3-none-any.whl", hash = "sha256:176b836ac7ed9a46a88629e24076314b475f33a75d0bad7f26146e572eed7c79"},
+    {file = "joserfc-1.8.0.tar.gz", hash = "sha256:cbf03cb2c6db8cc5289f1ef8718842e53dba244b4c0de5fefa0c0eaee4bde8db"},
 ]
 
 [package.dependencies]
@@ -3308,4 +3308,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "d07f44a99d9cf0cd0db9f8dd5edc05026f68f0c809b92b7922f728a2c30fba26"
+content-hash = "ec608592354d67be4ed823e58ec7158591b71c0511bd6bf1279ec2d9c97f8735"

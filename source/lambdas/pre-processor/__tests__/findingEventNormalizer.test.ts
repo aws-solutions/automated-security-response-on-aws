@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { FindingEventNormalizer, FindingSchema } from '../Normalizer/findingEventNormalizer';
-import { OCSFComplianceFinding } from '@asr/data-models';
+import { InvalidFindingSchemaError, OCSFComplianceFinding } from '@asr/data-models';
 import nock from 'nock';
+import { ZodError } from 'zod';
 import { mockClient } from 'aws-sdk-client-mock';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 import { getLogger } from '../../common/utils/logger';
@@ -113,13 +114,13 @@ describe('FindingEventNormalizer', () => {
   describe('normalizeFinding', () => {
     it('should return ASFF finding unchanged', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(mockASFFFinding);
+      const result = await normalizer.normalizeFinding(mockASFFFinding, FindingSchema.ASFF);
       expect(result).toEqual(mockASFFFinding);
     });
 
     it('should normalize OCSF finding to ASFF', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(mockOCSFFinding);
+      const result = await normalizer.normalizeFinding(mockOCSFFinding, FindingSchema.OCSF);
 
       expect(result.SchemaVersion).toBe('2018-10-08');
       expect(result.Id).toBe(mockOCSFFinding.finding_info.uid);
@@ -137,35 +138,21 @@ describe('FindingEventNormalizer', () => {
       };
 
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(securityControlFinding);
+      const result = await normalizer.normalizeFinding(securityControlFinding, FindingSchema.OCSF);
 
       expect(result.ProductFields?.StandardsControlArn).toBeUndefined();
     });
 
-    it('should throw error for unknown schema', async () => {
-      const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding({})).rejects.toThrow(
-        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
-      );
-    });
-
-    it('should throw error for null finding', async () => {
-      const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding(null as any)).rejects.toThrow(
-        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
-      );
-    });
-
     it('should throw when normalizeFinding receives an OCSF Vulnerability Finding', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding(mockVulnerabilityFinding)).rejects.toThrow(
-        'Multi-service OCSF findings must be processed via the multi-service path',
-      );
+      await expect(
+        normalizer.normalizeFinding(mockVulnerabilityFinding, FindingSchema.OCSF_VULNERABILITY),
+      ).rejects.toThrow('Multi-service OCSF findings must be processed via the multi-service path');
     });
 
     it('should throw when normalizeFinding receives an OCSF Detection Finding', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding(mockDetectionFinding)).rejects.toThrow(
+      await expect(normalizer.normalizeFinding(mockDetectionFinding, FindingSchema.OCSF_DETECTION)).rejects.toThrow(
         'Multi-service OCSF findings must be processed via the multi-service path',
       );
     });
@@ -241,7 +228,61 @@ describe('FindingEventNormalizer', () => {
 
     it('should throw for unrecognized schema', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.detectFindingSchema({})).rejects.toThrow('Finding schema is not');
+      await expect(normalizer.detectFindingSchema({})).rejects.toThrow(
+        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
+      );
+    });
+
+    it('should throw for a null finding', async () => {
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      await expect(normalizer.detectFindingSchema(null as any)).rejects.toBeInstanceOf(InvalidFindingSchemaError);
+    });
+
+    it('should reject an OCSF compliance finding with an invalid severity', async () => {
+      // The severity enum is strict, and class_uid 2003 matches neither the Vulnerability (2002)
+      // nor the Detection (2004) schema, so no schema accepts the finding.
+      const normalizer = new FindingEventNormalizer(mockLogger);
+      await expect(normalizer.detectFindingSchema({ ...mockOCSFFinding, severity: 'invalid' })).rejects.toBeInstanceOf(
+        InvalidFindingSchemaError,
+      );
+    });
+
+    it('leaves the metric to the caller and keeps the per-schema warning for an unrecognized schema', async () => {
+      // ARRANGE: record every metric body posted while detection runs
+      nock.cleanAll();
+      const metricPayloads: unknown[] = [];
+      nock('https://metrics.awssolutionsbuilder.com')
+        .post('/generic', (body: unknown) => {
+          metricPayloads.push(JSON.parse(decodeURIComponent(String(body))).Data);
+          return true;
+        })
+        .reply(200)
+        .persist();
+      const warnSpy = jest.spyOn(mockLogger, 'warn');
+      const finding = { unexpected: 'shape' };
+      const normalizer = new FindingEventNormalizer(mockLogger);
+
+      try {
+        // ACT
+        await expect(normalizer.detectFindingSchema(finding)).rejects.toBeInstanceOf(InvalidFindingSchemaError);
+
+        // ASSERT: no metric from detection; recordHandler's failure metric reports it instead
+        expect(metricPayloads).toEqual([]);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          'FindingSchema type could not be resolved for finding. FindingSchema must be one of OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF',
+          {
+            finding,
+            vulnErrors: expect.any(ZodError),
+            detectionErrors: expect.any(ZodError),
+            dataSecurityErrors: expect.any(ZodError),
+            ocsfErrors: expect.any(ZodError),
+            asffErrors: expect.any(ZodError),
+          },
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 
@@ -259,19 +300,9 @@ describe('FindingEventNormalizer', () => {
       it(`should map severity "${input}" to "${expected}"`, async () => {
         const finding = { ...mockOCSFFinding, severity: input };
         const normalizer = new FindingEventNormalizer(mockLogger);
-        const result = await normalizer.normalizeFinding(finding);
+        const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
         expect(result.Severity?.Label).toBe(expected);
       });
-    });
-
-    it('should throw error for invalid severity', async () => {
-      const finding = { ...mockOCSFFinding, severity: 'invalid' };
-      const normalizer = new FindingEventNormalizer(mockLogger);
-      // Invalid severity causes OCSFComplianceSchema to fail (strict enum).
-      // class_uid 2003 doesn't match Vulnerability (2002) or Detection (2004) schemas either.
-      await expect(normalizer.normalizeFinding(finding)).rejects.toThrow(
-        'Finding schema is not OCSF or OCSF_VULNERABILITY or OCSF_DETECTION or OCSF_DATA_SECURITY or ASFF.',
-      );
     });
   });
 
@@ -293,7 +324,7 @@ describe('FindingEventNormalizer', () => {
           compliance: { ...mockOCSFFinding.compliance, status: input },
         };
         const normalizer = new FindingEventNormalizer(mockLogger);
-        const result = await normalizer.normalizeFinding(finding);
+        const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
         expect(result.Compliance?.Status).toBe(expected);
       });
     });
@@ -303,14 +334,14 @@ describe('FindingEventNormalizer', () => {
     it('should map activity_id 3 to ARCHIVED', async () => {
       const finding = { ...mockOCSFFinding, activity_id: 3 as const };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(finding);
+      const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
       expect(result.RecordState).toBe('ARCHIVED');
     });
 
     it('should map status_id 5 to ARCHIVED', async () => {
       const finding = { ...mockOCSFFinding, status_id: 5 as const };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(finding);
+      const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
       expect(result.RecordState).toBe('ARCHIVED');
     });
 
@@ -318,7 +349,7 @@ describe('FindingEventNormalizer', () => {
       for (const activityId of [0, 1, 2, 99]) {
         const finding = { ...mockOCSFFinding, activity_id: activityId as 0 | 1 | 2 | 99 };
         const normalizer = new FindingEventNormalizer(mockLogger);
-        const result = await normalizer.normalizeFinding(finding);
+        const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
         expect(result.RecordState).toBe('ACTIVE');
       }
     });
@@ -338,7 +369,7 @@ describe('FindingEventNormalizer', () => {
       it(`should map status_id ${input} to "${expected}"`, async () => {
         const finding = { ...mockOCSFFinding, status_id: input };
         const normalizer = new FindingEventNormalizer(mockLogger);
-        const result = await normalizer.normalizeFinding(finding);
+        const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
         expect(result.Workflow?.Status).toBe(expected);
       });
     });
@@ -354,13 +385,13 @@ describe('FindingEventNormalizer', () => {
         },
       };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(finding);
+      const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
       expect(result.GeneratorId).toBe('security-control/S3.1');
     });
 
     it('should extract standard ID from unconsolidated finding', async () => {
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(mockOCSFFinding);
+      const result = await normalizer.normalizeFinding(mockOCSFFinding, FindingSchema.OCSF);
       expect(result.GeneratorId).toBe('aws-foundational-security-best-practices/v/1.0.0/S3.1');
     });
 
@@ -373,7 +404,9 @@ describe('FindingEventNormalizer', () => {
         },
       };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      await expect(normalizer.normalizeFinding(finding)).rejects.toThrow('Failed to parse security standard ID');
+      await expect(normalizer.normalizeFinding(finding, FindingSchema.OCSF)).rejects.toThrow(
+        'Failed to parse security standard ID',
+      );
     });
   });
 
@@ -394,7 +427,7 @@ describe('FindingEventNormalizer', () => {
         },
       };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(minimalFinding);
+      const result = await normalizer.normalizeFinding(minimalFinding, FindingSchema.OCSF);
 
       expect(result.ProductArn).toBe('');
       expect(result.Types).toEqual(['']);
@@ -414,7 +447,7 @@ describe('FindingEventNormalizer', () => {
         ],
       };
       const normalizer = new FindingEventNormalizer(mockLogger);
-      const result = await normalizer.normalizeFinding(finding);
+      const result = await normalizer.normalizeFinding(finding, FindingSchema.OCSF);
 
       expect(result.Resources[0].Tags).toBeUndefined();
     });

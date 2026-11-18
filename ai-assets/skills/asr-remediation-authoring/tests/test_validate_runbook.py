@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 import validate_runbook  # noqa: E402  (path injected by conftest)
+import yaml  # type: ignore[import-untyped]
 
 # fixture filename (under fixtures/invalid) -> rule code it must emit as an ERROR
 # in strict mode. These are the machine-checkable "result validity" assertions.
@@ -378,8 +379,6 @@ def test_api_rules_do_not_read_script_bodies() -> None:
 def test_script_bodies_reads_both_yaml_serializations(fixtures_dir: Path) -> None:
     # A block scalar and the quoted form ssm:GetDocument returns must yield the
     # same script body, so no rule can be blind to one of them.
-    import yaml  # type: ignore[import-untyped]
-
     block = yaml.safe_load(
         (fixtures_dir / "invalid" / "wildcard_iam_script_multiline.yaml").read_text(
             encoding="utf-8"
@@ -638,3 +637,173 @@ def test_orchestrator_contract_stays_silent_when_parameters_are_absent() -> None
     errors = validate_runbook.validate(no_params)["errors"]
     assert any("[automation-role-param]" in e for e in errors)
     assert not any("[orchestrator-parameters]" in e for e in errors)
+
+
+def test_document_over_the_ssm_size_limit_is_an_error(valid_runbook_yaml: str) -> None:
+    """SSM rejects content over 64 KiB at CreateDocument (MaxDocumentSizeExceeded), so a runbook that
+    validates but cannot be stored must fail here. A rollback-capable runbook crossed the limit by
+    inlining snapshot_utils.py into two script steps."""
+    oversized = (
+        valid_runbook_yaml + "\n# " + "x" * validate_runbook.MAX_DOCUMENT_BYTES + "\n"
+    )
+
+    result = validate_runbook.validate(oversized)
+
+    assert result["valid"] is False
+    assert any(error.startswith("[document-size]") for error in result["errors"])
+
+
+@pytest.mark.parametrize("extra_bytes, is_error", [(0, False), (1, True)])
+def test_document_size_limit_is_exact(
+    valid_runbook_yaml: str, extra_bytes: int, is_error: bool
+) -> None:
+    """Exactly 65,536 bytes is accepted; one more byte is not."""
+    padding = (
+        validate_runbook.MAX_DOCUMENT_BYTES
+        + extra_bytes
+        - len(valid_runbook_yaml.encode("utf-8"))
+        - 3
+    )
+    sized = valid_runbook_yaml + "\n# " + "x" * padding
+    assert (
+        len(sized.encode("utf-8")) == validate_runbook.MAX_DOCUMENT_BYTES + extra_bytes
+    )
+
+    errors = validate_runbook.validate(sized)["errors"]
+
+    assert any(error.startswith("[document-size]") for error in errors) is is_error
+
+
+def test_document_size_counts_utf8_bytes_not_characters(
+    valid_runbook_yaml: str,
+) -> None:
+    """SSM's limit is in bytes: a document under 64 Ki characters can still be over 64 KiB."""
+    multibyte = (
+        valid_runbook_yaml
+        + "\n# "
+        + "\u00e9" * (validate_runbook.MAX_DOCUMENT_BYTES // 2)
+        + "\n"
+    )
+    assert (
+        len(multibyte)
+        < validate_runbook.MAX_DOCUMENT_BYTES
+        < len(multibyte.encode("utf-8"))
+    )
+
+    assert any(
+        e.startswith("[document-size]")
+        for e in validate_runbook.validate(multibyte)["errors"]
+    )
+
+
+@pytest.mark.parametrize(
+    "reference, resource",
+    [
+        ("/Solutions/SO0111/Bucket:3", "parameter/Solutions/SO0111/Bucket"),
+        ("Bucket:latest-label", "parameter/Bucket"),
+        (
+            "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/Bucket:2",
+            "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/Bucket",
+        ),
+    ],
+)
+def test_ssm_parameter_grant_names_the_parameter_without_its_version(
+    valid_runbook_yaml: str, reference: str, resource: str
+) -> None:
+    doc = yaml.safe_load(valid_runbook_yaml)
+    doc["parameters"]["ContactEmail"] = {
+        "type": "String",
+        "default": "{{ssm:" + reference + "}}",
+    }
+
+    warnings = validate_runbook.validate(yaml.safe_dump(doc, sort_keys=False))[
+        "warnings"
+    ]
+
+    assert any(
+        w.startswith("[ssm-parameter-permission]") and f"on {resource} (" in w
+        for w in warnings
+    )
+
+
+@pytest.mark.parametrize(
+    "reference, scope",
+    [
+        (
+            "/Solutions/SO0111/RemediationConfigurationBucket",
+            "already covers this path",
+        ),
+        (
+            "arn:aws:ssm:us-east-1:111111111111:parameter/Solutions/SO0111/Bucket",
+            "already covers this path",
+        ),
+        ("/Other/ContactEmail", "including one from deploy_runbook"),
+        ("Solutions/SO0111Other/Bucket", "including one from deploy_runbook"),
+    ],
+)
+def test_ssm_parameter_hint_says_when_the_base_policy_covers_the_read(
+    valid_runbook_yaml: str, reference: str, scope: str
+) -> None:
+    """The deploy_runbook base policy reads only /Solutions/SO0111/*, so the hint must not tell
+    an agent the grant is always needed, nor that the base policy always covers it."""
+    doc = yaml.safe_load(valid_runbook_yaml)
+    doc["parameters"]["ContactEmail"] = {
+        "type": "String",
+        "default": "{{ssm:" + reference + "}}",
+    }
+
+    warnings = validate_runbook.validate(yaml.safe_dump(doc, sort_keys=False))[
+        "warnings"
+    ]
+
+    hint = next(w for w in warnings if w.startswith("[ssm-parameter-permission]"))
+    assert scope in hint
+
+
+def test_document_size_is_a_hint_only_for_unexpanded_directives(
+    valid_runbook_yaml: str,
+) -> None:
+    """A %%SCRIPT=/%%INCLUDE= line grows when the build expands it, so its size here is a lower bound;
+    prose that merely mentions the directive (snapshot_utils.py's own comment) is not one.
+    """
+    with_directive = valid_runbook_yaml + "\n# %%INCLUDE=common/snapshot_utils.py%%\n"
+    with_mention = (
+        valid_runbook_yaml
+        + "\n# expanded via the %%INCLUDE=common/snapshot_utils.py%% directive.\n"
+    )
+
+    assert any(
+        w.startswith("[document-size]")
+        for w in validate_runbook.validate(with_directive)["warnings"]
+    )
+    assert not any(
+        w.startswith("[document-size]")
+        for w in validate_runbook.validate(with_mention)["warnings"]
+    )
+
+
+def test_ssm_parameter_default_names_the_grant_the_role_needs(
+    valid_runbook_yaml: str,
+) -> None:
+    """Automation resolves {{ssm:...}} as the AutomationAssumeRole. A manually created Custom Runbook
+    role has no base policy, so without ssm:GetParameters the first step fails with AccessDenied.
+    """
+    doc = yaml.safe_load(valid_runbook_yaml)
+    doc["parameters"]["RemediationConfigBucket"] = {
+        "type": "String",
+        "default": "{{ssm:/Solutions/SO0111/RemediationConfigurationBucket}}",
+        "allowedPattern": "^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+    }
+    text = yaml.safe_dump(doc, sort_keys=False)
+
+    custom = validate_runbook.validate(text)
+    builtin = validate_runbook.validate(text, mode="builtin")
+
+    assert custom["valid"] is True
+    assert any(
+        "[ssm-parameter-permission]" in w
+        and "parameter/Solutions/SO0111/RemediationConfigurationBucket" in w
+        for w in custom["warnings"]
+    )
+    # Built-in remediation roles get the parameter grant from the solution stack.
+    assert not any("[ssm-parameter-permission]" in w for w in builtin["warnings"])

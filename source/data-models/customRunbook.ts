@@ -202,7 +202,7 @@ export const GenerateRunbookSchema = z.object({
       'Key-value pairs for dynamic data to embed in the runbook (e.g. {"ContactEmail":"security@acme.com"}). These become SSM parameter defaults.',
     ),
   guidance: RemediationGuidanceInputSchema.optional().describe(
-    'Structured remediation guidance (target API call, parameters, permissions). When provided, the runbook is generated deterministically from this data instead of requiring the agent to reason about which API to call.',
+    'Structured remediation guidance (target API call, required permissions, resource type, verify call), such as generateRunbookGuidance from a Security Hub remediation plan. The server does not generate YAML from it and returns the same authoring rules either way: write the runbook steps and IAM policy from this guidance yourself.',
   ),
 });
 export type GenerateRunbookParams = z.infer<typeof GenerateRunbookSchema>;

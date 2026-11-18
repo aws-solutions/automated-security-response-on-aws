@@ -30,7 +30,7 @@ import {
 } from '../common/constants/securityStandardFilters';
 import { SyncCursorRepository } from '../common/repositories/syncCursorRepository';
 import { runSyncSlice, SliceResult } from '../common/services/runSyncSlice';
-import { SecurityHubMemberAccountSource } from '../common/services/accountSource';
+import { SecurityHubAccountSource } from '../common/services/accountSource';
 import { synchronizationFindingsEnvironment } from './synchronizationFindingsEnvironment';
 import { Clock, getClock } from '../common/utils/clock';
 import { LambdaCache } from '../common/utils/lambdaCache';
@@ -216,12 +216,13 @@ export class Synchronization implements LambdaInterface {
   }
 
   /**
-   * `enumerate-accounts` task: list the member accounts and (re)initialize the sweep record with the
-   * account total. Returns the account list for the state machine's Map to fan out over.
+   * `enumerate-accounts` task: list the administrator account and its member accounts, and (re)initialize
+   * the sweep record with the account total. Returns the account list for the state machine's Map to fan
+   * out over.
    */
   private async enumerateAccountsTask(): Promise<EnumerateAccountsResult> {
     const clients = this.buildClients();
-    const accountSource = new SecurityHubMemberAccountSource(clients.securityHubClient);
+    const accountSource = new SecurityHubAccountSource(clients.securityHubClient, env.AWS_ACCOUNT_ID);
 
     const accountIds = await accountSource.listAccountIds();
     await clients.cursorRepository.resetSweep(accountIds.length);

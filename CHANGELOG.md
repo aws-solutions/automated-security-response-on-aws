@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.2] - 2026-11-18
+
+### Added
+
+- AI remediation-authoring skill: `read_remediation_guidance.py` reads a Security Hub remediation plan (`GetRemediationsV2`, with the caller's own AWS credentials) and turns its guidance into runbook authoring input. It tolerates changes to the Security Hub response shape (unreadable parts are listed under `schemaWarnings`, and an unreadable safety field makes it refuse). It reads one target at a time and refuses guidance that requires human review (or omits that field), is not fully automatable, names no FIX action, or whose FIX is not a known in-place change: a replacement such as `CreateBucket` or `RestoreTableToPointInTime`, a delete of the resource or its data, a change to another service's resource, an API verb it does not recognize, or a write in a step other than FIX. It translates guidance permissions that use API names into IAM action names, and adds permissions the guidance omits. It warns about guidance properties that must not be copied, such as a hardcoded target, defaults for resources that may not exist, and an invalid backup schedule.
+- AI remediation-authoring skill: `read_remediation_guidance.py` also reports rollback context from the guidance's inverse steps: whether a rollback is worth adding, the restore calls and their IAM actions, and warnings where the inverse is unsafe as written (for example deleting a shared backup plan, which AWS Backup rejects while selections exist). `validate_runbook.py` adds `document-size`, which fails a document over the 64 KiB SSM limit, and `ssm-parameter-permission`, which names the `ssm:GetParameters` grant a manually created role needs for an `{{ssm:...}}` default.
+
+### Changed
+
+- AI remediation-authoring skill: verification no longer tells the agent to start Config rule evaluation, which Security Hub's service-linked rules do not allow. The manual Custom Runbook path now says its hand-built role needs `ssm:GetParameters` for `{{ssm:...}}` defaults and the snapshot and restore permissions a rollback uses.
+- `generate_runbook`: the `guidance` input description no longer claims the server generates the runbook from it.
+- The MCP server's AgentCore gateway now sends ASR-specific instructions to MCP clients in place of a generic placeholder, and accepts MCP protocol version 2025-06-18 in addition to 2025-03-26. Semantic tool search remains enabled.
+- When an AWS API throttles the Pre-Processor, the finding is now retried sooner. The first retry comes after 15 to 30 seconds, and each later wait doubles, up to 15 minutes. Before, every retry waited 15 minutes. Findings get 15 attempts before they move to the dead-letter queue, up from 10, and the Pre-Processor queue's event source no longer polls past the function's reserved concurrency.
+- The Pre-Processor now reads the live suppression status of the findings in one SQS batch with one Security Hub CSPM call and one Security Hub V2 call, instead of one call per finding. This cuts `GetFindings` calls by up to 10 times during bursts of new failing findings, which share the administrator account's Security Hub `GetFindings` rate limit. Each finding is still judged by its own status, and a failed read affects only the findings that needed it.
+
+### Fixed
+
+- Rolling back DynamoDB.6, ElastiCache.2, RDS.7 or RDS.8 when the resource is already in its pre-remediation state now succeeds as a no-op instead of failing with a drift error (`ROLLBACK_FAILED`). This covers a retried or repeated rollback, and a setting someone already reverted by hand after the remediation.
+- The AutoTrigger EventBridge rule no longer forwards Security Hub Coverage findings to the Pre-Processor.
+- The AutoTrigger EventBridge rule no longer forwards Inspector, GuardDuty, Macie or IAM Access Analyzer findings that list none of the resource types their remediations support: EC2 instances for Inspector, IAM access keys for GuardDuty, S3 objects for Macie, and S3 buckets and KMS keys for IAM Access Analyzer. The Pre-Processor dropped these findings, such as Inspector Lambda and ECR findings, after they had reached its queue, and under high finding volume they could fill the queue and delay automatic remediation of every other control. The rule matches any resource of a finding and does not look at the finding type, so some findings on a supported resource type are still dropped by the Pre-Processor.
+- Fixed the `SO0111-ASR-Remediation-Boundary` permissions boundary failing Security Hub control IAM.1 (High) in every account where no Custom Runbook role uses it yet. The boundary now allows actions outside the `iam`, `sts` and `organizations` namespaces with `NotAction` instead of `Action: "*"`, and allows `iam:PassRole` to SSM Automation in its own statement, so the permissions it allows are unchanged. ([#339](https://github.com/aws-solutions/automated-security-response-on-aws/issues/339))
+- Fixed the Inspector.InstanceVulnerability remediation writing `ResponseCode=0` and no error text into the Security Hub finding note when patching failed. The finding note now reports the response code and error output of the `AWS-RunPatchBaseline` plugin that ran on the instance (`PatchLinux`, `PatchWindows`, or `PatchMacOS`).
+- The finding synchronization that runs after install and on its schedule now includes the Security Hub administrator account's own findings. Before, it read only member accounts, so a single-account deployment synced no existing findings, and in every deployment the administrator account's findings appeared only after Security Hub updated them again.
+- Deleting the Member Roles stack no longer fails with `DELETE_FAILED` on the `SO0111-ASR-Remediation-Boundary` policy once a Custom Runbook has been deployed. The stack now deletes the `SO0111-Remediate-Custom-*` remediation roles that ASR created for Custom Runbooks, which use that policy as their permissions boundary. It deletes only roles that have this name prefix, this boundary, and the `aws-solutions:custom-runbook` tag, and only when the stack itself is being deleted.
+
+### Security
+
+- Member accounts can no longer write Action Log entries as another account. New entries go to `<account>-<date>` log streams. Upgrade the admin stack first; a member's entries are not recorded until both stacks are upgraded.
+- Upgraded joserfc to 1.8.0 to mitigate [CVE-2026-119283](https://avd.aquasec.com/nvd/cve-2026-119283) and [CVE-2026-119284](https://avd.aquasec.com/nvd/cve-2026-119284).
+- Upgraded graphql-core to 3.3.1 to mitigate [CVE-2026-119286](https://avd.aquasec.com/nvd/cve-2026-119286).
+- Upgraded minimatch to 11.0.8 to mitigate [CVE-2026-118764](https://avd.aquasec.com/nvd/cve-2026-118764).
+- Upgraded glob to 14.0.4 to mitigate [CVE-2026-118773](https://avd.aquasec.com/nvd/cve-2026-118773).
+
 ## [4.1.1] - 2026-11-02
 
 ### Added

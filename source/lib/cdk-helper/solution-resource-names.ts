@@ -14,3 +14,13 @@ export function buildStatusTopicName(resourceNamePrefix: string): string {
 export function buildOrchestratorLogGroupName(resourceNamePrefix: string): string {
   return `${resourceNamePrefix}-ASR-Orchestrator`;
 }
+
+/** The Region suffix keeps this account-global IAM name unique when the member stack deploys to several Regions. */
+export function buildEventProcessorRoleName(resourceNamePrefix: string, region: string): string {
+  return `${resourceNamePrefix}-ASR-EventProcessor-${region}`;
+}
+
+/** Matches every member EventProcessor role name, for the hub Action Log writer role trust. */
+export function buildEventProcessorRoleNamePattern(resourceNamePrefix: string): string {
+  return buildEventProcessorRoleName(resourceNamePrefix, '*');
+}

@@ -442,3 +442,162 @@ describe('checkRunbookDrift — truncation is reported, not silently applied', (
     expect(JSON.stringify(result.structuralDiff)).toContain('nesting exceeds');
   });
 });
+
+/** Compares `local` (inline) against `remote` (the document in SSM) and returns the tool result. */
+async function compare(local: string, remote: string, format: 'YAML' | 'JSON' = 'YAML') {
+  ssmMock.on(DescribeDocumentCommand).resolves({ Document: { LatestVersion: '3', Status: 'Active' } });
+  ssmMock.on(GetDocumentCommand).resolves({ Content: remote, DocumentFormat: format });
+  return checkRunbookDrift({ document_name: 'ASR-Test', runbook_yaml: local, document_format: format }, context());
+}
+
+beforeEach(() => {
+  ssmMock.reset();
+});
+
+describe('checkRunbookDrift — how differing values are reported', () => {
+  test('a long string value is cut with a truncation marker', async () => {
+    const result = await compare(`description: ${'a'.repeat(500)}\n`, 'description: short\n');
+
+    const [entry] = result.structuralDiff;
+    expect(entry.path).toBe('description');
+    expect(entry.changeType).toBe('changed');
+    expect(entry.local).toBe(`${'a'.repeat(300)}… (truncated)`);
+    expect(entry.remote).toBe('short');
+  });
+
+  test('a null value is reported as null', async () => {
+    const result = await compare('value: ~\n', 'value: set\n');
+
+    expect(result.structuralDiff).toEqual([{ path: 'value', changeType: 'changed', local: null, remote: 'set' }]);
+  });
+
+  test('an object too large to show is cut to a bounded string that is no longer valid JSON', async () => {
+    const local = `settings:\n${[1, 2, 3, 4, 5].map((i) => `  key${i}: ${'x'.repeat(120)}`).join('\n')}\n`;
+
+    const result = await compare(local, 'settings: none\n');
+
+    const shown = result.structuralDiff[0].local;
+    expect(typeof shown).toBe('string');
+    expect((shown as string).endsWith('… (truncated)')).toBe(true);
+    expect((shown as string).length).toBeLessThan(400);
+  });
+
+  test('a node shared through a YAML alias is shown once, then as a repeated reference', async () => {
+    const local = 'shared: &node\n  key: value\nlist:\n  - *node\n  - *node\n';
+    const remote = 'shared:\n  key: value\nlist: none\n';
+
+    const result = await compare(local, remote);
+
+    expect(result.structuralDiff).toEqual([
+      { path: 'list', changeType: 'changed', local: [{ key: 'value' }, '…(repeated reference)'], remote: 'none' },
+    ]);
+  });
+
+  test('keys and list items present on only one side are reported as added or removed with their values', async () => {
+    const local = 'onlyLocal:\n  a: 1\nlist:\n  - one\n  - {two: 2}\n';
+    const remote = 'onlyRemote:\n  b: 2\nlist:\n  - one\n';
+
+    const result = await compare(local, remote);
+
+    expect(result.structuralDiff).toEqual([
+      { path: 'onlyLocal', changeType: 'added', local: { a: 1 }, remote: undefined },
+      { path: 'list[1]', changeType: 'added', local: { two: 2 }, remote: undefined },
+      { path: 'onlyRemote', changeType: 'removed', local: undefined, remote: { b: 2 } },
+    ]);
+  });
+
+  test('list items present only in the remote document are reported as removed', async () => {
+    const result = await compare('list:\n  - one\n', 'list:\n  - one\n  - two\n');
+
+    expect(result.structuralDiff).toEqual([
+      { path: 'list[1]', changeType: 'removed', local: undefined, remote: 'two' },
+    ]);
+  });
+
+  test('an object compared with a scalar is reported as the object', async () => {
+    const result = await compare('settings:\n  mode: strict\n  retries: 3\n', 'settings: none\n');
+
+    expect(result.structuralDiff).toEqual([
+      { path: 'settings', changeType: 'changed', local: { mode: 'strict', retries: 3 }, remote: 'none' },
+    ]);
+  });
+});
+
+describe('checkRunbookDrift — documents that cannot be compared structurally', () => {
+  test('a remote document that is not valid YAML is reported as text, naming the side that failed', async () => {
+    const result = await compare('key: value\n', 'key: [unclosed\n');
+
+    expect(result.isInSync).toBe(false);
+    expect(result.reason).toBe('differs');
+    expect(result.structuralDiff).toEqual([
+      {
+        path: '(root)',
+        changeType: 'changed',
+        local: 'key: value\n',
+        remote: '(not valid YAML; compared as text)',
+      },
+    ]);
+  });
+
+  test('a local document that is not valid JSON is reported as text, naming the side that failed', async () => {
+    const result = await compare('{not json', '{"key":"value"}', 'JSON');
+
+    expect(result.structuralDiff).toEqual([
+      {
+        path: '(root)',
+        changeType: 'changed',
+        local: '(not valid JSON; compared as text)',
+        remote: '{"key":"value"}',
+      },
+    ]);
+  });
+
+  test('when SSM does not say which format it returned, the remote document is parsed as the requested format', async () => {
+    ssmMock.on(DescribeDocumentCommand).resolves({ Document: { LatestVersion: '3', Status: 'Active' } });
+    ssmMock.on(GetDocumentCommand).resolves({ Content: 'key:   value\n' });
+
+    const result = await checkRunbookDrift({ document_name: 'ASR-Test', runbook_yaml: 'key: value\n' }, context());
+
+    expect(result.remoteFormat).toBe('UNKNOWN');
+    expect(result.isInSync).toBe(true);
+    expect(result.reason).toBe('identical-structure');
+  });
+});
+
+describe('checkRunbookDrift — comparison limits', () => {
+  test('stops at the node comparison ceiling and reports the diff as truncated, not as in sync', async () => {
+    // Every object pair is distinct, so nothing can be skipped as already compared.
+    const objects = (spacing: string) => `[${Array.from({ length: 100_100 }, () => '{}').join(`,${spacing}`)}]`;
+
+    const result = await compare(objects(''), objects(' '), 'JSON');
+
+    expect(result.isInSync).toBe(false);
+    expect(result.structuralDiffTruncated).toBe(true);
+    const notCompared = '(not compared: exceeded 100000 node comparisons)';
+    expect(result.structuralDiff).toHaveLength(1);
+    expect(result.structuralDiff[0]).toMatchObject({ changeType: 'changed', local: notCompared, remote: notCompared });
+  });
+});
+
+describe('checkRunbookDrift — reading the local file', () => {
+  let workspaceRoot: string;
+
+  beforeEach(async () => {
+    workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'asr-mcp-drift-edge-'));
+    await fs.writeFile(path.join(workspaceRoot, 'file.yaml'), 'key: value\n');
+  });
+
+  afterEach(async () => {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  });
+
+  test('a file error other than "not found" is passed on instead of being reported as not found', async () => {
+    // A path that goes through a regular file fails with ENOTDIR, not ENOENT.
+    await expect(
+      checkRunbookDrift(
+        { document_name: 'ASR-Test', runbook_path: 'file.yaml/child.yaml' },
+        context({ workspaceRoot }),
+      ),
+    ).rejects.toMatchObject({ code: 'ENOTDIR' });
+  });
+});

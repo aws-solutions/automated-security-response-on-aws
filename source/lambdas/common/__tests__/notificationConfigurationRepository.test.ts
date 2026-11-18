@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { NotificationConfigurationItem } from '@asr/data-models';
 import { NotificationConfigurationRepository } from '../repositories/notificationConfigurationRepository';
@@ -91,11 +92,11 @@ describe('NotificationConfigurationRepository', () => {
       expect(result.Item!.lastUpdatedBy).toBe(principal);
     });
 
-    it('should reject duplicate configId', async () => {
+    it('should reject duplicate configId with the original DynamoDB exception, so the caller can answer 409', async () => {
       const config = createMockConfig();
       await repository.create(config, principal);
 
-      await expect(repository.create(config, principal)).rejects.toThrow('already exists');
+      await expect(repository.create(config, principal)).rejects.toBeInstanceOf(ConditionalCheckFailedException);
     });
   });
 

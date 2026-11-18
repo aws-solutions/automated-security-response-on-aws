@@ -10,13 +10,18 @@ import {
   RECONCILIATION_QUEUE_VALUE,
   ReconciliationTask,
 } from '@asr/data-models';
-import { BatchOverflowError, NotificationBatchRepository } from '../repositories/notificationBatchRepository';
+import {
+  BatchOverflowError,
+  NotificationBatchRepository,
+  BatchStateTransitionError,
+  computeStaleProcessingMs,
+} from '../repositories/notificationBatchRepository';
 import { Clock } from '../utils/clock';
 import { IdGenerator } from '../utils/idGenerator';
 import { calculateTtlTimestamp } from '../utils/ttlUtils';
 import { DynamoDBTestSetup } from './dynamodbSetup';
 import { notificationBatchesTableName } from './envSetup';
-import { asConfigId } from './utils';
+import { asConfigId, asFindingId } from './utils';
 
 const createMockBatch = (overrides: Partial<NotificationBatchItem> = {}): NotificationBatchItem => ({
   configId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
@@ -670,6 +675,181 @@ describe('NotificationBatchRepository', () => {
       expect(persisted.status).toBe('IN_PROGRESS');
       expect(persisted.itemCount).toBe(5);
       expect(persisted.lastProcessedKey).toEqual({});
+    });
+  });
+});
+
+// State transitions, claims and queries are checked against DynamoDB Local so the conditional
+// expressions that make them safe under concurrency are the real ones.
+
+const CONFIG_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+const MISSING_TABLE = 'test-notification-batches-table-that-does-not-exist';
+const PRINCIPAL = 'test-user@example.com';
+
+const batch = (overrides: Partial<NotificationBatchItem> = {}): NotificationBatchItem => ({
+  configId: CONFIG_ID,
+  windowEnd: '2024-01-01T01:00:00.000Z',
+  status: 'open',
+  findingIds: [],
+  remediationIds: [],
+  itemCount: 0,
+  expireAt: Math.floor(Date.now() / 1000) + 86400,
+  createdAt: '2024-01-01T00:00:00.000Z',
+  ...overrides,
+});
+
+describe('computeStaleProcessingMs', () => {
+  const ONE_MINUTE = 60_000;
+  const SIXTEEN_MINUTES = 16 * ONE_MINUTE;
+
+  it('adds one minute to the Lambda timeout', () => {
+    expect(computeStaleProcessingMs('120')).toBe(120_000 + ONE_MINUTE);
+  });
+
+  it.each(['0', '-5', 'abc', '', 'Infinity', 'NaN'])('uses the worst-case default for the timeout %p', (timeout) => {
+    expect(computeStaleProcessingMs(timeout)).toBe(SIXTEEN_MINUTES);
+  });
+});
+
+describe('NotificationBatchRepository state transitions and queries', () => {
+  let docClient: DynamoDBDocumentClient;
+  let repository: NotificationBatchRepository;
+  let broken: NotificationBatchRepository;
+  let now: Date;
+  const clock: Clock = { now: () => now };
+
+  const put = (item: NotificationBatchItem) =>
+    docClient.send(new PutCommand({ TableName: notificationBatchesTableName, Item: item }));
+  const read = async (windowEnd = '2024-01-01T01:00:00.000Z') =>
+    (
+      await docClient.send(
+        new GetCommand({ TableName: notificationBatchesTableName, Key: { configId: CONFIG_ID, windowEnd } }),
+      )
+    ).Item;
+
+  beforeAll(async () => {
+    await DynamoDBTestSetup.initialize();
+    docClient = DynamoDBTestSetup.getDocClient();
+    await DynamoDBTestSetup.createNotificationBatchesTable(notificationBatchesTableName);
+  });
+
+  afterAll(async () => {
+    await DynamoDBTestSetup.deleteTable(notificationBatchesTableName);
+  });
+
+  beforeEach(async () => {
+    await DynamoDBTestSetup.clearTable(notificationBatchesTableName, 'notificationBatches');
+    now = new Date('2024-01-01T02:00:00.000Z');
+    repository = new NotificationBatchRepository(PRINCIPAL, notificationBatchesTableName, docClient, { clock });
+    broken = new NotificationBatchRepository(PRINCIPAL, MISSING_TABLE, docClient, { clock });
+  });
+
+  describe('queryByConfigId', () => {
+    beforeEach(async () => {
+      await put(batch({ windowEnd: '2024-01-01T01:00:00.000Z' }));
+      await put(batch({ windowEnd: '2024-01-01T02:00:00.000Z' }));
+      await put(batch({ windowEnd: '2024-01-01T03:00:00.000Z' }));
+      await put(batch({ configId: 'other-config', windowEnd: '2024-01-01T01:00:00.000Z' }));
+    });
+
+    it('returns every batch of the configuration', async () => {
+      const result = await repository.queryByConfigId(CONFIG_ID);
+
+      expect(result.map((b) => b.windowEnd)).toEqual([
+        '2024-01-01T01:00:00.000Z',
+        '2024-01-01T02:00:00.000Z',
+        '2024-01-01T03:00:00.000Z',
+      ]);
+    });
+
+    it('stops at the given window end, inclusive', async () => {
+      const result = await repository.queryByConfigId(CONFIG_ID, '2024-01-01T02:00:00.000Z');
+
+      expect(result.map((b) => b.windowEnd)).toEqual(['2024-01-01T01:00:00.000Z', '2024-01-01T02:00:00.000Z']);
+    });
+  });
+
+  describe('queryOpenBatchesReady', () => {
+    it('merges overflow into a primary batch that has no lists of its own', async () => {
+      const { findingIds: _f, remediationIds: _r, itemCount: _c, ...bare } = batch();
+      await put(bare as NotificationBatchItem);
+      await put(batch({ windowEnd: '~2024-01-01T01:00:00.000Z#0001', findingIds: [asFindingId('f1')], itemCount: 1 }));
+      await put({
+        ...batch({ windowEnd: '~2024-01-01T01:00:00.000Z#0002' }),
+        findingIds: undefined,
+        remediationIds: undefined,
+        itemCount: undefined,
+      } as never);
+
+      const [merged] = await repository.queryOpenBatchesReady(CONFIG_ID, '2024-01-01T05:00:00.000Z');
+
+      expect(merged.findingIds).toEqual(['f1']);
+      expect(merged.remediationIds).toEqual([]);
+      expect(merged.itemCount).toBe(1);
+    });
+  });
+
+  describe('claiming events for deduplication', () => {
+    it('claims an event once, and reports a repeat as already claimed', async () => {
+      const expireAt = Math.floor(Date.now() / 1000) + 3600;
+
+      expect(await repository.tryClaimEvent(CONFIG_ID, 'event-1', expireAt)).toBe(true);
+      expect(await repository.tryClaimEvent(CONFIG_ID, 'event-1', expireAt)).toBe(false);
+      expect(await repository.tryClaimEvent(CONFIG_ID, 'event-2', expireAt)).toBe(true);
+    });
+
+    it('passes on a failure that is not a repeat claim', async () => {
+      await expect(broken.tryClaimEvent(CONFIG_ID, 'event-1', 1)).rejects.toThrow();
+      await expect(broken.deleteEventClaim(CONFIG_ID, 'event-1')).rejects.toThrow();
+    });
+
+    it('lets an event be claimed again after its claim is removed, and ignores removing one that is not there', async () => {
+      await repository.tryClaimEvent(CONFIG_ID, 'event-1', 1);
+
+      await repository.deleteEventClaim(CONFIG_ID, 'event-1');
+      await expect(repository.deleteEventClaim(CONFIG_ID, 'never-claimed')).resolves.toBeUndefined();
+
+      expect(await repository.tryClaimEvent(CONFIG_ID, 'event-1', 1)).toBe(true);
+    });
+  });
+
+  describe('appending events', () => {
+    it('passes on a failure that is not a full batch', async () => {
+      await expect(
+        broken.appendEventId(CONFIG_ID, '2024-01-01T01:00:00.000Z', 'f1', 'findingIds', 1),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('moving a batch between states', () => {
+    it('passes on a failure that is not a refused transition', async () => {
+      await expect(broken.updateStatus(CONFIG_ID, 'w', 'processing')).rejects.toThrow(/./);
+      await expect(broken.updateStatus(CONFIG_ID, 'w', 'processing')).rejects.not.toThrow(BatchStateTransitionError);
+      await expect(broken.updateStatus(CONFIG_ID, 'w', 'dispatched')).rejects.not.toThrow(BatchStateTransitionError);
+      await expect(broken.rollbackToOpen(CONFIG_ID, 'w')).rejects.not.toThrow(BatchStateTransitionError);
+    });
+
+    it.each(['open', 'dispatched'] as const)('refuses to roll back a batch that is %s', async (status) => {
+      await put(batch({ status }));
+
+      await expect(repository.rollbackToOpen(CONFIG_ID, '2024-01-01T01:00:00.000Z')).rejects.toThrow(
+        BatchStateTransitionError,
+      );
+      expect((await read())?.status).toBe(status);
+    });
+
+    it('rolls a processing batch back to open so it can be tried again', async () => {
+      await put(batch({ status: 'processing', processingStartedAt: now.toISOString() }));
+
+      await repository.rollbackToOpen(CONFIG_ID, '2024-01-01T01:00:00.000Z');
+
+      expect(await read()).toMatchObject({ status: 'open', lastUpdatedBy: PRINCIPAL });
+    });
+
+    it('refuses to roll back a batch that does not exist', async () => {
+      await expect(repository.rollbackToOpen(CONFIG_ID, '2024-01-01T01:00:00.000Z')).rejects.toThrow(
+        /not found or not in 'processing' status/,
+      );
     });
   });
 });

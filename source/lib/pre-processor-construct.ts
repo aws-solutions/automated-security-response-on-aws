@@ -16,7 +16,7 @@ import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { getLambdaCode } from './cdk-helper/lambda-code-manifest';
 import { getConfig } from './config/cdk-config';
 import { attachCommercialPartitionSecurityHubV2Policy } from './cdk-helper/is-commercial-partition';
-import { PreProcessorEnvironmentConfig } from '@asr/data-models';
+import { PRE_PROCESSOR_VISIBILITY_TIMEOUT_SECONDS, PreProcessorEnvironmentConfig } from '@asr/data-models';
 
 export interface PreProcessorStackProps {
   readonly solutionId: string;
@@ -47,7 +47,7 @@ export class PreProcessorConstruct extends Construct {
     const stack = cdk.Stack.of(this);
     const config = getConfig();
 
-    const processingTimeout = cdk.Duration.minutes(15);
+    const processingTimeout = cdk.Duration.seconds(PRE_PROCESSOR_VISIBILITY_TIMEOUT_SECONDS);
     const sqsBatchSize = config.preProcessor.sqsBatchSize;
     const sqsBatchingWindow = cdk.Duration.seconds(5);
     const lambdaConcurrency = config.preProcessor.lambdaReservedConcurrency;
@@ -70,7 +70,8 @@ export class PreProcessorConstruct extends Construct {
       encryptionMasterKey: props.kmsKey,
       deadLetterQueue: {
         queue: this.deadLetterQueue,
-        maxReceiveCount: 10, // Messages can be retried 10 times before being sent to DLQ
+        // Throttled records retry after a shorter, growing delay, so 15 receives give them about two hours.
+        maxReceiveCount: 15,
       },
       dataKeyReuse: sqsDataKeyReuse,
     });
@@ -122,6 +123,7 @@ export class PreProcessorConstruct extends Construct {
         AWS_ACCOUNT_ID: stack.account,
         STACK_ID: stack.stackId,
         NOTIFICATION_QUEUE_URL: props.notificationQueueUrl,
+        PRE_PROCESSOR_QUEUE_URL: this.queue.queueUrl,
       } satisfies PreProcessorEnvironmentConfig,
       tracing: lambda.Tracing.ACTIVE,
       reservedConcurrentExecutions: lambdaConcurrency,
@@ -191,6 +193,8 @@ export class PreProcessorConstruct extends Construct {
       batchSize: sqsBatchSize,
       maxBatchingWindow: sqsBatchingWindow,
       reportBatchItemFailures: true,
+      // Polling past the reserved concurrency gets invocations throttled, which uses up receives.
+      maxConcurrency: lambdaConcurrency,
     });
 
     this.preProcessorFunction.addEventSource(eventSource);

@@ -548,6 +548,92 @@ def _check_insecure_transport(raw: str, findings: Findings) -> None:
             break
 
 
+# SSM rejects CreateDocument/UpdateDocument content over 64 KiB with MaxDocumentSizeExceeded.
+MAX_DOCUMENT_BYTES = 64 * 1024
+SSM_PARAMETER_REFERENCE = re.compile(r"\{\{\s*ssm:([^}\s]+)\s*\}\}")
+# A directive occupies its own line (as test_runbook.py and the build match it); prose that merely
+# mentions one, such as snapshot_utils.py's own module comment, is not a directive.
+UNEXPANDED_DIRECTIVE = re.compile(
+    r"^\s*(?:#\s*)?%%(?:INCLUDE|SCRIPT)=[^%\s]+%%\s*$", re.MULTILINE
+)
+
+
+def _check_document_size(raw: str, findings: Findings) -> None:
+    """[document-size] Fail a document SSM would refuse to store.
+
+    Inlining a shared module (for example `snapshot_utils.py`) into more than one
+    `aws:executeScript` step multiplies its size; a rollback-capable runbook crossed
+    the limit that way. Source that still holds `%%SCRIPT=` / `%%INCLUDE=` directives
+    grows when the build expands them, so its size here is only a lower bound.
+    """
+    size = len(raw.encode("utf-8"))
+    if size > MAX_DOCUMENT_BYTES:
+        findings.error(
+            f"[document-size] Document is {size} bytes; SSM accepts at most {MAX_DOCUMENT_BYTES} "
+            "(64 KiB). Inline shared code into one step only and give other script steps a minimal script."
+        )
+    elif UNEXPANDED_DIRECTIVE.search(raw):
+        findings.hint(
+            f"[document-size] Document is {size} bytes before %%SCRIPT/%%INCLUDE expansion; check the "
+            f"expanded document against the {MAX_DOCUMENT_BYTES}-byte SSM limit."
+        )
+
+
+# A trailing ":<version>" or ":<label>" selects a parameter version; IAM authorizes the parameter itself.
+PARAMETER_VERSION_SELECTOR = re.compile(r":[^:/]+$")
+
+
+def _parameter_resource(reference: str) -> str:
+    """The IAM resource for one `{{ssm:...}}` reference: a full ARN as given, otherwise the
+    `parameter/<name>` suffix of its ARN, in both cases without a version or label selector.
+    """
+    if reference.startswith("arn:"):
+        prefix, separator, name = reference.partition(":parameter/")
+        return (
+            f"{prefix}{separator}{PARAMETER_VERSION_SELECTOR.sub('', name)}"
+            if separator
+            else reference
+        )
+    name = PARAMETER_VERSION_SELECTOR.sub("", reference)
+    return "parameter" + (name if name.startswith("/") else "/" + name)
+
+
+# The parameter path the ASR-Custom-Runbook-Base policy from deploy_runbook grants reads on.
+BASE_POLICY_PARAMETER_PREFIX = "Solutions/SO0111/"
+
+
+def _check_ssm_parameter_defaults(doc: dict[str, Any], findings: Findings) -> None:
+    """[ssm-parameter-permission] Name the grant a `{{ssm:...}}` parameter default needs.
+
+    Automation resolves the reference as the AutomationAssumeRole, so a manually
+    created Custom Runbook role (which has no base policy) needs ssm:GetParameters on
+    it, or the first step fails with AccessDenied before any remediation runs.
+    """
+    params = doc.get("parameters")
+    if not isinstance(params, dict):
+        return
+    for name, spec in params.items():
+        default = spec.get("default") if isinstance(spec, dict) else None
+        if not isinstance(default, str):
+            continue
+        for parameter in SSM_PARAMETER_REFERENCE.findall(default):
+            resource = _parameter_resource(parameter)
+            covered = resource.split("parameter/", 1)[-1].startswith(
+                BASE_POLICY_PARAMETER_PREFIX
+            )
+            scope = (
+                "a role you create by hand needs it; the base policy that deploy_runbook "
+                "attaches already covers this path"
+                if covered
+                else "every remediation role needs it, including one from deploy_runbook, "
+                "whose base policy covers only /Solutions/SO0111/*"
+            )
+            findings.hint(
+                f"[ssm-parameter-permission] parameters.{name} defaults to {{{{ssm:{parameter}}}}}: "
+                f"allow ssm:GetParameters on {resource} ({scope})."
+            )
+
+
 def validate(
     runbook_yaml: str, strict: bool = True, mode: RunbookMode = "custom"
 ) -> ValidationResult:
@@ -590,6 +676,9 @@ def validate(
     _check_main_steps(doc, findings)
     _check_credential_exposure(runbook_yaml, findings)
     _check_insecure_transport(runbook_yaml, findings)
+    _check_document_size(runbook_yaml, findings)
+    if mode == "custom":
+        _check_ssm_parameter_defaults(doc, findings)
 
     return {
         "valid": len(findings.errors) == 0,

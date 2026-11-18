@@ -8,6 +8,7 @@ import { ASFFSchema, OCSFComplianceSchema } from '@asr/data-models';
 import { tryResolveControlId } from './findingUtils';
 import { getLogger } from './logger';
 import { getCachedParameter, getSSMClient } from './ssmCache';
+import { Clock, getClock } from './clock';
 
 const SOLUTION_TRADEMARKEDNAME = process.env.SOLUTION_TRADEMARKEDNAME ?? 'unknown';
 const logger = getLogger(SOLUTION_TRADEMARKEDNAME);
@@ -55,6 +56,8 @@ interface UsageData {
 
 const SOLUTIONS_METRICS_ENDPOINT = 'https://metrics.awssolutionsbuilder.com/generic';
 const SOLUTION_VERSION_PARAM = '/Solutions/SO0111/version';
+// A Lambda can start on new code before an upgrade rewrites the version, so the value must not be cached for good.
+const SOLUTION_VERSION_CACHE_MAX_AGE_MILLISECONDS = 5 * 60 * 1000;
 const OLD_UUID_PARAM_NAME = '/Solutions/SO0111/anonymous_metrics_uuid';
 const NEW_UUID_PARAM_NAME = '/Solutions/SO0111/metrics_uuid';
 
@@ -129,8 +132,11 @@ export async function sendMetrics(metricsData: Record<string, any>): Promise<voi
   }
 }
 
-export async function getSolutionVersion(): Promise<string | undefined> {
-  return getCachedParameter(SOLUTION_VERSION_PARAM, logger);
+export async function getSolutionVersion(clock: Clock = getClock()): Promise<string | undefined> {
+  return getCachedParameter(SOLUTION_VERSION_PARAM, logger, {
+    maxAgeMilliseconds: SOLUTION_VERSION_CACHE_MAX_AGE_MILLISECONDS,
+    clock,
+  });
 }
 
 async function tryGetAndDestroyDeprecatedUUIDParameter(): Promise<string | undefined> {

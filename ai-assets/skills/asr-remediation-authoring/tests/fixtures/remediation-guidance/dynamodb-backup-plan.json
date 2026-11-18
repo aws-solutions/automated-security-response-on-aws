@@ -1,0 +1,157 @@
+{
+ "Items": [
+  {
+   "TargetUid": "example-target-dynamodb-backup-plan",
+   "Outcome": {
+    "ResolvedFindingsCount": 1,
+    "SeverityReductionFindingsCount": 0,
+    "SeverityUnchangedCount": 0
+   },
+   "Priority": "Low",
+   "RemediationSummary": {
+    "Action": "Configure backup plan.",
+    "IsImmediate": true,
+    "Description": "Configure backup plan.",
+    "KbArticles": [
+     {
+      "Title": "Remediation guidance for not in backup plan",
+      "Url": "https://docs.aws.amazon.com/securityhub/latest/userguide/exposure-ddb-instance.html#backup-plan-disabled"
+     }
+    ]
+   },
+   "Resource": {
+    "AccountId": "111122223333",
+    "Region": "us-east-1",
+    "Type": "AWS::DynamoDB::Table",
+    "Id": "ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ",
+    "ResourceRegion": "us-east-1",
+    "CloudProvider": "AWS",
+    "ResourceOwnerAccountId": "111122223333",
+    "ResourceGuid": "ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ"
+   },
+   "Status": "Updated",
+   "Trait": {
+    "Type": "contributing",
+    "Title": "The DynamoDB table is not covered by a backup plan"
+   },
+   "Guidance": {
+    "TargetTypeName": "DynamoDBTable-AddToBackupPlan",
+    "Pattern": "Configuration Update",
+    "Version": "2.0.0",
+    "Context": {
+     "ProblemStatement": "The DynamoDB table is not covered by any AWS Backup plan. Without a backup plan, recovery relies solely on PITR (35-day maximum window) or manual on-demand backups that may not exist or be recent enough. There is no long-term retention for compliance, no automated cross-region copy for disaster recovery, no cross-account copy for ransomware protection, and no enforced backup schedule. AWS Backup provides centralized backup management with customizable retention periods, lifecycle policies, cross-region/account capabilities, and vault lock for immutable backups.",
+     "RiskAssessment": "Low execution risk. Creating a backup plan and adding the table to a backup selection has no impact on table performance, availability, or throughput. Backups are taken asynchronously and do not affect table operations. The only impact is additional storage cost for backup data. Blast radius: none \u2014 table operations continue unaffected. Fully reversible \u2014 the table can be removed from the backup selection or the backup plan can be deleted (existing recovery points are retained based on lifecycle rules).",
+     "AffectedScope": "AWS Backup service configuration \u2014 a backup plan and backup selection are created or updated to include the target DynamoDB table. The DynamoDB table itself is not modified in any way. Not affected: table configuration, throughput, items, indexes, streams, encryption, PITR settings, deletion protection, or any other table-level setting. The backup plan creates periodic snapshots stored in an AWS Backup vault \u2014 these are independent of the table.",
+     "Prerequisites": [
+      "Table must exist (backup selection references the table ARN)",
+      "An AWS Backup vault must exist in the target region (the default vault 'Default' is created automatically, or a custom vault can be specified)",
+      "The AWS Backup service role must have permissions to back up DynamoDB tables (AWSBackupServiceRolePolicyForDynamoDB or equivalent custom policy). If using the default role 'AWSBackupDefaultServiceRole', it must exist or iam:CreateRole and iam:AttachRolePolicy are needed.",
+      "Executing identity needs: dynamodb:DescribeTable, backup:ListBackupPlans, backup:ListBackupSelections, backup:GetBackupPlan, backup:CreateBackupPlan, backup:CreateBackupSelection, backup:TagResource, backup:ListRecoveryPointsByResource, iam:PassRole (for the backup service role)"
+     ]
+    },
+    "Specification": {
+     "Parameters": [
+      {
+       "Name": "TableName",
+       "Type": "string",
+       "Description": "The name of the DynamoDB table to add to a backup plan",
+       "Required": true
+      },
+      {
+       "Name": "BackupPlanName",
+       "Type": "string",
+       "Description": "Name for the backup plan. Default: '${TableName}-backup-plan'. If a plan with this name already exists, the table is added to its selection.",
+       "Required": false
+      },
+      {
+       "Name": "BackupVaultName",
+       "Type": "string",
+       "Description": "Name of the AWS Backup vault to store recovery points. Default: 'Default'.",
+       "Required": false
+      },
+      {
+       "Name": "BackupFrequencyHours",
+       "Type": "integer",
+       "Description": "How often to take backups in hours. Default: 24 (daily). Common values: 1, 12, 24.",
+       "Required": false
+      },
+      {
+       "Name": "RetentionDays",
+       "Type": "integer",
+       "Description": "Number of days to retain backup recovery points. Default: 35. Set based on compliance requirements.",
+       "Required": false
+      },
+      {
+       "Name": "BackupServiceRoleArn",
+       "Type": "string",
+       "Description": "ARN of the IAM role AWS Backup assumes to create backups. Default: 'arn:aws:iam::111122223333:role/service-role/AWSBackupDefaultServiceRole'.",
+       "Required": false
+      }
+     ],
+     "Steps": [
+      {
+       "Phase": "SNAPSHOT",
+       "Description": "Capture table ARN, check if already covered by a backup plan, and record current backup plan state for pre-check",
+       "Service": "dynamodb, backup",
+       "Action": "DescribeTable, ListBackupPlans, ListBackupSelections",
+       "Logic": "1. DescribeTable(TableName=ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ): if ResourceNotFoundException, abort \u2014 table does not exist. Capture snapshot.TableArn. 2. ListBackupPlans(): capture all existing backup plans. 3. For each backup plan: ListBackupSelections(BackupPlanId=plan.BackupPlanId): check if any selection includes snapshot.TableArn (either via explicit ResourceArn list or tag-based selection matching the table's tags). 4. If the table is already covered by any backup plan selection, record snapshot.ExistingPlanCoverage=true with the plan name for the pre-check. 5. Check if a plan named ${BackupPlanName} (or default 'ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ-backup-plan') already exists \u2014 if so, capture its BackupPlanId as snapshot.ExistingPlanId for reuse. 6. Capture snapshot.TableTags via dynamodb:ListTagsOfResource for tag-based selection matching."
+      },
+      {
+       "Phase": "FIX",
+       "Description": "Create or identify backup plan, then add the table to the plan's resource selection",
+       "Service": "backup",
+       "Action": "CreateBackupPlan, CreateBackupSelection",
+       "Logic": "Pre-check: if snapshot.ExistingPlanCoverage == true, SKIP \u2014 table is already covered by a backup plan and is compliant. Defaults: BackupPlanName='ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ-backup-plan', BackupVaultName='Default', BackupFrequencyHours=24, RetentionDays=35. Step A \u2014 Get or create backup plan: if snapshot.ExistingPlanId is set, use it. Otherwise, call CreateBackupPlan(BackupPlan={BackupPlanName=${BackupPlanName}, Rules:[{RuleName:'daily-backup', TargetBackupVaultName:${BackupVaultName}, ScheduleExpression:'cron(0 0/${BackupFrequencyHours} ? * * *)', StartWindowMinutes:60, CompletionWindowMinutes:180, Lifecycle:{DeleteAfterDays:${RetentionDays}}}]}). Capture fix.BackupPlanId. Error handling: (a) AlreadyExistsException \u2014 plan name collision; use existing plan's ID. (b) LimitExceededException \u2014 too many backup plans; surface to operator. (c) InvalidParameterValueException \u2014 invalid schedule expression or retention; surface with details. Step B \u2014 Create backup selection: CreateBackupSelection(BackupPlanId=${fix.BackupPlanId}, BackupSelection={SelectionName:'ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ-selection', IamRoleArn:${BackupServiceRoleArn}, Resources:[${snapshot.TableArn}]}). Capture fix.SelectionId. Error handling: (a) AlreadyExistsException \u2014 selection with same name exists; surface to operator to check if table is already included. (b) InvalidParameterValueException \u2014 invalid role ARN or resource ARN; verify IAM role exists. (c) LimitExceededException \u2014 too many selections per plan; surface to operator.",
+       "Inverse": "If backup plan was newly created: backup:DeleteBackupPlan(BackupPlanId=${fix.BackupPlanId}) \u2014 this also deletes all associated selections. If only the selection was created (plan existed): backup:DeleteBackupSelection(BackupPlanId=${fix.BackupPlanId}, SelectionId=${fix.SelectionId}). Note: existing recovery points are NOT deleted by removing the plan/selection \u2014 they follow their lifecycle rules independently.",
+       "VerifyAfter": "ListBackupSelections(BackupPlanId=${fix.BackupPlanId}): assert a selection exists that includes ${snapshot.TableArn}."
+      },
+      {
+       "Phase": "VERIFY",
+       "Description": "Confirm the table is covered by the backup plan and the plan configuration is correct",
+       "Service": "backup, dynamodb",
+       "Action": "ListBackupSelections, GetBackupPlan, DescribeTable",
+       "Logic": "1. GetBackupPlan(BackupPlanId=${fix.BackupPlanId}): assert plan exists and rules include the expected schedule and retention. Assert TargetBackupVaultName matches ${BackupVaultName}. Assert Lifecycle.DeleteAfterDays == ${RetentionDays}. 2. ListBackupSelections(BackupPlanId=${fix.BackupPlanId}): find the selection containing ${snapshot.TableArn}. Assert it exists. Assert IamRoleArn is set to a valid role. 3. DescribeTable(TableName=ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ) for preservation checks: (a) Assert TableStatus == 'ACTIVE'. (b) Assert table configuration is unchanged \u2014 the backup plan does not modify the table. (c) Confirm TableArn matches what was registered in the selection. 4. Optionally: ListRecoveryPointsByResource(ResourceArn=${snapshot.TableArn}) \u2014 if backup frequency is high and some time has passed, verify at least one recovery point has been created. Note: for daily backups this check only passes after the first scheduled backup runs. 5. If selection is not found, check if the CreateBackupSelection call succeeded but returned a different SelectionId \u2014 retry the list call."
+      }
+     ],
+     "ExpectedEndState": "The DynamoDB table is included in an AWS Backup plan with automated periodic backups at the configured frequency, stored in the specified backup vault with the configured retention period. The backup plan will create recovery points on schedule, enabling point-in-time restoration beyond PITR's 35-day window. The DynamoDB table itself is completely unchanged \u2014 no table settings, performance characteristics, or data is modified. This is complementary to PITR: PITR provides continuous fine-grained recovery within 35 days; the backup plan provides scheduled snapshots with longer retention and cross-region/account capabilities.",
+     "RequiredPermissions": [
+      "dynamodb:DescribeTable",
+      "dynamodb:ListTagsOfResource",
+      "backup:ListBackupPlans",
+      "backup:ListBackupSelections",
+      "backup:GetBackupPlan",
+      "backup:CreateBackupPlan",
+      "backup:CreateBackupSelection",
+      "backup:DeleteBackupPlan",
+      "backup:DeleteBackupSelection",
+      "backup:TagResource",
+      "backup:ListRecoveryPointsByResource",
+      "iam:PassRole"
+     ]
+    },
+    "Examples": {
+     "AwsCli": "# SNAPSHOT\nTABLE_ARN=$(aws dynamodb describe-table --table-name ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ --query 'Table.TableArn' --output text)\necho \"Table ARN: $TABLE_ARN\"\n\n# Check if table is already covered by any backup plan\nfor PLAN_ID in $(aws backup list-backup-plans --query 'BackupPlansList[*].BackupPlanId' --output text); do\n  for SEL_ID in $(aws backup list-backup-selections --backup-plan-id $PLAN_ID --query 'BackupSelectionsList[*].SelectionId' --output text); do\n    RESOURCES=$(aws backup get-backup-selection --backup-plan-id $PLAN_ID --selection-id $SEL_ID --query 'BackupSelection.Resources' --output text)\n    if echo \"$RESOURCES\" | grep -q \"$TABLE_ARN\"; then\n      echo \"ALREADY COVERED by plan $PLAN_ID selection $SEL_ID\"\n      exit 0\n    fi\n  done\ndone\necho \"Not covered by any backup plan \u2014 proceeding with fix\" \n\n# FIX: Create backup plan (skip if reusing existing)\nPLAN_ID=$(aws backup create-backup-plan --backup-plan '{\n  \"BackupPlanName\": \"'ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ'-backup-plan\",\n  \"Rules\": [{\n    \"RuleName\": \"daily-backup\",\n    \"TargetBackupVaultName\": \"'${BackupVaultName:-Default}'\",\n    \"ScheduleExpression\": \"cron(0 0 ? * * *)\",\n    \"StartWindowMinutes\": 60,\n    \"CompletionWindowMinutes\": 180,\n    \"Lifecycle\": {\"DeleteAfterDays\": '${RetentionDays:-35}'}\n  }]\n}' --query 'BackupPlanId' --output text)\necho \"Created plan: $PLAN_ID\"\n\n# Add table to backup plan selection\nSELECTION_ID=$(aws backup create-backup-selection \\\n  --backup-plan-id $PLAN_ID \\\n  --backup-selection '{\n    \"SelectionName\": \"'ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ'-selection\",\n    \"IamRoleArn\": \"'${BackupServiceRoleArn:-arn:aws:iam::ACCOUNT_ID:role/service-role/AWSBackupDefaultServiceRole}'\",\n    \"Resources\": [\"'$TABLE_ARN'\"]\n  }' --query 'SelectionId' --output text)\necho \"Created selection: $SELECTION_ID\"\n\n# VERIFY: Confirm table is in backup plan\naws backup list-backup-selections --backup-plan-id $PLAN_ID\naws backup get-backup-plan --backup-plan-id $PLAN_ID \\\n  --query 'BackupPlan.{Name:BackupPlanName,Rules:Rules[*].{Name:RuleName,Vault:TargetBackupVaultName,Retention:Lifecycle.DeleteAfterDays}}'\n\n# Verify table is unchanged\naws dynamodb describe-table --table-name ExampleStack-HistoryTable46D850CC-8PTU14GE9SJQ --query 'Table.TableStatus'\n\n# ROLLBACK (if needed \u2014 removes backup schedule, existing recovery points retained):\n# aws backup delete-backup-selection --backup-plan-id $PLAN_ID --selection-id $SELECTION_ID\n# aws backup delete-backup-plan --backup-plan-id $PLAN_ID",
+     "Python": "import boto3\nfrom botocore.exceptions import ClientError\n\ndynamodb = boto3.client('dynamodb')\nbackup = boto3.client('backup')\n\n# Parameters \u2014 set these before running\n# table_name = 'my-table'\n# backup_plan_name = None  # auto-generated if not set\n# backup_vault_name = 'Default'\n# retention_days = 35\n# backup_frequency_hours = 24\n# backup_service_role_arn = 'arn:aws:iam::ACCOUNT_ID:role/service-role/AWSBackupDefaultServiceRole'\n\n# SNAPSHOT\ntry:\n    table_response = dynamodb.describe_table(TableName=table_name)\nexcept ClientError as e:\n    if e.response['Error']['Code'] == 'ResourceNotFoundException':\n        raise RuntimeError(f'Table {table_name} does not exist')\n    raise\n\ntable_arn = table_response['Table']['TableArn']\n\n# Check if table is already covered by any backup plan\nalready_covered = False\nplans = backup.list_backup_plans().get('BackupPlansList', [])\nfor plan in plans:\n    selections = backup.list_backup_selections(\n        BackupPlanId=plan['BackupPlanId']\n    ).get('BackupSelectionsList', [])\n    for sel in selections:\n        sel_detail = backup.get_backup_selection(\n            BackupPlanId=plan['BackupPlanId'],\n            SelectionId=sel['SelectionId']\n        )['BackupSelection']\n        if table_arn in sel_detail.get('Resources', []):\n            already_covered = True\n            break\n    if already_covered:\n        break\n\n# Pre-check\nif already_covered:\n    print('Already compliant \u2014 table is covered by a backup plan'); exit(0)\n\n# FIX: Create backup plan and selection\nplan_name = backup_plan_name or f'{table_name}-backup-plan'\nvault_name = backup_vault_name or 'Default'\nretention = retention_days or 35\nfrequency = backup_frequency_hours or 24\nrole_arn = backup_service_role_arn\nif not role_arn:\n    raise RuntimeError('backup_service_role_arn must be provided \u2014 use AWSBackupDefaultServiceRole ARN')\n\ntry:\n    plan_response = backup.create_backup_plan(\n        BackupPlan={\n            'BackupPlanName': plan_name,\n            'Rules': [{\n                'RuleName': 'scheduled-backup',\n                'TargetBackupVaultName': vault_name,\n                'ScheduleExpression': f'cron(0 0/{frequency} ? * * *)',\n                'StartWindowMinutes': 60,\n                'CompletionWindowMinutes': 180,\n                'Lifecycle': {'DeleteAfterDays': retention}\n            }]\n        }\n    )\n    plan_id = plan_response['BackupPlanId']\nexcept ClientError as e:\n    if e.response['Error']['Code'] == 'AlreadyExistsException':\n        # Find existing plan with same name\n        plan_id = next(p['BackupPlanId'] for p in plans if p['BackupPlanName'] == plan_name)\n    else:\n        raise\n\ntry:\n    sel_response = backup.create_backup_selection(\n        BackupPlanId=plan_id,\n        BackupSelection={\n            'SelectionName': f'{table_name}-selection',\n            'IamRoleArn': role_arn,\n            'Resources': [table_arn]\n        }\n    )\n    selection_id = sel_response['SelectionId']\nexcept ClientError as e:\n    code = e.response['Error']['Code']\n    if code == 'AlreadyExistsException':\n        raise RuntimeError('Selection already exists \u2014 verify table is included')\n    elif code == 'InvalidParameterValueException':\n        raise RuntimeError(f'Invalid parameter: {e.response[\"Error\"][\"Message\"]}')\n    raise\n\n# VERIFY\nplan_detail = backup.get_backup_plan(BackupPlanId=plan_id)\nassert plan_detail['BackupPlan']['BackupPlanName'] == plan_name\n\nselections = backup.list_backup_selections(BackupPlanId=plan_id)['BackupSelectionsList']\nassert any(s['SelectionId'] == selection_id for s in selections), 'Selection not found in plan'\n\n# Verify table unchanged\ntable_verify = dynamodb.describe_table(TableName=table_name)['Table']\nassert table_verify['TableStatus'] == 'ACTIVE'\nassert table_verify['TableArn'] == table_arn\nprint(f'SUCCESS: Table added to backup plan {plan_name} with {retention}-day retention')",
+     "Terraform": "# Terraform manages AWS Backup plans declaratively.\nresource \"aws_backup_plan\" \"dynamodb\" {\n  name = \"${var.table_name}-backup-plan\"\n\n  rule {\n    rule_name         = \"daily-backup\"\n    target_vault_name = var.backup_vault_name  # default: \"Default\"\n    schedule          = \"cron(0 0 ? * * *)\"   # Daily at midnight UTC\n\n    lifecycle {\n      delete_after = var.retention_days  # default: 35\n    }\n\n    start_window      = 60   # minutes\n    completion_window = 180  # minutes\n  }\n}\n\nresource \"aws_backup_selection\" \"dynamodb\" {\n  name         = \"${var.table_name}-selection\"\n  plan_id      = aws_backup_plan.dynamodb.id\n  iam_role_arn = var.backup_service_role_arn\n\n  resources = [\n    \"arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.table_name}\"\n  ]\n}\n\n# Alternative: tag-based selection (more scalable)\n# resource \"aws_backup_selection\" \"dynamodb_by_tag\" {\n#   name         = \"dynamodb-tagged-tables\"\n#   plan_id      = aws_backup_plan.dynamodb.id\n#   iam_role_arn = var.backup_service_role_arn\n#\n#   selection_tag {\n#     type  = \"STRINGEQUALS\"\n#     key   = \"BackupPlan\"\n#     value = \"daily\"\n#   }\n# }\n# Then tag the table: aws_dynamodb_table.example.tags = { BackupPlan = \"daily\" }",
+     "Cdk": "import * as backup from 'aws-cdk-lib/aws-backup';\nimport * as dynamodb from 'aws-cdk-lib/aws-dynamodb';\nimport * as cdk from 'aws-cdk-lib';\n\n// Reference existing table\nconst table = dynamodb.Table.fromTableName(this, 'ExistingTable', tableName);\n\n// Create backup plan\nconst plan = new backup.BackupPlan(this, 'BackupPlan', {\n  backupPlanName: `${tableName}-backup-plan`,\n});\n\n// Add daily backup rule with retention\nplan.addRule(new backup.BackupPlanRule({\n  ruleName: 'daily-backup',\n  backupVault: backup.BackupVault.fromBackupVaultName(this, 'Vault', backupVaultName ?? 'Default'),\n  scheduleExpression: cdk.Schedule.cron({ hour: '0', minute: '0' }),\n  deleteAfter: cdk.Duration.days(retentionDays ?? 35),\n  startWindow: cdk.Duration.minutes(60),\n  completionWindow: cdk.Duration.minutes(180),\n}));\n\n// Add table to backup selection by ARN\nplan.addSelection('DynamoDBSelection', {\n  resources: [backup.BackupResource.fromDynamoDbTable(table)],\n});\n\n// Alternative: tag-based selection (more scalable)\n// plan.addSelection('TaggedResources', {\n//   resources: [backup.BackupResource.fromTag('BackupPlan', 'daily')],\n// });",
+     "CloudFormation": "Resources:\n  BackupPlan:\n    Type: AWS::Backup::BackupPlan\n    Properties:\n      BackupPlan:\n        BackupPlanName: !Sub \"${TableName}-backup-plan\"\n        BackupPlanRule:\n          - RuleName: daily-backup\n            TargetBackupVault: !Ref BackupVaultName  # default: Default\n            ScheduleExpression: \"cron(0 0 ? * * *)\"\n            StartWindowMinutes: 60\n            CompletionWindowMinutes: 180\n            Lifecycle:\n              DeleteAfterDays: !Ref RetentionDays  # default: 35\n\n  BackupSelection:\n    Type: AWS::Backup::BackupSelection\n    Properties:\n      BackupPlanId: !Ref BackupPlan\n      BackupSelection:\n        SelectionName: !Sub \"${TableName}-selection\"\n        IamRoleArn: !Ref BackupServiceRoleArn\n        Resources:\n          - !Sub \"arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}\"\n\n  # Alternative: tag-based selection (more scalable for multiple tables)\n  # BackupSelectionByTag:\n  #   Type: AWS::Backup::BackupSelection\n  #   Properties:\n  #     BackupPlanId: !Ref BackupPlan\n  #     BackupSelection:\n  #       SelectionName: dynamodb-tagged-tables\n  #       IamRoleArn: !Ref BackupServiceRoleArn\n  #       ListOfTags:\n  #         - ConditionType: STRINGEQUALS\n  #           ConditionKey: BackupPlan\n  #           ConditionValue: daily"
+    },
+    "Metadata": {
+     "ResourceType": "AWS::DynamoDB::Table",
+     "ExposureType": "dynamodb",
+     "TraitTitles": [
+      "The DynamoDB table is not covered by a backup plan"
+     ],
+     "Reversibility": "Fully reversible",
+     "FixEffect": "Immediate",
+     "RiskLevel": "Low",
+     "AutomationLevel": "full",
+     "HumanReviewRequired": false,
+     "GeneratedAt": "2026-05-29T00:00:00.000Z",
+     "VerificationStatus": "PENDING"
+    }
+   },
+   "UpdatedAt": "2026-10-23T12:49:18.522Z"
+  }
+ ]
+}

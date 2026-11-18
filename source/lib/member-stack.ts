@@ -62,7 +62,7 @@ export class MemberStack extends Stack {
       resourceNamePrefix: props.resourceNamePrefix,
     });
 
-    new MemberVersion(this, 'MemberVersion', {
+    const memberVersion = new MemberVersion(this, 'MemberVersion', {
       resourceNamePrefix: props.resourceNamePrefix,
       solutionVersion: props.solutionVersion,
     });
@@ -198,6 +198,7 @@ export class MemberStack extends Stack {
       runtimePython: props.runtimePython,
       solutionsBucket: solutionsBucket,
       lambdaLayer: asrLambdaLayer,
+      versionParameter: memberVersion.parameter,
     });
 
     const playbookSelectionValidator = new PlaybookSelectionValidator(this, 'PlaybookSelectionValidator', {

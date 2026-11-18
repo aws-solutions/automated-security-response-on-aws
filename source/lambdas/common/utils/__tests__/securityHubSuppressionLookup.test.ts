@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AwsSecurityFinding,
   DescribeSecurityHubV2Command,
   GetFindingsCommand,
   GetFindingsV2Command,
   InvalidAccessException,
   ResourceNotFoundException,
   SecurityHubClient,
+  ThrottlingException,
+  WorkflowStatus,
 } from '@aws-sdk/client-securityhub';
 import { mockClient } from 'aws-sdk-client-mock';
 import { SecurityHubUtils } from '../securityHub';
@@ -15,6 +18,20 @@ import { SecurityHubUtils } from '../securityHub';
 const securityHubMock = mockClient(SecurityHubClient);
 const findingArn = (suffix: string): string =>
   `arn:aws:securityhub:us-east-1:111111111111:security-control/S3.1/finding/${suffix}`;
+
+const createCspmFinding = (findingId: string, workflowStatus: WorkflowStatus): AwsSecurityFinding => ({
+  SchemaVersion: '2018-10-08',
+  Id: findingId,
+  ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
+  GeneratorId: 'security-control/S3.1',
+  AwsAccountId: '111111111111',
+  CreatedAt: '2025-01-01T00:00:00Z',
+  UpdatedAt: '2025-01-01T00:00:00Z',
+  Title: 'title',
+  Description: 'description',
+  Resources: [{ Type: 'AwsS3Bucket', Id: 'arn:aws:s3:::bucket' }],
+  Workflow: { Status: workflowStatus },
+});
 
 describe('SecurityHubUtils suppression lookup', () => {
   beforeEach(() => {
@@ -62,23 +79,7 @@ describe('SecurityHubUtils suppression lookup', () => {
       // ARRANGE
       const findingId = findingArn('conflict');
       if (cspmStatus) {
-        securityHubMock.on(GetFindingsCommand).resolves({
-          Findings: [
-            {
-              SchemaVersion: '2018-10-08',
-              Id: findingId,
-              ProductArn: 'arn:aws:securityhub:us-east-1::product/aws/securityhub',
-              GeneratorId: 'security-control/S3.1',
-              AwsAccountId: '111111111111',
-              CreatedAt: '2025-01-01T00:00:00Z',
-              UpdatedAt: '2025-01-01T00:00:00Z',
-              Title: 'title',
-              Description: 'description',
-              Resources: [{ Type: 'AwsS3Bucket', Id: 'arn:aws:s3:::bucket' }],
-              Workflow: { Status: cspmStatus },
-            },
-          ],
-        });
+        securityHubMock.on(GetFindingsCommand).resolves({ Findings: [createCspmFinding(findingId, cspmStatus)] });
       }
       if (securityHubV2StatusId) {
         securityHubMock
@@ -226,5 +227,83 @@ describe('SecurityHubUtils suppression lookup', () => {
     // ACT / ASSERT
     await expect(securityHubUtils.isSecurityHubV2Enabled()).rejects.toThrow('timeout');
     await expect(securityHubUtils.isSecurityHubV2Enabled()).resolves.toBe(true);
+  });
+});
+
+describe('SecurityHubUtils per-target suppression outcomes', () => {
+  beforeEach(() => {
+    securityHubMock.reset();
+    securityHubMock.on(GetFindingsCommand).resolves({ Findings: [] });
+    securityHubMock.on(GetFindingsV2Command).resolves({ Findings: [] });
+  });
+
+  it('reads each view once for all targets and judges each target only by the views it asked for', async () => {
+    // ARRANGE: the same finding asked for with and without Security Hub V2, plus one finding no view returns
+    const sharedFindingId = findingArn('shared');
+    const unknownFindingId = findingArn('unknown');
+    securityHubMock.on(GetFindingsCommand).resolves({ Findings: [createCspmFinding(sharedFindingId, 'NEW')] });
+    securityHubMock
+      .on(GetFindingsV2Command)
+      .resolves({ Findings: [{ finding_info: { uid: sharedFindingId }, status_id: 3 }] });
+
+    // ACT
+    const outcomes = await new SecurityHubUtils(new SecurityHubClient({})).readSuppressionOutcomes([
+      { findingId: sharedFindingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: false },
+      { findingId: sharedFindingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: true },
+      { findingId: unknownFindingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: false },
+    ]);
+
+    // ASSERT
+    expect(outcomes).toEqual([{ status: 'NOT_SUPPRESSED' }, { status: 'SUPPRESSED' }, { status: 'UNRESOLVED' }]);
+    expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(1);
+    expect(securityHubMock.commandCalls(GetFindingsCommand)[0].args[0].input.Filters?.Id).toEqual([
+      { Value: sharedFindingId, Comparison: 'EQUALS' },
+      { Value: unknownFindingId, Comparison: 'EQUALS' },
+    ]);
+    expect(securityHubMock.commandCalls(GetFindingsV2Command)).toHaveLength(1);
+    expect(
+      securityHubMock.commandCalls(GetFindingsV2Command)[0].args[0].input.Filters?.CompositeFilters?.[0].StringFilters,
+    ).toHaveLength(1);
+  });
+
+  it('fails only the targets that asked for a view whose read failed', async () => {
+    // ARRANGE
+    const cspmOnlyFindingId = findingArn('cspm-only');
+    const bothViewsFindingId = findingArn('both-views');
+    const securityHubV2Error = new ThrottlingException({ message: 'V2 rate exceeded', $metadata: {} });
+    securityHubMock.on(GetFindingsCommand).resolves({ Findings: [createCspmFinding(cspmOnlyFindingId, 'NEW')] });
+    securityHubMock.on(GetFindingsV2Command).rejects(securityHubV2Error);
+
+    // ACT
+    const outcomes = await new SecurityHubUtils(new SecurityHubClient({})).readSuppressionOutcomes([
+      { findingId: cspmOnlyFindingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: false },
+      { findingId: bothViewsFindingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: true },
+    ]);
+
+    // ASSERT
+    expect(outcomes).toEqual([{ status: 'NOT_SUPPRESSED' }, { status: 'FAILED', error: securityHubV2Error }]);
+  });
+
+  it('reports the Security Hub CSPM error when both views fail, and an error over a suppressed status', async () => {
+    // ARRANGE
+    const findingId = findingArn('errors');
+    const cspmError = new ThrottlingException({ message: 'CSPM rate exceeded', $metadata: {} });
+    const securityHubV2Error = new Error('V2 unavailable');
+    securityHubMock.on(GetFindingsCommand).rejects(cspmError);
+    securityHubMock.on(GetFindingsV2Command).rejects(securityHubV2Error);
+    const securityHubUtils = new SecurityHubUtils(new SecurityHubClient({}));
+
+    // ACT
+    const bothFailed = await securityHubUtils.readSuppressionOutcomes([
+      { findingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: true },
+    ]);
+    securityHubMock.on(GetFindingsCommand).resolves({ Findings: [createCspmFinding(findingId, 'SUPPRESSED')] });
+    const suppressedButSecurityHubV2Failed = await securityHubUtils.readSuppressionOutcomes([
+      { findingId, shouldCheckCspm: true, shouldCheckSecurityHubV2: true },
+    ]);
+
+    // ASSERT
+    expect(bothFailed).toEqual([{ status: 'FAILED', error: cspmError }]);
+    expect(suppressedButSecurityHubV2Failed).toEqual([{ status: 'FAILED', error: securityHubV2Error }]);
   });
 });
