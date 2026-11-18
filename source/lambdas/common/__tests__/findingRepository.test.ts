@@ -3,11 +3,13 @@
 
 import { FindingTableItem } from '@asr/data-models';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { FindingRepository, ValidationError } from '../repositories/findingRepository';
 import { DynamoDBTestSetup } from './dynamodbSetup';
 import { findingsTableName } from './envSetup';
 import { asFindingId } from './utils';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { mockClient } from 'aws-sdk-client-mock';
 
 describe('FindingRepository', () => {
   const principal = 'test-user';
@@ -1418,6 +1420,235 @@ describe('FindingRepository', () => {
 
       expect(result.items).toBeDefined();
       expect(result.items.length).toBe(0);
+    });
+  });
+});
+
+// What the repository does when DynamoDB refuses a request, and the search paging and ordering paths the
+// main repository tests do not reach. Failures are produced by a table that does not exist or, for a
+// failure in the middle of a two-step write, by a fake of the SDK client (the system boundary).
+
+const MISSING_TABLE = 'test-findings-table-that-does-not-exist';
+const ARN = (n: number) =>
+  asFindingId(`arn:aws:securityhub:us-east-1:123456789012:security-control/S3.1/finding/failures-${n}`);
+
+const finding = (n: number, overrides: Partial<FindingTableItem> = {}): FindingTableItem => ({
+  findingType: 'security-control/S3.1',
+  findingId: ARN(n),
+  findingDescription: `finding ${n}`,
+  accountId: '123456789012',
+  resourceId: `arn:aws:s3:::bucket-${n}`,
+  resourceType: 'AWS::S3::Bucket',
+  resourceTypeNormalized: 'awss3bucket',
+  severity: 'HIGH',
+  severityNormalized: 3,
+  region: 'us-east-1',
+  remediationStatus: 'NOT_STARTED',
+  securityHubUpdatedAtTime: `2024-01-0${n}T00:00:00Z`,
+  lastUpdatedTime: `2024-01-0${n}T00:00:00Z`,
+  'securityHubUpdatedAtTime#findingId': `2024-01-0${n}T00:00:00Z#${ARN(n)}`,
+  'severityNormalized#securityHubUpdatedAtTime#findingId': `3#2024-01-0${n}T00:00:00Z#${ARN(n)}`,
+  findingJSON: new Uint8Array(Buffer.from('{}')),
+  findingIdControl: `${ARN(n)}#security-control/S3.1`,
+  FINDING_CONSTANT: 'finding' as const,
+  creationTime: `2024-01-0${n}T00:00:00Z`,
+  suppressed: false,
+  expireAt: Math.floor(Date.now() / 1000) + 86400,
+  ...overrides,
+});
+
+describe('FindingRepository failures and paging (DynamoDB Local)', () => {
+  let repository: FindingRepository;
+  let broken: FindingRepository;
+
+  beforeAll(async () => {
+    await DynamoDBTestSetup.initialize();
+    await DynamoDBTestSetup.createFindingsTable(findingsTableName);
+  });
+
+  afterAll(async () => {
+    await DynamoDBTestSetup.deleteTable(findingsTableName);
+  });
+
+  beforeEach(async () => {
+    await DynamoDBTestSetup.clearTable(findingsTableName, 'findings');
+    const client = DynamoDBTestSetup.getDocClient();
+    repository = new FindingRepository('test-user', findingsTableName, client);
+    broken = new FindingRepository('test-user', MISSING_TABLE, client);
+  });
+
+  describe('when the table cannot be reached', () => {
+    it('passes on a failure to write, create or delete a finding', async () => {
+      await expect(broken.putIfNewer(finding(1))).rejects.toThrow();
+      await expect(broken.createIfNotExists(finding(1))).rejects.toThrow();
+      await expect(broken.deleteIfExists(ARN(1), 'security-control/S3.1')).rejects.toThrow();
+    });
+
+    it('passes on a failure to take the rollback lock', async () => {
+      await expect(
+        broken.tryAcquireRollbackLock('security-control/S3.1', ARN(1), '2024-02-01T00:00:00Z', '2024-01-01T00:00:00Z'),
+      ).rejects.toThrow();
+    });
+
+    it('returns no findings for a lookup by id or by key, rather than failing the caller', async () => {
+      expect(await broken.findByFindingIds([ARN(1)])).toEqual({ findings: [], nonDerivableIds: [] });
+      expect(await broken.findByKeys([{ findingType: 'security-control/S3.1', findingId: ARN(1) }])).toEqual([]);
+      expect(await broken.findByKeys([])).toEqual([]);
+    });
+
+    it('passes on a failure to search', async () => {
+      await expect(broken.searchFindings({ filters: [], pageSize: 10, sortOrder: 'desc' })).rejects.toThrow();
+    });
+  });
+
+  describe('stamping the remediation deadline', () => {
+    const sdkClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-1' }));
+    const sdkMock = mockClient(sdkClient);
+
+    beforeEach(() => sdkMock.reset());
+
+    it('passes on a failure while setting the due date, after the config ids were recorded', async () => {
+      const fake = new FindingRepository('test-user', 'fake-table', sdkClient);
+      sdkMock
+        .on(UpdateCommand)
+        .resolvesOnce({})
+        .rejects(Object.assign(new Error('throttled'), { name: 'ProvisionedThroughputExceededException' }));
+
+      await expect(
+        fake.stampRemediationDueBy(ARN(1), 'security-control/S3.1', '2024-03-01T00:00:00Z', ['config-1']),
+      ).rejects.toThrow('throttled');
+    });
+  });
+
+  describe('querying an index directly', () => {
+    it('returns the findings of one partition, newest first or oldest first', async () => {
+      await repository.put(finding(1));
+      await repository.put(finding(2));
+
+      const descending = await repository.queryIndexPK({
+        indexName: 'allFindings-securityHubUpdatedAtTime-GSI',
+        partitionKeyName: 'FINDING_CONSTANT',
+        partitionKeyValue: 'finding',
+        scanIndexForward: false,
+      });
+      const ascending = await repository.queryIndexPK({
+        indexName: 'allFindings-securityHubUpdatedAtTime-GSI',
+        partitionKeyName: 'FINDING_CONSTANT',
+        partitionKeyValue: 'finding',
+        limit: 1,
+      });
+
+      expect(descending.items.map((f) => f.findingId)).toEqual([ARN(2), ARN(1)]);
+      expect(ascending.items.map((f) => f.findingId)).toEqual([ARN(1)]);
+      expect(ascending.lastEvaluatedKey).toBeDefined();
+    });
+  });
+
+  describe('searching', () => {
+    beforeEach(async () => {
+      await repository.put(
+        finding(1, {
+          severity: 'LOW',
+          severityNormalized: 1,
+          'severityNormalized#securityHubUpdatedAtTime#findingId': `1#2024-01-01T00:00:00Z#${ARN(1)}`,
+        }),
+      );
+      await repository.put(
+        finding(2, {
+          severity: 'HIGH',
+          severityNormalized: 3,
+          'severityNormalized#securityHubUpdatedAtTime#findingId': `3#2024-01-02T00:00:00Z#${ARN(2)}`,
+        }),
+      );
+      await repository.put(
+        finding(3, {
+          severity: 'CRITICAL',
+          severityNormalized: 4,
+          'severityNormalized#securityHubUpdatedAtTime#findingId': `4#2024-01-03T00:00:00Z#${ARN(3)}`,
+        }),
+      );
+      await repository.put(
+        finding(4, {
+          severity: 'HIGH',
+          severityNormalized: 3,
+          'severityNormalized#securityHubUpdatedAtTime#findingId': `3#2024-01-04T00:00:00Z#${ARN(4)}`,
+        }),
+      );
+      await repository.put(
+        finding(5, {
+          severity: 'MEDIUM',
+          severityNormalized: 2,
+          'severityNormalized#securityHubUpdatedAtTime#findingId': `2#2024-01-05T00:00:00Z#${ARN(5)}`,
+        }),
+      );
+    });
+
+    it('orders by severity, most severe first, with or without filters', async () => {
+      const all = await repository.searchFindings({
+        filters: [],
+        pageSize: 10,
+        sortOrder: 'desc',
+        sortField: 'severityNormalized',
+      });
+      const highOnly = await repository.searchFindings({
+        filters: [{ fieldName: 'severity', value: 'HIGH', comparison: 'EQUALS' }],
+        pageSize: 10,
+        sortOrder: 'desc',
+        sortField: 'severityNormalized',
+      });
+
+      expect(all.items.map((f) => f.severity)).toEqual(['CRITICAL', 'HIGH', 'HIGH', 'MEDIUM', 'LOW']);
+      expect(highOnly.items.map((f) => f.findingId)).toEqual([ARN(4), ARN(2)]);
+    });
+
+    it('starts from the beginning for a token that has no sort key or is not valid', async () => {
+      const lacksSortKey = Buffer.from(JSON.stringify({ findingType: 'security-control/S3.1' }), 'utf-8').toString(
+        'base64',
+      );
+      const lacksType = Buffer.from(JSON.stringify({ 'securityHubUpdatedAtTime#findingId': 'x' }), 'utf-8').toString(
+        'base64',
+      );
+
+      const first = await repository.searchFindings({
+        filters: [],
+        pageSize: 10,
+        sortOrder: 'asc',
+        nextToken: lacksSortKey,
+      });
+      const second = await repository.searchFindings({
+        filters: [],
+        pageSize: 10,
+        sortOrder: 'asc',
+        nextToken: lacksType,
+      });
+      const third = await repository.searchFindings({
+        filters: [],
+        pageSize: 10,
+        sortOrder: 'asc',
+        nextToken: 'not-a-token',
+      });
+
+      expect(first.items).toHaveLength(5);
+      expect(second.items).toHaveLength(5);
+      expect(third.items).toHaveLength(5);
+    });
+
+    it('pages through findings ordered by severity', async () => {
+      const first = await repository.searchFindings({
+        filters: [],
+        pageSize: 2,
+        sortOrder: 'desc',
+        sortField: 'severityNormalized',
+      });
+      const second = await repository.searchFindings({
+        filters: [],
+        pageSize: 2,
+        sortOrder: 'desc',
+        sortField: 'severityNormalized',
+        nextToken: first.nextToken,
+      });
+
+      expect([...first.items, ...second.items].map((f) => f.severity)).toEqual(['CRITICAL', 'HIGH', 'HIGH', 'MEDIUM']);
     });
   });
 });

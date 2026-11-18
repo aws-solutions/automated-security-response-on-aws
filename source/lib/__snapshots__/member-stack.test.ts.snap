@@ -870,6 +870,9 @@ def sort_filter_rules(json_obj):
           },
         },
         "Timestamp": "1735689600000",
+        "VersionParameterName": {
+          "Ref": "SHARRMemberVersionEDAB5C42",
+        },
       },
       "Type": "Custom::DeploymentMetrics",
       "UpdateReplacePolicy": "Delete",

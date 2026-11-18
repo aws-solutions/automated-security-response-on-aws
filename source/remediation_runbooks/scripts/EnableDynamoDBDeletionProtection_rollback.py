@@ -28,6 +28,7 @@ logger.setLevel(logging.INFO)
 # snapshot_utils.py via the %%INCLUDE directive below — do not remove.
 # fmt: off
 from common.snapshot_utils import (  # noqa: E402
+    RollbackAction,
     RollbackError,
     SnapshotNotFoundError,
     SnapshotReadError,
@@ -36,6 +37,7 @@ from common.snapshot_utils import (  # noqa: E402
     get_post_remediation_state,
     get_pre_remediation_state,
     read_snapshot,
+    resolve_rollback_action,
     write_snapshot,
 )
 
@@ -282,8 +284,8 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
 def execute_rollback(event: dict[str, object], _context: object) -> RollbackResult:
     """
     1. Read and validate the snapshot from S3 (by its recorded version id, tamper-proof)
-    2. Drift check: abort if the resource is no longer in the post-remediation state ASR applied
-       (i.e. it was modified after remediation)
+    2. Decide via resolve_rollback_action: already at the pre-remediation state -> no-op
+       success; neither the pre- nor the post-remediation state -> abort (drift)
     3. Restore the original pre-remediation DeletionProtectionEnabled setting
     """
     validated = _validate_rollback_event(event)
@@ -318,21 +320,21 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     dynamodb: DynamoDBClient = boto3.client("dynamodb", config=BOTO_CONFIG)
     is_currently_enabled = _get_deletion_protection(dynamodb, table_name)
 
-    # Drift check: the resource must still be in the post-remediation state ASR applied. If it has
-    # changed since remediation, someone modified it afterward — abort the rollback and surface the drift.
-    if is_currently_enabled != post_remediation_enabled:
+    # Idempotent: a repeated rollback (current == original) is NOOP, not drift.
+    action = resolve_rollback_action(
+        is_currently_enabled, was_originally_enabled, post_remediation_enabled
+    )
+    if action is RollbackAction.NOOP:
+        return {
+            "Message": f"Table {table_name} is already in its pre-remediation state. No rollback action needed.",
+            "Status": "SUCCESS",
+        }
+    if action is RollbackAction.DRIFT:
         raise SnapshotValidationError(
             f"Rollback aborted for table {table_name}: current deletion protection ({is_currently_enabled}) "
             f"does not match the post-remediation state ASR applied ({post_remediation_enabled}). "
             f"The resource was modified after the ASR remediation."
         )
-
-    # No drift. Restore the pre-remediation state (skip the API call if already there).
-    if is_currently_enabled == was_originally_enabled:
-        return {
-            "Message": f"Table {table_name} is already in its pre-remediation state. No rollback action needed.",
-            "Status": "SUCCESS",
-        }
 
     dynamodb.update_table(
         TableName=table_name, DeletionProtectionEnabled=was_originally_enabled

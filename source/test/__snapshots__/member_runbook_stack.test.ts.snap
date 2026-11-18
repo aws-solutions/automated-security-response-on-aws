@@ -19,6 +19,202 @@ exports[`MemberRolesStack tests Global Roles Stack 1`] = `
     },
   },
   "Resources": {
+    "CustomRunbookRoleCleanup2869F939": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "PermissionsBoundaryArn": {
+          "Ref": "RemediationBoundaryPolicyC4F27B34",
+        },
+        "RoleNamePrefix": "SO0111-Remediate-Custom-",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomRunbookRoleCleanupFunction43EE47B5",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::CustomRunbookRoleCleanup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CustomRunbookRoleCleanupFunction43EE47B5": {
+      "DependsOn": [
+        "CustomRunbookRoleCleanupRole3BD89CD5",
+      ],
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "LAMBDA_INSIDE_VPC",
+            "LAMBDA_CONCURRENCY_CHECK",
+          ],
+        },
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "",
+              [
+                "sharrbukkit-",
+                {
+                  "Ref": "AWS::Region",
+                },
+              ],
+            ],
+          },
+          "S3Key": automated-security-response-on-aws/v1.1.1/lambda/custom_runbook_role_cleanup.zip,
+        },
+        "Description": "ASR - Deletes Custom Runbook remediation roles when the Member Roles stack is deleted",
+        "Environment": {
+          "Variables": {
+            "LOG_LEVEL": "INFO",
+          },
+        },
+        "Handler": "custom_runbook_role_cleanup.lambda_handler",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "CustomRunbookRoleCleanupLogGroupE8C3E7F5",
+          },
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomRunbookRoleCleanupRole3BD89CD5",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.11",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomRunbookRoleCleanupLogGroupE8C3E7F5": {
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "CLOUDWATCH_LOG_GROUP_ENCRYPTED",
+          ],
+        },
+      },
+      "Properties": {
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CustomRunbookRoleCleanupRole3BD89CD5": {
+      "Metadata": {
+        "guard": {
+          "SuppressedRules": [
+            "IAM_NO_INLINE_POLICY_CHECK",
+            "IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE",
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Deletes the ASR Custom Runbook remediation roles when the Member Roles stack is deleted",
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "iam:ListRoles",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": [
+                    "iam:GetRole",
+                    "iam:ListRolePolicies",
+                    "iam:ListAttachedRolePolicies",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":role/SO0111-Remediate-Custom-*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": [
+                    "iam:DeleteRolePolicy",
+                    "iam:DetachRolePolicy",
+                    "iam:DeleteRole",
+                  ],
+                  "Condition": {
+                    "Null": {
+                      "iam:ResourceTag/aws-solutions:custom-runbook": "false",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":role/SO0111-Remediate-Custom-*",
+                      ],
+                    ],
+                  },
+                },
+                {
+                  "Action": "cloudformation:DescribeStacks",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Ref": "AWS::StackId",
+                  },
+                },
+                {
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "CustomRunbookRoleCleanupLogGroupE8C3E7F5",
+                      "Arn",
+                    ],
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "CustomRunbookRoleCleanupPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "InspectorAutomationRoleInspectorAutomationMemberRole24701500": {
       "Metadata": {
         "cfn_nag": {
@@ -662,8 +858,8 @@ exports[`MemberRolesStack tests Global Roles Stack 1`] = `
         "cfn_nag": {
           "rules_to_suppress": [
             {
-              "id": "F5",
-              "reason": "A permissions boundary grants nothing: it caps what an identity policy can grant. Action: * here is a ceiling, not a privilege, and the Deny statements are what constrain the role.",
+              "id": "W17",
+              "reason": "A permissions boundary grants nothing: it caps what an identity policy can grant. Allow+NotAction here is a ceiling, not a privilege, and the Deny statements are what constrain the role.",
             },
             {
               "id": "W12",
@@ -690,10 +886,25 @@ exports[`MemberRolesStack tests Global Roles Stack 1`] = `
         "PolicyDocument": {
           "Statement": [
             {
-              "Action": "*",
               "Effect": "Allow",
+              "NotAction": [
+                "iam:*",
+                "sts:*",
+                "organizations:*",
+              ],
               "Resource": "*",
               "Sid": "AllowServiceActions",
+            },
+            {
+              "Action": "iam:PassRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "ssm.amazonaws.com",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "AllowPassRoleToSsm",
             },
             {
               "Action": [
@@ -11793,8 +12004,8 @@ def capture_and_remediate(event: dict[str, object], _context: object) -> Capture
 def execute_rollback(event: dict[str, object], _context: object) -> RollbackResult:
     """
     1. Read and validate the snapshot from S3 (by its recorded version id, tamper-proof)
-    2. Drift check: abort if the resource is no longer in the post-remediation state ASR applied
-       (i.e. it was modified after remediation)
+    2. Decide via resolve_rollback_action: already at the pre-remediation state -> no-op
+       success; neither the pre- nor the post-remediation state -> abort (drift)
     3. Restore the original pre-remediation DeletionProtectionEnabled setting
     """
     validated = _validate_rollback_event(event)
@@ -11825,17 +12036,20 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     post_remediation_enabled = _read_post_remediation_state(snapshot, execution_id)
     dynamodb: DynamoDBClient = boto3.client("dynamodb", config=BOTO_CONFIG)
     is_currently_enabled = _get_deletion_protection(dynamodb, table_name)
-    if is_currently_enabled != post_remediation_enabled:
+    action = resolve_rollback_action(
+        is_currently_enabled, was_originally_enabled, post_remediation_enabled
+    )
+    if action is RollbackAction.NOOP:
+        return {
+            "Message": f"Table {table_name} is already in its pre-remediation state. No rollback action needed.",
+            "Status": "SUCCESS",
+        }
+    if action is RollbackAction.DRIFT:
         raise SnapshotValidationError(
             f"Rollback aborted for table {table_name}: current deletion protection ({is_currently_enabled}) "
             f"does not match the post-remediation state ASR applied ({post_remediation_enabled}). "
             f"The resource was modified after the ASR remediation."
         )
-    if is_currently_enabled == was_originally_enabled:
-        return {
-            "Message": f"Table {table_name} is already in its pre-remediation state. No rollback action needed.",
-            "Status": "SUCCESS",
-        }
     dynamodb.update_table(
         TableName=table_name, DeletionProtectionEnabled=was_originally_enabled
     )
@@ -13490,17 +13704,20 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     post_remediation_enabled = _read_post_remediation_state(snapshot, execution_id)
     elasticache: ElastiCacheClient = boto3.client("elasticache", config=BOTO_CONFIG)
     is_currently_enabled = _get_auto_minor_version_upgrade(elasticache, cluster_id)
-    if is_currently_enabled != post_remediation_enabled:
+    action = resolve_rollback_action(
+        is_currently_enabled, was_originally_enabled, post_remediation_enabled
+    )
+    if action is RollbackAction.NOOP:
+        return {
+            "Message": f"Cluster {cluster_id} is already in its pre-remediation state. No rollback action needed.",
+            "Status": "SUCCESS",
+        }
+    if action is RollbackAction.DRIFT:
         raise SnapshotValidationError(
             f"Rollback aborted for cluster {cluster_id}: current automatic minor version upgrade "
             f"({is_currently_enabled}) does not match the post-remediation state ASR applied "
             f"({post_remediation_enabled}). The resource was modified after the ASR remediation."
         )
-    if is_currently_enabled == was_originally_enabled:
-        return {
-            "Message": f"Cluster {cluster_id} is already in its pre-remediation state. No rollback action needed.",
-            "Status": "SUCCESS",
-        }
     elasticache.modify_cache_cluster(
         CacheClusterId=cluster_id, AutoMinorVersionUpgrade=was_originally_enabled
     )
@@ -18127,17 +18344,20 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     post_remediation_enabled = _read_post_remediation_state(snapshot, execution_id)
     rds: RDSClient = boto3.client("rds", config=BOTO_CONFIG)
     is_currently_enabled = _get_deletion_protection(rds, db_cluster_id)
-    if is_currently_enabled != post_remediation_enabled:
+    action = resolve_rollback_action(
+        is_currently_enabled, was_originally_enabled, post_remediation_enabled
+    )
+    if action is RollbackAction.NOOP:
+        return {
+            "Message": f"Cluster {db_cluster_id} is already in its pre-remediation state. No rollback action needed.",
+            "Status": "SUCCESS",
+        }
+    if action is RollbackAction.DRIFT:
         raise SnapshotValidationError(
             f"Rollback aborted for cluster {db_cluster_id}: current deletion protection ({is_currently_enabled}) "
             f"does not match the post-remediation state ASR applied ({post_remediation_enabled}). "
             f"The resource was modified after the ASR remediation."
         )
-    if is_currently_enabled == was_originally_enabled:
-        return {
-            "Message": f"Cluster {db_cluster_id} is already in its pre-remediation state. No rollback action needed.",
-            "Status": "SUCCESS",
-        }
     rds.modify_db_cluster(
         DBClusterIdentifier=db_cluster_id,
         DeletionProtection=was_originally_enabled,
@@ -18853,17 +19073,20 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     post_remediation_enabled = _read_post_remediation_state(snapshot, execution_id)
     rds: RDSClient = boto3.client("rds", config=BOTO_CONFIG)
     is_currently_enabled = _get_deletion_protection(rds, db_instance_id)
-    if is_currently_enabled != post_remediation_enabled:
+    action = resolve_rollback_action(
+        is_currently_enabled, was_originally_enabled, post_remediation_enabled
+    )
+    if action is RollbackAction.NOOP:
+        return {
+            "Message": f"Instance {db_instance_id} is already in its pre-remediation state. No rollback action needed.",
+            "Status": "SUCCESS",
+        }
+    if action is RollbackAction.DRIFT:
         raise SnapshotValidationError(
             f"Rollback aborted for instance {db_instance_id}: current deletion protection ({is_currently_enabled}) "
             f"does not match the post-remediation state ASR applied ({post_remediation_enabled}). "
             f"The resource was modified after the ASR remediation."
         )
-    if is_currently_enabled == was_originally_enabled:
-        return {
-            "Message": f"Instance {db_instance_id} is already in its pre-remediation state. No rollback action needed.",
-            "Status": "SUCCESS",
-        }
     rds.modify_db_instance(
         DBInstanceIdentifier=db_instance_id,
         DeletionProtection=was_originally_enabled,

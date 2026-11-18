@@ -54,6 +54,7 @@ process.env.EXPORT_MAX_RECORDS = '50000';
 process.env.CUSTOM_RUNBOOK_BUCKET_NAME = 'test-custom-runbook-bucket';
 process.env.CUSTOM_RUNBOOK_TABLE_NAME = 'test-custom-runbook-table';
 process.env.NOTIFICATION_QUEUE_URL = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-notification-queue';
+process.env.PRE_PROCESSOR_QUEUE_URL = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-pre-processor-queue';
 process.env.HISTORY_TTL_DAYS = '90';
 process.env.AWS_PARTITION = 'aws';
 process.env.RESOURCE_NAME_PREFIX = 'SO0111';

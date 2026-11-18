@@ -100,6 +100,8 @@ function synthesizeTemplates(): Record<string, unknown>[] {
     solutionId: DEVELOPMENT_SOLUTION_ID,
     solutionVersion: 'v0.0.0',
     solutionDistBucket: 'test-bucket',
+    solutionTradeMarkName: 'automated-security-response-on-aws',
+    runtimePython: Runtime.PYTHON_3_11,
   });
 
   const runbookStack = new RemediationRunbookStack(app, 'RunbookStack', {

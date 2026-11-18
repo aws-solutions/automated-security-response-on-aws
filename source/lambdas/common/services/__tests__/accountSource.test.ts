@@ -1,19 +1,25 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Unit tests for the Security Hub member-account enumeration source. Security Hub is a true system
-// boundary, so it is mocked with aws-sdk-client-mock; the pagination logic is the code under test.
+// Unit tests for the Security Hub account enumeration source. Security Hub is a true system boundary,
+// so it is mocked with aws-sdk-client-mock; the pagination and administrator-account logic is the code
+// under test.
 
 import { ListMembersCommand, SecurityHubClient } from '@aws-sdk/client-securityhub';
 import { mockClient } from 'aws-sdk-client-mock';
-import { SecurityHubMemberAccountSource } from '../accountSource';
+import { SecurityHubAccountSource } from '../accountSource';
 
 const securityHubMock = mockClient(SecurityHubClient);
+const ADMINISTRATOR_ACCOUNT_ID = '999999999999';
 
-describe('SecurityHubMemberAccountSource', () => {
+function listAccountIds(): Promise<string[]> {
+  return new SecurityHubAccountSource(new SecurityHubClient({}), ADMINISTRATOR_ACCOUNT_ID).listAccountIds();
+}
+
+describe('SecurityHubAccountSource', () => {
   beforeEach(() => securityHubMock.reset());
 
-  it('returns every member account id across paginated responses', async () => {
+  it('returns the administrator account first, then every member account across paginated responses', async () => {
     // GIVEN ListMembers returns two pages of members
     securityHubMock
       .on(ListMembersCommand)
@@ -21,24 +27,31 @@ describe('SecurityHubMemberAccountSource', () => {
       .resolvesOnce({ Members: [{ AccountId: '333333333333' }] });
 
     // WHEN the accounts are enumerated
-    const accountIds = await new SecurityHubMemberAccountSource(new SecurityHubClient({})).listAccountIds();
+    const accountIds = await listAccountIds();
 
-    // THEN both pages are flattened in order and the second call carried the NextToken
-    expect(accountIds).toEqual(['111111111111', '222222222222', '333333333333']);
+    // THEN the administrator leads and both member pages follow in order, the second call carrying the NextToken
+    expect(accountIds).toEqual([ADMINISTRATOR_ACCOUNT_ID, '111111111111', '222222222222', '333333333333']);
     expect(securityHubMock.commandCalls(ListMembersCommand)[1].args[0].input.NextToken).toBe('p2');
   });
 
-  it('returns an empty list when the organization has no members', async () => {
+  it('returns only the administrator account when Security Hub has no members', async () => {
+    // A single-account deployment: without the administrator account the sweep would sync nothing.
     securityHubMock.on(ListMembersCommand).resolves({ Members: [] });
 
-    expect(await new SecurityHubMemberAccountSource(new SecurityHubClient({})).listAccountIds()).toEqual([]);
+    expect(await listAccountIds()).toEqual([ADMINISTRATOR_ACCOUNT_ID]);
+  });
+
+  it('lists the administrator account once when ListMembers also returns it', async () => {
+    securityHubMock
+      .on(ListMembersCommand)
+      .resolves({ Members: [{ AccountId: ADMINISTRATOR_ACCOUNT_ID }, { AccountId: '111111111111' }] });
+
+    expect(await listAccountIds()).toEqual([ADMINISTRATOR_ACCOUNT_ID, '111111111111']);
   });
 
   it('skips members missing an account id', async () => {
     securityHubMock.on(ListMembersCommand).resolves({ Members: [{ AccountId: '111111111111' }, { Email: 'x@y.z' }] });
 
-    expect(await new SecurityHubMemberAccountSource(new SecurityHubClient({})).listAccountIds()).toEqual([
-      '111111111111',
-    ]);
+    expect(await listAccountIds()).toEqual([ADMINISTRATOR_ACCOUNT_ID, '111111111111']);
   });
 });

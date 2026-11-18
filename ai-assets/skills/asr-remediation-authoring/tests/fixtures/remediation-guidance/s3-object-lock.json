@@ -1,0 +1,169 @@
+{
+ "Items": [
+  {
+   "TargetUid": "example-target-s3-object-lock",
+   "Outcome": {
+    "ResolvedFindingsCount": 1,
+    "SeverityReductionFindingsCount": 0,
+    "SeverityUnchangedCount": 0
+   },
+   "Priority": "Low",
+   "RemediationSummary": {
+    "Action": "Enable object lock.",
+    "IsImmediate": true,
+    "Description": "Enable object lock.",
+    "KbArticles": [
+     {
+      "Title": "Remediation guidance for object lock disabled",
+      "Url": "https://docs.aws.amazon.com/securityhub/latest/userguide/exposure-s3-bucket.html#object-lock-disabled"
+     }
+    ]
+   },
+   "Resource": {
+    "AccountId": "111122223333",
+    "Region": "us-east-1",
+    "Type": "AWS::S3::Bucket",
+    "Id": "amzn-s3-demo-bucket2",
+    "ResourceRegion": "us-east-1",
+    "CloudProvider": "AWS",
+    "ResourceOwnerAccountId": "111122223333",
+    "Name": "amzn-s3-demo-bucket2",
+    "ResourceGuid": "arn:aws:s3:::amzn-s3-demo-bucket2"
+   },
+   "Status": "New",
+   "Trait": {
+    "Type": "contributing",
+    "Title": "The S3 bucket has Object Lock disabled"
+   },
+   "Guidance": {
+    "TargetTypeName": "S3Bucket-EnableObjectLock",
+    "Pattern": "Resource Replacement",
+    "Version": "2.0.0",
+    "Context": {
+     "ProblemStatement": "The S3 bucket does not have Object Lock enabled. Object Lock provides WORM (write-once-read-many) protection that prevents objects from being deleted or overwritten for a fixed retention period or indefinitely. Without Object Lock, data is vulnerable to ransomware attacks (attacker deletes/encrypts all objects), malicious insiders, accidental deletion, and cannot satisfy compliance requirements mandating immutable storage (SEC 17a-4, HIPAA, FINRA). Object Lock CANNOT be enabled on an existing bucket \u2014 it can only be configured at bucket creation time. The remediation creates a new bucket with Object Lock enabled, migrates data from the existing bucket, and configures appropriate retention policies.",
+     "RiskAssessment": "High execution risk. This is a Resource Replacement pattern requiring data migration. Risks include: (1) Data loss if migration is incomplete \u2014 objects may be missed, especially if new objects are written during migration. (2) Application downtime \u2014 applications must be updated to reference the new bucket name (unless using an alias or DNS-based routing). (3) Compliance mode Object Lock is IRREVERSIBLE \u2014 locked objects cannot be deleted by anyone (including root) until retention expires. (4) Storage cost increase \u2014 Object Lock requires versioning, which stores all versions. (5) Large data migrations take time and incur data transfer costs. Partially reversible: the old bucket is preserved throughout the process (not deleted), so rollback means reverting applications to the old bucket. However, once objects are locked in Compliance mode in the new bucket, those locks cannot be removed.",
+     "AffectedScope": "New S3 bucket creation with Object Lock enabled, data migration from existing bucket. The existing bucket is NOT deleted \u2014 it is preserved as a rollback target. Applications must be updated to reference the new bucket. Not affected by this remediation: the existing bucket's configuration, encryption, lifecycle rules, or policies (these must be separately replicated to the new bucket). Migration scope: all objects and versions in the existing bucket.",
+     "Prerequisites": [
+      "Existing bucket must be accessible and have objects to migrate",
+      "Executing identity needs: s3:CreateBucket, s3:PutBucketObjectLockConfiguration, s3:PutBucketVersioning, s3:GetObject (on source), s3:PutObject (on destination), s3:ListBucket (on source), s3:GetBucketObjectLockConfiguration, s3:GetObjectLockConfiguration",
+      "Determine retention mode: Governance (can be overridden with s3:BypassGovernanceRetention permission) or Compliance (cannot be overridden by anyone)",
+      "Determine retention period: days or years that objects must be protected",
+      "For large buckets: consider using S3 Batch Operations for migration (requires s3:CreateJob, iam:PassRole)",
+      "New bucket name must be globally unique and comply with S3 naming rules",
+      "Consider replication: set up S3 Replication from old to new bucket for zero-downtime migration"
+     ]
+    },
+    "Specification": {
+     "Parameters": [
+      {
+       "Name": "DestinationBucketName",
+       "Type": "string",
+       "Description": "Name for the new S3 bucket with Object Lock (e.g., 'my-data-bucket-locked'). Must be globally unique.",
+       "Required": true
+      },
+      {
+       "Name": "RetentionMode",
+       "Type": "string",
+       "Description": "Object Lock retention mode: 'GOVERNANCE' (overridable with special permissions) or 'COMPLIANCE' (cannot be overridden). Default: GOVERNANCE.",
+       "Required": false
+      },
+      {
+       "Name": "RetentionDays",
+       "Type": "integer",
+       "Description": "Number of days to retain objects (mutually exclusive with RetentionYears). Default: 365.",
+       "Required": false
+      },
+      {
+       "Name": "RetentionYears",
+       "Type": "integer",
+       "Description": "Number of years to retain objects (mutually exclusive with RetentionDays).",
+       "Required": false
+      }
+     ],
+     "Steps": [
+      {
+       "Phase": "SNAPSHOT",
+       "Description": "Capture existing bucket configuration, verify Object Lock is not already enabled, and assess migration scope",
+       "Service": "s3",
+       "Action": "GetBucketObjectLockConfiguration, GetBucketVersioning, ListBucket, GetBucketEncryption, GetBucketPolicy",
+       "Logic": "1. GetBucketObjectLockConfiguration(Bucket=amzn-s3-demo-bucket2): if ObjectLockConfiguration is returned with ObjectLockEnabled='Enabled', SKIP \u2014 source bucket already has Object Lock (marker should not be present; investigate). If ObjectLockConfigurationNotFoundError, proceed (bucket needs remediation). 2. GetBucketVersioning(Bucket=amzn-s3-demo-bucket2): capture current versioning status. Store as snapshot.VersioningStatus. 3. ListBucket(Bucket=amzn-s3-demo-bucket2): estimate total object count and total size for migration planning. Store as snapshot.ObjectCount and snapshot.TotalSize. For very large buckets (>1M objects or >1TB), flag that S3 Batch Operations is recommended over direct copy. 4. GetBucketEncryption(Bucket=amzn-s3-demo-bucket2): capture encryption settings to replicate on new bucket. 5. GetBucketPolicy(Bucket=amzn-s3-demo-bucket2): capture policy to adapt for new bucket. 6. If NoSuchBucket on any call, abort. Store all configuration as snapshot for replication to new bucket."
+      },
+      {
+       "Phase": "FIX",
+       "Description": "Create new S3 bucket with Object Lock enabled (must be set at creation time)",
+       "Service": "s3",
+       "Action": "CreateBucket",
+       "Logic": "Pre-check: verify ${DestinationBucketName} does not already exist by calling HeadBucket. If it exists and has Object Lock enabled, skip to migration step. If it exists without Object Lock, abort \u2014 choose a different name. Call CreateBucket(Bucket=${DestinationBucketName}, ObjectLockEnabledForBucket=true). The CreateBucket API with ObjectLockEnabledForBucket=true automatically enables versioning. If the source bucket is not in us-east-1, include CreateBucketConfiguration with LocationConstraint matching the source region. Error handling: (a) BucketAlreadyExists \u2014 the name is globally taken; surface to operator to choose new name. (b) BucketAlreadyOwnedByYou \u2014 bucket exists in this account; check Object Lock status. (c) TooManyBuckets \u2014 account bucket limit reached; surface to operator. (d) InvalidBucketName \u2014 name does not comply with rules. Do NOT set any other configuration in this step \u2014 Object Lock enablement must be the first configuration after creation.",
+       "Inverse": "DeleteBucket(Bucket=${DestinationBucketName}). Only possible if the bucket is empty. If objects have been migrated, they must be deleted first (which may be blocked by Object Lock retention). For Governance mode: use s3:DeleteObject with x-amz-bypass-governance-retention header. For Compliance mode: objects CANNOT be deleted until retention expires \u2014 the bucket cannot be removed.",
+       "VerifyAfter": "GetBucketObjectLockConfiguration(Bucket=${DestinationBucketName}): assert ObjectLockEnabled='Enabled'."
+      },
+      {
+       "Phase": "FIX",
+       "Description": "Configure Object Lock default retention policy on the new bucket",
+       "Service": "s3",
+       "Action": "PutObjectLockConfiguration",
+       "Logic": "Determine retention: Mode=${RetentionMode or 'GOVERNANCE'}, Days=${RetentionDays or 365} (use Years if RetentionYears specified). Call PutObjectLockConfiguration(Bucket=${DestinationBucketName}, ObjectLockConfiguration={ObjectLockEnabled:'Enabled', Rule:{DefaultRetention:{Mode:mode, Days:days OR Years:years}}}). This sets the DEFAULT retention for objects uploaded without explicit retention headers. Error handling: (a) InvalidArgument \u2014 invalid mode or period; verify parameters. (b) AccessDenied \u2014 missing s3:PutBucketObjectLockConfiguration permission. WARNING: if using Compliance mode, clearly inform operator that this is IRREVERSIBLE. Objects uploaded with Compliance retention cannot be deleted by anyone until retention expires. Governance mode allows override with s3:BypassGovernanceRetention permission.",
+       "Inverse": "PutObjectLockConfiguration(Bucket=${DestinationBucketName}, ObjectLockConfiguration={ObjectLockEnabled:'Enabled', Rule:{}}). Removes default retention (Object Lock remains enabled but no default retention applied to new objects). Note: existing objects retain their individual retention settings.",
+       "VerifyAfter": "GetObjectLockConfiguration(Bucket=${DestinationBucketName}): assert Rule.DefaultRetention matches configured mode and period."
+      },
+      {
+       "Phase": "FIX",
+       "Description": "Replicate source bucket configuration (encryption, policy) to new bucket and migrate data",
+       "Service": "s3",
+       "Action": "PutBucketEncryption, PutBucketPolicy, CopyObject",
+       "Logic": "1. If snapshot has encryption configuration: PutBucketEncryption on destination bucket with same settings (adapt KMS key if needed). 2. If snapshot has bucket policy: adapt policy for new bucket name (replace amzn-s3-demo-bucket2 ARN with ${DestinationBucketName} ARN) and apply via PutBucketPolicy. 3. Migrate objects: For small buckets (<10,000 objects): iterate ListObjectVersions on source, for each object version call CopyObject(CopySource=amzn-s3-demo-bucket2/key?versionId=vid, Bucket=${DestinationBucketName}, Key=key). For large buckets: create an S3 Batch Operations job with COPY operation. Include object metadata, storage class, and tags in the copy. 4. For ongoing writes during migration: consider enabling S3 Replication from source to destination for zero-gap migration. 5. Do NOT delete the source bucket \u2014 preserve it as rollback target. Error handling: (a) For CopyObject: if individual objects fail (AccessDenied, KMS issues), log and continue \u2014 do not abort entire migration for single-object failures. (b) For large objects (>5GB): use multipart copy. (c) NoSuchKey \u2014 object was deleted between list and copy; skip.",
+       "Inverse": "Do not delete copied objects from the destination bucket if in Compliance mode (impossible until retention expires). For Governance mode: objects can be deleted with bypass header. The source bucket remains intact throughout \u2014 rollback means pointing applications back to source.",
+       "VerifyAfter": "Compare object count between source and destination buckets. ListObjectVersions on both and compare. Allow for minor differences if source has active writes."
+      },
+      {
+       "Phase": "VERIFY",
+       "Description": "Confirm new bucket has Object Lock enabled, retention configured, and data migrated successfully",
+       "Service": "s3",
+       "Action": "GetBucketObjectLockConfiguration, GetObjectLockConfiguration, ListBucket",
+       "Logic": "1. GetBucketObjectLockConfiguration(Bucket=${DestinationBucketName}): assert ObjectLockEnabled='Enabled'. 2. GetObjectLockConfiguration(Bucket=${DestinationBucketName}): assert Rule.DefaultRetention.Mode matches ${RetentionMode} and period matches configured days/years. 3. Compare object counts: ListBucket on source and destination. If destination count is significantly lower than source, flag incomplete migration. 4. Spot-check retention: call GetObjectRetention on a sample of migrated objects to confirm retention is being applied. 5. Verify the source bucket still exists and is intact (preservation check \u2014 it was not deleted). 6. If using replication: verify replication status shows objects replicating successfully. Note: full migration verification for large buckets may require S3 Inventory reports rather than real-time listing."
+      }
+     ],
+     "ExpectedEndState": "A new S3 bucket exists with Object Lock enabled and the specified default retention policy (Governance or Compliance mode). All objects from the source bucket have been copied to the new bucket and are protected by Object Lock retention. The source bucket is preserved intact as a rollback target. Versioning is enabled on the new bucket (required by Object Lock). Applications should be updated to reference the new bucket name. Objects in the new bucket cannot be deleted or overwritten until their retention period expires (in Compliance mode) or without special override permissions (in Governance mode).",
+     "RequiredPermissions": [
+      "s3:GetBucketObjectLockConfiguration",
+      "s3:GetBucketVersioning",
+      "s3:GetBucketEncryption",
+      "s3:GetBucketPolicy",
+      "s3:ListBucket",
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:CreateBucket",
+      "s3:PutBucketObjectLockConfiguration",
+      "s3:PutObjectLockConfiguration",
+      "s3:PutBucketEncryption",
+      "s3:PutBucketPolicy",
+      "s3:PutObject",
+      "s3:GetObjectRetention"
+     ]
+    },
+    "Examples": {
+     "AwsCli": "# SNAPSHOT\naws s3api get-object-lock-configuration --bucket amzn-s3-demo-bucket2 2>/dev/null || echo 'No Object Lock'\naws s3api get-bucket-versioning --bucket amzn-s3-demo-bucket2\naws s3 ls s3://amzn-s3-demo-bucket2 --recursive --summarize | tail -2\n\n# FIX-1: Create new bucket with Object Lock enabled\n# Note: --create-bucket-configuration must be OMITTED for us-east-1\nif [ \"${AWS_REGION}\" = \"us-east-1\" ]; then\n  aws s3api create-bucket --bucket ${DestinationBucketName} \\\n    --object-lock-enabled-for-bucket\nelse\n  aws s3api create-bucket --bucket ${DestinationBucketName} \\\n    --object-lock-enabled-for-bucket \\\n    --create-bucket-configuration LocationConstraint=${AWS_REGION}\nfi\n\n# FIX-2: Configure default retention\naws s3api put-object-lock-configuration --bucket ${DestinationBucketName} \\\n  --object-lock-configuration '{\n    \"ObjectLockEnabled\": \"Enabled\",\n    \"Rule\": {\n      \"DefaultRetention\": {\n        \"Mode\": \"GOVERNANCE\",\n        \"Days\": 365\n      }\n    }\n  }'\n\n# FIX-3: Migrate data (small bucket - direct sync)\naws s3 sync s3://amzn-s3-demo-bucket2 s3://${DestinationBucketName}\n\n# For large buckets, use S3 Batch Operations:\n# aws s3control create-job --account-id 111122223333 --operation '{\"S3PutObjectCopy\":{\"TargetResource\":\"arn:aws:s3:::${DestinationBucketName}\"}}' ...\n\n# VERIFY\naws s3api get-object-lock-configuration --bucket ${DestinationBucketName}\naws s3api get-object-lock-configuration --bucket ${DestinationBucketName} \\\n  --query 'ObjectLockConfiguration.Rule.DefaultRetention'\n# Compare counts\necho \"Source:\" && aws s3 ls s3://amzn-s3-demo-bucket2 --recursive --summarize | grep 'Total Objects'\necho \"Destination:\" && aws s3 ls s3://${DestinationBucketName} --recursive --summarize | grep 'Total Objects'\n# Verify source bucket still exists (not deleted)\naws s3api head-bucket --bucket amzn-s3-demo-bucket2",
+     "Python": "import boto3\n\ns3 = boto3.client('s3')\n\n# SNAPSHOT\ntry:\n    lock_config = s3.get_object_lock_configuration(Bucket=source_bucket)['ObjectLockConfiguration']\n    if lock_config.get('ObjectLockEnabled') == 'Enabled':\n        print('Source bucket already has Object Lock'); exit(0)\nexcept s3.exceptions.ClientError as e:\n    if 'ObjectLockConfigurationNotFoundError' in str(e):\n        pass  # Expected \u2014 bucket needs remediation\n    else:\n        raise\n\n# FIX-1: Create new bucket with Object Lock\ntry:\n    create_params = {'Bucket': dest_bucket, 'ObjectLockEnabledForBucket': True}\n    if region != 'us-east-1':\n        create_params['CreateBucketConfiguration'] = {'LocationConstraint': region}\n    s3.create_bucket(**create_params)\nexcept s3.exceptions.BucketAlreadyOwnedByYou:\n    pass  # Check if Object Lock is enabled\nexcept s3.exceptions.BucketAlreadyExists:\n    raise RuntimeError(f'Bucket name {dest_bucket} is taken globally')\n\n# FIX-2: Configure retention\nretention_mode = retention_mode or 'GOVERNANCE'\nretention_days = retention_days or 365\ns3.put_object_lock_configuration(\n    Bucket=dest_bucket,\n    ObjectLockConfiguration={\n        'ObjectLockEnabled': 'Enabled',\n        'Rule': {'DefaultRetention': {'Mode': retention_mode, 'Days': retention_days}}\n    }\n)\n\n# FIX-3: Migrate objects\npaginator = s3.get_paginator('list_objects_v2')\nfor page in paginator.paginate(Bucket=source_bucket):\n    for obj in page.get('Contents', []):\n        copy_source = {'Bucket': source_bucket, 'Key': obj['Key']}\n        try:\n            s3.copy_object(CopySource=copy_source, Bucket=dest_bucket, Key=obj['Key'])\n        except s3.exceptions.ClientError as e:\n            print(f\"Failed to copy {obj['Key']}: {e}\")  # Log and continue\n\n# VERIFY\nverify_lock = s3.get_object_lock_configuration(Bucket=dest_bucket)['ObjectLockConfiguration']\nassert verify_lock['ObjectLockEnabled'] == 'Enabled'\nassert verify_lock['Rule']['DefaultRetention']['Mode'] == retention_mode\nassert verify_lock['Rule']['DefaultRetention']['Days'] == retention_days\n# Verify source still exists\ns3.head_bucket(Bucket=source_bucket)\nprint(f'SUCCESS: Object Lock enabled on {dest_bucket} with {retention_mode} mode, {retention_days} day retention')",
+     "Terraform": "# Object Lock must be enabled at bucket creation \u2014 cannot be added to existing bucket.\nresource \"aws_s3_bucket\" \"locked\" {\n  bucket              = var.destination_bucket_name\n  object_lock_enabled = true\n}\n\nresource \"aws_s3_bucket_object_lock_configuration\" \"retention\" {\n  bucket = aws_s3_bucket.locked.id\n\n  rule {\n    default_retention {\n      mode = var.retention_mode  # \"GOVERNANCE\" or \"COMPLIANCE\"\n      days = var.retention_days  # e.g., 365\n    }\n  }\n}\n\nresource \"aws_s3_bucket_versioning\" \"locked\" {\n  bucket = aws_s3_bucket.locked.id\n  versioning_configuration {\n    status = \"Enabled\"\n  }\n}\n\n# Data migration cannot be managed by Terraform declaratively.\n# Use a null_resource with local-exec to run aws s3 sync:\nresource \"null_resource\" \"migrate\" {\n  depends_on = [aws_s3_bucket_object_lock_configuration.retention]\n  provisioner \"local-exec\" {\n    command = \"aws s3 sync s3://${var.source_bucket_name} s3://${var.destination_bucket_name}\"\n  }\n}\n\n# DO NOT destroy the source bucket \u2014 preserve as rollback target.",
+     "Cdk": "import * as s3 from 'aws-cdk-lib/aws-s3';\n\n// Create new bucket with Object Lock enabled\nconst lockedBucket = new s3.Bucket(this, 'LockedBucket', {\n  bucketName: destinationBucketName,\n  objectLockEnabled: true,\n  versioned: true,  // Required for Object Lock\n  objectLockDefaultRetention: s3.ObjectLockRetention.governance(\n    cdk.Duration.days(365)\n  ),\n  // For Compliance mode:\n  // objectLockDefaultRetention: s3.ObjectLockRetention.compliance(cdk.Duration.days(365)),\n});\n\n// Data migration must be handled outside CDK:\n// Use a Custom Resource (Lambda) that runs S3 sync/copy\n// or trigger S3 Batch Operations job.\n// The source bucket should NOT be deleted from the CDK stack.\n\n// WARNING: Compliance mode Object Lock is IRREVERSIBLE.\n// Objects cannot be deleted until retention expires.",
+     "CloudFormation": "Resources:\n  LockedBucket:\n    Type: AWS::S3::Bucket\n    Properties:\n      BucketName: !Ref DestinationBucketName\n      ObjectLockEnabled: true\n      ObjectLockConfiguration:\n        ObjectLockEnabled: Enabled\n        Rule:\n          DefaultRetention:\n            Mode: !Ref RetentionMode\n            Days: !Ref RetentionDays\n      VersioningConfiguration:\n        Status: Enabled\n\n  # Data migration via Custom Resource:\n  MigrationFunction:\n    Type: AWS::Lambda::Function\n    Properties:\n      Runtime: python3.12\n      Handler: index.handler\n      Code:\n        ZipFile: |\n          # Lambda to sync objects from source to destination bucket\n          # Use S3 copy_object API for each object\n      Timeout: 900\n\nParameters:\n  SourceBucketName:\n    Type: String\n  DestinationBucketName:\n    Type: String\n  RetentionMode:\n    Type: String\n    Default: GOVERNANCE\n    AllowedValues: [GOVERNANCE, COMPLIANCE]\n  RetentionDays:\n    Type: Number\n    Default: 365"
+    },
+    "Metadata": {
+     "ResourceType": "AWS::S3::Bucket",
+     "ExposureType": "s3",
+     "TraitTitles": [
+      "The S3 bucket has Object Lock disabled"
+     ],
+     "Reversibility": "Fully reversible",
+     "FixEffect": "Deferred",
+     "RiskLevel": "High",
+     "AutomationLevel": "partial",
+     "HumanReviewRequired": true,
+     "GeneratedAt": "2026-05-29T00:00:00.000Z",
+     "VerificationStatus": "PENDING"
+    }
+   },
+   "UpdatedAt": "2026-09-23T00:07:36.893Z"
+  }
+ ]
+}

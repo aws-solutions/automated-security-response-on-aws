@@ -183,23 +183,21 @@ export class NotificationConfigurationRepository extends AbstractRepository<Noti
     await this.deleteById(`${NotificationConfigurationRepository.NAME_LOCK_PREFIX}${name}`);
   }
 
+  /**
+   * Stores a new configuration. Throws the DynamoDB `ConditionalCheckFailedException` unchanged when a
+   * configuration with the same id already exists, so the caller can answer it with a 409 instead of a
+   * generic error.
+   */
   async create(item: NotificationConfigurationItem, createdBy: string): Promise<void> {
     const record = this.buildRecord(item, createdBy);
 
-    try {
-      await this.dynamoDBClient.send(
-        new PutCommand({
-          TableName: this.tableName,
-          Item: record,
-          ConditionExpression: 'attribute_not_exists(configId)',
-        }),
-      );
-    } catch (error) {
-      if (error instanceof ConditionalCheckFailedException) {
-        throw new Error(`Configuration with id ${item.configId} already exists`);
-      }
-      throw error;
-    }
+    await this.dynamoDBClient.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: record,
+        ConditionExpression: 'attribute_not_exists(configId)',
+      }),
+    );
   }
 
   async updateWithVersion(

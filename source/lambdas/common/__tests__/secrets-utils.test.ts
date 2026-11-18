@@ -5,7 +5,7 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 import { mockClient } from 'aws-sdk-client-mock';
 import 'aws-sdk-client-mock-jest';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { getCachedSecretValue, clearSecretsCache } from '../../common/utils/secrets-utils';
+import { getCachedSecretValue, clearSecretsCache } from '../utils/secrets-utils';
 import { SecretRetrievalError } from '../../notification-channels/notification-channel-errors';
 
 const secretsManagerMock = mockClient(SecretsManagerClient);

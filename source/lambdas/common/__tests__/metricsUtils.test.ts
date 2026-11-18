@@ -13,6 +13,7 @@ import { UnresolvableControlIdError } from '../utils/findingUtils';
 import { setupMetricsMocks, cleanupMetricsMocks, createMetricsTestScope, ssmMock } from './metricsMockSetup';
 import { GetParameterCommand, PutParameterCommand, DeleteParameterCommand } from '@aws-sdk/client-ssm';
 import { mockAccountId } from './envSetup';
+import { Clock } from '../utils/clock';
 
 describe('metricsUtils', () => {
   beforeEach(() => {
@@ -223,6 +224,26 @@ describe('metricsUtils', () => {
 
       const result = await getSolutionVersion();
       expect(result).toBeUndefined();
+    });
+
+    it('should pick up a new version after five minutes', async () => {
+      // ARRANGE
+      let nowMilliseconds = Date.parse('2026-01-01T00:00:00Z');
+      const clock: Clock = { now: () => new Date(nowMilliseconds) };
+      ssmMock
+        .on(GetParameterCommand)
+        .resolvesOnce({ Parameter: { Value: 'v4.1.0' } })
+        .resolves({ Parameter: { Value: 'v4.1.1' } });
+
+      // ACT
+      const beforeUpgrade = await getSolutionVersion(clock);
+      nowMilliseconds += 5 * 60 * 1000 - 1;
+      const justUnderFiveMinutes = await getSolutionVersion(clock);
+      nowMilliseconds += 1;
+      const atFiveMinutes = await getSolutionVersion(clock);
+
+      // ASSERT
+      expect([beforeUpgrade, justUnderFiveMinutes, atFiveMinutes]).toEqual(['v4.1.0', 'v4.1.0', 'v4.1.1']);
     });
   });
 

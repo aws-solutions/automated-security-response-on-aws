@@ -82,9 +82,12 @@ class Metrics(object):
     new_uuid_parameter_name = "/Solutions/SO0111/metrics_uuid"
     solution_version_parm = "/Solutions/SO0111/version"
 
-    def __init__(self):
+    def __init__(self, version_parameter_name: str | None = None) -> None:
         self.session = boto3.session.Session()
         self.region: str = self.session.region_name
+        self.version_parameter_name: str = (
+            version_parameter_name or self.solution_version_parm
+        )
 
         self.ssm_client: SSMClient = self.connect_to_ssm()
         self.solution_uuid: str = self.__get_solution_uuid()
@@ -158,13 +161,13 @@ class Metrics(object):
     def __get_solution_version(self) -> str:
         try:
             return (
-                self.ssm_client.get_parameter(Name=self.solution_version_parm)  # type: ignore[union-attr]
+                self.ssm_client.get_parameter(Name=self.version_parameter_name)  # type: ignore[union-attr]
                 .get("Parameter", {})
                 .get("Value", "unknown")
             )
         except Exception as e:
             logger.debug(
-                f"Encountered error fetching solution version from ssm parameter {self.solution_version_parm}",
+                f"Encountered error fetching solution version from ssm parameter {self.version_parameter_name}",
                 error=e,
             )
             return "unknown"

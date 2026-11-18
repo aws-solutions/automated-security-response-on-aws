@@ -29,6 +29,11 @@ jest.mock('../../common/utils/ssmCache', () => ({
   getSSMClient: jest.fn(() => ({})),
 }));
 
+jest.mock('../../common/utils/sleeper', () => {
+  const actual = jest.requireActual<typeof import('../../common/utils/sleeper')>('../../common/utils/sleeper');
+  return { ...actual, getSleeper: jest.fn(actual.getSleeper) };
+});
+
 const mockCaptureAWSv3Client = jest.fn((client) => client);
 const mockCaptureLambdaHandler = jest.fn();
 jest.mock('../../common/utils/tracer', () => ({
@@ -38,6 +43,11 @@ jest.mock('../../common/utils/tracer', () => ({
   })),
 }));
 
+let mockRandomValue = 0;
+jest.mock('../../common/utils/randomNumberSource', () => ({
+  getRandomNumberSource: () => ({ next: () => mockRandomValue }),
+}));
+
 import { ASFFFinding, ASFFSeverity, OCSFComplianceFinding, NotificationConfigurationItem } from '@asr/data-models';
 import type { NormalizedFinding } from '@asr/data-models';
 import { ItemCollectionSizeLimitExceededException } from '@aws-sdk/client-dynamodb';
@@ -45,13 +55,24 @@ import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import {
   DescribeSecurityHubV2Command,
   GetFindingsCommand,
+  GetFindingsCommandInput,
   GetFindingsV2Command,
+  LimitExceededException,
   SecurityHubClient,
   SecurityHubServiceException,
   ThrottlingException,
 } from '@aws-sdk/client-securityhub';
+import { ChangeMessageVisibilityCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  BatchGetCommand,
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  ScanCommand,
+  UpdateCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { Context, SQSBatchResponse, SQSEvent, SQSRecord } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 import nock from 'nock';
@@ -92,8 +113,9 @@ import {
 } from './fixtures/multiServiceFixtures';
 import { mockSecurityHubCoverageFinding } from './fixtures/securityHubCoverageFixtures';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { FindingSchema } from '../Normalizer/findingEventNormalizer';
+import { FindingEventNormalizer, FindingSchema } from '../Normalizer/findingEventNormalizer';
 import { asFindingId, asConfigId, asResolvedFindingType, asSecurityHubCspmFinding } from '../../common/__tests__/utils';
+import { getSleeper, Sleeper } from '../../common/utils/sleeper';
 
 describe('PreProcessor Lambda', () => {
   let context: Context;
@@ -101,6 +123,7 @@ describe('PreProcessor Lambda', () => {
   let sfnMock = mockClient(SFNClient);
   const ssmMock = mockClient(SSMClient);
   const securityHubMock = mockClient(SecurityHubClient);
+  const sqsMock = mockClient(SQSClient);
   const securityHubFindingArn = (suffix: string) =>
     `arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/${suffix}`;
   const ASFFFindingId = securityHubFindingArn('asff-finding-id');
@@ -254,6 +277,8 @@ describe('PreProcessor Lambda', () => {
     sfnMock.restore();
     sfnMock = mockClient(SFNClient);
     securityHubMock.reset();
+    sqsMock.reset();
+    sqsMock.on(ChangeMessageVisibilityCommand).resolves({});
     securityHubMock.on(GetFindingsCommand).resolves({ Findings: [] });
     securityHubMock.on(GetFindingsV2Command).resolves({ Findings: [] });
     securityHubMock
@@ -831,7 +856,7 @@ describe('PreProcessor Lambda', () => {
     describe('when the findings-table item collection is full', () => {
       // A full item collection (DynamoDB's 10 GB cap per partition-key value on a table with an LSI)
       // rejects every write to that partition until it shrinks. The record must be dropped — not
-      // rethrown — so the SQS poller does not retry it ten times before the DLQ.
+      // rethrown — so the SQS poller does not retry it 15 times before the DLQ.
       const itemCollectionFullErrors = [
         {
           shape: 'the modeled SDK exception',
@@ -989,18 +1014,73 @@ describe('PreProcessor Lambda', () => {
       // ACT: recordHandler awaits sendMetrics, so its resolution guarantees the failure metric was posted
       await expect(PreProcessor.recordHandler(record)).resolves.toBeUndefined();
 
-      // ASSERT
+      // ASSERT: exactly one metric, and its error name marks schema detection as the cause
       expect(errorLogSpy).toHaveBeenCalledTimes(1);
-      expect(metricPayloads).toContainEqual({ finding_schema: 'unknown' });
-      expect(metricPayloads).toContainEqual(
-        expect.objectContaining({
+      expect(metricPayloads).toEqual([
+        {
           status: 'FAILED',
           status_reason: 'PRE_PROCESSOR_FAILED',
+          error: 'InvalidFindingSchemaError',
           class_uid: 2003,
           product_arn: 'arn:aws:securityhub:us-east-1::productv2/aws/some-new-product',
-        }),
-      );
+        },
+      ]);
       expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('publishes one schema-detection failure metric for a finding that matches no schema and does not retry it', async () => {
+      // ARRANGE: a body that matches none of the five schemas and has no shape hints
+      const metricPayloads = captureMetricPayloads();
+      const sqsEvent: SQSEvent = { Records: [createSQSRecord({ unexpected: 'shape' })] };
+
+      // ACT: going through the batch handler shows the record is not reported back to SQS for retry
+      const result = (await handler(sqsEvent, context, () => {})) as SQSBatchResponse;
+
+      // ASSERT
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(metricPayloads).toEqual([
+        { status: 'FAILED', status_reason: 'PRE_PROCESSOR_FAILED', error: 'InvalidFindingSchemaError' },
+      ]);
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+
+    it('publishes the OCSF schema metric once for an OCSF compliance finding', async () => {
+      // ARRANGE
+      await setupControlConfig('S3.1', true);
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:ocsf-schema-metric',
+      });
+      const metricPayloads = captureMetricPayloads();
+
+      // ACT: recordHandler awaits every sendMetrics call, so all metrics are posted once it resolves
+      await PreProcessor.recordHandler(createSQSRecord(createMockOCSFFinding()));
+
+      // ASSERT: schema detection runs once, so the schema metric is published once
+      expect(metricPayloads.filter((data) => 'finding_schema' in data)).toEqual([{ finding_schema: 'OCSF' }]);
+      expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+    });
+
+    it('detects the schema of an OCSF compliance finding once', async () => {
+      // ARRANGE: the spy keeps the real detection. Counting calls catches a repeated detection
+      // even if detection ever stops publishing a metric, which the metric test above relies on.
+      await setupControlConfig('S3.1', true);
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:ocsf-schema-detection',
+      });
+      captureMetricPayloads();
+      const detectSpy = jest.spyOn(FindingEventNormalizer.prototype, 'detectFindingSchema');
+
+      try {
+        // ACT
+        await PreProcessor.recordHandler(createSQSRecord(createMockOCSFFinding()));
+
+        // ASSERT
+        expect(detectSpy).toHaveBeenCalledTimes(1);
+        await expect(detectSpy.mock.results[0].value).resolves.toBe(FindingSchema.OCSF);
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+      } finally {
+        detectSpy.mockRestore();
+      }
     });
   });
 
@@ -3602,6 +3682,46 @@ describe('PreProcessor Lambda', () => {
         expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
       });
 
+      it('blocks remediation without retrying when filter evaluation throws', async () => {
+        // ARRANGE: the control has a filter, and evaluating it fails
+        const finding = createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.1/finding/filter-error-finding',
+        });
+        await setupControlConfigWithFilters('S3.1', true, ['filter-that-errors'], 'include');
+        sfnMock.on(StartExecutionCommand).resolves({
+          executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:filter-error-execution',
+        });
+        const evaluationError = new Error('filters table unavailable');
+        // Fail only the filters-table lookup at the SDK boundary, so the real evaluator and repository run.
+        const realSend = DynamoDBDocumentClient.prototype.send;
+        const isFiltersTableRead = (command: object): boolean =>
+          command instanceof BatchGetCommand && resourceFiltersTableName in (command.input.RequestItems ?? {});
+        const sendSpy = jest.spyOn(DynamoDBDocumentClient.prototype, 'send').mockImplementation(function (
+          this: DynamoDBDocumentClient,
+          ...args: Parameters<typeof realSend>
+        ) {
+          if (isFiltersTableRead(args[0])) return Promise.reject(evaluationError);
+          return realSend.apply(this, args);
+        });
+        const errorLogSpy = jest.spyOn(Logger.prototype, 'error');
+
+        try {
+          // ACT: resolving (not rejecting) keeps the record out of batchItemFailures
+          await expect(PreProcessor.recordHandler(createSQSRecord(finding))).resolves.toBeUndefined();
+
+          // ASSERT: fail-safe, so the error blocks remediation instead of letting the finding through
+          expect(errorLogSpy).toHaveBeenCalledWith(
+            'Error applying resource filters, blocking remediation as fail-safe',
+            expect.objectContaining({ findingId: finding.Id, error: evaluationError }),
+          );
+          expect(sendSpy.mock.calls.some(([command]) => isFiltersTableRead(command))).toBe(true);
+          expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        } finally {
+          sendSpy.mockRestore();
+          errorLogSpy.mockRestore();
+        }
+      });
+
       it('should match ARN patterns with wildcards', async () => {
         // ARRANGE
         const finding = createMockFinding({
@@ -4199,6 +4319,194 @@ describe('PreProcessor Lambda', () => {
       expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
     });
 
+    describe('in a multi-record SQS batch', () => {
+      // A window timer that never fires leaves the early send as the only way a lookup can go out.
+      const neverEndingSleeper: Sleeper = { sleep: () => new Promise<void>(() => {}) };
+      const actualGetSleeper =
+        jest.requireActual<typeof import('../../common/utils/sleeper')>('../../common/utils/sleeper').getSleeper;
+      const inspectorFindingType = 'Inspector.InstanceVulnerability';
+
+      const createS3Finding = (suffix: string, controlId = 'S3.1'): ASFFFinding =>
+        createMockFinding({
+          Id: securityHubFindingArn(suffix),
+          Compliance: { Status: 'FAILED', SecurityControlId: controlId },
+        });
+
+      const accessDenied = (): SecurityHubServiceException =>
+        new SecurityHubServiceException({
+          name: 'AccessDeniedException',
+          $fault: 'client',
+          message: 'not authorized',
+          $metadata: {},
+        });
+
+      beforeEach(async () => {
+        jest.mocked(getSleeper).mockReturnValue(neverEndingSleeper);
+        await setupControlConfig('S3.1', true);
+        await setupControlConfig('S3.2', false);
+        await setupControlConfig(inspectorFindingType, true);
+      });
+
+      afterEach(() => {
+        jest.mocked(getSleeper).mockImplementation(actualGetSleeper);
+      });
+
+      it('reads each Security Hub view once for the batch and judges each record by its own status', async () => {
+        // ARRANGE
+        const suppressed = createS3Finding('batch-suppressed');
+        const open = createS3Finding('batch-open');
+        const disabledControl = createS3Finding('batch-disabled', 'S3.2');
+        securityHubMock.on(GetFindingsCommand).resolves({
+          Findings: [asSecurityHubCspmFinding(suppressed, 'SUPPRESSED'), asSecurityHubCspmFinding(open, 'NEW')],
+        });
+        const sqsEvent: SQSEvent = {
+          Records: [
+            createSQSRecord(suppressed, {}, 'suppressed'),
+            createSQSRecord(open, {}, 'open'),
+            createSQSRecord(disabledControl, {}, 'disabled-control'),
+            createSQSRecord(mockInspectorEc2AsffFinding, {}, 'inspector'),
+          ],
+        };
+
+        // ACT
+        const result = await new PreProcessor().handler(sqsEvent, context);
+
+        // ASSERT
+        expect(result.batchItemFailures).toEqual([]);
+        expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(1);
+        const requestedCspmIds = securityHubMock
+          .commandCalls(GetFindingsCommand)[0]
+          .args[0].input.Filters?.Id?.map((filter) => filter.Value);
+        expect(requestedCspmIds).toEqual(
+          expect.arrayContaining([suppressed.Id, open.Id, mockInspectorEc2AsffFinding.Id]),
+        );
+        expect(requestedCspmIds).toHaveLength(3);
+        expect(securityHubMock.commandCalls(GetFindingsV2Command)).toHaveLength(1);
+        expect(
+          securityHubMock.commandCalls(GetFindingsV2Command)[0].args[0].input.Filters?.CompositeFilters?.[0]
+            .StringFilters,
+        ).toHaveLength(2);
+        expect((await getStoredFinding(suppressed.Id))?.remediationStatus).toBe('NOT_STARTED');
+        expect((await getStoredFinding(open.Id))?.remediationStatus).toBe('IN_PROGRESS');
+        expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(2);
+        const storedInspectorFinding = await docClient.send(
+          new GetCommand({
+            TableName: findingsTableName,
+            Key: { findingType: inspectorFindingType, findingId: asFindingId(mockInspectorEc2AsffFinding.Id) },
+          }),
+        );
+        expect(storedInspectorFinding.Item?.remediationStatus).toBe('IN_PROGRESS');
+      });
+
+      // A throttle returns the waiting records to the queue; a denial skips their remediation instead.
+      interface SharedReadFailureCase {
+        failure: string;
+        slug: string;
+        error: () => Error;
+        expectedFailedRecordIds: string[];
+        storedStatus: 'NOT_STARTED' | undefined;
+      }
+      const sharedReadFailures = (waitingRecordIds: string[]): SharedReadFailureCase[] => [
+        {
+          failure: 'a throttle',
+          slug: 'throttle',
+          error: () => new ThrottlingException({ message: 'Rate exceeded', $metadata: {} }),
+          expectedFailedRecordIds: waitingRecordIds,
+          storedStatus: undefined,
+        },
+        {
+          failure: 'an access denial',
+          slug: 'denial',
+          error: accessDenied,
+          expectedFailedRecordIds: [],
+          storedStatus: 'NOT_STARTED',
+        },
+      ];
+      const failedRecordIds = (result: SQSBatchResponse): string[] =>
+        result.batchItemFailures.map((failure) => failure.itemIdentifier).sort();
+
+      it.each(sharedReadFailures(['needs-v2']))(
+        'gives $failure of the Security Hub V2 read only to the records that asked for Security Hub V2',
+        async ({ slug, error, expectedFailedRecordIds, storedStatus }) => {
+          // ARRANGE
+          const needsSecurityHubV2 = createS3Finding(`batch-v2-${slug}`);
+          securityHubMock.on(GetFindingsV2Command).rejects(error());
+          const sqsEvent: SQSEvent = {
+            Records: [
+              createSQSRecord(needsSecurityHubV2, {}, 'needs-v2'),
+              createSQSRecord(mockInspectorEc2AsffFinding, {}, 'cspm-only'),
+            ],
+          };
+
+          // ACT
+          const result = await new PreProcessor().handler(sqsEvent, context);
+
+          // ASSERT
+          expect(failedRecordIds(result)).toEqual(expectedFailedRecordIds);
+          expect((await getStoredFinding(needsSecurityHubV2.Id))?.remediationStatus).toBe(storedStatus);
+          expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(1);
+        },
+      );
+
+      it.each(sharedReadFailures(['first', 'second']))(
+        'gives $failure of the shared Security Hub CSPM read to every record that waited on it',
+        async ({ slug, error, expectedFailedRecordIds, storedStatus }) => {
+          // ARRANGE
+          const first = createS3Finding(`batch-cspm-first-${slug}`);
+          const second = createS3Finding(`batch-cspm-second-${slug}`);
+          const disabledControl = createS3Finding(`batch-cspm-disabled-${slug}`, 'S3.2');
+          securityHubMock.on(GetFindingsCommand).rejects(error());
+          const sqsEvent: SQSEvent = {
+            Records: [
+              createSQSRecord(first, {}, 'first'),
+              createSQSRecord(second, {}, 'second'),
+              createSQSRecord(disabledControl, {}, 'disabled-control'),
+            ],
+          };
+
+          // ACT
+          const result = await new PreProcessor().handler(sqsEvent, context);
+
+          // ASSERT
+          expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(1);
+          expect(failedRecordIds(result)).toEqual(expectedFailedRecordIds);
+          expect((await getStoredFinding(first.Id))?.remediationStatus).toBe(storedStatus);
+          expect((await getStoredFinding(second.Id))?.remediationStatus).toBe(storedStatus);
+          expect((await getStoredFinding(disabledControl.Id))?.remediationStatus).toBe('NOT_STARTED');
+          expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+        },
+      );
+
+      it('sends the waiting lookups once a record that failed before asking has finished', async () => {
+        // ARRANGE: a control id past DynamoDB's 2 KB partition key limit fails the remediation config read
+        const failsBeforeAsking = createS3Finding('batch-oversized-control', `S3.${'1'.repeat(2100)}`);
+        const open = createS3Finding('batch-open-after-failure');
+        const sqsEvent: SQSEvent = {
+          Records: [createSQSRecord(failsBeforeAsking, {}, 'fails-before-asking'), createSQSRecord(open, {}, 'open')],
+        };
+
+        // ACT
+        const result = await new PreProcessor().handler(sqsEvent, context);
+
+        // ASSERT
+        expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'fails-before-asking' }]);
+        expect((await getStoredFinding(open.Id))?.remediationStatus).toBe('IN_PROGRESS');
+        expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(1);
+      });
+
+      it('sends the lookup at once for a record handled on its own', async () => {
+        // ARRANGE
+        const finding = createS3Finding('handled-alone');
+
+        // ACT
+        await PreProcessor.recordHandler(createSQSRecord(finding));
+
+        // ASSERT
+        expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(1);
+        expect((await getStoredFinding(finding.Id))?.remediationStatus).toBe('IN_PROGRESS');
+      });
+    });
+
     it('does not read live status when auto-remediation is disabled', async () => {
       // ARRANGE
       const finding = createMockFinding({ Id: securityHubFindingArn('live-disabled') });
@@ -4247,6 +4555,145 @@ describe('PreProcessor Lambda', () => {
       );
       expect(storedFinding.Item?.remediationStatus).toBe('SUCCESS');
       expect(sfnMock.commandCalls(StartExecutionCommand)).toHaveLength(0);
+    });
+  });
+
+  describe('Throttle backoff', () => {
+    const throttledFindingId = securityHubFindingArn('throttle-backoff-throttled');
+    const getFindingsThrottle = () =>
+      new LimitExceededException({ message: 'Rate exceeded', $metadata: { httpStatusCode: 429 } });
+
+    const createThrottleTestRecord = (
+      findingId: string,
+      receiptHandle: string,
+      approximateReceiveCount = '1',
+    ): SQSRecord => {
+      const record = createSQSRecord(createMockFinding({ Id: findingId }), {}, `${receiptHandle}-message-id`);
+      return {
+        ...record,
+        receiptHandle,
+        attributes: { ...record.attributes, ApproximateReceiveCount: approximateReceiveCount },
+      };
+    };
+
+    // A batch's suppression lookups share one GetFindings call, so a throttle fails every record in that call.
+    const throttleGetFindingsFor = (throttledFindingIds: string[]) => {
+      securityHubMock.on(GetFindingsCommand).callsFake(async (input: GetFindingsCommandInput) => {
+        const requestedFindingIds = (input.Filters?.Id ?? []).map((filter) => filter.Value ?? '');
+        if (requestedFindingIds.some((findingId) => throttledFindingIds.includes(findingId))) {
+          throw getFindingsThrottle();
+        }
+        return {
+          Findings: requestedFindingIds.map((findingId) =>
+            asSecurityHubCspmFinding(createMockFinding({ Id: findingId }), 'NEW'),
+          ),
+        };
+      });
+    };
+
+    // A control with auto-remediation off skips the live lookup, so this record succeeds beside a throttled one.
+    const createLookupFreeRecord = (receiptHandle: string): SQSRecord => {
+      const record = createSQSRecord(
+        createMockFinding({
+          Id: 'arn:aws:securityhub:us-east-1:123456789012:subscription/aws-foundational-security-best-practices/v/1.0.0/S3.2/finding/throttle-backoff-succeeding',
+          GeneratorId: 'aws-foundational-security-best-practices/v/1.0.0/S3.2',
+          Compliance: { Status: 'FAILED', SecurityControlId: 'S3.2' },
+        }),
+        {},
+        `${receiptHandle}-message-id`,
+      );
+      return { ...record, receiptHandle };
+    };
+
+    beforeEach(async () => {
+      mockRandomValue = 0;
+      await setupControlConfig('S3.1', true);
+      await setupControlConfig('S3.2', false);
+      sfnMock.on(StartExecutionCommand).resolves({
+        executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:throttle-backoff',
+      });
+    });
+
+    it('delays only the throttled record of a mixed batch and reports only it as a failure', async () => {
+      // ARRANGE
+      throttleGetFindingsFor([throttledFindingId]);
+      const sqsEvent: SQSEvent = {
+        Records: [
+          createLookupFreeRecord('succeeding-receipt'),
+          createThrottleTestRecord(throttledFindingId, 'throttled-receipt'),
+        ],
+      };
+
+      // ACT
+      const result = (await handler(sqsEvent, context, () => {})) as SQSBatchResponse;
+
+      // ASSERT
+      expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'throttled-receipt-message-id' }]);
+      expect(sqsMock.commandCalls(ChangeMessageVisibilityCommand).map((call) => call.args[0].input)).toEqual([
+        {
+          QueueUrl: process.env.PRE_PROCESSOR_QUEUE_URL,
+          ReceiptHandle: 'throttled-receipt',
+          VisibilityTimeout: 15,
+        },
+      ]);
+    });
+
+    it('still reports the throttled record as the only failure when its visibility change fails', async () => {
+      // ARRANGE
+      throttleGetFindingsFor([throttledFindingId]);
+      sqsMock.on(ChangeMessageVisibilityCommand).rejects(new Error('SQS unavailable'));
+      const sqsEvent: SQSEvent = {
+        Records: [
+          createLookupFreeRecord('succeeding-receipt'),
+          createThrottleTestRecord(throttledFindingId, 'throttled-receipt'),
+        ],
+      };
+
+      // ACT
+      const result = (await handler(sqsEvent, context, () => {})) as SQSBatchResponse;
+
+      // ASSERT
+      expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'throttled-receipt-message-id' }]);
+      expect(sqsMock.commandCalls(ChangeMessageVisibilityCommand)).toHaveLength(1);
+    });
+
+    it('delays every record of a fully throttled batch by its receive count, then fails the batch', async () => {
+      // ARRANGE
+      const secondThrottledFindingId = securityHubFindingArn('throttle-backoff-throttled-again');
+      throttleGetFindingsFor([throttledFindingId, secondThrottledFindingId]);
+      mockRandomValue = 0.46;
+      const sqsEvent: SQSEvent = {
+        Records: [
+          createThrottleTestRecord(throttledFindingId, 'first-receipt', '1'),
+          createThrottleTestRecord(secondThrottledFindingId, 'third-receipt', '3'),
+        ],
+      };
+
+      // ACT / ASSERT
+      await expect(handler(sqsEvent, context, () => {})).rejects.toThrow(FullBatchFailureError);
+      const visibilityChanges = sqsMock
+        .commandCalls(ChangeMessageVisibilityCommand)
+        .map((call) => [call.args[0].input.ReceiptHandle, call.args[0].input.VisibilityTimeout]);
+      expect(visibilityChanges).toEqual(
+        expect.arrayContaining([
+          ['first-receipt', 21],
+          ['third-receipt', 87],
+        ]),
+      );
+      expect(visibilityChanges).toHaveLength(2);
+    });
+
+    it('leaves the visibility of a record that fails for another reason, or is dropped, unchanged', async () => {
+      // ARRANGE
+      throttleGetFindingsFor([]);
+      sfnMock.on(StartExecutionCommand).rejects(new Error('Step Functions unavailable'));
+      const failingRecord = createThrottleTestRecord(throttledFindingId, 'failing-receipt');
+      const droppedRecord = createSQSRecord({ unrecognized: 'shape' }, {}, 'dropped-receipt');
+
+      // ACT / ASSERT
+      await expect(PreProcessor.recordHandler(failingRecord)).rejects.toThrow('Step Functions unavailable');
+      await expect(PreProcessor.recordHandler(droppedRecord)).resolves.toBeUndefined();
+      expect(sqsMock.commandCalls(ChangeMessageVisibilityCommand)).toHaveLength(0);
     });
   });
 });

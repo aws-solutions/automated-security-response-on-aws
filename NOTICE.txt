@@ -242,6 +242,7 @@ This software includes third party software subject to the following copyrights:
 @isaacs/brace-expansion under the MIT license.
 @isaacs/cliui under the ISC license
 @isaacs/fs-minipass under the ISC license
+@isaacs/nonrecursive-glob-match under the BlueOak-1.0.0 license.
 @isaacs/string-locale-compare under the ISC license
 @istanbuljs/load-nyc-config under the ISC license
 @istanbuljs/schema under the MIT license.
@@ -817,7 +818,7 @@ get-proto under the MIT license.
 get-stream under the MIT license.
 get-symbol-description under the MIT license.
 get-tsconfig under the MIT license.
-glob under the ISC license
+glob under the BlueOak-1.0.0 license.
 glob-parent under the ISC license
 glob-to-regexp under the BSD 2-Clause license
 globby under the MIT license.

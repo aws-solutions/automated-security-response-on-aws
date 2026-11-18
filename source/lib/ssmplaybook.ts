@@ -20,6 +20,45 @@ import { Construct } from 'constructs';
 import setCondition from './cdk-helper/set-condition';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { stripDevelopmentPrefix } from './config/cdk-config';
+import {
+  MULTI_SERVICE_REMEDIATION_SOURCES,
+  REMEDIATION_SUPPORTED_RESOURCE_TYPES,
+  SUPPORTED_RESOURCE_TYPE_OCSF_FORM,
+} from '@asr/data-models';
+
+/** OCSF finding classes each multi-service product reports its findings in (IAM Access Analyzer has none). */
+const OCSF_FINDING_CLASSES: Readonly<Record<string, { class_name: string[]; class_uid: number[] }>> = {
+  Inspector: { class_name: ['Vulnerability Finding'], class_uid: [2002] },
+  GuardDuty: { class_name: ['Detection Finding'], class_uid: [2004] },
+  Macie: { class_name: ['Detection Finding', 'Data Security Finding'], class_uid: [2004, 2006] },
+};
+
+/** Supported resource types of the given multi-service remediations, in ASFF and OCSF form. */
+export function autoTriggerResourceTypes(remediationIds: string[]): string[] {
+  const types = remediationIds.flatMap((remediationId) => {
+    const asffTypes = REMEDIATION_SUPPORTED_RESOURCE_TYPES[remediationId];
+    if (!asffTypes) throw new Error(`No supported resource types defined for ${remediationId}`);
+    return asffTypes.flatMap((asffType) => {
+      const ocsfType = SUPPORTED_RESOURCE_TYPE_OCSF_FORM[asffType];
+      if (!ocsfType) throw new Error(`No OCSF form defined for resource type ${asffType}`);
+      return [asffType, ocsfType];
+    });
+  });
+  return [...new Set(types)];
+}
+
+/** Remediation ids of the multi-service remediations whose source has the given value for `key`, grouped by it. */
+function remediationIdsBy(key: 'productArnService' | 'productName'): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const [remediationId, source] of Object.entries(MULTI_SERVICE_REMEDIATION_SOURCES)) {
+    groups.set(source[key], [...(groups.get(source[key]) ?? []), remediationId]);
+  }
+  return groups;
+}
+
+function reservedProductArnSuffix(productArnService: string): string {
+  return `::product/aws/${productArnService}`;
+}
 
 export interface ITriggerProps {
   targetArn: string;
@@ -34,6 +73,22 @@ export class Trigger extends Construct {
 
     const preProcessorQueue = Queue.fromQueueArn(this, 'preProcessorQueue', props.targetArn) as Queue;
 
+    const asffMultiServiceBranches = [...remediationIdsBy('productArnService')].map(
+      ([productArnService, remediationIds]) => ({
+        SchemaVersion: ['2018-10-08'],
+        ProductArn: [{ suffix: reservedProductArnSuffix(productArnService) }],
+        Resources: { Type: autoTriggerResourceTypes(remediationIds) },
+      }),
+    );
+    const multiServiceArnSuffixes = [...remediationIdsBy('productArnService').keys()].map(reservedProductArnSuffix);
+    const ocsfMultiServiceBranches = [...remediationIdsBy('productName')]
+      .filter(([productName]) => OCSF_FINDING_CLASSES[productName])
+      .map(([productName, remediationIds]) => ({
+        ...OCSF_FINDING_CLASSES[productName],
+        metadata: { product: { name: [productName] } },
+        resources: { type: autoTriggerResourceTypes(remediationIds) },
+      }));
+
     const eventPattern: EventPattern = {
       source: ['aws.securityhub'],
       detailType: ['Security Hub Findings - Imported', 'Findings Imported V2'], // Security Hub & Security Hub CSPM
@@ -42,45 +97,25 @@ export class Trigger extends Construct {
         findings: {
           $or: [
             {
-              SchemaVersion: ['2018-10-08'], // Security Hub CSPM Control Finding (ASFF Schema)
-              ProductArn: [{ prefix: `arn:${stack.partition}:securityhub` }],
+              // ASFF findings except the multi-service products, which are matched per resource type below.
+              SchemaVersion: ['2018-10-08'],
+              ProductArn: [{ 'anything-but': { suffix: multiServiceArnSuffixes } }],
             },
+            ...asffMultiServiceBranches,
             {
               class_name: ['Compliance Finding'], // Security Hub Control Finding (OCSF Schema)
               class_uid: [2003],
+              // Security Hub Coverage findings share this class and product prefix but carry no control.
+              compliance: {
+                control: [{ exists: true }],
+              },
               metadata: {
                 product: {
                   uid: [{ prefix: `arn:${stack.partition}:securityhub` }],
                 },
               },
             },
-            {
-              class_name: ['Vulnerability Finding'], // Inspector Vulnerability Finding (OCSF Schema)
-              class_uid: [2002],
-              metadata: {
-                product: {
-                  name: ['Inspector'],
-                },
-              },
-            },
-            {
-              class_name: ['Detection Finding'], // GuardDuty / Macie Detection Finding (OCSF Schema)
-              class_uid: [2004],
-              metadata: {
-                product: {
-                  name: ['GuardDuty', 'Macie'],
-                },
-              },
-            },
-            {
-              class_name: ['Data Security Finding'], // Macie Sensitive Data Finding (OCSF Schema)
-              class_uid: [2006],
-              metadata: {
-                product: {
-                  name: ['Macie'],
-                },
-              },
-            },
+            ...ocsfMultiServiceBranches,
           ],
         },
       },

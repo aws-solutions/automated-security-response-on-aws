@@ -321,6 +321,36 @@ describe('testRunbookYaml — input_parameters normalisation', () => {
     expect(parameters).toEqual({ BucketName: ['my-bucket'] });
     expect(parameters.Foo).toBeUndefined();
   });
+
+  test('sends every other value as strings: lists item by item, numbers, booleans and objects as JSON', async () => {
+    ssmMock.on(CreateDocumentCommand).resolves({});
+    ssmMock.on(StartAutomationExecutionCommand).resolves({ AutomationExecutionId: 'exec-1' });
+    ssmMock.on(GetAutomationExecutionCommand).resolves({
+      AutomationExecution: { AutomationExecutionStatus: 'Success', StepExecutions: [] },
+    });
+    ssmMock.on(DeleteDocumentCommand).resolves({});
+
+    await testRunbookYaml(
+      {
+        runbook_yaml: RUNBOOK_YAML,
+        input_parameters: {
+          Names: ['plain', { nested: true }, 7],
+          Retries: 3,
+          Enabled: false,
+          Settings: { mode: 'strict' },
+        },
+      },
+      context(),
+    );
+
+    const call = ssmMock.commandCalls(StartAutomationExecutionCommand)[0];
+    expect(call.args[0].input.Parameters).toEqual({
+      Names: ['plain', '{"nested":true}', '7'],
+      Retries: ['3'],
+      Enabled: ['false'],
+      Settings: ['{"mode":"strict"}'],
+    });
+  });
 });
 
 describe('testRunbookYaml — injectable IdGenerator (ADR 0004)', () => {

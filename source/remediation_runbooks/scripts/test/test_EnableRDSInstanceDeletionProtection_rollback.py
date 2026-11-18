@@ -287,11 +287,27 @@ class TestExecuteRollback:
         assert _get_deletion_protection() is True
 
     @mock_aws
-    def test_drift_detected_when_state_changed_after_remediation(self) -> None:
-        # GIVEN a snapshot (pre=disabled, post=enabled) but the instance is now disabled again —
-        # i.e. the resource was modified after the ASR remediation
+    def test_repeated_rollback_is_noop_not_drift(self) -> None:
+        # GIVEN a snapshot (pre=disabled, post=enabled) and an instance already restored to disabled —
+        # the state a completed rollback leaves. A second rollback must not be reported as drift.
         _create_snapshot_bucket()
         version_id = _put_snapshot(EXECUTION_ID, deletion_protection=False)
+        _create_instance(deletion_protection=False)
+
+        # WHEN execute_rollback runs again THEN it is an idempotent success and the instance is unchanged
+        result = rollback.execute_rollback(
+            _make_rollback_event(snapshot_version_id=version_id), None
+        )
+        assert result["Status"] == "SUCCESS"
+        assert "already in its pre-remediation state" in result["Message"]
+        assert _get_deletion_protection() is False
+
+    @mock_aws
+    def test_drift_detected_when_state_matches_neither_original_nor_post(self) -> None:
+        # GIVEN a fabricated pre == post == enabled snapshot and an instance that is now disabled: the
+        # only binary state where current differs from both original and post (the DRIFT branch).
+        _create_snapshot_bucket()
+        version_id = _put_snapshot(EXECUTION_ID, deletion_protection=True)
         _create_instance(deletion_protection=False)
 
         # WHEN execute_rollback is called THEN it aborts with a drift error and does not modify the instance

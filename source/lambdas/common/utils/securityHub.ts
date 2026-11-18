@@ -35,6 +35,13 @@ export interface SuppressionLookupResult {
   unresolvedFindingIds: Set<string>;
 }
 
+/** UNRESOLVED: no view the target asked for returned the finding, so its live status is unknown. */
+export type SuppressionVerdict = 'SUPPRESSED' | 'NOT_SUPPRESSED' | 'UNRESOLVED';
+
+export type SuppressionLookupOutcome = { status: SuppressionVerdict } | { status: 'FAILED'; error: unknown };
+
+type SuppressionStatuses = Map<string, boolean>;
+
 /** Optional controls that make a {@link SecurityHubUtils.processAllFindings} run resumable and time-bounded. */
 export interface ProcessAllFindingsOptions {
   /** Security Hub pagination token to resume from (omit to start at the first page). */
@@ -157,21 +164,35 @@ export class SecurityHubUtils {
     const suppressedFindingIds = new Set<string>();
     const unresolvedFindingIds = new Set<string>();
     for (const target of targets) {
-      const isCspmSuppressed = target.shouldCheckCspm ? cspmStatuses.get(target.findingId) : undefined;
-      const isSecurityHubV2Suppressed = target.shouldCheckSecurityHubV2
-        ? securityHubV2Statuses.get(target.findingId)
-        : undefined;
-      if (isCspmSuppressed === true || isSecurityHubV2Suppressed === true) {
-        suppressedFindingIds.add(target.findingId);
-      } else if (
-        (target.shouldCheckCspm || target.shouldCheckSecurityHubV2) &&
-        isCspmSuppressed === undefined &&
-        isSecurityHubV2Suppressed === undefined
-      ) {
-        unresolvedFindingIds.add(target.findingId);
-      }
+      const verdict = judgeSuppression(target, cspmStatuses, securityHubV2Statuses);
+      if (verdict === 'SUPPRESSED') suppressedFindingIds.add(target.findingId);
+      if (verdict === 'UNRESOLVED') unresolvedFindingIds.add(target.findingId);
     }
     return { suppressedFindingIds, unresolvedFindingIds };
+  }
+
+  /**
+   * Reads each Security Hub view once for all targets and returns each target's own outcome, in target order.
+   * A target fails only when a view it asked for failed; when both did, it carries the Security Hub CSPM error.
+   */
+  async readSuppressionOutcomes(targets: SuppressionLookupTarget[]): Promise<SuppressionLookupOutcome[]> {
+    const [cspmRead, securityHubV2Read] = await Promise.allSettled([
+      this.readCspmSuppression(targets.filter((target) => target.shouldCheckCspm).map((target) => target.findingId)),
+      this.readSecurityHubV2Suppression(
+        targets.filter((target) => target.shouldCheckSecurityHubV2).map((target) => target.findingId),
+      ),
+    ]);
+    const cspmStatuses: SuppressionStatuses =
+      cspmRead.status === 'fulfilled' ? cspmRead.value : new Map<string, boolean>();
+    const securityHubV2Statuses: SuppressionStatuses =
+      securityHubV2Read.status === 'fulfilled' ? securityHubV2Read.value : new Map<string, boolean>();
+    return targets.map((target): SuppressionLookupOutcome => {
+      if (target.shouldCheckCspm && cspmRead.status === 'rejected') return { status: 'FAILED', error: cspmRead.reason };
+      if (target.shouldCheckSecurityHubV2 && securityHubV2Read.status === 'rejected') {
+        return { status: 'FAILED', error: securityHubV2Read.reason };
+      }
+      return { status: judgeSuppression(target, cspmStatuses, securityHubV2Statuses) };
+    });
   }
 
   /** Whether Security Hub V2 (OCSF) is enabled in this account and Region. Only a definite answer is cached. */
@@ -202,7 +223,7 @@ export class SecurityHubUtils {
    * Maps each returned finding id to whether its CSPM Workflow.Status is SUPPRESSED. Returns an empty map
    * when Security Hub CSPM is not enabled, since that view then holds no status to honor.
    */
-  private async readCspmSuppression(findingIds: string[]): Promise<Map<string, boolean>> {
+  private async readCspmSuppression(findingIds: string[]): Promise<SuppressionStatuses> {
     try {
       return await this.readEnabledCspmSuppression(findingIds);
     } catch (error) {
@@ -214,7 +235,7 @@ export class SecurityHubUtils {
     }
   }
 
-  private async readEnabledCspmSuppression(findingIds: string[]): Promise<Map<string, boolean>> {
+  private async readEnabledCspmSuppression(findingIds: string[]): Promise<SuppressionStatuses> {
     const statuses = new Map<string, boolean>();
     for (const chunk of chunkFindingIds(findingIds)) {
       let nextToken: string | undefined;
@@ -236,7 +257,7 @@ export class SecurityHubUtils {
   }
 
   /** Maps each returned finding uid to whether its Security Hub V2 status_id is Suppressed. */
-  private async readSecurityHubV2Suppression(findingIds: string[]): Promise<Map<string, boolean>> {
+  private async readSecurityHubV2Suppression(findingIds: string[]): Promise<SuppressionStatuses> {
     const statuses = new Map<string, boolean>();
     for (const chunk of chunkFindingIds(findingIds)) {
       let nextToken: string | undefined;
@@ -267,6 +288,23 @@ export class SecurityHubUtils {
     }
     return statuses;
   }
+}
+
+function judgeSuppression(
+  target: SuppressionLookupTarget,
+  cspmStatuses: SuppressionStatuses,
+  securityHubV2Statuses: SuppressionStatuses,
+): SuppressionVerdict {
+  const isCspmSuppressed = target.shouldCheckCspm ? cspmStatuses.get(target.findingId) : undefined;
+  const isSecurityHubV2Suppressed = target.shouldCheckSecurityHubV2
+    ? securityHubV2Statuses.get(target.findingId)
+    : undefined;
+  if (isCspmSuppressed === true || isSecurityHubV2Suppressed === true) return 'SUPPRESSED';
+  const hasRequestedView = target.shouldCheckCspm || target.shouldCheckSecurityHubV2;
+  if (hasRequestedView && isCspmSuppressed === undefined && isSecurityHubV2Suppressed === undefined) {
+    return 'UNRESOLVED';
+  }
+  return 'NOT_SUPPRESSED';
 }
 
 function chunkFindingIds(findingIds: string[]): string[][] {

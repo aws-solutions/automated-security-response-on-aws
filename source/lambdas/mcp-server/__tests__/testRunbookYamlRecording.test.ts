@@ -317,4 +317,59 @@ describe('test_runbook_yaml — recording a version’s test outcome', () => {
     expect(ssmMock.commandCalls(CreateDocumentCommand)).toHaveLength(0);
     expect(dynamoMock.commandCalls(UpdateCommand)).toHaveLength(0);
   });
+
+  describe('why a pass could not be recorded', () => {
+    const conditionalFailure = (existingItem?: Record<string, unknown>) =>
+      Object.assign(new Error('The conditional request failed'), {
+        name: 'ConditionalCheckFailedException',
+        ...(existingItem && { Item: existingItem }),
+      });
+
+    it('says the version is no longer registered when the guarded write finds no item', async () => {
+      stubExecution('Success');
+      dynamoMock.on(UpdateCommand).rejects(conditionalFailure());
+
+      const result = await testRunbookYaml(params, context());
+
+      expect(result.testResultRecorded).toBe(false);
+      expect(result.testRecordingSkippedReason).toBe(
+        'No registered runbook rb-1 version 3 to record against — register it first.',
+      );
+    });
+
+    it('says the YAML differs from the registered YAML when the guarded write finds a different item', async () => {
+      stubExecution('Success');
+      dynamoMock.on(UpdateCommand).rejects(conditionalFailure({ runbookId: 'rb-1', version: 3 }));
+
+      const result = await testRunbookYaml(params, context());
+
+      expect(result.testResultRecorded).toBe(false);
+      expect(result.testRecordingSkippedReason).toContain('The YAML tested is not the YAML registered');
+      expect(result.testRecordingSkippedReason).toContain('runbook rb-1 version 3');
+    });
+
+    it('reports a failure that is not an Error object using its text', async () => {
+      stubExecution('Success');
+      dynamoMock.on(UpdateCommand).callsFake(() => Promise.reject('throttled by the table'));
+
+      const result = await testRunbookYaml(params, context());
+
+      expect(result.testResultRecorded).toBe(false);
+      expect(result.testRecordingSkippedReason).toBe('Failed to record the test result: throttled by the table');
+    });
+  });
+
+  describe('a recorded test needs all of its identifying arguments', () => {
+    it.each([
+      ['a version', { version: undefined }],
+      ['the required IAM actions', { required_iam_actions: undefined }],
+    ])('is refused without %s, before any role or document is created', async (_missing, override) => {
+      await expect(testRunbookYaml({ ...params, ...override }, context())).rejects.toThrow(
+        /runbook_id, version, and required_iam_actions are all required for a recorded test/,
+      );
+
+      expect(ssmMock.commandCalls(CreateDocumentCommand)).toHaveLength(0);
+      expect(iamMock.commandCalls(CreateRoleCommand)).toHaveLength(0);
+    });
+  });
 });

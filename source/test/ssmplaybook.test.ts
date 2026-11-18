@@ -1,5 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { App, Stack } from 'aws-cdk-lib';
 import { Policy, PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Template } from 'aws-cdk-lib/assertions';
@@ -66,6 +67,8 @@ function getSsmRemediationRunbook(): Stack {
     solutionId: 'SO0111',
     solutionVersion: 'v1.1.1',
     solutionDistBucket: 'sharrbukkit',
+    solutionTradeMarkName: 'automated-security-response-on-aws',
+    runtimePython: Runtime.PYTHON_3_11,
   });
   new RunbookFactory(stack, 'RunbookFactory');
   RunbookFactory.createRemediationRunbook(stack, 'Playbook', {
@@ -116,6 +119,8 @@ function getSsmRemediationRoleCis(): Stack {
     solutionId: 'SO0111',
     solutionVersion: 'v1.0.0',
     solutionDistBucket: 'test-bucket',
+    solutionTradeMarkName: 'automated-security-response-on-aws',
+    runtimePython: Runtime.PYTHON_3_11,
   });
   const inlinePolicy = new Policy(stack, 'Policy');
   const rdsPerms = new PolicyStatement();

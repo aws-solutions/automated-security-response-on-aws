@@ -1,6 +1,6 @@
 [project]
 name = "automated_security_response_on_aws"
-version = "4.1.0"
+version = "4.1.2"
 
 [tool.setuptools]
 package-dir = {"" = "source"}

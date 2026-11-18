@@ -29,6 +29,7 @@ logger.setLevel(logging.INFO)
 # snapshot_utils.py via the %%INCLUDE directive below — do not remove.
 # fmt: off
 from common.snapshot_utils import (  # noqa: E402
+    RollbackAction,
     RollbackError,
     SnapshotNotFoundError,
     SnapshotReadError,
@@ -37,6 +38,7 @@ from common.snapshot_utils import (  # noqa: E402
     get_post_remediation_state,
     get_pre_remediation_state,
     read_snapshot,
+    resolve_rollback_action,
     write_snapshot,
 )
 
@@ -298,21 +300,21 @@ def execute_rollback(event: dict[str, object], _context: object) -> RollbackResu
     elasticache: ElastiCacheClient = boto3.client("elasticache", config=BOTO_CONFIG)
     is_currently_enabled = _get_auto_minor_version_upgrade(elasticache, cluster_id)
 
-    # Drift check: the resource must still be in the post-remediation state ASR applied. If it has
-    # changed since remediation, someone modified it afterward — abort the rollback and surface the drift.
-    if is_currently_enabled != post_remediation_enabled:
+    # Idempotent: a repeated rollback (current == original) is NOOP, not drift.
+    action = resolve_rollback_action(
+        is_currently_enabled, was_originally_enabled, post_remediation_enabled
+    )
+    if action is RollbackAction.NOOP:
+        return {
+            "Message": f"Cluster {cluster_id} is already in its pre-remediation state. No rollback action needed.",
+            "Status": "SUCCESS",
+        }
+    if action is RollbackAction.DRIFT:
         raise SnapshotValidationError(
             f"Rollback aborted for cluster {cluster_id}: current automatic minor version upgrade "
             f"({is_currently_enabled}) does not match the post-remediation state ASR applied "
             f"({post_remediation_enabled}). The resource was modified after the ASR remediation."
         )
-
-    # No drift. Restore the pre-remediation state (skip the API call if already there).
-    if is_currently_enabled == was_originally_enabled:
-        return {
-            "Message": f"Cluster {cluster_id} is already in its pre-remediation state. No rollback action needed.",
-            "Status": "SUCCESS",
-        }
 
     elasticache.modify_cache_cluster(
         CacheClusterId=cluster_id, AutoMinorVersionUpgrade=was_originally_enabled

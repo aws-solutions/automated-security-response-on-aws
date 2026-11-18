@@ -503,9 +503,26 @@ export abstract class AbstractRepository<T> {
         return fieldValueStr.includes(filterValueStr);
       case 'NOT_CONTAINS':
         return !fieldValueStr.includes(filterValueStr);
+      case 'GREATER_THAN_OR_EQUAL':
+        return (this.compareToFilterValue(fieldValue, filterValueStr) ?? -1) >= 0;
+      case 'LESS_THAN_OR_EQUAL':
+        return (this.compareToFilterValue(fieldValue, filterValueStr) ?? 1) <= 0;
       default:
         return false; // Unknown comparison operator
     }
+  }
+
+  /**
+   * Orders a stored value against a filter value the way the DynamoDB filter expression built by
+   * {@link buildFilterExpression} does. That expression sends the filter value as a string, so a range
+   * comparison only matches text, compared character by character (which orders ISO 8601 timestamps
+   * correctly). A stored number never matches, because DynamoDB does not compare a number to a string.
+   * Returns a negative, zero or positive number, like a sort comparator, or undefined when there is no match.
+   */
+  private compareToFilterValue(fieldValue: unknown, filterValue: string): number | undefined {
+    if (typeof fieldValue !== 'string') return undefined;
+    if (fieldValue === filterValue) return 0;
+    return fieldValue < filterValue ? -1 : 1;
   }
 
   /**

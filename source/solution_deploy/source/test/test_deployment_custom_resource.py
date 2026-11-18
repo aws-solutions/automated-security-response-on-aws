@@ -1,11 +1,17 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-from unittest.mock import ANY, patch
+import json
+import os
+import urllib.parse
+from unittest.mock import ANY, MagicMock, patch
 
+import boto3
 import pytest
 from botocore.exceptions import ClientError
 from cfnresponse import SUCCESS
 from deployment_metrics_custom_resource import lambda_handler
+from layer.awsapi_cached_client import AWSCachedClient
+from moto import mock_aws
 
 
 def get_event(resource_type, request_type, stack_parameters):
@@ -81,6 +87,46 @@ def test_send_metrics_securityhub_v2_disabled(
 
     # ASSERT
     mock_send_metrics.assert_called_once_with(expected_metrics_data)
+    mock_cfnresponse.assert_called_once_with(event, {}, SUCCESS, ANY)
+
+
+@pytest.mark.parametrize(
+    "version_parameter_property, expected_version",
+    [
+        ({"VersionParameterName": "/Solutions/SO0111/member-version"}, "v2.0.0"),
+        ({}, "v1.0.0"),
+    ],
+)
+@mock_aws
+# Earlier tests leave SSM clients created outside mock_aws in this class-level cache.
+@patch.object(AWSCachedClient, "client", {})
+@patch("cfnresponse.send")
+@patch("layer.metrics.urlopen")
+@patch("deployment_metrics_custom_resource.SECURITY_HUB_CLIENT")
+def test_send_metrics_reports_version_from_the_named_parameter(
+    mock_securityhub: MagicMock,
+    mock_urlopen: MagicMock,
+    mock_cfnresponse: MagicMock,
+    version_parameter_property: dict[str, str],
+    expected_version: str,
+) -> None:
+    # ARRANGE
+    mock_securityhub.describe_security_hub_v2.return_value = {}
+    ssm = boto3.client("ssm", region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
+    ssm.put_parameter(Name="/Solutions/SO0111/version", Value="v1.0.0", Type="String")
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/member-version", Value="v2.0.0", Type="String"
+    )
+    event = get_event("Custom::DeploymentMetrics", "Update", {})
+    event["ResourceProperties"].update(version_parameter_property)
+
+    # ACT
+    lambda_handler(event, {})
+
+    # ASSERT
+    posted_request = mock_urlopen.call_args.args[0]
+    usage_data = json.loads(urllib.parse.unquote(posted_request.data.decode("utf8")))
+    assert usage_data["Version"] == expected_version
     mock_cfnresponse.assert_called_once_with(event, {}, SUCCESS, ANY)
 
 

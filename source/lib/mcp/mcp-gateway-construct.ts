@@ -19,6 +19,16 @@ import {
   NATIVE_CLIENT_OAUTH_SCOPE_NAMES,
 } from './mcp-native-client-callbacks';
 
+/** Returned to MCP clients when they connect; models use it to choose ASR tools. Keep it in sync with toolSchema.json. */
+const MCP_GATEWAY_INSTRUCTIONS =
+  'Automated Security Response on AWS (ASR): investigate and remediate AWS Security Hub findings. ' +
+  'Start with `findings` to search findings. Act on findings with `execute_finding_action` ' +
+  '(Remediate, RemediateAndGenerateTicket, Suppress, Unsuppress) or `execute_runbook`, ' +
+  'track a run with `get_execution_status`, and search past runs with `remediations`. ' +
+  'Use `list_controls` and `update_controls` to see or change which controls remediate automatically, ' +
+  '`list_findings_without_runbook` to find gaps, and the runbook tools (`generate_runbook`, `validate_runbook`, ' +
+  '`test_runbook_yaml`, `deploy_runbook`) to author Custom Runbooks.';
+
 export interface McpGatewayConstructProps {
   readonly resourceNamePrefix: string;
   readonly solutionId: string;
@@ -461,6 +471,12 @@ export class McpGatewayConstruct extends Construct {
       interceptorConfigurations: [
         agentcore.LambdaInterceptor.forRequest(interceptorLambda, { passRequestHeaders: true }),
       ],
+      // Overrides the module default (placeholder instructions, MCP 2025-03-26 only).
+      protocolConfiguration: new agentcore.McpProtocolConfiguration({
+        supportedVersions: [agentcore.MCPProtocolVersion.MCP_2025_06_18, agentcore.MCPProtocolVersion.MCP_2025_03_26],
+        searchType: agentcore.McpGatewaySearchType.SEMANTIC,
+        instructions: MCP_GATEWAY_INSTRUCTIONS,
+      }),
     });
     gateway.node.addDependency(gatewayClient);
 

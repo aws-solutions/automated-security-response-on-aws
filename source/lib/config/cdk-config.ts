@@ -33,7 +33,10 @@ export interface CDKConfig {
   preProcessor: {
     /** Records per PreProcessor invocation (SQS event source batch size, 1–10 with the 5s batching window). */
     sqsBatchSize: number;
-    /** Reserved concurrent executions. Bounds ingestion throughput to roughly batchSize × concurrency records/s. */
+    /**
+     * Reserved concurrent executions, also the SQS event source's maximum concurrency, so it must be 2 to 1,000.
+     * Bounds ingestion throughput to roughly batchSize × concurrency records/s.
+     */
     lambdaReservedConcurrency: number;
     lambdaMemorySize: number;
   };

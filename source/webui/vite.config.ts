@@ -32,7 +32,14 @@ const config = {
     include: ['./src/__tests__/**/*.test.ts?(x)'],
     coverage: coverageConfig,
     maxConcurrency: 1, // at most one test at a time within a single file
-    fileParallelism: false, // run test files serially: the render-heavy findings-table integration tests otherwise starve each other of CPU under coverage and time out
+    // Run test files in parallel on a small, fixed number of workers. Serial
+    // files left most cores idle (the suite took about 13 minutes on 8 cores),
+    // while an unbounded pool lets the render-heavy findings-table integration
+    // tests starve each other of CPU under coverage and time out. The count is
+    // fixed rather than derived from os.availableParallelism(), because a
+    // CodeBuild container reports the host's cores rather than its allocation.
+    fileParallelism: true,
+    maxWorkers: 4,
     testTimeout: 60000, // 60s ceiling for the render-heavy findings-table integration tests under coverage
     silent: true, // suppress console output during tests
   },

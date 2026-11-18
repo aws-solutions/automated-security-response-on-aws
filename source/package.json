@@ -1,6 +1,6 @@
 {
   "name": "aws-security-hub-automated-response-and-remediation",
-  "version": "4.1.0",
+  "version": "4.1.2",
   "workspaces": [],
   "description": "Automated remediation for AWS Security Hub (SO0111)",
   "bin": {
@@ -64,5 +64,9 @@
     "@aws-solutions-constructs/aws-cloudfront-s3": "2.100.1",
     "@aws-solutions-constructs/aws-eventbridge-sqs": "2.100.1",
     "compare-versions": "6.1.1"
+  },
+  "overrides": {
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }

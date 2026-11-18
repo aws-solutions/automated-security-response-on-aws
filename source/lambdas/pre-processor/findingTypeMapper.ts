@@ -1,7 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { REMEDIATION_SUPPORTED_RESOURCE_TYPES, normalizeResourceTypeToAsff } from '@asr/data-models';
+import {
+  MULTI_SERVICE_REMEDIATION_SOURCES,
+  REMEDIATION_SUPPORTED_RESOURCE_TYPES,
+  normalizeResourceTypeToAsff,
+} from '@asr/data-models';
 import {
   GUARDDUTY_IAM_USER_FINDING_TYPE,
   IAM_ACCESS_ANALYZER_EXTERNAL_ACCESS_FINDING_TYPE,
@@ -130,14 +134,16 @@ const MULTI_SERVICE_MAPPING: Record<string, MappingRule[]> = {
     {
       typesContains: 'External Access Granted',
       remediationId: IAM_ACCESS_ANALYZER_EXTERNAL_ACCESS_FINDING_TYPE,
-      productArnService: 'access-analyzer',
+      productArnService:
+        MULTI_SERVICE_REMEDIATION_SOURCES[IAM_ACCESS_ANALYZER_EXTERNAL_ACCESS_FINDING_TYPE].productArnService,
     },
   ],
   Inspector: [
     {
       typesContains: 'Software and Configuration Checks/Vulnerabilities/CVE',
       remediationId: INSPECTOR_INSTANCE_VULNERABILITY_FINDING_TYPE,
-      productArnService: 'inspector',
+      productArnService:
+        MULTI_SERVICE_REMEDIATION_SOURCES[INSPECTOR_INSTANCE_VULNERABILITY_FINDING_TYPE].productArnService,
     },
   ],
   GuardDuty: [
@@ -150,7 +156,7 @@ const MULTI_SERVICE_MAPPING: Record<string, MappingRule[]> = {
       // containment.
       typesContains: ':IAMUser',
       remediationId: GUARDDUTY_IAM_USER_FINDING_TYPE,
-      productArnService: 'guardduty',
+      productArnService: MULTI_SERVICE_REMEDIATION_SOURCES[GUARDDUTY_IAM_USER_FINDING_TYPE].productArnService,
     },
   ],
   Macie: [
@@ -161,7 +167,8 @@ const MULTI_SERVICE_MAPPING: Record<string, MappingRule[]> = {
       // Match the shared 'SensitiveData:S3Object' substring so both formats map.
       typesContains: 'SensitiveData:S3Object',
       remediationId: MACIE_SENSITIVE_DATA_S3_OBJECT_FINDING_TYPE,
-      productArnService: 'macie',
+      productArnService:
+        MULTI_SERVICE_REMEDIATION_SOURCES[MACIE_SENSITIVE_DATA_S3_OBJECT_FINDING_TYPE].productArnService,
     },
   ],
 };

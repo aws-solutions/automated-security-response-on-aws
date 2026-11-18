@@ -21,6 +21,8 @@ export class Rds6EnhancedMonitoringRole extends Construct {
     });
     logs1Perms.addActions('logs:CreateLogGroup');
     logs1Perms.addActions('logs:PutRetentionPolicy');
+    // RDS calls DescribeLogStreams, which authorizes against the log group ARN rather than a log stream ARN.
+    logs1Perms.addActions('logs:DescribeLogStreams');
     logs1Perms.addResources(`arn:${stack.partition}:logs:*:${stack.account}:log-group:RDS*`);
     rds6Policy.addStatements(logs1Perms);
 

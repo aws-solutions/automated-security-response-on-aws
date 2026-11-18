@@ -51,6 +51,7 @@ export class DynamoDBTestSetup {
           { AttributeName: 'severity', AttributeType: 'S' },
           { AttributeName: 'FINDING_CONSTANT', AttributeType: 'S' },
           { AttributeName: 'securityHubUpdatedAtTime#findingId', AttributeType: 'S' },
+          { AttributeName: 'severityNormalized#securityHubUpdatedAtTime#findingId', AttributeType: 'S' },
           { AttributeName: 'remediationDueBy', AttributeType: 'S' },
         ],
         LocalSecondaryIndexes: [
@@ -93,6 +94,14 @@ export class DynamoDBTestSetup {
             KeySchema: [
               { AttributeName: 'FINDING_CONSTANT', KeyType: 'HASH' },
               { AttributeName: 'securityHubUpdatedAtTime#findingId', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'allFindings-severityNormalized-GSI',
+            KeySchema: [
+              { AttributeName: 'FINDING_CONSTANT', KeyType: 'HASH' },
+              { AttributeName: 'severityNormalized#securityHubUpdatedAtTime#findingId', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },

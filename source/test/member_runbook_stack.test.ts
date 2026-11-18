@@ -1,5 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { App, DefaultStackSynthesizer, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { MemberRolesStack } from '../lib/member-roles-stack';
@@ -8,6 +9,7 @@ import { omitWaitResourceHash } from './utils';
 import { RemediationRunbookStack } from '../lib/remediation-runbook-stack';
 import { runbookStackCount } from '../lib/remediation-runbooks';
 import { getMemberStackLimit } from '../lib/config/cdk-config';
+import { FORBIDDEN_IAM_ACTION_NAMESPACES } from '@asr/data-models';
 
 describe('MemberRolesStack tests', () => {
   function getRoleTestStack(): MemberRolesStack {
@@ -18,6 +20,8 @@ describe('MemberRolesStack tests', () => {
       solutionId: 'SO0111',
       solutionVersion: 'v1.1.1',
       solutionDistBucket: 'sharrbukkit',
+      solutionTradeMarkName: 'automated-security-response-on-aws',
+      runtimePython: Runtime.PYTHON_3_11,
     });
   }
   test('Global Roles Stack', () => {
@@ -151,9 +155,22 @@ describe('MemberRolesStack tests', () => {
 
     const statements = boundaryEntry.Properties.PolicyDocument.Statement as Array<Record<string, unknown>>;
 
-    const allowStatement = statements.find((statement) => statement.Effect === 'Allow');
-    expect(allowStatement?.Action).toBe('*');
-    expect(allowStatement?.Resource).toBe('*');
+    // Keeps the boundary out of Security Hub IAM.1 (see the policy construct).
+    const allowStatements = statements.filter((statement) => statement.Effect === 'Allow');
+    const allowedActions = allowStatements.flatMap((statement) => [statement.Action ?? []].flat());
+    expect(allowedActions).not.toContain('*');
+
+    const serviceAllow = allowStatements.find((statement) => statement.Sid === 'AllowServiceActions');
+    const actionsExcludedFromAllow = [...FORBIDDEN_IAM_ACTION_NAMESPACES].map((namespace) => `${namespace}:*`);
+    expect(serviceAllow?.NotAction).toEqual(expect.arrayContaining(actionsExcludedFromAllow));
+    expect(serviceAllow?.NotAction).toHaveLength(actionsExcludedFromAllow.length);
+    expect(serviceAllow?.Resource).toBe('*');
+
+    // NotAction drops all of iam, so PassRole to SSM must be allowed back explicitly.
+    const passRoleAllow = allowStatements.find((statement) => statement.Sid === 'AllowPassRoleToSsm');
+    expect(passRoleAllow?.Action).toBe('iam:PassRole');
+    expect(passRoleAllow?.Resource).toBe('*');
+    expect(passRoleAllow?.Condition).toEqual({ StringEquals: { 'iam:PassedToService': 'ssm.amazonaws.com' } });
 
     const wholesaleDeny = statements.find(
       (statement) => statement.Effect === 'Deny' && Array.isArray(statement.Action),
@@ -175,6 +192,8 @@ describe('MemberRolesStack tests', () => {
       solutionId: 'SO0111',
       solutionVersion: 'v1.1.1',
       solutionDistBucket: 'sharrbukkit',
+      solutionTradeMarkName: 'automated-security-response-on-aws',
+      runtimePython: Runtime.PYTHON_3_11,
     });
     new RemediationRunbookStack(app, 'stack', {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -230,16 +249,18 @@ describe('MemberRolesStack tests', () => {
 
     // The Inspector control runbook runs as the Inspector automation role and assumes its remediation role directly.
     const inspectorRole = remediationRoles.find(([logicalId]) => logicalId.includes('InspectorInstanceVulnerability'));
-    expect(JSON.stringify(rootTrustCallerArns(inspectorRole![1]))).toContain(':role/SO0111-ASR-Inspector-Automation');
+    if (!inspectorRole) throw new Error('Inspector remediation role not found');
+    expect(JSON.stringify(rootTrustCallerArns(inspectorRole[1]))).toContain(':role/SO0111-ASR-Inspector-Automation');
 
     // The SSM service trust is scoped to this account via aws:SourceAccount rather than left open.
     const [, sampleRole] = remediationRoles[0];
     const statements = sampleRole.Properties.AssumeRolePolicyDocument.Statement as Array<Record<string, unknown>>;
-    const ssmStatement = statements.find((statement) =>
-      JSON.stringify((statement.Principal as { Service?: unknown } | undefined)?.Service ?? '').includes(
-        'ssm.amazonaws.com',
-      ),
-    );
+    const ssmStatement = statements.find((statement) => {
+      const servicePrincipal = (statement.Principal as { Service?: unknown } | undefined)?.Service;
+      return Array.isArray(servicePrincipal)
+        ? servicePrincipal.includes('ssm.amazonaws.com')
+        : servicePrincipal === 'ssm.amazonaws.com';
+    });
     expect(ssmStatement).toBeDefined();
     expect(JSON.stringify(ssmStatement?.Condition ?? '')).toContain('aws:SourceAccount');
   });
@@ -295,6 +316,8 @@ describe('MemberRolesStack tests', () => {
       solutionId: 'SO0111',
       solutionVersion: 'v1.1.1',
       solutionDistBucket: 'sharrbukkit',
+      solutionTradeMarkName: 'automated-security-response-on-aws',
+      runtimePython: Runtime.PYTHON_3_11,
     });
     new RemediationRunbookStack(app, 'stack', {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),
@@ -360,6 +383,8 @@ describe('MemberRolesStack tests', () => {
       solutionId: 'SO0111',
       solutionVersion: 'v1.1.1',
       solutionDistBucket: 'sharrbukkit',
+      solutionTradeMarkName: 'automated-security-response-on-aws',
+      runtimePython: Runtime.PYTHON_3_11,
     });
     new RemediationRunbookStack(app, 'stack', {
       synthesizer: new DefaultStackSynthesizer({ generateBootstrapVersionRule: false }),

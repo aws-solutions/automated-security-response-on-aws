@@ -194,7 +194,7 @@ export class AdministratorStack extends cdk.Stack {
       stringValue: primarySolutionTopic.topicArn,
     });
 
-    new StringParameter(this, 'SHARR_version', {
+    const solutionVersionParameter = new StringParameter(this, 'SHARR_version', {
       description: 'Solution version for metrics.',
       parameterName: '/Solutions/' + RESOURCE_NAME_PREFIX + '/version',
       stringValue: props.solutionVersion,
@@ -876,6 +876,7 @@ export class AdministratorStack extends cdk.Stack {
       runtimePython: props.runtimePython,
       solutionsBucket: sourceCodeBucket,
       lambdaLayer: asrLambdaLayer,
+      versionParameter: solutionVersionParameter,
     });
 
     /**
@@ -1735,6 +1736,7 @@ export class AdministratorStack extends cdk.Stack {
 
     new ActionLog(this, 'ActionLog', {
       logGroupName: props.cloudTrailLogGroupName,
+      resourceNamePrefix: RESOURCE_NAME_PREFIX,
     });
 
     //---------------------------------------------------------------------

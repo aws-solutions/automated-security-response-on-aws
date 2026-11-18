@@ -505,3 +505,19 @@ def test_is_ai_generated_remediation():
     # ACT & ASSERT — empty set (the shipped default) tags nothing as AI-generated
     with patch.object(metrics_module, "AI_GENERATED_REMEDIATION_IDS", frozenset()):
         assert metrics_module.is_ai_generated_remediation("S3.14") is False
+
+
+@mock_aws
+def test_metrics_reads_version_from_the_named_parameter() -> None:
+    # ARRANGE
+    ssm = boto3.client("ssm", region_name=get_region())
+    ssm.put_parameter(Name="/Solutions/SO0111/version", Value="v1.0.0", Type="String")
+    ssm.put_parameter(
+        Name="/Solutions/SO0111/member-version", Value="v2.0.0", Type="String"
+    )
+
+    # ACT
+    metrics = Metrics(version_parameter_name="/Solutions/SO0111/member-version")
+
+    # ASSERT
+    assert metrics.solution_version == "v2.0.0"

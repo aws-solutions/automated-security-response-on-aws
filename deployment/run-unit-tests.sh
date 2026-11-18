@@ -44,9 +44,7 @@ export overrideWarningsEnabled=false
 
 [[ ! -d .venv ]] && python3.11 -m venv .venv
 source ./.venv/bin/activate
-python3.11 -m pip install -U pip setuptools
 
-echo 'Installing required Python testing modules'
 if command -v poetry >/dev/null 2>&1; then
         POETRY_COMMAND="poetry"
       elif [ -n "$POETRY_HOME" ] && [ -x "$POETRY_HOME/bin/poetry" ]; then
@@ -55,12 +53,6 @@ if command -v poetry >/dev/null 2>&1; then
         echo "Poetry is not available. Aborting script." >&2
         exit 1
       fi
-"$POETRY_COMMAND" export --with dev -f requirements.txt --output requirements_dev.txt --without-hashes
-pip install -r ./requirements_dev.txt
-
-cd ..
-pip install -e .
-cd ./deployment
 
 # Get reference for all important folders
 template_dir="$PWD"
@@ -128,53 +120,17 @@ echo "  SOLUTION_NAME: $SOLUTION_NAME"
 echo "  SOLUTION_DISPLAY_NAME: $SOLUTION_DISPLAY_NAME"
 echo "  SOLUTION_TRADEMARKEDNAME: $SOLUTION_TRADEMARKEDNAME"
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - Orchestrator Lambdas"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/Orchestrator" "Orchestrator"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - SolutionDeploy"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - Blueprints"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/blueprints/jira" "Jira Blueprint"
-run_pytest "${source_dir}/blueprints/servicenow" "ServiceNow Blueprint"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Unit Tests - LambdaLayers"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/layer" "LambdaLayers"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Remediation Runbooks"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/remediation_runbooks/scripts" "RemediationRunbooks"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Playbook common scripts"
-echo "------------------------------------------------------------------------------"
-run_pytest "${source_dir}/playbooks/common" "PlaybookCommon"
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Python Scripts for Playbooks"
-echo "------------------------------------------------------------------------------"
-# Playbooks are inconsistent about the directory name, so accept either. AFSBP and
-# PCI321 use "test" while SC uses "tests"; checking only one name silently skips
-# the others.
-for playbook in `ls ${source_dir}/playbooks`; do
-    if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ] || [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/test ]; then
-        run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
-    fi
-done
-
-echo "------------------------------------------------------------------------------"
-echo "[Test] Remediation Authoring Skill - guarded scripts"
-echo "------------------------------------------------------------------------------"
-run_pytest "${skill_dir}" "RemediationAuthoringSkill"
+# The test suites below run in three independent lanes at the same time, which
+# keeps the cores busy: most suites are single-threaded or deliberately
+# serialized. The lanes share no mutable state:
+#   python  - pytest suites, then the tox environment the lint step reuses
+#   backend - lambda and deployment-utils jest suites against DynamoDB Local,
+#             then CDK synthesis and the CDK jest suite
+#   webui   - the WebUI vitest suite
+# The CDK and lambda jest suites stay in one lane because the CDK suite alone
+# peaks at about 8 GB of memory. Lint runs after all lanes and must not fix
+# files: a rewrite shifts lines under the coverage reports, and SonarQube then
+# ignores them. Format with `./run-unit-tests.sh format` from deployment/.
 
 echo "------------------------------------------------------------------------------"
 echo "[Build] Data Models Package"
@@ -189,123 +145,293 @@ if [ "$rc" -ne "0" ]; then
     exit $rc
 fi
 
-source "${template_dir}/dynamodb-local.sh"
-ddb_local_start || exit 1
-trap 'ddb_local_stop' EXIT
+# Every lambda test script starts by deleting the JavaScript that
+# build-s3-dist.sh compiled next to the lambda sources. The CDK code imports
+# some lambda modules, so delete it once up front: otherwise the CDK synthesis
+# in the backend lane could resolve a .js file that a concurrent clean removes.
+(cd "$source_dir"/lambdas && npm run build:clean:ts)
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Preprocessor Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"/lambdas
-npm run test:sequential:preprocessor
+python_runbook_tests() {
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Scripts for Remediation Runbooks"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${source_dir}/remediation_runbooks/scripts" "RemediationRunbooks"
+}
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Lambdas/common Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"/lambdas
-npm run test:sequential:common
+python_other_tests() {
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Unit Tests - Orchestrator Lambdas"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${source_dir}/Orchestrator" "Orchestrator"
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Findings synchronization Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"/lambdas
-npm run test:sequential:synchronization
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Unit Tests - SolutionDeploy"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${source_dir}/solution_deploy/source" "SolutionDeploy"
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] API Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"/lambdas
-npm run test:sequential:api
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Unit Tests - Blueprints"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${source_dir}/blueprints/jira" "Jira Blueprint"
+    run_pytest "${source_dir}/blueprints/servicenow" "ServiceNow Blueprint"
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Notification Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"/lambdas
-npm run test:sequential:notification
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Unit Tests - LambdaLayers"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${source_dir}/layer" "LambdaLayers"
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] MCP Server Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"/lambdas
-npm run test:sequential:mcp-server
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Scripts for Playbook common scripts"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${source_dir}/playbooks/common" "PlaybookCommon"
 
-ddb_local_stop
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Python Scripts for Playbooks"
+    echo "------------------------------------------------------------------------------"
+    # Playbooks are inconsistent about the directory name, so accept either. AFSBP and
+    # PCI321 use "test" while SC uses "tests"; checking only one name silently skips
+    # the others.
+    for playbook in `ls ${source_dir}/playbooks`; do
+        if [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/tests ] || [ -d ${source_dir}/playbooks/${playbook}/ssmdocs/scripts/test ]; then
+            run_pytest "${source_dir}/playbooks/${playbook}/ssmdocs/scripts" "Playbook${playbook}"
+        fi
+    done
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] Deployment Utils Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$template_dir"/utils
-npm run test
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Remediation Authoring Skill - guarded scripts"
+    echo "------------------------------------------------------------------------------"
+    run_pytest "${skill_dir}" "RemediationAuthoringSkill"
 
-echo "------------------------------------------------------------------------------"
-echo "[Synth] CDK Synthesis - Generate templates for size validation"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"
-npm run build
+    echo "------------------------------------------------------------------------------"
+    echo "[Setup] Lint environment"
+    echo "------------------------------------------------------------------------------"
+    # Create the tox environment now so the lint step after the lanes only runs
+    # its commands. --notest installs dependencies and skips the commands.
+    cd "$root_dir"
+    tox -e lint --notest
+}
 
-# Synthesize solution_deploy templates
-cd "$source_dir"/solution_deploy
-npx cdk synth --quiet
+lane_python() {
+    python3.11 -m pip install -U pip setuptools
 
-# Synthesize playbook templates
-for playbook in AFSBP CIS120 CIS140 CIS300 NIST80053 PCI321 SC; do
-    if [ -d "${source_dir}/playbooks/${playbook}" ]; then
-        cd "${source_dir}/playbooks/${playbook}"
-        npx cdk synth --quiet
+    echo 'Installing required Python testing modules'
+    cd "$template_dir"
+    "$POETRY_COMMAND" export --with dev -f requirements.txt --output requirements_dev.txt --without-hashes
+    pip install -r ./requirements_dev.txt
+
+    cd "$root_dir"
+    pip install -e .
+
+    # The remediation runbook suite takes as long as all other Python suites
+    # together, so it runs beside them.
+    local runbook_log
+    runbook_log=$(mktemp "$lane_log_dir/runbooks.XXXXXX")
+    ( set -eo pipefail; python_runbook_tests ) > "$runbook_log" 2>&1 &
+    local runbook_pid=$!
+
+    # Run in the background as well: bash ignores errexit inside a subshell
+    # whose status is tested with ||, so the suites would not stop at the first
+    # failure.
+    ( set -eo pipefail; python_other_tests ) &
+    local other_pid=$!
+
+    local other_rc=0
+    wait "$other_pid" || other_rc=$?
+
+    local runbook_rc=0
+    wait "$runbook_pid" || runbook_rc=$?
+    cat "$runbook_log"
+    rm -f "$runbook_log"
+
+    if [ "$other_rc" -ne 0 ]; then
+        return "$other_rc"
     fi
-done
+    return "$runbook_rc"
+}
 
-# Synthesize blueprint templates
-for blueprint in jira servicenow; do
-    if [ -d "${source_dir}/blueprints/${blueprint}/cdk" ]; then
-        cd "${source_dir}/blueprints/${blueprint}/cdk"
-        npx cdk synth --quiet
-    fi
-done
+lane_backend() {
+    source "${template_dir}/dynamodb-local.sh"
+    ddb_local_start || exit 1
+    trap 'ddb_local_stop' EXIT
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] CDK Unit Tests"
-echo "------------------------------------------------------------------------------"
-cd "$source_dir"
-[[ $update == "true" ]] && {
-    npm run test -- -u
-} || {
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Preprocessor Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"/lambdas
+    npm run test:sequential:preprocessor
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Lambdas/common Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"/lambdas
+    npm run test:sequential:common
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Findings synchronization Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"/lambdas
+    npm run test:sequential:synchronization
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] API Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"/lambdas
+    npm run test:sequential:api
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Notification Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"/lambdas
+    npm run test:sequential:notification
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] MCP Server Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"/lambdas
+    npm run test:sequential:mcp-server
+
+    ddb_local_stop
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] Deployment Utils Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$template_dir"/utils
+    npm run test
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] CloudTrail Event Processor Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    install_npm_dependencies_if_stale "$source_dir/lib/member/cloud-trail-event-processor"
+    cd "$source_dir"/lib/member/cloud-trail-event-processor
+    npm run test
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Synth] CDK Synthesis - Generate templates for size validation"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"
+    npm run build
+
+    # Synthesize solution_deploy templates
+    cd "$source_dir"/solution_deploy
+    npx cdk synth --quiet
+
+    # Synthesize playbook templates
+    for playbook in AFSBP CIS120 CIS140 CIS300 NIST80053 PCI321 SC; do
+        if [ -d "${source_dir}/playbooks/${playbook}" ]; then
+            cd "${source_dir}/playbooks/${playbook}"
+            npx cdk synth --quiet
+        fi
+    done
+
+    # Synthesize blueprint templates
+    for blueprint in jira servicenow; do
+        if [ -d "${source_dir}/blueprints/${blueprint}/cdk" ]; then
+            cd "${source_dir}/blueprints/${blueprint}/cdk"
+            npx cdk synth --quiet
+        fi
+    done
+
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] CDK Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    cd "$source_dir"
+    [[ $update == "true" ]] && {
+        npm run test -- -u
+    } || {
+        npm run test
+        rc=$?
+        if [ "$rc" -ne "0" ]; then
+            echo "** UNIT TESTS FAILED **"
+        else
+            echo "Unit Tests Successful"
+        fi
+    }
+}
+
+lane_webui() {
+    echo "------------------------------------------------------------------------------"
+    echo "[Test] WebUI Unit Tests"
+    echo "------------------------------------------------------------------------------"
+    install_npm_dependencies_if_stale "$source_dir/webui"
+    cd $source_dir/webui
     npm run test
     rc=$?
     if [ "$rc" -ne "0" ]; then
-        echo "** UNIT TESTS FAILED **"
+        echo "** WEBUI UNIT TESTS FAILED **"
     else
-        echo "Unit Tests Successful"
-    fi
-    if [ "$rc" -gt "$maxrc" ]; then
-        maxrc=$rc
+        echo "WebUI Unit Tests Successful"
     fi
 }
 
+lane_names=(python backend webui)
+lane_log_dir=$(mktemp -d "${TMPDIR:-/tmp}/asr-unit-test-lanes.XXXXXX")
+lane_pids=()
 
-echo "------------------------------------------------------------------------------"
-echo "[Test] WebUI Unit Tests"
-echo "------------------------------------------------------------------------------"
-install_npm_dependencies_if_stale "$source_dir/webui"
-cd $source_dir/webui
-npm run test
-rc=$?
-if [ "$rc" -ne "0" ]; then
-    echo "** WEBUI UNIT TESTS FAILED **"
-else
-    echo "WebUI Unit Tests Successful"
-fi
-if [ "$rc" -gt "$maxrc" ]; then
-    maxrc=$rc
+# Background jobs ignore Ctrl+C, so leaving the runner early would otherwise leave
+# the lanes (and the pytest, jest and npm processes under them) running against the
+# checkout. Each lane runs in its own process group. Every way out of the runner,
+# normal or not (an error under set -e, Ctrl+C, SIGTERM), goes through one EXIT
+# handler that stops the lanes that are still running, removes the lane logs, and
+# keeps the original exit status. A lane's PID is cleared once it has been waited
+# for, so the handler never signals a recycled PID.
+stop_running_lanes() {
+    local lane_pid
+    for lane_pid in "${lane_pids[@]}"; do
+        if [ -n "$lane_pid" ]; then
+            kill -TERM -- "-$lane_pid" 2>/dev/null || true
+        fi
+    done
+    wait 2>/dev/null || true
+}
+cleanup_lanes() {
+    local exit_code=$?
+    trap - EXIT INT TERM
+    stop_running_lanes
+    rm -rf "$lane_log_dir"
+    exit "$exit_code"
+}
+trap cleanup_lanes EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+set -m
+for lane in "${lane_names[@]}"; do
+    ( set -eo pipefail; "lane_${lane}" ) > "$lane_log_dir/$lane.log" 2>&1 < /dev/null &
+    lane_pids+=($!)
+    echo "Started test lane '$lane' (pid ${lane_pids[${#lane_pids[@]}-1]})"
+done
+set +m
+
+failed_lanes=()
+for lane_index in "${!lane_names[@]}"; do
+    lane=${lane_names[$lane_index]}
+    lane_rc=0
+    wait "${lane_pids[$lane_index]}" || lane_rc=$?
+    lane_pids[$lane_index]=""
+    echo "=============================================================================="
+    echo "== Test lane '$lane' finished with exit code $lane_rc"
+    echo "=============================================================================="
+    cat "$lane_log_dir/$lane.log"
+    if [ "$lane_rc" -ne 0 ]; then
+        failed_lanes+=("$lane")
+        if [ "$lane_rc" -gt "$maxrc" ]; then
+            maxrc=$lane_rc
+        fi
+    fi
+done
+rm -rf "$lane_log_dir"
+
+if [ "${#failed_lanes[@]}" -ne 0 ]; then
+    echo "** UNIT TESTS FAILED in lane(s): ${failed_lanes[*]} **"
+    exit "$maxrc"
 fi
 
 echo "------------------------------------------------------------------------------"
 echo "[Lint] Code Style and Lint"
 echo "------------------------------------------------------------------------------"
 cd $source_dir
-npx eslint --fix --ext .ts --max-warnings=0 --ignore-pattern "*.d.ts" .
+npx eslint --ext .ts --max-warnings=0 --ignore-pattern "*.d.ts" .
 cd ..
-tox -e format
 tox -e lint
 
 

@@ -6,7 +6,9 @@ import { mockClient } from 'aws-sdk-client-mock';
 import {
   SNSClient,
   CreateTopicCommand,
+  DeleteTopicCommand,
   ListSubscriptionsByTopicCommand,
+  SubscribeCommand,
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns';
 import { OrganizationsClient, DescribeAccountCommand } from '@aws-sdk/client-organizations';
@@ -21,6 +23,8 @@ import {
   userAccountMappingTableName,
   mockAccountId,
 } from '../../../common/__tests__/envSetup';
+import { randomUUID } from 'node:crypto';
+import { ConflictError } from '../../../common/utils/httpErrors';
 import { NotificationConfigurationService } from '../../services/notificationConfigurationService';
 import { NotificationConfigurationRepository } from '../../../common/repositories/notificationConfigurationRepository';
 import { resetApiLambdaEnvironmentCache } from '../../apiLambdaEnvironment';
@@ -1030,6 +1034,259 @@ describe('NotificationConfigurationService', () => {
 
       // Act / Assert - the method swallows the per-config failure and resolves
       await expect(service.unsubscribeEmailFromAllConfigs('deleted@example.com')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('failures and races when storing, renaming and deleting configurations', () => {
+    // The file-level id generator is fixed to one UUID; these tests create several configurations, so
+    // they use a service with real ids. Failures come from real DynamoDB conditions (a stale version, a
+    // pre-seeded id, a table that does not exist), not from replacing the repositories.
+    const CLASH_ID = '11111111-2222-4333-a444-0000000000aa';
+    const MISSING_TABLE = 'notification-config-table-that-does-not-exist';
+    let lifecycleService: NotificationConfigurationService;
+
+    const emailRequest = (
+      name: string,
+      overrides: Partial<CreateNotificationConfigurationRequest> = {},
+    ): CreateNotificationConfigurationRequest => ({
+      name,
+      enabled: true,
+      notificationType: 'finding',
+      controlIds: [],
+      resourceFilterIds: [],
+      deliveryChannels: [
+        {
+          type: 'email',
+          enabled: true,
+          recipients: [{ recipientType: 'custom', emailAddresses: ['ops@example.com'] }],
+        },
+      ],
+      batchWindow: { enabled: false },
+      contentOptions: {
+        includeManualRemediationLink: true,
+        includeRemediationDeadline: false,
+        enforceDeadline: false,
+        includeIaCSnippet: false,
+        includeEnableAutomationLink: true,
+      },
+      ...overrides,
+    });
+
+    const updateOf = (
+      request: CreateNotificationConfigurationRequest,
+      version: number,
+    ): UpdateNotificationConfigurationRequest => ({ ...request, version });
+
+    const create = (name: string, overrides: Partial<CreateNotificationConfigurationRequest> = {}) =>
+      lifecycleService.createConfiguration(emailRequest(name, overrides), ADMIN_ACTOR);
+
+    /** A service whose configuration table does not exist, so every read or write fails in DynamoDB. */
+    const serviceOnMissingTable = () => {
+      process.env.NOTIFICATION_CONFIG_TABLE_NAME = MISSING_TABLE;
+      resetApiLambdaEnvironmentCache();
+      return new NotificationConfigurationService(logger, undefined, { randomUUID });
+    };
+
+    beforeEach(() => {
+      const topicArn = `arn:aws:sns:us-east-1:${mockAccountId}:topic`;
+      snsMock.on(CreateTopicCommand).resolves({ TopicArn: topicArn });
+      snsMock.on(ListSubscriptionsByTopicCommand).resolves({ Subscriptions: [] });
+      snsMock.on(SubscribeCommand).resolves({});
+      snsMock.on(DeleteTopicCommand).resolves({});
+      lifecycleService = new NotificationConfigurationService(logger, undefined, { randomUUID });
+    });
+
+    afterEach(() => {
+      process.env.NOTIFICATION_CONFIG_TABLE_NAME = notificationConfigTableName;
+      resetApiLambdaEnvironmentCache();
+      jest.restoreAllMocks();
+    });
+
+    it('passes on a failure to reserve the name when creating that is not a name clash', async () => {
+      // ARRANGE
+      const broken = serviceOnMissingTable();
+
+      // ACT / ASSERT
+      await expect(broken.createConfiguration(emailRequest('Unreachable'), ADMIN_ACTOR)).rejects.toThrow();
+    });
+
+    it('answers an id clash with a conflict and frees the name again', async () => {
+      // ARRANGE - an item with the id the new configuration is about to get makes the conditional write fail
+      await docClient.send(new PutCommand({ TableName: notificationConfigTableName, Item: { configId: CLASH_ID } }));
+      const fixedIdService = new NotificationConfigurationService(logger, undefined, { randomUUID: () => CLASH_ID });
+
+      // ACT
+      const clash = fixedIdService.createConfiguration(emailRequest('Retry me'), ADMIN_ACTOR);
+
+      // ASSERT
+      await expect(clash).rejects.toThrow(ConflictError);
+      await expect(clash).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'A configuration with this ID already exists',
+      });
+      await expect(create('Retry me')).resolves.toMatchObject({ name: 'Retry me' });
+    });
+
+    it('passes on a failure to reserve the new name when renaming that is not a name clash', async () => {
+      // ARRANGE
+      const created = await create('Mine');
+      const broken = serviceOnMissingTable();
+
+      // ACT / ASSERT
+      await expect(
+        broken.updateConfiguration(
+          created.configId,
+          updateOf(emailRequest('Renamed'), created.version),
+          ADMIN_ACTOR,
+          created,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('passes on any other failure to store an update', async () => {
+      // ARRANGE
+      const created = await create('Failing');
+      const broken = serviceOnMissingTable();
+
+      // ACT / ASSERT
+      await expect(
+        broken.updateConfiguration(
+          created.configId,
+          updateOf(emailRequest('Failing', { enabled: false }), created.version),
+          ADMIN_ACTOR,
+          created,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('frees the new name when a rename loses to a concurrent change', async () => {
+      // ARRANGE - the configuration moves to version 2 before the rename (written against version 1) arrives
+      const created = await create('Racing');
+      await lifecycleService.updateConfiguration(
+        created.configId,
+        updateOf(emailRequest('Racing', { enabled: false }), 1),
+        ADMIN_ACTOR,
+      );
+
+      // ACT
+      const lostRename = lifecycleService.updateConfiguration(
+        created.configId,
+        updateOf(emailRequest('Renamed late'), 1),
+        ADMIN_ACTOR,
+      );
+
+      // ASSERT
+      await expect(lostRename).rejects.toThrow(ConflictError);
+      await expect(create('Renamed late')).resolves.toMatchObject({ name: 'Renamed late' });
+    });
+
+    it('reports a conflict when a configuration was changed after the caller read it for deletion', async () => {
+      // ARRANGE
+      const created = await create('Changed');
+      const readBeforeRename = { ...created, name: 'The name the caller saw' };
+
+      // ACT / ASSERT
+      await expect(
+        lifecycleService.deleteConfiguration(created.configId, ADMIN_ACTOR, readBeforeRename),
+      ).rejects.toThrow('Configuration was modified by another request during deletion. Please retry.');
+      expect(await lifecycleService.findConfigurationById(created.configId)).toBeDefined();
+    });
+
+    it('passes on any other failure to delete', async () => {
+      // ARRANGE
+      const created = await create('Undeletable');
+      const broken = serviceOnMissingTable();
+
+      // ACT / ASSERT
+      await expect(broken.deleteConfiguration(created.configId, ADMIN_ACTOR, created)).rejects.toThrow();
+    });
+
+    it('still deletes the configuration when its email topic cannot be removed', async () => {
+      // ARRANGE
+      const created = await create('Topic stays');
+      snsMock.on(DeleteTopicCommand).rejects(new Error('AuthorizationError'));
+      const warn = jest.spyOn(logger, 'warn');
+
+      // ACT / ASSERT
+      await expect(lifecycleService.deleteConfiguration(created.configId, ADMIN_ACTOR, created)).resolves.toBeTruthy();
+      expect(await lifecycleService.findConfigurationById(created.configId)).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        'Failed to delete email topic for removed config',
+        expect.objectContaining({ configId: created.configId }),
+      );
+    });
+
+    it('lists each email subscriber with its confirmation state and skips other protocols and deleted ones', async () => {
+      // ARRANGE
+      const created = await create('Subscribers');
+      const topicArn = `arn:aws:sns:us-east-1:${mockAccountId}:topic`;
+      snsMock.on(ListSubscriptionsByTopicCommand).resolves({
+        Subscriptions: [
+          { Protocol: 'email', Endpoint: 'ops@example.com', SubscriptionArn: `${topicArn}:sub-1` },
+          { Protocol: 'email', Endpoint: 'pending@example.com', SubscriptionArn: 'PendingConfirmation' },
+          { Protocol: 'sms', Endpoint: '+15550100', SubscriptionArn: `${topicArn}:sub-2` },
+          { Protocol: 'email', Endpoint: 'gone@example.com', SubscriptionArn: 'Deleted' },
+        ],
+      });
+
+      // ACT
+      const { statuses, hasFailure } = await lifecycleService.listSubscriptionStatuses(created.configId);
+
+      // ASSERT
+      expect(hasFailure).toBe(false);
+      expect(statuses.map((s) => [s.email, s.status])).toEqual([
+        ['ops@example.com', 'Confirmed'],
+        ['pending@example.com', 'PendingConfirmation'],
+      ]);
+    });
+
+    it('labels each subscriber with the recipient type that produced the address', async () => {
+      // ARRANGE
+      await docClient.send(
+        new PutCommand({
+          TableName: userAccountMappingTableName,
+          Item: { userId: 'operator@example.com', accountIds: ['111111111111'] },
+        }),
+      );
+      const created = await create('Typed recipients', {
+        accountIds: ['111111111111'],
+        deliveryChannels: [
+          {
+            type: 'email',
+            enabled: true,
+            recipients: [
+              { recipientType: 'accountOperators' },
+              { recipientType: 'custom', emailAddresses: ['direct@example.com'] },
+            ],
+          },
+        ],
+      });
+      const topicArn = `arn:aws:sns:us-east-1:${mockAccountId}:topic`;
+      snsMock.on(ListSubscriptionsByTopicCommand).resolves({
+        Subscriptions: [
+          { Protocol: 'email', Endpoint: 'operator@example.com', SubscriptionArn: `${topicArn}:sub-1` },
+          { Protocol: 'email', Endpoint: 'direct@example.com', SubscriptionArn: `${topicArn}:sub-2` },
+        ],
+      });
+
+      // ACT
+      const { statuses } = await lifecycleService.listSubscriptionStatuses(created.configId);
+
+      // ASSERT
+      expect(statuses.find((s) => s.email === 'operator@example.com')?.recipientType).toBe('accountOperators');
+      expect(statuses.find((s) => s.email === 'direct@example.com')?.recipientType).toBeUndefined();
+    });
+
+    it('resends the confirmation email to the subscriber', async () => {
+      // ARRANGE
+      const created = await create('Resend');
+
+      // ACT
+      await lifecycleService.resendConfirmation(created.configId, 'pending@example.com');
+
+      // ASSERT
+      const subscribe = snsMock.commandCalls(SubscribeCommand).at(-1)?.args[0].input;
+      expect(subscribe).toMatchObject({ Protocol: 'email', Endpoint: 'pending@example.com' });
     });
   });
 });

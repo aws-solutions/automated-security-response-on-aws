@@ -204,14 +204,16 @@ export class FindingEventNormalizer {
         asffErrors: asffResult.error,
       },
     );
-    await sendMetrics({ finding_schema: 'unknown' });
+    // No metric here: the caller's failure metric already reports this with error detail and finding context.
     throw new InvalidFindingSchemaError(Object.values(FindingSchema).filter((s) => s !== FindingSchema.UNKNOWN));
   }
 
-  /** Normalize finding to ASFF format. Multi-service OCSF findings must not be passed here. */
-  async normalizeFinding(finding: Record<any, any>): Promise<ASFFFinding> {
-    const findingSchema = await this.detectFindingSchema(finding);
-
+  /**
+   * Normalize finding to ASFF format. Multi-service OCSF findings must not be passed here.
+   * `findingSchema` is the result of {@link detectFindingSchema} for this finding. Taking it from
+   * the caller means each finding is validated, and its finding_schema metric published, once.
+   */
+  async normalizeFinding(finding: Record<any, any>, findingSchema: FindingSchema): Promise<ASFFFinding> {
     if (findingSchema === FindingSchema.ASFF) {
       this.logger.debug('Finding is already in ASFF, skipping normalization...');
       return finding as ASFFFinding;

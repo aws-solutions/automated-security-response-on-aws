@@ -7,13 +7,15 @@ import { FORBIDDEN_IAM_ACTION_NAMESPACES } from '@asr/data-models';
 import { addCfnGuardSuppression } from '../cdk-helper/add-cfn-guard-suppression';
 import { stripDevelopmentPrefix } from '../config/cdk-config';
 
-// Derived from the request-time validator's namespace list, but the two are NOT the same
-// set: that list says what a caller may REQUEST, this says what the role may ever DO. `iam`
-// is excluded here because it needs the narrower conditional Deny below. Adding a namespace
-// to the validator therefore changes every deployed remediation role's ceiling as well.
-const WHOLESALE_DENY_ACTIONS = [...FORBIDDEN_IAM_ACTION_NAMESPACES]
-  .filter((namespace) => namespace !== 'iam')
-  .map((namespace) => `${namespace}:*`);
+// Derived from the validator's list of what a caller may REQUEST, these cap what the role may ever DO,
+// so adding a namespace there changes every deployed remediation role's ceiling.
+const toWildcardActions = (namespaces: string[]): string[] => namespaces.map((namespace) => `${namespace}:*`);
+
+const ACTIONS_EXCLUDED_FROM_ALLOW = toWildcardActions([...FORBIDDEN_IAM_ACTION_NAMESPACES]);
+// Not `iam`: it gets the narrower conditional Deny below.
+const WHOLESALE_DENY_ACTIONS = toWildcardActions(
+  [...FORBIDDEN_IAM_ACTION_NAMESPACES].filter((namespace) => namespace !== 'iam'),
+);
 const PASS_ROLE_TARGET_SERVICE = 'ssm.amazonaws.com';
 
 export interface RemediationBoundaryPolicyProps {
@@ -54,11 +56,19 @@ export class RemediationBoundaryPolicy extends Construct {
         'custom remediation role.',
       document: new PolicyDocument({
         statements: [
+          // NotAction, not Action "*": IAM.1 flags "*" on boundaries that are not yet attached.
           new PolicyStatement({
             sid: 'AllowServiceActions',
             effect: Effect.ALLOW,
-            actions: ['*'], // NOSONAR
+            notActions: ACTIONS_EXCLUDED_FROM_ALLOW,
             resources: ['*'], // NOSONAR
+          }),
+          new PolicyStatement({
+            sid: 'AllowPassRoleToSsm',
+            effect: Effect.ALLOW,
+            actions: ['iam:PassRole'],
+            resources: ['*'], // NOSONAR
+            conditions: { StringEquals: { 'iam:PassedToService': PASS_ROLE_TARGET_SERVICE } },
           }),
           new PolicyStatement({
             sid: 'DenyEscalationNamespaces',
@@ -89,10 +99,10 @@ export class RemediationBoundaryPolicy extends Construct {
       cfn_nag: {
         rules_to_suppress: [
           {
-            id: 'F5',
+            id: 'W17',
             reason:
               'A permissions boundary grants nothing: it caps what an identity policy can grant. ' +
-              'Action: * here is a ceiling, not a privilege, and the Deny statements are what constrain the role.',
+              'Allow+NotAction here is a ceiling, not a privilege, and the Deny statements are what constrain the role.',
           },
           {
             id: 'W12',

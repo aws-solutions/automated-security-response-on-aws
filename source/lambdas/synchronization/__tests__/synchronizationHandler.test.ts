@@ -452,25 +452,25 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
   // themselves (no self-invoke, no next-account, no sweep lock) — the state machine owns fan-out and the
   // resume loop. Each task returns a plain object the state machine branches on.
   describe('State machine tasks (Step Functions driven)', () => {
-    it('enumerate-accounts lists members and initializes the sweep denominator', async () => {
+    it('enumerate-accounts lists the administrator and members and initializes the sweep denominator', async () => {
       stubMemberAccounts('111111111111', '222222222222', '333333333333');
 
       const result = await handler({ task: 'enumerate-accounts' }, context);
 
-      expect(result.accountIds).toEqual(['111111111111', '222222222222', '333333333333']);
-      expect(result.totalAccounts).toBe(3);
+      expect(result.accountIds).toEqual([mockAccountId, '111111111111', '222222222222', '333333333333']);
+      expect(result.totalAccounts).toBe(4);
       const sweep = await getSweepRecord();
-      expect(sweep?.totalAccounts).toBe(3);
+      expect(sweep?.totalAccounts).toBe(4);
       expect(sweep?.done).toBe(false);
     });
 
-    it('enumerate-accounts reports a zero-account denominator for an empty organization', async () => {
-      stubMemberAccounts(); // empty organization
+    it('enumerate-accounts still sweeps the administrator account when Security Hub has no members', async () => {
+      stubMemberAccounts(); // single-account deployment
 
       const result = await handler({ task: 'enumerate-accounts' }, context);
 
-      expect(result.accountIds).toEqual([]);
-      expect(result.totalAccounts).toBe(0);
+      expect(result.accountIds).toEqual([mockAccountId]);
+      expect(result.totalAccounts).toBe(1);
       expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(0);
     });
 
@@ -516,13 +516,14 @@ describe('Synchronization Lambda (integration, DynamoDB Local)', () => {
 
       await handler({ task: 'sync-account-slice', accountId: '111111111111' }, context);
 
-      // The first account completed, so the derived sweep count read into metrics is 1 of 3.
+      // The first account completed, so the derived sweep count read into metrics is 1 of 4
+      // (the administrator account plus three members).
       expect(mockSendMetrics).toHaveBeenCalledWith(
         expect.objectContaining({
           synchronization_status: 'SUCCESS',
           account_id: '111111111111',
           completed_accounts: 1,
-          total_accounts: 3,
+          total_accounts: 4,
         }),
       );
     });

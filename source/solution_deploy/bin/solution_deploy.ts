@@ -77,6 +77,8 @@ const roleStack = new MemberRolesStack(app, 'MemberRolesStack', {
   solutionId: SOLUTION_ID,
   solutionVersion: SOLUTION_VERSION,
   solutionDistBucket: SOLUTION_BUCKET,
+  solutionTradeMarkName: SOLUTION_TMN,
+  runtimePython: LAMBDA_RUNTIME_PYTHON,
 });
 roleStack.templateOptions.templateFormatVersion = '2010-09-09';
 

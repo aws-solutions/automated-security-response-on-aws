@@ -1,0 +1,127 @@
+{
+ "Items": [
+  {
+   "TargetUid": "example-target-s3-sse-kms",
+   "Outcome": {
+    "ResolvedFindingsCount": 1,
+    "SeverityReductionFindingsCount": 0,
+    "SeverityUnchangedCount": 0
+   },
+   "Priority": "Low",
+   "RemediationSummary": {
+    "Action": "Enable SSE-KMS encryption.",
+    "IsImmediate": true,
+    "Description": "Enable SSE-KMS encryption.",
+    "KbArticles": [
+     {
+      "Title": "Remediation guidance for sse kms not used",
+      "Url": "https://docs.aws.amazon.com/securityhub/latest/userguide/exposure-s3-bucket.html#sse-kms-not-used"
+     }
+    ]
+   },
+   "Resource": {
+    "AccountId": "111122223333",
+    "Region": "us-east-1",
+    "Type": "AWS::S3::Bucket",
+    "Id": "amzn-s3-demo-bucket",
+    "ResourceRegion": "us-east-1",
+    "CloudProvider": "AWS",
+    "ResourceOwnerAccountId": "111122223333",
+    "Name": "amzn-s3-demo-bucket",
+    "ResourceGuid": "arn:aws:s3:::amzn-s3-demo-bucket"
+   },
+   "Status": "New",
+   "Trait": {
+    "Type": "contributing",
+    "Title": "The S3 bucket is not encrypted at-rest with AWS KMS keys"
+   },
+   "Guidance": {
+    "TargetTypeName": "S3Bucket-EnableSSEKMS",
+    "Pattern": "Configuration Update",
+    "Version": "2.0.0",
+    "Context": {
+     "ProblemStatement": "The S3 bucket uses SSE-S3 (Amazon S3-managed keys) or has no default encryption configured, instead of SSE-KMS (AWS Key Management Service keys). While SSE-S3 encrypts data at rest, it lacks the granular access control, key rotation management, and audit logging provided by KMS. With SSE-KMS, every decrypt operation generates a CloudTrail event, KMS key policies control which principals can decrypt objects, and customer managed keys (CMKs) provide full control over key lifecycle. The remediation configures SSE-KMS as the default encryption for the bucket, applying to all new objects uploaded without explicit encryption headers.",
+     "RiskAssessment": "Medium execution risk. Changing the default encryption only affects newly uploaded objects \u2014 existing objects retain their current encryption and remain accessible. However, applications writing to or reading from the bucket must have kms:Decrypt and kms:GenerateDataKey permissions on the KMS key. Applications with only S3 permissions will fail to upload (missing kms:GenerateDataKey) or download (missing kms:Decrypt) new objects. Cross-account access becomes more complex \u2014 both the bucket policy AND KMS key policy must grant access. Blast radius: all applications writing new objects to this bucket. Fully reversible \u2014 default encryption can be changed back to SSE-S3 with a single API call. Existing objects are never re-encrypted by this change.",
+     "AffectedScope": "Single S3 bucket's default encryption configuration. Fix takes effect immediately for new objects \u2014 objects uploaded after the change use SSE-KMS. Not affected: existing objects (retain their current encryption), bucket policy, ACLs, versioning, lifecycle rules, Block Public Access, or any other bucket setting. Objects uploaded with an explicit x-amz-server-side-encryption header override the default. To re-encrypt existing objects, a separate S3 Batch Operations job is required.",
+     "Prerequisites": [
+      "Bucket must exist and be accessible",
+      "A KMS key must exist (either AWS managed key 'aws/s3' or a customer managed key) \u2014 if using a CMK, it must be in the same region as the bucket",
+      "All applications writing to this bucket must have kms:GenerateDataKey permission on the chosen KMS key",
+      "All applications reading objects from this bucket must have kms:Decrypt permission on the chosen KMS key",
+      "For cross-account access: the KMS key policy must explicitly allow external accounts to use the key",
+      "Executing identity needs: s3:GetBucketEncryption, s3:PutBucketEncryption, kms:DescribeKey (to verify key exists)"
+     ]
+    },
+    "Specification": {
+     "Parameters": [
+      {
+       "Name": "KmsKeyId",
+       "Type": "string",
+       "Description": "KMS key ID, ARN, alias, or alias ARN for encryption. Use 'aws/s3' for the AWS managed key, or a CMK ARN for customer managed key. If not provided, defaults to the AWS managed 'aws/s3' key.",
+       "Required": false
+      },
+      {
+       "Name": "BucketKeyEnabled",
+       "Type": "boolean",
+       "Description": "Whether to enable S3 Bucket Keys to reduce KMS API costs. Default: true (recommended). Bucket Keys reduce KMS request costs by up to 99% by using a bucket-level key for a time-limited period.",
+       "Required": false
+      }
+     ],
+     "Steps": [
+      {
+       "Phase": "SNAPSHOT",
+       "Description": "Capture current bucket encryption configuration for pre-check, rollback, and verification",
+       "Service": "s3, kms",
+       "Action": "GetBucketEncryption, DescribeKey",
+       "Logic": "1. GetBucketEncryption(Bucket=amzn-s3-demo-bucket): capture the ServerSideEncryptionConfiguration. Store as snapshot.EncryptionConfig. If ServerSideEncryptionConfigurationNotFoundError, record as null (no default encryption configured \u2014 this is valid for older buckets). Note: since January 2023, all new S3 buckets have SSE-S3 encryption by default. 2. From the configuration, extract: current SSEAlgorithm (AES256 for SSE-S3, aws:kms for SSE-KMS, aws:kms:dsse for DSSE-KMS), current KMSMasterKeyID (if KMS), current BucketKeyEnabled. Store these as snapshot.CurrentAlgorithm, snapshot.CurrentKeyId, snapshot.CurrentBucketKey. 3. If ${KmsKeyId} is provided and is not 'aws/s3': call kms:DescribeKey(KeyId=${KmsKeyId}) to verify the key exists and is enabled. If NotFoundException or DisabledException, abort \u2014 key does not exist or is disabled. Store key ARN as snapshot.TargetKeyArn. 4. If NoSuchBucket error on any call, abort."
+      },
+      {
+       "Phase": "FIX",
+       "Description": "Configure SSE-KMS as the default encryption for the bucket with optional Bucket Keys",
+       "Service": "s3",
+       "Action": "PutBucketEncryption",
+       "Logic": "Pre-check: if snapshot.CurrentAlgorithm == 'aws:kms' and snapshot.CurrentKeyId matches ${KmsKeyId} (or both are the AWS managed key), SKIP \u2014 already compliant. Determine the KMS key to use: if ${KmsKeyId} is provided, use it; otherwise omit KMSMasterKeyID to use the AWS managed 'aws/s3' key (when omitting KMSMasterKeyID with aws:kms algorithm, S3 uses the aws/s3 managed key). Determine BucketKeyEnabled: if ${BucketKeyEnabled} is provided, use it; otherwise default to true. Call PutBucketEncryption(Bucket=amzn-s3-demo-bucket, ServerSideEncryptionConfiguration={Rules:[{ApplyServerSideEncryptionByDefault:{SSEAlgorithm:'aws:kms', KMSMasterKeyID:${KmsKeyId or omit}}, BucketKeyEnabled:${BucketKeyEnabled or true}}]}). Error handling: (a) NoSuchBucket \u2014 abort, bucket was deleted. (b) AccessDenied \u2014 executing identity lacks s3:PutBucketEncryption. (c) InvalidArgument with 'KMS key does not exist' \u2014 the specified key ID is invalid or in wrong region. (d) Throttling \u2014 exponential backoff, max 3 retries. Do NOT modify any other bucket settings. This change affects only new objects \u2014 existing objects retain their encryption.",
+       "Inverse": "If snapshot.EncryptionConfig was null: call DeleteBucketEncryption(Bucket=amzn-s3-demo-bucket). Otherwise: PutBucketEncryption(Bucket=amzn-s3-demo-bucket, ServerSideEncryptionConfiguration=snapshot.EncryptionConfig). Note: reverting to SSE-S3 is a security regression that loses KMS audit logging and key policy controls for new objects.",
+       "VerifyAfter": "GetBucketEncryption(Bucket=amzn-s3-demo-bucket): assert SSEAlgorithm is 'aws:kms' and KMSMasterKeyID matches the configured key."
+      },
+      {
+       "Phase": "VERIFY",
+       "Description": "Confirm SSE-KMS is configured as default encryption and Bucket Keys are enabled",
+       "Service": "s3",
+       "Action": "GetBucketEncryption",
+       "Logic": "1. GetBucketEncryption(Bucket=amzn-s3-demo-bucket): read current configuration. 2. Assert Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm == 'aws:kms'. 3. If a specific ${KmsKeyId} was provided: assert Rules[0].ApplyServerSideEncryptionByDefault.KMSMasterKeyID matches the expected key ARN. Note: S3 normalizes key IDs to full ARNs. 4. Assert Rules[0].BucketKeyEnabled == expected value (true unless explicitly set to false). 5. Note: this only confirms the default encryption configuration. Existing objects are NOT re-encrypted. To verify existing objects, use S3 Inventory or check individual objects with HeadObject. 6. If verification fails: check for competing automation, SCPs that restrict PutBucketEncryption, or bucket policies that enforce a different encryption."
+      }
+     ],
+     "ExpectedEndState": "The S3 bucket has SSE-KMS configured as the default encryption. All new objects uploaded without explicit encryption headers will be encrypted with the specified KMS key (or the AWS managed aws/s3 key). S3 Bucket Keys are enabled to reduce KMS API costs. Every object decrypt operation generates a CloudTrail event for audit purposes. The KMS key policy controls which principals can access the encrypted data. Existing objects retain their original encryption \u2014 they are NOT re-encrypted by this change.",
+     "RequiredPermissions": [
+      "s3:GetBucketEncryption",
+      "s3:PutBucketEncryption",
+      "kms:DescribeKey"
+     ]
+    },
+    "Examples": {
+     "AwsCli": "# SNAPSHOT\naws s3api get-bucket-encryption --bucket amzn-s3-demo-bucket 2>/dev/null || echo 'No encryption configuration'\n\n# Verify KMS key exists (if using CMK)\naws kms describe-key --key-id ${KmsKeyId} --query 'KeyMetadata.{KeyId:KeyId,Enabled:Enabled,KeyState:KeyState}'\n\n# FIX: Set default encryption to SSE-KMS with Bucket Keys\naws s3api put-bucket-encryption --bucket amzn-s3-demo-bucket \\\n  --server-side-encryption-configuration '{\n    \"Rules\": [{\n      \"ApplyServerSideEncryptionByDefault\": {\n        \"SSEAlgorithm\": \"aws:kms\",\n        \"KMSMasterKeyID\": \"'${KmsKeyId}'\"\n      },\n      \"BucketKeyEnabled\": true\n    }]\n  }'\n\n# If using AWS managed key (omit KMSMasterKeyID):\n# aws s3api put-bucket-encryption --bucket amzn-s3-demo-bucket \\\n#   --server-side-encryption-configuration '{\n#     \"Rules\": [{\"ApplyServerSideEncryptionByDefault\": {\"SSEAlgorithm\": \"aws:kms\"}, \"BucketKeyEnabled\": true}]\n#   }'\n\n# VERIFY\naws s3api get-bucket-encryption --bucket amzn-s3-demo-bucket \\\n  --query 'ServerSideEncryptionConfiguration.Rules[0].{Algorithm:ApplyServerSideEncryptionByDefault.SSEAlgorithm,KeyId:ApplyServerSideEncryptionByDefault.KMSMasterKeyID,BucketKey:BucketKeyEnabled}'\n# Expected: Algorithm=aws:kms, KeyId=<your-key>, BucketKey=true\n\n# ROLLBACK (security regression):\n# aws s3api put-bucket-encryption --bucket amzn-s3-demo-bucket \\\n#   --server-side-encryption-configuration '{\"Rules\": [{\"ApplyServerSideEncryptionByDefault\": {\"SSEAlgorithm\": \"AES256\"}, \"BucketKeyEnabled\": false}]}'",
+     "Python": "import boto3\n\ns3 = boto3.client('s3')\nkms = boto3.client('kms')\n\n# SNAPSHOT\ntry:\n    enc = s3.get_bucket_encryption(Bucket=bucket_name)['ServerSideEncryptionConfiguration']\n    current_rule = enc['Rules'][0]\n    current_algo = current_rule['ApplyServerSideEncryptionByDefault']['SSEAlgorithm']\n    current_key = current_rule['ApplyServerSideEncryptionByDefault'].get('KMSMasterKeyID')\n    current_bucket_key = current_rule.get('BucketKeyEnabled', False)\nexcept s3.exceptions.ClientError as e:\n    if 'ServerSideEncryptionConfigurationNotFoundError' in str(e):\n        current_algo = None\n        current_key = None\n        current_bucket_key = False\n    else:\n        raise\n\n# Verify KMS key if CMK specified\nif kms_key_id and kms_key_id != 'aws/s3':\n    key_meta = kms.describe_key(KeyId=kms_key_id)['KeyMetadata']\n    if not key_meta['Enabled']:\n        raise RuntimeError(f\"KMS key {kms_key_id} is disabled\")\n    target_key_arn = key_meta['Arn']\n\n# Pre-check\nif current_algo == 'aws:kms' and (not kms_key_id or current_key == kms_key_id or (kms_key_id and current_key == target_key_arn)):\n    print('Already compliant \u2014 SSE-KMS configured'); exit(0)\n\n# FIX: Configure SSE-KMS\nenc_default = {'SSEAlgorithm': 'aws:kms'}\nif kms_key_id:\n    enc_default['KMSMasterKeyID'] = kms_key_id\n\ns3.put_bucket_encryption(\n    Bucket=bucket_name,\n    ServerSideEncryptionConfiguration={\n        'Rules': [{\n            'ApplyServerSideEncryptionByDefault': enc_default,\n            'BucketKeyEnabled': bucket_key_enabled if bucket_key_enabled is not None else True\n        }]\n    }\n)\n\n# VERIFY\nverify = s3.get_bucket_encryption(Bucket=bucket_name)['ServerSideEncryptionConfiguration']\nverify_rule = verify['Rules'][0]\nassert verify_rule['ApplyServerSideEncryptionByDefault']['SSEAlgorithm'] == 'aws:kms'\nif kms_key_id and kms_key_id != 'aws/s3':\n    assert verify_rule['ApplyServerSideEncryptionByDefault'].get('KMSMasterKeyID') == target_key_arn\nassert verify_rule.get('BucketKeyEnabled', False) is True\nprint('SUCCESS: SSE-KMS configured with Bucket Keys enabled')",
+     "Terraform": "resource \"aws_s3_bucket_server_side_encryption_configuration\" \"sse_kms\" {\n  bucket = var.bucket_name\n\n  rule {\n    apply_server_side_encryption_by_default {\n      sse_algorithm     = \"aws:kms\"\n      kms_master_key_id = var.kms_key_id  # Use aws_kms_key.example.arn for CMK, or omit for aws/s3\n    }\n    bucket_key_enabled = true\n  }\n}\n\n# If using a customer managed key, ensure it exists:\nresource \"aws_kms_key\" \"s3_encryption\" {\n  description             = \"KMS key for S3 bucket encryption\"\n  deletion_window_in_days = 30\n  enable_key_rotation     = true\n}\n\nresource \"aws_kms_alias\" \"s3_encryption\" {\n  name          = \"alias/${var.bucket_name}-encryption\"\n  target_key_id = aws_kms_key.s3_encryption.key_id\n}\n\n# For existing buckets not managed by Terraform, import first:\n# terraform import aws_s3_bucket_server_side_encryption_configuration.sse_kms my-bucket-name",
+     "Cdk": "import * as s3 from 'aws-cdk-lib/aws-s3';\nimport * as kms from 'aws-cdk-lib/aws-kms';\n\n// Using a customer managed key:\nconst encryptionKey = new kms.Key(this, 'BucketEncryptionKey', {\n  enableKeyRotation: true,\n  description: 'KMS key for S3 bucket encryption',\n});\n\nconst bucket = new s3.Bucket(this, 'EncryptedBucket', {\n  bucketName: bucketName,\n  encryption: s3.BucketEncryption.KMS,\n  encryptionKey: encryptionKey,  // Omit for AWS managed key\n  bucketKeyEnabled: true,\n});\n\n// For existing buckets not managed by CDK, use a custom resource:\n// Lambda calls PutBucketEncryption with SSEAlgorithm=aws:kms",
+     "CloudFormation": "Resources:\n  EncryptedBucket:\n    Type: AWS::S3::Bucket\n    Properties:\n      BucketName: !Ref BucketName\n      BucketEncryption:\n        ServerSideEncryptionConfiguration:\n          - ServerSideEncryptionByDefault:\n              SSEAlgorithm: 'aws:kms'\n              KMSMasterKeyID: !Ref KmsKeyArn  # Omit for AWS managed key\n            BucketKeyEnabled: true\n\n  # KMS key (if using CMK):\n  EncryptionKey:\n    Type: AWS::KMS::Key\n    Properties:\n      Description: KMS key for S3 bucket encryption\n      EnableKeyRotation: true\n      KeyPolicy:\n        Version: '2012-10-17'\n        Statement:\n          - Sid: EnableRootAccountAccess\n            Effect: Allow\n            Principal:\n              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'\n            Action: 'kms:*'\n            Resource: '*'\n\nParameters:\n  BucketName:\n    Type: String\n  KmsKeyArn:\n    Type: String\n    Default: ''\n    Description: KMS key ARN (leave empty for AWS managed key)"
+    },
+    "Metadata": {
+     "ResourceType": "AWS::S3::Bucket",
+     "ExposureType": "s3",
+     "TraitTitles": [
+      "The S3 bucket is not encrypted at-rest with AWS KMS keys"
+     ],
+     "Reversibility": "Fully reversible",
+     "FixEffect": "Immediate",
+     "RiskLevel": "Medium",
+     "AutomationLevel": "full",
+     "HumanReviewRequired": false,
+     "GeneratedAt": "2026-05-29T00:00:00.000Z",
+     "VerificationStatus": "PENDING"
+    }
+   },
+   "UpdatedAt": "2026-09-23T00:07:40.754Z"
+  }
+ ]
+}

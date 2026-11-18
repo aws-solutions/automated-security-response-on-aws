@@ -1282,6 +1282,20 @@ exports[`Test if the Stack has all the resources. 1`] = `
             {
               "Action": "sts:AssumeRole",
               "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111-ASR-EventProcessor-*",
+                      ],
+                    ],
+                  },
+                },
                 "StringEquals": {
                   "aws:PrincipalOrgID": {
                     "Fn::GetAtt": [
@@ -1289,7 +1303,39 @@ exports[`Test if the Stack has all the resources. 1`] = `
                       "OrganizationId",
                     ],
                   },
-                  "sts:ExternalId": "ASRCrossAccountLogWriter",
+                  "sts:SourceIdentity": "\${aws:PrincipalAccount}",
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*",
+              },
+            },
+            {
+              "Action": "sts:SetSourceIdentity",
+              "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/SO0111-ASR-EventProcessor-*",
+                      ],
+                    ],
+                  },
+                },
+                "StringEquals": {
+                  "aws:PrincipalOrgID": {
+                    "Fn::GetAtt": [
+                      "ActionLogOrgIdLookup5D912F99",
+                      "OrganizationId",
+                    ],
+                  },
+                  "sts:SourceIdentity": "\${aws:PrincipalAccount}",
                 },
               },
               "Effect": "Allow",
@@ -1300,7 +1346,7 @@ exports[`Test if the Stack has all the resources. 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "Description": "Role for cross-account access to write to CloudWatch Logs with External ID security",
+        "Description": "Lets member account EventProcessor functions write their own entries to the ASR Action Log",
         "RoleName": "CrossAccountLogWriterRole",
       },
       "Type": "AWS::IAM::Role",
@@ -1313,42 +1359,18 @@ exports[`Test if the Stack has all the resources. 1`] = `
               "Action": [
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
-                "logs:DescribeLogStreams",
-              ],
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CloudTrailEventsLogGroup94AE6D1A",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CloudTrailEventsLogGroup94AE6D1A",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
               ],
               "Effect": "Allow",
               "Resource": {
-                "Fn::GetAtt": [
-                  "CloudTrailEventsLogGroup94AE6D1A",
-                  "Arn",
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":logs:eu-west-1:111111111111:log-group:some-loggroup-name:log-stream:\${aws:SourceIdentity}-*",
+                  ],
                 ],
               },
             },
@@ -7958,20 +7980,82 @@ def sort_filter_rules(json_obj):
                 {
                   "ProductArn": [
                     {
-                      "prefix": {
-                        "Fn::Join": [
-                          "",
-                          [
-                            "arn:",
-                            {
-                              "Ref": "AWS::Partition",
-                            },
-                            ":securityhub",
-                          ],
+                      "anything-but": {
+                        "suffix": [
+                          "::product/aws/access-analyzer",
+                          "::product/aws/inspector",
+                          "::product/aws/guardduty",
+                          "::product/aws/macie",
                         ],
                       },
                     },
                   ],
+                  "SchemaVersion": [
+                    "2018-10-08",
+                  ],
+                },
+                {
+                  "ProductArn": [
+                    {
+                      "suffix": "::product/aws/access-analyzer",
+                    },
+                  ],
+                  "Resources": {
+                    "Type": [
+                      "AwsS3Bucket",
+                      "AWS::S3::Bucket",
+                      "AwsKmsKey",
+                      "AWS::KMS::Key",
+                    ],
+                  },
+                  "SchemaVersion": [
+                    "2018-10-08",
+                  ],
+                },
+                {
+                  "ProductArn": [
+                    {
+                      "suffix": "::product/aws/inspector",
+                    },
+                  ],
+                  "Resources": {
+                    "Type": [
+                      "AwsEc2Instance",
+                      "AWS::EC2::Instance",
+                    ],
+                  },
+                  "SchemaVersion": [
+                    "2018-10-08",
+                  ],
+                },
+                {
+                  "ProductArn": [
+                    {
+                      "suffix": "::product/aws/guardduty",
+                    },
+                  ],
+                  "Resources": {
+                    "Type": [
+                      "AwsIamAccessKey",
+                      "AWS::IAM::AccessKey",
+                    ],
+                  },
+                  "SchemaVersion": [
+                    "2018-10-08",
+                  ],
+                },
+                {
+                  "ProductArn": [
+                    {
+                      "suffix": "::product/aws/macie",
+                    },
+                  ],
+                  "Resources": {
+                    "Type": [
+                      "AwsS3Object",
+                      "AWS::S3::Object",
+                    ],
+                  },
                   "SchemaVersion": [
                     "2018-10-08",
                   ],
@@ -7983,6 +8067,13 @@ def sort_filter_rules(json_obj):
                   "class_uid": [
                     2003,
                   ],
+                  "compliance": {
+                    "control": [
+                      {
+                        "exists": true,
+                      },
+                    ],
+                  },
                   "metadata": {
                     "product": {
                       "uid": [
@@ -8018,6 +8109,12 @@ def sort_filter_rules(json_obj):
                       ],
                     },
                   },
+                  "resources": {
+                    "type": [
+                      "AwsEc2Instance",
+                      "AWS::EC2::Instance",
+                    ],
+                  },
                 },
                 {
                   "class_name": [
@@ -8030,16 +8127,23 @@ def sort_filter_rules(json_obj):
                     "product": {
                       "name": [
                         "GuardDuty",
-                        "Macie",
                       ],
                     },
+                  },
+                  "resources": {
+                    "type": [
+                      "AwsIamAccessKey",
+                      "AWS::IAM::AccessKey",
+                    ],
                   },
                 },
                 {
                   "class_name": [
+                    "Detection Finding",
                     "Data Security Finding",
                   ],
                   "class_uid": [
+                    2004,
                     2006,
                   ],
                   "metadata": {
@@ -8048,6 +8152,12 @@ def sort_filter_rules(json_obj):
                         "Macie",
                       ],
                     },
+                  },
+                  "resources": {
+                    "type": [
+                      "AwsS3Object",
+                      "AWS::S3::Object",
+                    ],
                   },
                 },
               ],
@@ -10577,6 +10687,9 @@ def sort_filter_rules(json_obj):
           },
         },
         "Timestamp": "1735689600000",
+        "VersionParameterName": {
+          "Ref": "SHARRversionAC0E4F96",
+        },
       },
       "Type": "Custom::DeploymentMetrics",
       "UpdateReplacePolicy": "Delete",
@@ -14555,6 +14668,9 @@ def sort_filter_rules(json_obj):
               "Ref": "orchestratorStateMachine77C3F8FB",
             },
             "POWERTOOLS_LOG_LEVEL": "INFO",
+            "PRE_PROCESSOR_QUEUE_URL": {
+              "Ref": "PreProcessorConstructPreProcessorQueue8068A6BD",
+            },
             "REMEDIATION_CONFIG_TABLE_NAME": {
               "Ref": "RemediationConfigTable24F19C3B",
             },
@@ -15086,6 +15202,9 @@ def sort_filter_rules(json_obj):
           "ReportBatchItemFailures",
         ],
         "MaximumBatchingWindowInSeconds": 5,
+        "ScalingConfig": {
+          "MaximumConcurrency": 20,
+        },
       },
       "Type": "AWS::Lambda::EventSourceMapping",
     },
@@ -15106,7 +15225,7 @@ def sort_filter_rules(json_obj):
               "Arn",
             ],
           },
-          "maxReceiveCount": 10,
+          "maxReceiveCount": 15,
         },
         "VisibilityTimeout": 900,
       },
@@ -16436,8 +16555,8 @@ def sort_filter_rules(json_obj):
         "cfn_nag": {
           "rules_to_suppress": [
             {
-              "id": "F5",
-              "reason": "A permissions boundary grants nothing: it caps what an identity policy can grant. Action: * here is a ceiling, not a privilege, and the Deny statements are what constrain the role.",
+              "id": "W17",
+              "reason": "A permissions boundary grants nothing: it caps what an identity policy can grant. Allow+NotAction here is a ceiling, not a privilege, and the Deny statements are what constrain the role.",
             },
             {
               "id": "W12",
@@ -16464,10 +16583,25 @@ def sort_filter_rules(json_obj):
         "PolicyDocument": {
           "Statement": [
             {
-              "Action": "*",
               "Effect": "Allow",
+              "NotAction": [
+                "iam:*",
+                "sts:*",
+                "organizations:*",
+              ],
               "Resource": "*",
               "Sid": "AllowServiceActions",
+            },
+            {
+              "Action": "iam:PassRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "ssm.amazonaws.com",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "AllowPassRoleToSsm",
             },
             {
               "Action": [
@@ -16813,15 +16947,15 @@ def sort_filter_rules(json_obj):
               {
                 "Ref": "AWS::Region",
               },
-              "","metrics":[["ASR","AssumeRoleFailure",{"label":"Runbook Assume Role Failures","period":86400,"stat":"Sum"}]],"annotations":{"horizontal":[{"label":"Runbook Assume Role Failures >= 1 for 1 datapoints within 1440 minutes","value":1,"yAxis":"left"}]},"yAxis":{"left":{"showUnits":false}}}},{"type":"text","width":24,"height":3,"x":0,"y":39,"properties":{"markdown":"\\n## Action Log\\nThis widget displays AWS resource changes that ASR has conducted in member accounts.\\n\\nThe actions shown are based on CloudTrail management events in the member accounts. Actions are only reported if the member stack is deployed with \\"Create Action Log CloudTrail\\" set to \\"Yes\\".\\n"}},{"type":"log","width":24,"height":8,"x":0,"y":42,"properties":{"view":"table","title":"CloudTrail Management Actions by ASR","region":"",
+              "","metrics":[["ASR","AssumeRoleFailure",{"label":"Runbook Assume Role Failures","period":86400,"stat":"Sum"}]],"annotations":{"horizontal":[{"label":"Runbook Assume Role Failures >= 1 for 1 datapoints within 1440 minutes","value":1,"yAxis":"left"}]},"yAxis":{"left":{"showUnits":false}}}},{"type":"text","width":24,"height":4,"x":0,"y":39,"properties":{"markdown":"\\n## Action Log\\nThis widget displays AWS resource changes that ASR has conducted in member accounts.\\n\\nThe actions shown are based on CloudTrail management events in the member accounts. Actions are only reported if the member stack is deployed with \\"Create Action Log CloudTrail\\" set to \\"Yes\\".\\n\\nThe log stream name starts with the account that wrote the entry, which ASR verifies. The recipientAccountId field is reported by that account and is not verified.\\n"}},{"type":"log","width":24,"height":8,"x":0,"y":43,"properties":{"view":"table","title":"CloudTrail Management Actions by ASR","region":"",
               {
                 "Ref": "AWS::Region",
               },
-              "","query":"SOURCE 'some-loggroup-name' | fields @timestamp, eventSource, eventName, awsRegion, recipientAccountId, resources.0.ARN, @message\\n| sort @timestamp desc\\n| limit 20"}},{"type":"text","width":24,"height":2,"x":0,"y":50,"properties":{"markdown":"\\n## Rollback\\nPre-remediation snapshot capture and one-click rollback execution activity. Populated only when rollback is enabled (EnableRollback=yes). The Snapshot Capture Outcomes widget sums the per-ControlId series, so it also requires EnableEnhancedCloudWatchMetrics=yes; without it only the aggregate SnapshotCaptureFailure alarm is populated.\\n"}},{"type":"metric","width":12,"height":6,"x":0,"y":52,"properties":{"view":"timeSeries","title":"Snapshot Capture Outcomes","region":"",
+              "","query":"SOURCE 'some-loggroup-name' | fields @timestamp, @logStream, eventSource, eventName, awsRegion, recipientAccountId, resources.0.ARN, @message\\n| sort @timestamp desc\\n| limit 20"}},{"type":"text","width":24,"height":2,"x":0,"y":51,"properties":{"markdown":"\\n## Rollback\\nPre-remediation snapshot capture and one-click rollback execution activity. Populated only when rollback is enabled (EnableRollback=yes). The Snapshot Capture Outcomes widget sums the per-ControlId series, so it also requires EnableEnhancedCloudWatchMetrics=yes; without it only the aggregate SnapshotCaptureFailure alarm is populated.\\n"}},{"type":"metric","width":12,"height":6,"x":0,"y":53,"properties":{"view":"timeSeries","title":"Snapshot Capture Outcomes","region":"",
               {
                 "Ref": "AWS::Region",
               },
-              "","metrics":[[{"label":"Captured","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureSuccess\\"', 'Sum', 300))"}],[{"label":"Failed","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureFailure\\"', 'Sum', 300))"}],[{"label":"Skipped (not eligible)","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureSkipped\\"', 'Sum', 300))"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":52,"properties":{"view":"timeSeries","title":"Rollback Executions by Outcome","region":"",
+              "","metrics":[[{"label":"Captured","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureSuccess\\"', 'Sum', 300))"}],[{"label":"Failed","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureFailure\\"', 'Sum', 300))"}],[{"label":"Skipped (not eligible)","expression":"SUM(SEARCH('{ASR,ControlId} MetricName=\\"SnapshotCaptureSkipped\\"', 'Sum', 300))"}]],"yAxis":{}}},{"type":"metric","width":12,"height":6,"x":12,"y":53,"properties":{"view":"timeSeries","title":"Rollback Executions by Outcome","region":"",
               {
                 "Ref": "AWS::Region",
               },

@@ -1,7 +1,7 @@
 {
   "name": "webui",
   "private": true,
-  "version": "4.1.0",
+  "version": "4.1.2",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -52,5 +52,8 @@
     "workerDirectory": [
       "public"
     ]
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }

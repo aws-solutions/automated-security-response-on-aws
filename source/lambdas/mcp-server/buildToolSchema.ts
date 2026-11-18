@@ -242,7 +242,7 @@ export interface AdvertisedTool {
  * is optional rather than required. Without it, defaulted fields would be advertised as
  * mandatory and an agent would be forced to invent values the Lambda would have supplied.
  */
-function toInputSchema(schema: z.ZodSchema): Record<string, unknown> {
+export function toInputSchema(schema: z.ZodSchema): Record<string, unknown> {
   const converted = toAgentCoreSchema(
     z.toJSONSchema(schema, { io: 'input', target: 'draft-7' }) as Record<string, unknown>,
   );
